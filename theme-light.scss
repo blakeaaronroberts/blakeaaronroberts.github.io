@@ -1,0 +1,48 @@
+/*-- scss:defaults --*/
+// Light: warm paper, near-black ink, deep blueprint-blue accent.
+
+// Fonts are loaded by _includes/fonts.html
+$font-family-sans-serif: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+$font-family-monospace: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+// Palette
+$body-bg: #f6f4ee;
+$body-color: #1a1917;
+$text-muted: #5c5950;
+$primary: #1f4e79;              // deep blueprint blue, ~7.9:1 on paper (dark mode uses orange)
+$border-color: #cfcac0;
+$code-bg: #ece8df;
+$code-color: #1a1917;
+$code-block-bg: #ece8df;
+
+$link-color: $primary;
+$link-hover-color: darken($primary, 10%);
+$headings-color: $body-color;
+$navbar-bg: $body-bg;
+$navbar-fg: $body-color;
+$navbar-hl: $primary;
+$footer-bg: $body-bg;
+$footer-fg: $text-muted;
+$input-bg: $body-bg;
+$input-color: $body-color;
+$input-border-color: $border-color;
+
+// Shapes: square everywhere, no shadows
+$enable-rounded: false;
+$enable-shadows: false;
+$border-radius: 0;
+$border-radius-sm: 0;
+$border-radius-lg: 0;
+$btn-border-radius: 0;
+$card-border-radius: 0;
+$card-border-color: $border-color;
+$card-bg: $body-bg;
+
+// Type scale
+$font-size-base: 1rem;
+$line-height-base: 1.65;
+$headings-font-weight: 600;
+$h1-font-size: 1.75rem;
+$h2-font-size: 1.35rem;
+$h3-font-size: 1.1rem;
+$h4-font-size: 1rem;

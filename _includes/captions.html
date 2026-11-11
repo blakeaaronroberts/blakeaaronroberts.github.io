@@ -1,0 +1,14 @@
+<!-- Wrap the "FIG. 1 —" label of each caption in a span so it can be styled in mono (Quarto emits it as plain text). -->
+<script>
+  document.querySelectorAll(".quarto-float-caption").forEach(function (cap) {
+    var t = cap.firstChild;
+    if (!t || t.nodeType !== 3) return;
+    var i = t.textContent.indexOf("—");
+    if (i < 0) return;
+    var label = document.createElement("span");
+    label.className = "caption-label";
+    label.textContent = t.textContent.slice(0, i).trim() + " —";
+    t.textContent = t.textContent.slice(i + 1).replace(/^\s+/, "");
+    cap.insertBefore(label, t);
+  });
+</script>

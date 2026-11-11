@@ -1,0 +1,6 @@
+/.quarto/
+/_site/
+**/*.quarto_ipynb
+
+# Private source documents (contain phone numbers / reference contacts) — never commit
+*_CV_*.pdf

@@ -1,0 +1,75 @@
+---
+title: "K-Maps (template)"
+description: "Placeholder post showing the features available to explorations. Replace or delete."
+abstract: "One-paragraph summary of the post. Appears under the title as a Summary block. Replace or delete."
+date: 2026-11-11
+categories: [template]
+image: kmap.svg
+resources: [circuit.json]
+bibliography: references.bib
+include-in-header:
+  - ../../_includes/wavedrom.html
+  - ../../_includes/digitaljs.html
+---
+
+<!-- TEMPLATE: Copy this folder to start a new exploration. Delete whatever you don't need. -->
+
+## LaTeX math
+
+Inline $F = \bar B\bar C + \bar B\bar D$, or a numbered display equation you can reference as @eq-minterms:
+
+$$
+F(A,B,C,D) = \sum m(0,1,2,5,8,9,10)
+$$ {#eq-minterms}
+
+::: {.column-margin}
+A margin note: definitions, asides, or a pointer to further reading. Text that
+would clutter the main column.
+:::
+
+## Figure
+
+Reference it as @fig-kmap. The caption label is set site-wide in `_quarto.yml` (`crossref`).
+
+![Figure caption.](kmap.svg){#fig-kmap fig-alt="Describe the figure."}
+
+### Table
+
+Tables get a caption and number too; see @tbl-groups.
+
+| Group | Minterms | Term |
+|---|---|---|
+| Rows 00 and 10 | 0, 1, 8, 9 | $\bar B\bar C$ |
+| Corners | 0, 2, 8, 10 | $\bar B\bar D$ |
+
+: Example table caption. {#tbl-groups}
+
+## WaveDrom timing diagram
+
+```{=html}
+<div class="wavedrom-wrap">
+<script type="WaveDrom">
+{ signal: [
+  { name: "clk", wave: "p......." },
+  { name: "d",   wave: "0.1..0.." },
+  { name: "q",   wave: "0..1..0." }
+]}
+</script>
+</div>
+```
+
+## DigitalJS circuit
+
+Circuit JSON lives next to this file (`circuit.json`). Click the inputs to toggle them.
+
+::: {.digitaljs-paper data-circuit="circuit.json"}
+:::
+
+## Citations
+
+Cite with `[@karnaugh1953]` from `references.bib` [@karnaugh1953]. The list renders below.
+
+## References {.unnumbered}
+
+::: {#refs}
+:::

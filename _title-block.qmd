@@ -1,0 +1,26 @@
+::: {.title-block}
+
+::: {.tb-id}
+[Blake Roberts]{.tb-name}
+
+[Instructor, Electrical & Computer Engineering]{.tb-role}
+
+[Oregon State University · School of EECS]{.tb-affil}
+:::
+
+::: {.tb-photo}
+![](images/headshot.jpg){fig-alt="Blake Roberts"}
+:::
+
+::: {.tb-focus}
+[Areas of focus]{.tb-key}
+Analog & Mixed-Signal Circuits · System-Level Design · Engineering Education
+:::
+
+::: {.tb-rev}
+[REV · {{< meta date-modified >}}]{.tb-stamp}
+
+[[GitHub](https://github.com/blakeaaronroberts) [LinkedIn](https://www.linkedin.com/in/blakeaaronroberts/) [Email](mailto:blake.roberts@oregonstate.edu)]{.tb-links}
+:::
+
+:::

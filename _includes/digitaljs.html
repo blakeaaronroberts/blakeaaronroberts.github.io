@@ -1,0 +1,17 @@
+<!-- DigitalJS (bundles its own jQuery as window.$). ~2.4 MB, so include only on pages that need it. -->
+<script defer src="https://unpkg.com/digitaljs@0.14.2/dist/main.js"></script>
+<script>
+  // Usage: <div class="digitaljs-paper" data-circuit="circuit.json"></div>
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".digitaljs-paper[data-circuit]").forEach(async function (el) {
+      try {
+        const json = await (await fetch(el.dataset.circuit)).json();
+        const circuit = new digitaljs.Circuit(json);
+        circuit.displayOn($(el));
+        circuit.start();
+      } catch (err) {
+        el.textContent = "Could not load circuit: " + err;
+      }
+    });
+  });
+</script>

@@ -1,0 +1,25 @@
+# Dev profile: the full site, merged on top of _quarto.yml.
+#   quarto preview --profile dev
+# Never deployed — the GitHub Action builds the default (landing-only) profile.
+# To launch: move this file's settings into _quarto.yml, replace index.qmd with home.qmd, delete this file.
+project:
+  render:
+    - "*.qmd"
+    - "explorations/*/*.qmd"
+
+website:
+  search: true
+  navbar:
+    left:
+      - href: home.qmd
+        text: Home
+      - href: explorations.qmd
+        text: Explorations
+      - href: projects.qmd
+        text: Projects
+      - href: about.qmd
+        text: About / CV
+    right:
+      - icon: github
+        href: https://github.com/blakeaaronroberts
+        aria-label: GitHub

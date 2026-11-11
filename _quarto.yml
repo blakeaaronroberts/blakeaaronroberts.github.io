@@ -1,21 +1,51 @@
+# Default (public) build: landing page only. This is what the GitHub Action deploys.
+# Full site with drafts:  quarto preview --profile dev   (adds _quarto-dev.yml)
 project:
   type: website
+  output-dir: _site
+  render:
+    - index.qmd
 
 website:
-  title: "y"
-  navbar:
-    left:
-      - href: index.qmd
-        text: Home
-      - about.qmd
+  title: "Blake Roberts"
+  description: "Analog & mixed-signal circuits, system-level design, and engineering education: course notes, explorations, and projects."
+  site-url: https://blakeaaronroberts.github.io
+  repo-url: https://github.com/blakeaaronroberts/blakeaaronroberts.github.io
+  repo-actions: [issue]          # "Report an issue" link — handy for students spotting typos
+  open-graph: true
+  search: false
+  navbar: true                  # bare navbar (dark-mode toggle only); links are added by the dev profile
+  page-footer:
+    left: |
+      © 2026 Blake Roberts · Content licensed
+      [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/){rel="license"}
+    right: |
+      Built with [Quarto](https://quarto.org)
+
+# Site-wide numbering style: "FIG. 2 — caption", "TABLE 1 — caption", "Eq. 1"
+crossref:
+  fig-title: "FIG."
+  tbl-title: "TABLE"
+  eq-prefix: "Eq."
+  title-delim: "—"         # _includes/captions.html wraps "FIG. 1 —" in a span for styling
+  fig-prefix: "Fig."
+  tbl-prefix: "Table"
+
+date-format: "YYYY-MM-DD"
 
 format:
   html:
     theme:
-      - cosmo
-      - brand
-    css: styles.css
+      light: [default, theme-light.scss, custom.scss]
+      dark: [default, theme-dark.scss, custom.scss]
+    respect-user-color-scheme: true   # first visit follows the OS setting; toggle overrides
+    grid:                             # ~70ch measure at 16px Plex, with room for margin notes
+      body-width: 700px
+      margin-width: 260px
+      sidebar-width: 250px
+    html-math-method: mathjax
     toc: true
-
-
-
+    code-copy: true
+    link-external-newwindow: true
+    include-in-header: _includes/fonts.html
+    include-after-body: _includes/captions.html

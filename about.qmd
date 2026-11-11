@@ -1,5 +1,95 @@
 ---
-title: "About"
+title: "About / CV"
 ---
 
-About this site
+## Teaching
+
+::: {.cv-entry}
+[Instructor]{.cv-role} [2025 – present]{.cv-date}
+
+[Oregon State University]{.cv-org}
+
+- Support students across the two-term Junior Design sequence: circuit design, embedded systems, PCB design and layout, system integration, and technical documentation.
+- Mentor teams through full project cycles, from project definition and block diagrams through schematic capture, validation, PCB design, and verification.
+- Coach teams on project and team management to prepare them for senior capstone and industry work.
+:::
+
+::: {.cv-entry}
+[Graduate Teaching Assistant · ECE 342 Junior Design II]{.cv-role} [Spring 2025]{.cv-date}
+
+[Oregon State University]{.cv-org}
+
+- Mentored students through the full engineering design process, from project selection and prototyping to system-level documentation and verification.
+- Collaborated with faculty to refine rubrics and assessment strategies.
+:::
+
+::: {.cv-entry}
+[Graduate Teaching Assistant · ENGR 202 Electrical Fundamentals II]{.cv-role} [Spring 2025]{.cv-date}
+
+[Oregon State University]{.cv-org}
+
+- Led office hours on AC circuit analysis; graded with detailed, consistent feedback.
+:::
+
+::: {.cv-entry}
+[Graduate Teaching Assistant · ECE 341 Junior Design I]{.cv-role} [Fall 2024 – Winter 2025]{.cv-date}
+
+[Oregon State University]{.cv-org}
+
+- Ran lab sessions progressing from soldering fundamentals to functional sensor-based systems, with guidance on microcontroller integration and bench debugging.
+- Contributed to curriculum development for early-stage design activities.
+:::
+
+## Industry
+
+::: {.cv-entry}
+[Staff Engineer]{.cv-role} [2025 – 2026]{.cv-date}
+
+[InvenSpan]{.cv-org}
+
+- Designed a signal emulation system replicating a dielectric spectroscopy probe preamplifier, used to characterize and reverse-engineer a legacy biomass monitoring instrument's transfer function.
+- Designed the analog front end for a client's next-generation biomass monitor: signal conditioning for permittivity and conductivity measurement of cell culture media.
+:::
+
+## Education
+
+::: {.cv-entry}
+[M.S., Electrical and Computer Engineering]{.cv-role} [2023 – 2025]{.cv-date}
+
+[Oregon State University]{.cv-org}
+
+- Research: radio-frequency circuits and systems; hardware acceleration for machine learning. Advisor: Dr. Arun Natarajan.
+:::
+
+::: {.cv-entry}
+[B.S., Electrical and Computer Engineering]{.cv-role} [2021 – 2024]{.cv-date}
+
+[Oregon State University]{.cv-org}
+
+- Minor in Computer Science. Magna Cum Laude.
+:::
+
+::: {.cv-entry}
+[Associate-level coursework]{.cv-role} [2019 – 2021]{.cv-date}
+
+[Chemeketa Community College]{.cv-org}
+:::
+
+## Skills
+
+| | |
+|---|---|
+| Engineering | Analog IC design, analog filter design, RF system design, amplifier design, VLSI design, PCB design, IC layout, signal processing, circuit simulation |
+| Tools | Cadence Virtuoso, Keysight ADS, SPICE, KiCad, MATLAB, Simulink |
+| Languages | Python, C/C++, Bash |
+| Instructional | Lab instruction, curriculum development, assessment, technical writing, mentorship |
+
+## Affiliations
+
+::: {.cv-entry}
+[Member, IEEE]{.cv-role} [2023 – present]{.cv-date}
+:::
+
+::: {.cv-entry}
+[Secretary, Tau Beta Pi]{.cv-role} [2023 – 2024]{.cv-date}
+:::

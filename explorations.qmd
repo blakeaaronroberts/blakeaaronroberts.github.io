@@ -1,0 +1,16 @@
+---
+title: "Explorations"
+subtitle: "Digital logic, one idea at a time: equations, timing diagrams, and live circuits."
+listing:
+  contents: explorations
+  type: grid
+  sort: "date desc"
+  categories: true
+  sort-ui: true
+  filter-ui: true
+  image-height: 190px
+  fields: [image, date, title, description, categories, reading-time]
+  feed: true
+page-layout: full
+toc: false
+---

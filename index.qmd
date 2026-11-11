@@ -1,7 +1,14 @@
 ---
-title: "y"
+# Temporary public landing page. The full site builds only with --profile dev (see _quarto-dev.yml).
+pagetitle: "Blake Roberts"
+toc: false
+include-in-header:
+  # Landing page shows only the dark-mode toggle, even in the dev preview (where the dev navbar would add links).
+  - text: "<style>.navbar-brand, .navbar-nav, .navbar-toggler, #quarto-search { display: none !important; }</style>"
+date-modified: last-modified
+date-format: "YYYY-MM"       # feeds the REV stamp
 ---
 
-This is a Quarto website.
+{{< include _title-block.qmd >}}
 
-To learn more about Quarto websites visit <https://quarto.org/docs/websites>.
+[Site under construction]{.label-mono}

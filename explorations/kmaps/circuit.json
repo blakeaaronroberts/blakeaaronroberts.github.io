@@ -1,0 +1,14 @@
+{
+  "devices": {
+    "A":   { "type": "Button", "label": "A" },
+    "B":   { "type": "Button", "label": "B" },
+    "and": { "type": "And" },
+    "Y":   { "type": "Lamp", "label": "Y" }
+  },
+  "connectors": [
+    { "from": { "id": "A",   "port": "out" }, "to": { "id": "and", "port": "in1" } },
+    { "from": { "id": "B",   "port": "out" }, "to": { "id": "and", "port": "in2" } },
+    { "from": { "id": "and", "port": "out" }, "to": { "id": "Y",   "port": "in" } }
+  ],
+  "subcircuits": {}
+}
