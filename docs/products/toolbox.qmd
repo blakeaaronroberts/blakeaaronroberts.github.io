@@ -1,0 +1,37 @@
+---
+title: "Toolbox"
+module: products
+module-version: n/a
+doc-type: explanation
+updated: 2026-11-12
+draft: true
+---
+
+The Toolbox is the suite's set of circuit elements and the tools that place,
+wire, export and animate them. A concept is defined once and rendered
+everywhere (VISION.md section 1), and every circuit the suite shows comes
+from the Toolbox: figures, animations, slides and, later, web tools.
+
+## Purpose
+
+- One approved symbol per circuit element, drawn to one reference style.
+- Circuits as short scripts: place elements, wire their pins, export.
+- The same look in every medium, from one style file with swappable themes.
+
+## Which modules it uses
+
+The core model (VISION.md section 4): the circuit schema and the symbol pack,
+both Phase 0 work. Browser tools will draw with the symbol pack, so web
+output matches the LaTeX and animation output exactly.
+
+## Status
+
+The element library and its Python tools exist; their documentation lives in
+the repository that holds them. The public, browser-based Toolbox, with one
+standalone web tool per job, doesn't exist yet. This page will link to it
+when it does.
+
+## Where to start
+
+Read VISION.md sections 1 and 4. When the first web tool is published, it
+will be linked here.

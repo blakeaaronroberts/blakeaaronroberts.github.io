@@ -1,0 +1,26 @@
+---
+title: "Studio"
+module: products
+module-version: n/a
+doc-type: explanation
+updated: 2026-11-12
+draft: true
+---
+
+Studio is the planned authoring workflow (VISION.md section 4): how an
+author goes from one concept's source to its figure, animation, slides and
+interactive page.
+
+## Purpose
+
+To make "define once, render everywhere" a routine an author can follow,
+without re-drawing the same concept in each medium.
+
+## Which modules it uses
+
+The core model (circuit schema, symbol pack, simulation) and the renderers.
+
+## Status
+
+Not started. It isn't scheduled in VISION.md section 6's immediate
+targets. This page will describe it when work begins.

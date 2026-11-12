@@ -1,0 +1,38 @@
+---
+title: "Explorations"
+module: products
+module-version: n/a
+doc-type: explanation
+updated: 2026-11-12
+draft: true
+---
+
+Explorations are interactive essays on the site: one idea at a time, with
+equations, timing diagrams and live circuits the reader can manipulate
+(VISION.md sections 1 and 4).
+
+## Purpose
+
+Active learning (VISION.md section 2): the reader predicts, manipulates and
+checks, instead of reading a static picture of a dynamic thing.
+
+## Which modules it uses
+
+- Today: the site's Quarto setup (MathJax 4 with STIX Two maths, IEEE figure
+  and equation numbering), plus WaveDrom timing diagrams and DigitalJS
+  circuits as an interim (VISION.md section 9).
+- Planned: the circuit schema, the symbol pack and the suite's own web tools,
+  so every figure on a page comes from the same source.
+
+## Status
+
+`explorations/kmaps/` is a feature template, not a finished exploration. The
+first flagship exploration, the 4-bit ripple-carry adder as a figure, an
+animation and a browser interactive from one schema file, is the first
+target of Phase 1 (VISION.md section 6).
+
+## Where to start
+
+To write an exploration, copy `explorations/kmaps/` and follow the comments
+in its `index.qmd`. Every exploration page is published by URL only and
+marked `noindex` until the site launches.

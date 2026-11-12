@@ -1,0 +1,25 @@
+---
+title: "Practice"
+module: products
+module-version: n/a
+doc-type: explanation
+updated: 2026-11-12
+draft: true
+---
+
+Practice is the planned set of practice problems and autograded checks
+generated from each concept's source (VISION.md section 1).
+
+## Purpose
+
+Students check their understanding against problems that agree with the
+figures and animations, because all of them come from the same source.
+
+## Constraints
+
+Practice is designed so that student records never enter a repository
+(VISION.md section 3). It is not a learning management system (section 1).
+
+## Status
+
+Not started: Phase 2, Interaction (VISION.md section 6).

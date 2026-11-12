@@ -22,6 +22,11 @@ versioned yet; suite modules documented here will carry their own versions.
   schema are built by the Steward with Blake; H-S001 now excludes
   `docs/templates/` from rendering.
 
+- `docs/products/`: overviews of the five products (Toolbox, Studio,
+  Explorations, Practice, Labs), drafts drawn from VISION.md.
+- `docs/drafts/README.md`: draft README for this repo, waiting for Blake's
+  approval before it moves to the root.
+
 ### Changed
 - `docs/SCRIBE_HANDOFF.md`: corrected for the Steward's queue
   (`docs/STEWARD_HANDOFF.md`): builders record Status there, and Scribe
@@ -29,3 +34,5 @@ versioned yet; suite modules documented here will carry their own versions.
   project's code name).
 - `docs/SCRIBE_AUDIT.md`: the pre-launch arrangement and the third-party
   embeds are now settled in VISION.md.
+- `docs/SCRIBE_AUDIT.md`, `docs/SCRIBE_HANDOFF.md`, `docs/SCRIBE_TODO.md`:
+  batch S1 is done, including the deletion of the stale `gh-pages` branch.

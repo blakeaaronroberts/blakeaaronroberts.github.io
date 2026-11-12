@@ -42,7 +42,7 @@ for this repo are at the end. Work for builder agents is in
    colour; whether its lamps and buttons also show a value is unchecked
    (SCR-012, handoff H-S002).
 4. **Stale branch.** A `gh-pages` branch exists although the workflow deploys
-   with `actions/deploy-pages`. Not touched by Scribe; a builder checks it (SCR-014, handoff H-S003).
+   with `actions/deploy-pages`. *Resolved 2026-11-12:* a builder confirmed it was stale and deleted it (batch S1; restore SHA recorded in `STEWARD_HANDOFF.md`).
 5. **Charter drift, reported, not fixed:**
    - `CLAUDE.md` records a pre-launch arrangement (all pages built, unlinked,
      `noindex`) that it describes as departing from VISION.md §6's
@@ -85,5 +85,5 @@ because the repo is public.
   per-version snapshots from the first public release.
 - Naming the employer in Blake's own bio is fine; docs, examples and file
   names never do.
-- The `gh-pages` branch: a builder checks whether it is still needed and
-  may delete it if it is stale.
+- The `gh-pages` branch: a builder checked it and, as Blake allowed,
+  deleted it because it was stale (batch S1).

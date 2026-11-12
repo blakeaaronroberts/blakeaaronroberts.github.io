@@ -1,0 +1,25 @@
+---
+title: "Labs"
+module: products
+module-version: n/a
+doc-type: explanation
+updated: 2026-11-12
+draft: true
+---
+
+Labs are the planned bridge from each concept to real hardware (VISION.md
+sections 1 and 2): theory always lands on something physical.
+
+## Purpose
+
+To connect a concept's figure, animation and simulation to measurements on a
+real circuit, and later to a remote FPGA lab.
+
+## Constraints
+
+Lab checks are designed so that student records never enter a repository
+(VISION.md section 3).
+
+## Status
+
+Not started: Phase 3, Hardware and breadth (VISION.md section 6).

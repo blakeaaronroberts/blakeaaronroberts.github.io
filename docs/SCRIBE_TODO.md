@@ -16,8 +16,10 @@ where builders record Status.
 
 | ID | Date | Repo | Item | Needs | Status |
 |----|------|------|------|-------|--------|
-| SCR-018 | 2026-11-12 | site | CLAUDE.md says "commit or push only when Blake asks"; Blake now lets Scribe commit docs-only changes to `main`. Point builders to the handoff file; log in DECISIONS.md. H-S004 | Builder agent | Open |
-| SCR-014 | 2026-11-12 | site | Check whether the `gh-pages` branch is stale; delete it if so (Blake pre-authorised). H-S003 | Builder agent | Open |
+| SCR-036 | 2026-11-12 | site | Review the product overviews (`docs/products/`) and the draft README (`docs/drafts/README.md`) | Blake | Open |
+| SCR-035 | 2026-11-12 | site | Product overviews: Toolbox, Studio, Explorations, Practice, Labs (drafts, from VISION.md) | Scribe | Done |
+| SCR-018 | 2026-11-12 | site | CLAUDE.md says "commit or push only when Blake asks"; Blake now lets Scribe commit docs-only changes to `main`. Point builders to the handoff file; log in DECISIONS.md. H-S004 | Builder agent | Done (`a67b467`) |
+| SCR-014 | 2026-11-12 | site | Check whether the `gh-pages` branch is stale; delete it if so (Blake pre-authorised). H-S003 | Builder agent | Done (branch deleted; restore SHA in STEWARD_HANDOFF.md, S1) |
 | SCR-012 | 2026-11-12 | site | Alt text: kmaps placeholder, WaveDrom and DigitalJS figures, figure-drawing OJS cells on project pages; check DigitalJS shows values, not colour alone. H-S002 | Builder agent | Open |
-| SCR-011 | 2026-11-12 | site | Write `README.md` (what the repo is, how to preview on Windows, how it deploys). Public, so it needs Blake's approval before it goes in | Scribe | Open |
+| SCR-011 | 2026-11-12 | site | Write `README.md` (what the repo is, how to preview on Windows, how it deploys). Draft written at `docs/drafts/README.md`; Scribe moves it to the root once Blake approves it | Blake | Waiting |
 | SCR-007 | 2026-11-12 | site | `docs/` in the render list with `draft-mode: gone`. H-S001 | Builder agent | Open |
