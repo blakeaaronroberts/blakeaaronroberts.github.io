@@ -30,7 +30,9 @@
 .label-mono { @include label-mono; }
 
 // ---------- Base typography ----------
-body { -webkit-font-smoothing: antialiased; font-weight: $role-body-weight; }
+// `html body`, not `body`: DigitalJS injects JointJS's `body { font-family: verdana; font-weight: normal }`
+// at runtime, after this sheet. The extra type selector outranks it on any page that embeds a circuit.
+html body { -webkit-font-smoothing: antialiased; font-family: $role-font-text; font-weight: $role-body-weight; }
 strong, b { font-weight: 600; }
 
 h1, h2, h3, h4 { letter-spacing: -0.01em; line-height: 1.25; }

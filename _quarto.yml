@@ -44,7 +44,9 @@ format:
       body-width: 700px
       margin-width: 260px
       sidebar-width: 250px
-    html-math-method: mathjax
+    html-math-method:                 # MathJax 4 with STIX Two Math (VISION.md §7); version pinned
+      method: mathjax
+      url: "https://cdn.jsdelivr.net/npm/@mathjax/mathjax-stix2-font@4.1.3/tex-mml-chtml-mathjax-stix2.js"
     csl: _csl/ieee.csl                # IEEE numeric citations [1] and reference list (citation-style-language/styles)
     toc: true
     code-copy: true
