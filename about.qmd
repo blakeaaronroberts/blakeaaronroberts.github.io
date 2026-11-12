@@ -93,3 +93,16 @@ title: "About / CV"
 ::: {.cv-entry}
 [Secretary, Tau Beta Pi]{.cv-role} [2023 – 2024]{.cv-date}
 :::
+
+## Using this material
+
+Course notes, explorations, and figures on this site are free for instructors and
+students to use and adapt in teaching and research. They're licensed under
+[Creative Commons BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/){rel="license"},
+which means:
+
+- **Credit:** cite "Blake Roberts, blakeaaronroberts.github.io" and link to the original page.
+- **Noncommercial:** no use in paid products or commercial courses without permission.
+- **Share alike:** share adapted versions under the same license.
+
+For commercial use or other permissions, [email me](mailto:blake.roberts@oregonstate.edu).

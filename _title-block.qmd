@@ -6,6 +6,8 @@
 [Instructor, Electrical & Computer Engineering]{.tb-role}
 
 [Oregon State University · School of EECS]{.tb-affil}
+
+[M.S., B.S. Electrical & Computer Engineering]{.tb-cred}
 :::
 
 ::: {.tb-photo}
@@ -14,7 +16,10 @@
 
 ::: {.tb-focus}
 [Areas of focus]{.tb-key}
-Analog & Mixed-Signal Circuits · System-Level Design · Engineering Education
+
+- Analog, Mixed-Signal & RF IC Design
+- System-Level Design
+- Engineering Education
 :::
 
 ::: {.tb-rev}

@@ -71,7 +71,7 @@ hr { border: 0; border-top: 1px solid $border-color; margin: 2.5rem 0; opacity: 
 // ---------- Title block (home page) ----------
 .title-block {
   display: grid;
-  grid-template-columns: 1fr 1fr 160px;
+  grid-template-columns: 1.4fr 1fr 160px;   // focus cell gets the extra width
   grid-template-rows: auto auto;
   gap: 1px;
   background: $border-color;          // 1px gaps show through as ruled lines
@@ -89,7 +89,11 @@ hr { border: 0; border-top: 1px solid $border-color; margin: 2.5rem 0; opacity: 
   .tb-name { font-size: 1.75rem; font-weight: 600; line-height: 1.2; margin: 0 0 .35rem; letter-spacing: -0.015em; }
   .tb-role { margin: 0; }
   .tb-affil { margin: 0; color: $text-muted; }
+  .tb-cred { @include label-mono; display: block; margin-top: .6rem; }
   .tb-key { @include label-mono; display: block; margin-bottom: .4rem; }
+  // Focus areas as a datasheet "features" list: one item per line; long items wrap with a hanging indent
+  .tb-focus ul { list-style: none; padding: 0; margin: 0; }
+  .tb-focus li { margin: 0 0 .3rem; line-height: 1.4; padding-left: .9rem; text-indent: -.9rem; }
   .tb-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .tb-stamp {
     @include label-mono; color: $primary; display: inline-block;

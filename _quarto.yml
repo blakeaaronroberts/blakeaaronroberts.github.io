@@ -8,19 +8,13 @@ project:
 
 website:
   title: "Blake Roberts"
-  description: "Analog & mixed-signal circuits, system-level design, and engineering education: course notes, explorations, and projects."
+  description: "Analog, mixed-signal, and RF IC design, system-level design, and engineering education: course notes, explorations, and projects."
   site-url: https://blakeaaronroberts.github.io
-  repo-url: https://github.com/blakeaaronroberts/blakeaaronroberts.github.io
-  repo-actions: [issue]          # "Report an issue" link — handy for students spotting typos
   open-graph: true
   search: false
   navbar: true                  # bare navbar (dark-mode toggle only); links are added by the dev profile
   page-footer:
-    left: |
-      © 2026 Blake Roberts · Content licensed
-      [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/){rel="license"}
-    right: |
-      Built with [Quarto](https://quarto.org)
+    left: "© 2026 Blake Roberts"     # CC BY-NC-SA notice lives on about.qmd and in each exploration's Reuse note
 
 # Site-wide numbering style: "FIG. 2 — caption", "TABLE 1 — caption", "Eq. 1"
 crossref:

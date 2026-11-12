@@ -1,7 +1,12 @@
 ---
 # Temporary public landing page. The full site builds only with --profile dev (see _quarto-dev.yml).
 pagetitle: "Blake Roberts"
+title-block-style: none      # no Quarto header (it would show a stray "MODIFIED" line)
 toc: false
+format:
+  html:
+    grid:
+      body-width: 794px      # A4 width (210 mm at 96 dpi): the title block reads as a datasheet page
 include-in-header:
   # Landing page shows only the dark-mode toggle, even in the dev preview (where the dev navbar would add links).
   - text: "<style>.navbar-brand, .navbar-nav, .navbar-toggler, #quarto-search { display: none !important; }</style>"

@@ -1,7 +1,12 @@
 ---
 # Full home page (dev profile only). At launch: replace index.qmd with this file.
 pagetitle: "Blake Roberts"
+title-block-style: none      # no Quarto header (it would show a stray "MODIFIED" line)
 toc: false
+format:
+  html:
+    grid:
+      body-width: 794px      # A4 width (210 mm at 96 dpi), matching the landing page
 include-in-header:
   - text: "<style>.navbar-brand { display: none; }</style>"   # name is already in the title block
 date-modified: last-modified
@@ -19,8 +24,8 @@ listing:
 {{< include _title-block.qmd >}}
 
 I'm an instructor in Electrical and Computer Engineering at Oregon State University,
-with industry, research, and teaching experience in analog and mixed-signal circuits
-and system-level design. I lead undergraduate teams through Oregon
+with industry, research, and teaching experience in analog and mixed-signal circuits.
+Analog IC design is my real passion. I lead undergraduate teams through Oregon
 State's Junior Design sequence, guiding students through iterative, project-based
 learning, and I enjoy mentoring future engineers through hands-on instruction and
 real-world design challenges.
