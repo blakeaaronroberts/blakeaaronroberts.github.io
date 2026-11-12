@@ -1,54 +1,71 @@
 ---
-title: "Scribe handoff to Rising Edge: site"
+title: "Scribe handoff: site"
 module: site
 doc-type: handoff
 updated: 2026-11-12
 ---
 
-# Scribe handoff to Rising Edge: site
+# Scribe handoff: site
 
-This file is how Scribe (the documentation agent) passes work to Rising Edge
-and the builder agents. Blake does not copy prompts by hand: **Rising Edge
-reads this file, sends each Open item to the right builder, and changes its
-Status.** Builders working in this repo should also read it before starting
-other work, so they take the pending items into account.
+This file is where Scribe (the documentation agent) writes up work that needs
+a builder agent: code, CI, config, `CLAUDE.md`, anything that is not
+documentation. Each item has a ready-to-run prompt below the table.
 
-Rules for this file:
-- Newest first. Rows are never deleted; Status changes instead
-  (Open, In progress, Done, Waiting).
-- Each item has a ready-to-run prompt below the table.
-- Scribe's own task list is [SCRIBE_TODO.md](SCRIBE_TODO.md).
+## How an item reaches a builder (VISION.md section 8)
+
+1. **Scribe writes the item here.**
+2. **The Steward folds approved items into batches in
+   [STEWARD_HANDOFF.md](STEWARD_HANDOFF.md)**, with Blake's approval. That
+   file is the single queue builders work from, and Blake starts each batch
+   by name. Where the Steward writes an **amendment** under a step, the
+   amendment takes precedence over the item's text here.
+3. **Builders record Status and notes in `STEWARD_HANDOFF.md`, not here.**
+   Builders don't edit this file.
+4. **Scribe reads `STEWARD_HANDOFF.md`** to see what's done, and its "Notes
+   for the Scribe" section for docs that no longer match the code. Scribe
+   copies each item's batch and status into the table below; Scribe never
+   edits `STEWARD_HANDOFF.md`.
+
+Rules for this file: newest first; rows are never deleted; only Scribe edits
+it. Scribe's own task list is [SCRIBE_TODO.md](SCRIBE_TODO.md).
 
 ## Standing process (Blake, 2026-11-12)
 
 1. **Scribe commits documentation-only changes itself**, directly to `main`.
-   Blake does not commit for Scribe. Anything that is not documentation goes
-   through this file instead.
-2. **Docs live in their module's own repo.** They are copied into this
+   Blake does not commit for Scribe. Anything that is not documentation is
+   written up here instead.
+2. **Docs live in their module's own repo.** They are copied to the site
    repo's `docs/` only once the module is public. After the first copy,
-   **every** update is copied here too, in the same session.
-3. Builder prompts reach builders only through these handoff files.
-4. **Whenever Scribe needs Blake to relay something to Rising Edge, Scribe
+   **every** update is copied too, in the same session.
+3. **Builder work reaches builders only through the Steward's queue**
+   (`docs/STEWARD_HANDOFF.md`), which this file feeds.
+4. **Whenever Scribe needs Blake to relay something to the Steward, Scribe
    writes the message as a ready-to-paste prompt**: thorough, clear and
    strategic (context, what to do in what order and why, decision rules,
    limits, how to report back). Blake never has to compose it himself.
-5. **Specs for a new module or schema are built by Rising Edge working
+5. **Specs for a new module or schema are built by the Steward working
    directly with Blake.** Scribe does not draft them. When Blake approves a
-   spec, Rising Edge adds a row to this file addressed to Scribe, and Scribe
-   documents it (reference and explanation pages).
+   spec, Scribe documents it (reference and explanation pages).
 
 ## Items
 
-| ID | Date | For | Item | TODO | Status |
-|----|------|------|------|------|--------|
-| H-S004 | 2026-11-12 | Builder (CLAUDE.md, DECISIONS.md) | Point builders to this file; record Blake's documentation process | SCR-018 | Open |
-| H-S003 | 2026-11-12 | Builder | Check whether the `gh-pages` branch is stale; delete it if so | SCR-014 | Open |
-| H-S002 | 2026-11-12 | Builder | Alt text, and signal state not carried by colour alone | SCR-012 | Open |
-| H-S001 | 2026-11-12 | Builder | `docs/` section with drafts hidden | SCR-007 | Open |
+Batch and status are copied from `STEWARD_HANDOFF.md` (last read 2026-11-12,
+commit `bb1febf`).
+
+| ID | Date | For | Item | TODO | Steward batch | Status there |
+|----|------|------|------|------|------|------|
+| H-S004 | 2026-11-12 | Builder (CLAUDE.md, DECISIONS.md) | Point builders to the handoff queue; record Blake's documentation process | SCR-018 | S1, step 1 (amended) | Open |
+| H-S003 | 2026-11-12 | Builder | Check whether the `gh-pages` branch is stale; delete it if so | SCR-014 | S1, step 2 | Open |
+| H-S002 | 2026-11-12 | Builder | Alt text, and signal state not carried by colour alone | SCR-012 | S3, step 1 | Open |
+| H-S001 | 2026-11-12 | Builder | `docs/` section with drafts hidden | SCR-007 | S2, step 1 | Open |
 
 ---
 
-### H-S004: point builders to this file; record the process
+### H-S004: point builders to the handoff queue; record the process
+
+**Superseded in part.** The Steward's amendment (batch S1, step 1 in
+`STEWARD_HANDOFF.md`) replaces "What and where" below: builders are pointed to
+`docs/STEWARD_HANDOFF.md`, not to this file. The text is kept for the record.
 
 - **Goal:** Make sure every agent working in this repo sees Scribe's
   handoffs, and that `CLAUDE.md` matches Blake's documentation process.
@@ -61,7 +78,7 @@ Rules for this file:
     `main`."
   - `DECISIONS.md`: add an entry dated 2026-11-12, "Documentation process":
     Scribe commits documentation-only changes directly to `main`; builder
-    prompts reach builders through `docs/SCRIBE_HANDOFF.md` via Rising Edge;
+    work goes from `docs/SCRIBE_HANDOFF.md` into the Steward's queue;
     docs live in each module's repo and are copied into `docs/` here only
     once the module is public, then on every update. Reason: Blake's
     instruction, so he does not commit for Scribe or copy prompts by hand.
@@ -89,8 +106,7 @@ Rules for this file:
 - **Scope limits:** no other branch; no change to Pages settings, `main` or
   `projects-showcase`.
 - **Mandatory:** before deleting, record the `build_type` value and the
-  branch's last commit SHA in this file (Status column or a note under this
-  item), so the branch can be restored from that SHA.
+  branch's last commit SHA in the step's note in `docs/STEWARD_HANDOFF.md`, so the branch can be restored from that SHA.
 - **Report:** one line to Blake: kept or deleted, with the evidence.
 
 ### H-S002: alt text, and state not shown by colour alone

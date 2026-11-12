@@ -42,7 +42,7 @@ for this repo are at the end. Work for builder agents is in
    colour; whether its lamps and buttons also show a value is unchecked
    (SCR-012, handoff H-S002).
 4. **Stale branch.** A `gh-pages` branch exists although the workflow deploys
-   with `actions/deploy-pages`. Not touched by Scribe; Rising Edge checks it (SCR-014, handoff H-S003).
+   with `actions/deploy-pages`. Not touched by Scribe; a builder checks it (SCR-014, handoff H-S003).
 5. **Charter drift, reported, not fixed:**
    - `CLAUDE.md` records a pre-launch arrangement (all pages built, unlinked,
      `noindex`) that it describes as departing from VISION.md §6's
@@ -72,7 +72,8 @@ because the repo is public.
 ## 4. Blake's decisions for this repo (2026-11-12)
 
 - Scribe commits documentation-only changes directly to `main`. Anything
-  else goes to Rising Edge through [SCRIBE_HANDOFF.md](SCRIBE_HANDOFF.md).
+  else is written up in [SCRIBE_HANDOFF.md](SCRIBE_HANDOFF.md), and the Steward
+  folds approved items into [STEWARD_HANDOFF.md](STEWARD_HANDOFF.md).
 - Technical docs are allowed authored text. Blake's own prose is not.
 - Docs live in their module's own repo. A module's docs are copied into this
   repo's `docs/` only once the module is public, and after that on every
@@ -84,5 +85,5 @@ because the repo is public.
   per-version snapshots from the first public release.
 - Naming the employer in Blake's own bio is fine; docs, examples and file
   names never do.
-- The `gh-pages` branch: Rising Edge checks whether it is still needed and
+- The `gh-pages` branch: a builder checks whether it is still needed and
   may delete it if it is stale.

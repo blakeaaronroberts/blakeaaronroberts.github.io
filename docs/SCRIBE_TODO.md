@@ -10,8 +10,9 @@ updated: 2026-11-12
 Steward copies these rows into Blake's action-items tracker. Newest first.
 Rows are never deleted; Status changes instead. IDs are shared across the
 suite's repos, so gaps are rows kept in another repo. Items that need a
-builder are sent to Rising Edge through [SCRIBE_HANDOFF.md](SCRIBE_HANDOFF.md)
-(H-S…).
+builder are written up in [SCRIBE_HANDOFF.md](SCRIBE_HANDOFF.md) (H-S…); the
+Steward folds approved ones into [STEWARD_HANDOFF.md](STEWARD_HANDOFF.md),
+where builders record Status.
 
 | ID | Date | Repo | Item | Needs | Status |
 |----|------|------|------|-------|--------|
