@@ -1,5 +1,5 @@
 ---
-# Full home page (dev profile only). At launch: replace index.qmd with this file.
+# Full home page, reached from the navbar "Home" link. At launch: replace index.qmd with this file.
 pagetitle: "Blake Roberts"
 title-block-style: none      # no Quarto header (it would show a stray "MODIFIED" line)
 toc: false
@@ -8,6 +8,7 @@ format:
     grid:
       body-width: 794px      # A4 width (210 mm at 96 dpi), matching the landing page
 include-in-header:
+  - _includes/noindex.html   # pre-launch: reachable by URL, kept out of search (remove at launch)
   - text: "<style>.navbar-brand { display: none; }</style>"   # name is already in the title block
 date-modified: last-modified
 date-format: "YYYY-MM"       # feeds the REV stamp

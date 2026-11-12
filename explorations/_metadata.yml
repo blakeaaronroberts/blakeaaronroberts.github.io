@@ -4,3 +4,4 @@ abstract-title: "Summary"
 toc: true
 toc-location: left          # keeps the right margin free for margin notes
 reading-time: true
+include-in-header: ../_includes/noindex.html   # pre-launch: reachable by URL, kept out of search (remove at launch)

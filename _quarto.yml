@@ -1,10 +1,14 @@
-# Default (public) build: landing page only. This is what the GitHub Action deploys.
-# Full site with drafts:  quarto preview --profile dev   (adds _quarto-dev.yml)
+# The whole site. This is what the GitHub Action deploys.
+# Pre-launch (VISION.md §6): index.qmd is a landing page with no navigation. Every other page is
+# published but reachable only by URL and marked noindex (_includes/noindex.html); their navbar
+# links the whole site. At launch: replace index.qmd with home.qmd and remove the noindex includes.
 project:
   type: website
   output-dir: _site
   render:
-    - index.qmd
+    - "*.qmd"
+    - "explorations/*/*.qmd"
+    - "projects/*/*.qmd"
   resources:
     - "assets/**"           # static files referenced from includes (e.g. WaveDrom lecture skin)
 
@@ -13,8 +17,21 @@ website:
   description: "Analog, mixed-signal, and RF IC design, system-level design, and engineering education: course notes, explorations, and projects."
   site-url: https://blakeaaronroberts.github.io
   open-graph: true
-  search: false
-  navbar: true                  # bare navbar (dark-mode toggle only); links are added by the dev profile
+  search: true
+  navbar:                       # hidden on the landing page (index.qmd), which keeps only the dark-mode toggle
+    left:
+      - href: home.qmd
+        text: Home
+      - href: explorations.qmd
+        text: Explorations
+      - href: projects.qmd
+        text: Projects
+      - href: about.qmd
+        text: About / CV
+    right:
+      - icon: github
+        href: https://github.com/blakeaaronroberts
+        aria-label: GitHub
   page-footer:
     left: "© 2026 Blake Roberts"     # no licence notice until one is chosen (VISION.md §3)
 
@@ -35,10 +52,10 @@ date-format: "YYYY-MM-DD"
 format:
   html:
     theme:
-      # Default theme (VISION.md): themes/okabe-ito/ is the only place colours and fonts are set.
-      # Alternate look: quarto preview --profile dev,blueprint
-      light: [default, themes/okabe-ito/light.scss, custom.scss]
-      dark: [default, themes/okabe-ito/dark.scss, custom.scss]
+      # Figures, diagrams, plots and embed plates: the suite's universal theme (Okabe-Ito), always.
+      # Site pages: the "blueprint" look. Alternate site look: quarto preview --profile okabe-ito
+      light: [default, themes/okabe-ito/figures.scss, themes/blueprint/light.scss, custom.scss]
+      dark: [default, themes/okabe-ito/figures.scss, themes/blueprint/dark.scss, custom.scss]
     respect-user-color-scheme: true   # first visit follows the OS setting; toggle overrides
     grid:                             # ~70ch measure at 16px, with room for margin notes
       body-width: 700px
@@ -51,5 +68,7 @@ format:
     toc: true
     code-copy: true
     link-external-newwindow: true
-    include-in-header: themes/okabe-ito/fonts.html
+    include-in-header:
+      - themes/blueprint/fonts.html     # site pages (IBM Plex)
+      - themes/okabe-ito/fonts.html     # figures (STIX Two Text, Fira Mono)
     include-after-body: _includes/captions.html

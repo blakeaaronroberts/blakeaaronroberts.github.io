@@ -8,3 +8,4 @@ abstract-title: "Abstract"
 echo: true
 code-fold: true
 code-summary: "Show the code"
+include-in-header: ../_includes/noindex.html   # pre-launch: reachable by URL, kept out of search (remove at launch)

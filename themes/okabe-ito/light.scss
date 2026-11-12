@@ -1,7 +1,7 @@
 /*-- scss:defaults --*/
-// DEFAULT THEME (Okabe-Ito, STIX Two Text, Fira Mono), light mode
-// With its twin (dark.scss) and fonts.html, this folder is the ONLY place the site
-// sets colours and fonts. Everything else asks for a ROLE. Selected in _quarto.yml.
+// ALTERNATE SITE THEME (Okabe-Ito page colours, STIX Two Text, Fira Mono), light mode.
+// Select with:  quarto preview --profile okabe-ito   (see _quarto-okabe-ito.yml)
+// Site pages only: figure roles come from themes/okabe-ito/figures.scss and are never set here.
 
 // Okabe-Ito: colour-blind safe. These names are used only in this file.
 $oi-black: #000000 !default;
@@ -27,17 +27,6 @@ $role-rule:         mix($oi-black, $oi-white, 20%) !default;
 $role-surface:      mix($oi-black, $oi-white, 5%) !default;
 $role-accent:       $oi-blue !default;          // links, active navigation, stamps
 $role-accent-hover: darken($oi-blue, 10%) !default;
-// Figures sit on a "paper plate" that is identical in both modes.
-$fig-background: $oi-white !default;
-$fig-ink:        $oi-black !default;
-$fig-muted:      mix($oi-black, $oi-white, 62%) !default;
-$fig-rule:       mix($oi-black, $oi-white, 22%) !default;
-$fig-grid:       mix($oi-black, $oi-white, 18%) !default;
-$fig-shade:      mix($oi-black, $oi-white, 12%) !default;   // regions excluded by a specification
-$fig-accent:     $oi-blue !default;
-$fig-high:       $oi-vermillion !default;
-$fig-flow:       $oi-bluish-green !default;
-$fig-highlight:  $oi-orange !default;
 // ---------- Bootstrap mapping: roles only, no colours or fonts below this line ----------
 $font-family-sans-serif: $role-font-text !default;
 $font-family-base: $role-font-text !default;

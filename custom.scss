@@ -15,8 +15,8 @@
   --fig-high: #{$fig-high};
   --fig-flow: #{$fig-flow};
   --fig-highlight: #{$fig-highlight};
-  --fig-font: #{inspect($role-font-text)};
-  --fig-font-mono: #{inspect($role-font-mono)};
+  --fig-font: #{inspect($fig-font-text)};
+  --fig-font-mono: #{inspect($fig-font-mono)};
 }
 
 @mixin label-mono {
@@ -84,12 +84,6 @@ hr { border: 0; border-top: 1px solid $border-color; margin: 2.5rem 0; opacity: 
   border-top: 1px solid $border-color; margin-top: 3rem; padding-top: 1.25rem;
   font-size: .8rem; color: $text-muted;
   a { color: $text-muted; }
-}
-
-// Dev-profile-only banner on the landing page (never rendered in the public build)
-.dev-banner {
-  border: 1px dashed $primary; padding: .5rem .9rem; margin-bottom: 1rem; font-size: .9rem;
-  .label-mono { color: $primary; margin-right: .75rem; }
 }
 
 // ---------- Title block (home page) ----------
@@ -207,10 +201,10 @@ figure.quarto-float-fig .cell-output-display > figure { display: inline-block; m
 figure.quarto-float-fig svg:has(> g.graph) {
   display: block; width: 100% !important; max-width: 720px !important; height: auto !important; margin: 0 auto;
   // Diagrams carry no colours or fonts of their own; the theme supplies them here.
-  text { fill: $fig-ink; font-family: $role-font-text; }
+  text { fill: $fig-ink; font-family: $fig-font-text; }
   g.node polygon, g.node ellipse, g.edge path { stroke: $fig-ink; }
   g.edge polygon, g.node.junction ellipse { stroke: $fig-ink; fill: $fig-ink; }
-  g.node.label text { fill: $fig-muted; font-family: $role-font-mono; }   // dot: class="label"
+  g.node.label text { fill: $fig-muted; font-family: $fig-font-mono; }   // dot: class="label"
 }
 
 // WaveDrom: centred, scaled to the plate width (its SVG has a viewBox), skin recoloured to match the plate

@@ -1,5 +1,6 @@
 ---
-# Temporary public landing page. The full site builds only with --profile dev (see _quarto-dev.yml).
+# Public landing page (pre-launch, VISION.md §6). No navigation: the other pages are published but
+# reachable only by URL (e.g. /explorations.html) and marked noindex; their navbar links the whole site.
 pagetitle: "Blake Roberts"
 title-block-style: none      # no Quarto header (it would show a stray "MODIFIED" line)
 toc: false
@@ -8,17 +9,11 @@ format:
     grid:
       body-width: 794px      # A4 width (210 mm at 96 dpi): the title block reads as a datasheet page
 include-in-header:
-  # Landing page shows only the dark-mode toggle, even in the dev preview (where the dev navbar would add links).
+  # Landing page shows only the dark-mode toggle: no brand link, nav links, menu button or search.
   - text: "<style>.navbar-brand, .navbar-nav, .navbar-toggler, #quarto-search { display: none !important; }</style>"
 date-modified: last-modified
 date-format: "YYYY-MM"       # feeds the REV stamp
 ---
-
-::: {.content-visible when-profile="dev"}
-::: {.dev-banner}
-[Dev preview]{.label-mono} This is the public landing page. [Open the full site →](home.qmd)
-:::
-:::
 
 {{< include _title-block.qmd >}}
 

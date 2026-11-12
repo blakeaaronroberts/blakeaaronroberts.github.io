@@ -1,0 +1,9 @@
+# Alternate site theme profile: Okabe-Ito page colours with STIX Two Text and Fira Mono.
+#   quarto preview --profile okabe-ito
+# Only the site's own pages change. Figures use themes/okabe-ito/figures.scss in every profile.
+format:
+  html:
+    theme:
+      light: [default, themes/okabe-ito/figures.scss, themes/okabe-ito/light.scss, custom.scss]
+      dark: [default, themes/okabe-ito/figures.scss, themes/okabe-ito/dark.scss, custom.scss]
+    include-in-header: themes/okabe-ito/fonts.html

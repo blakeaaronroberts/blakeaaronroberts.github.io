@@ -1,6 +1,6 @@
 /*-- scss:defaults --*/
-// ALTERNATE THEME "blueprint" (the site's original look: warm paper, IBM Plex), light mode
-// Select with:  quarto preview --profile dev,blueprint   (see _quarto-blueprint.yml)
+// SITE THEME "blueprint" (the site's own look: warm paper, IBM Plex), light mode. Selected in _quarto.yml.
+// Site pages only: figure roles come from themes/okabe-ito/figures.scss and are never set here.
 
 $role-font-text: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif !default;
 $role-font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !default;
@@ -14,16 +14,6 @@ $role-rule:         #cfcac0 !default;
 $role-surface:      #ece8df !default;
 $role-accent:       #1f4e79 !default;   // deep blueprint blue
 $role-accent-hover: darken(#1f4e79, 10%) !default;
-$fig-background: #f4f1e8 !default;
-$fig-ink:        #1a1917 !default;
-$fig-muted:      #6b675f !default;
-$fig-rule:       #cfcac0 !default;
-$fig-grid:       #cfcac0 !default;
-$fig-shade:      #d9d3c6 !default;
-$fig-accent:     #1f4e79 !default;
-$fig-high:       #b5541a !default;
-$fig-flow:       #3d7a5c !default;
-$fig-highlight:  #e38b3f !default;
 // ---------- Bootstrap mapping: roles only, no colours or fonts below this line ----------
 $font-family-sans-serif: $role-font-text !default;
 $font-family-base: $role-font-text !default;

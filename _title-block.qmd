@@ -17,7 +17,7 @@
 ::: {.tb-focus}
 [Areas of focus]{.tb-key}
 
-- Analog, Mixed-Signal & RF IC Design
+- Integrated Circuit Design
 - System-Level Design
 - Engineering Education
 :::

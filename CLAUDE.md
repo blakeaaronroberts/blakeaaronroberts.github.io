@@ -10,15 +10,18 @@ suite's public home.
 ## What this repo is
 
 - Quarto website deployed to GitHub Pages by `.github/workflows` on every push to `main`.
-- **Two profiles.**
-  - `_quarto.yml`: the public build. It renders only `index.qmd`, the pre-launch landing page, and its navigation links must not be live.
-  - `_quarto-dev.yml`: the full site (home, explorations, projects, about), previewed with `quarto preview --profile dev`.
-- Per VISION.md §6, the public build stays landing-only until the ripple-carry-adder
-  flagship exploration and a project page explaining the suite both exist.
-- **Themes** (VISION.md §7):
-  - `themes/<name>/` (`light.scss`, `dark.scss`, `fonts.html`) is the only place colours and fonts are set.
-  - Default: `themes/okabe-ito/` (Okabe-Ito colours, STIX Two Text, Fira Mono), selected in `_quarto.yml`.
-  - Alternate: `themes/blueprint/`, the original warm-paper/IBM Plex look. Preview it with `quarto preview --profile dev,blueprint`.
+- **Pre-launch access** (Blake's decision on 2026-11-12, departing from VISION.md §6's landing-only rule):
+  - `_quarto.yml` builds and deploys the whole site.
+  - `index.qmd` is the landing page. It shows no navigation, only the dark-mode toggle.
+  - Every other page is published but reachable only by URL. Its navbar links the whole site.
+  - Every page except `index.qmd` loads `_includes/noindex.html` (robots `noindex`). The include sits in each top-level page's front matter and in `explorations/_metadata.yml` and `projects/_metadata.yml`. A new top-level page needs it too.
+  - At launch: replace `index.qmd` with `home.qmd` and remove the noindex includes.
+- **Themes** (VISION.md §7; site-page look by Blake's decision on 2026-11-12):
+  - `themes/` is the only place colours and fonts are set.
+  - **Figures always use the universal theme.** `themes/okabe-ito/figures.scss` sets every `$fig-*` role: Okabe-Ito colours, STIX Two Text, Fira Mono. It applies to plots, diagrams, figure plates and embed plates. Site themes must not set `$fig-*`.
+  - **Site pages** use `themes/blueprint/` (warm paper, IBM Plex), selected in `_quarto.yml`. Both fonts files are loaded.
+  - Alternate site look: `themes/okabe-ito/light.scss` and `dark.scss`. Preview it with `quarto preview --profile okabe-ito`.
+  - Maths is MathJax 4 with its STIX2 font, pinned in `_quarto.yml`.
   - Everything else asks for a **role**, never a colour:
     - `custom.scss` uses `$role-*` and `$fig-*`, and publishes the figure roles as `--fig-*` CSS properties.
     - `figtools.js` `palette.accent` / `.high` / `.shade` and the others read those properties.
@@ -40,7 +43,7 @@ suite's public home.
   - Never draw something that merely looks like the original.
   - Report any discrepancy between a recomputation and the source to Blake. Do not silently fix it.
 - Credit co-authors and teammates by name. Never publish their contact details.
-- Focus areas, as Blake chose them: "Analog, Mixed-Signal & RF IC Design / System-Level
+- Focus areas, as Blake chose them (2026-11-12): "Integrated Circuit Design / System-Level
   Design / Engineering Education". Never list "instrumentation".
 
 ## Privacy

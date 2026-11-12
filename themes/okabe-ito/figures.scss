@@ -1,0 +1,28 @@
+/*-- scss:defaults --*/
+// FIGURE ROLES: the suite's universal theme (VISION.md §7: Okabe-Ito, STIX Two Text, Fira Mono).
+// Every site theme loads this file first, so figures, diagrams, computed plots and embed plates
+// look the same whatever the site's own look is. Site themes (themes/<name>/light|dark.scss)
+// must NOT set any $fig-* variable. Fonts are loaded by themes/okabe-ito/fonts.html.
+
+// Okabe-Ito: colour-blind safe. These names are used only in theme files.
+$oi-black: #000000 !default;
+$oi-white: #FFFFFF !default;
+$oi-vermillion: #D55E00 !default;
+$oi-orange: #E69F00 !default;
+$oi-sky-blue: #56B4E9 !default;
+$oi-bluish-green: #009E73 !default;
+$oi-blue: #0072B2 !default;
+
+// Figures sit on a "paper plate" that is identical in both modes.
+$fig-background: $oi-white !default;
+$fig-ink:        $oi-black !default;
+$fig-muted:      mix($oi-black, $oi-white, 62%) !default;
+$fig-rule:       mix($oi-black, $oi-white, 22%) !default;
+$fig-grid:       mix($oi-black, $oi-white, 18%) !default;
+$fig-shade:      mix($oi-black, $oi-white, 12%) !default;   // regions excluded by a specification
+$fig-accent:     $oi-blue !default;
+$fig-high:       $oi-vermillion !default;
+$fig-flow:       $oi-bluish-green !default;
+$fig-highlight:  $oi-orange !default;
+$fig-font-text:  "STIX Two Text", "Times New Roman", serif !default;
+$fig-font-mono:  "Fira Mono", ui-monospace, Consolas, monospace !default;
