@@ -12,3 +12,5 @@ versioned yet; suite modules documented here will carry their own versions.
   Blake's decisions of 2026-11-12.
 - `docs/SCRIBE_TODO.md`: Scribe's task list for this repo.
 - `docs/SCRIBE_HANDOFF.md`: work for Rising Edge and the builder agents.
+- `docs/SCRIBE_HANDOFF.md`: standing rule that Scribe writes a ready-to-paste
+  prompt whenever Blake must relay something to Rising Edge.

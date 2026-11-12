@@ -28,6 +28,10 @@ Rules for this file:
    repo's `docs/` only once the module is public. After the first copy,
    **every** update is copied here too, in the same session.
 3. Builder prompts reach builders only through these handoff files.
+4. **Whenever Scribe needs Blake to relay something to Rising Edge, Scribe
+   writes the message as a ready-to-paste prompt**: thorough, clear and
+   strategic (context, what to do in what order and why, decision rules,
+   limits, how to report back). Blake never has to compose it himself.
 
 ## Items
 
