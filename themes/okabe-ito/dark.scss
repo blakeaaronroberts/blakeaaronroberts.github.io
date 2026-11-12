@@ -12,7 +12,7 @@ $oi-sky-blue: #56B4E9 !default;
 $oi-bluish-green: #009E73 !default;
 $oi-blue: #0072B2 !default;
 
-// Fonts (open, SIL OFL; loaded by fonts.html). Maths uses MathJax's own font.
+// Fonts (open, SIL OFL; loaded by fonts.html). Maths: MathJax 4 STIX2 bundle, set in _quarto.yml.
 $role-font-text: "STIX Two Text", "Times New Roman", serif !default;
 $role-font-mono: "Fira Mono", ui-monospace, Consolas, monospace !default;
 $role-body-weight: 400 !default;
