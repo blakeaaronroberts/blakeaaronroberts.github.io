@@ -57,8 +57,15 @@ Use these to judge every idea.
   folder names. Institution branding exists only as a swappable theme.
 - **Privacy.** No student data in any repository. Anything that touches
   grading or labs is designed so student records never enter a repo.
-- **Free and open-source tools only**, for building and for using the suite.
-  This includes fonts.
+- **Free and open-source tools only, or our own** (Blake, 2026-11-12).
+  Everything used to build, run or view the suite is free and open-source
+  software (fonts included) or something this project builds itself. No
+  proprietary software, closed services or paid dependencies. Free hosting
+  and CI (GitHub Pages, GitHub Actions) are replaceable conveniences only:
+  outputs are static files and every build runs on any Linux machine with
+  free tools, so the suite can move at any time. AI agents help write the
+  suite; nothing in it depends on them. Record the licence of each new
+  dependency in that repo's `DECISIONS.md` when it is added.
 - **Windows-first** for local work; **browser-first** for public tools.
 - **Static hosting.** The site is GitHub Pages. Tools run in the browser
   (JavaScript, WebAssembly) or serve prebuilt outputs. Anything that needs a
@@ -276,6 +283,9 @@ non-circuit figures such as timing diagrams and plots (2026-11-12). The
 WaveDrom and DigitalJS embeds stay on the site as an interim (2026-11-12).
 
 ## 10. Change log
+
+- 2026-11-12 (evening, last): Tools rule tightened to "free and open-source
+  or our own", so the suite never depends on anything it can't keep.
 
 - 2026-11-12 (evening, late): Builder work is centralised in
   `docs/STEWARD_HANDOFF.md`, written by the Steward with Blake's approval;

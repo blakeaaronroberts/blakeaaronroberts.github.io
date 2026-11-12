@@ -29,7 +29,7 @@ file.
 
 | Batch | Intent | Status | Approved by Blake |
 |---|---|---|---|
-| S1 | Make this queue visible to every builder, stop handoff edits from redeploying the site, and clear out the stale `gh-pages` branch | Open | 2026-11-12 |
+| S1 | Make this queue visible to every builder, stop handoff edits from redeploying the site, and clear out the stale `gh-pages` branch | Done | 2026-11-12 |
 | S2 | Give the Scribe a `docs/` section on the site whose drafts stay hidden until Blake approves them | Open | 2026-11-12 |
 | S3 | Accessibility pass: real alt text on every figure, and no logic state shown by colour alone | Open | 2026-11-12 |
 
