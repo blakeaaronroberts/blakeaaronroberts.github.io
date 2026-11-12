@@ -14,25 +14,23 @@ file.
 
 ## Current state
 
-Sync of 2026-11-12, 15:50 (Pacific). Facts only; work lives in the batches below.
+Sync of 2026-11-12, 16:05 (Pacific). Facts only; work lives in the batches below.
 
 **Changed since the last sync**
-- VISION.md rules added today: tools are free and open-source or our own
-  (section 3); builder work goes only through this queue, and the Scribe's
-  handoff feeds it (section 8); the `sync` protocol (section 8); the
-  pre-launch site rule, site theme and embeds now match Blake's decisions
-  (sections 6, 7 and 9).
-- The university IP check is no longer planned (Blake is pursuing
-  university funding). Nothing changes for builders: the repo visibility
-  in VISION.md section 5 stands.
-- S1 done: CLAUDE.md points here; commits that touch only handoff files
-  don't deploy; `gh-pages` deleted (restore SHA in the S1 notes).
-- Maths is MathJax 4 with STIX2; the render cadence is in CLAUDE.md.
+- S2 done (`706d1bb`): `docs/` is a site section. `draft-mode: gone` still
+  writes an empty page at a draft's address, so drafts live in
+  `docs/_drafts/`, which Quarto never renders (Blake, 2026-11-12).
+- The Scribe published the root `README.md` under Blake's standing
+  delegation for READMEs (2026-11-12), and wrote five product overviews as
+  drafts in `docs/_drafts/`, waiting for Blake's review.
+- Earlier today: tools are free and open-source or our own (VISION.md
+  section 3); builder work goes only through this queue; the `sync`
+  protocol (section 8). The university IP check is no longer planned.
 
 **Waiting**
-- Site builder: S2 (docs section), then S3 (accessibility), when Blake starts them.
-- Scribe: Blake's review of its style guide and templates.
-- The private toolbox repo: first batch done; three batches queued.
+- Site builder: S3 (accessibility), when Blake starts it.
+- Scribe: Blake's review of its style guide, templates and overviews.
+- The private toolbox repo: one batch done, three queued.
 
 ## How builders use this file
 
@@ -52,7 +50,7 @@ Sync of 2026-11-12, 15:50 (Pacific). Facts only; work lives in the batches below
 | Batch | Intent | Status | Approved by Blake |
 |---|---|---|---|
 | S1 | Make this queue visible to every builder, stop handoff edits from redeploying the site, and clear out the stale `gh-pages` branch | Done | 2026-11-12 |
-| S2 | Give the Scribe a `docs/` section on the site whose drafts stay hidden until Blake approves them | Open | 2026-11-12 |
+| S2 | Give the Scribe a `docs/` section on the site whose drafts stay hidden until Blake approves them | Done | 2026-11-12 |
 | S3 | Accessibility pass: real alt text on every figure, and no logic state shown by colour alone | Open | 2026-11-12 |
 
 ---
