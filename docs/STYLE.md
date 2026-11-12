@@ -203,6 +203,10 @@ draft: true
   module changes, recheck the page and update the field, or add a TODO.
 - `draft: true` stays until **Blake** approves the page in conversation.
   Scribe removes it only on his direct instruction, for the pages he names.
+- On the site, a draft page also lives in `docs/_drafts/`, which Quarto never
+  renders, and moves into `docs/` when Blake approves it. (`draft: true` alone
+  isn't enough there: Quarto still writes an empty file at the page's
+  address. Site `DECISIONS.md`, 2026-11-12.)
 - `tested: true` is set only from a passing CI run, never by hand.
 - Each change to a page goes in the repo's `CHANGELOG.md` under
   `[Unreleased]`.
@@ -230,6 +234,7 @@ draft: true
   | `docs/explanation/` | explanations |
   | `docs/templates/` | the four templates |
   | `docs/scripts/` | video scripts (never published) |
+  | `docs/_drafts/` | site repo only: draft pages, never rendered, same layout as `docs/` |
 
 - File names: lowercase, hyphens between words, ending in `.qmd`
   (`build-ripple-carry-adder.qmd`). An element's reference page uses the

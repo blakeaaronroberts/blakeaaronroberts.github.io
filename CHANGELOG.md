@@ -22,9 +22,9 @@ versioned yet; suite modules documented here will carry their own versions.
   schema are built by the Steward with Blake; H-S001 now excludes
   `docs/templates/` from rendering.
 
-- `docs/products/`: overviews of the five products (Toolbox, Studio,
+- `docs/_drafts/products/`: overviews of the five products (Toolbox, Studio,
   Explorations, Practice, Labs), drafts drawn from VISION.md.
-- `docs/drafts/README.md`: draft README for this repo, waiting for Blake's
+- `docs/_drafts/README.md`: draft README for this repo, waiting for Blake's
   approval before it moves to the root.
 
 ### Changed
@@ -36,3 +36,5 @@ versioned yet; suite modules documented here will carry their own versions.
   embeds are now settled in VISION.md.
 - `docs/SCRIBE_AUDIT.md`, `docs/SCRIBE_HANDOFF.md`, `docs/SCRIBE_TODO.md`:
   batch S1 is done, including the deletion of the stale `gh-pages` branch.
+- Draft pages moved into `docs/_drafts/`, which Quarto never renders (batch
+  S2); `docs/STYLE.md` re-synced with the rule.

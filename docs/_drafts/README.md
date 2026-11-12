@@ -8,7 +8,7 @@ draft: true
 
 <!--
 DRAFT for Blake's approval (SCRIBE_TODO SCR-011). A README can't be hidden
-as a draft, so it waits here. Once Blake approves it, Scribe moves it to the
+as a draft, so it waits in docs/_drafts/, which Quarto never renders. Once Blake approves it, Scribe moves it to the
 repository root as README.md and removes this comment and the front matter.
 -->
 

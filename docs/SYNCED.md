@@ -14,7 +14,7 @@ stay identical. Never edit a copy here directly; change the original.
 
 | File here | Original | Synced from commit |
 |---|---|---|
-| `docs/STYLE.md` | `manimations/docs/STYLE.md` | `5080c30` |
+| `docs/STYLE.md` | `manimations/docs/STYLE.md` | `1659df8` |
 | `docs/templates/tutorial.qmd` | `manimations/docs/templates/tutorial.qmd` | `5080c30` |
 | `docs/templates/how-to.qmd` | `manimations/docs/templates/how-to.qmd` | `5080c30` |
 | `docs/templates/reference.qmd` | `manimations/docs/templates/reference.qmd` | `5080c30` |

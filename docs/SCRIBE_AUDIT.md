@@ -78,8 +78,9 @@ because the repo is public.
 - Docs live in their module's own repo. A module's docs are copied into this
   repo's `docs/` only once the module is public, and after that on every
   update.
-- Docs pages here are drafts (`draft: true`, hidden with `draft-mode: gone`)
-  until Blake approves them.
+- Docs pages here start as drafts in `docs/_drafts/`, which Quarto never
+  renders, and move into `docs/` when Blake approves them (batch S2;
+  `draft-mode: gone` is a backstop).
 - Toolchain: Quarto + quartodoc. Versioning: semantic versions per module,
   `<module>-vX.Y.Z` tags, the version in every page's front matter,
   per-version snapshots from the first public release.

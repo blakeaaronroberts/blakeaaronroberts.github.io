@@ -36,7 +36,9 @@ it. Scribe's own task list is [SCRIBE_TODO.md](SCRIBE_TODO.md).
    written up here instead.
 2. **Docs live in their module's own repo.** They are copied to the site
    repo's `docs/` only once the module is public. After the first copy,
-   **every** update is copied too, in the same session.
+   **every** update is copied too, in the same session. On the site, a draft
+   page lives in `docs/_drafts/` (never rendered) and moves into `docs/` when
+   Blake approves it (DECISIONS.md, 2026-11-12).
 3. **Builder work reaches builders only through the Steward's queue**
    (`docs/STEWARD_HANDOFF.md`), which this file feeds.
 4. **Whenever Scribe needs Blake to relay something to the Steward, Scribe
@@ -50,14 +52,14 @@ it. Scribe's own task list is [SCRIBE_TODO.md](SCRIBE_TODO.md).
 ## Items
 
 Batch and status are copied from `STEWARD_HANDOFF.md` (last read 2026-11-12,
-commit `118baa4`).
+commit `e0d1ac7`).
 
 | ID | Date | For | Item | TODO | Steward batch | Status there |
 |----|------|------|------|------|------|------|
 | H-S004 | 2026-11-12 | Builder (CLAUDE.md, DECISIONS.md) | Point builders to the handoff queue; record Blake's documentation process | SCR-018 | S1, step 1 (amended) | Done (`a67b467`) |
 | H-S003 | 2026-11-12 | Builder | Check whether the `gh-pages` branch is stale; delete it if so | SCR-014 | S1, step 2 | Done (deleted; restore SHA in the S1 note) |
 | H-S002 | 2026-11-12 | Builder | Alt text, and signal state not carried by colour alone | SCR-012 | S3, step 1 | Open |
-| H-S001 | 2026-11-12 | Builder | `docs/` section with drafts hidden | SCR-007 | S2, step 1 | Open |
+| H-S001 | 2026-11-12 | Builder | `docs/` section with drafts hidden | SCR-007 | S2, step 1 | Done (`706d1bb`; drafts in `docs/_drafts/`) |
 
 ---
 
@@ -134,6 +136,11 @@ commit `118baa4`).
   before committing.
 
 ### H-S001: `docs/` section with drafts hidden
+
+**Done in batch S2 (`706d1bb`), amended:** drafts live in `docs/_drafts/`,
+which Quarto never renders; `draft-mode: gone` stays as a backstop, because
+it still writes an empty HTML file at a draft's address (DECISIONS.md,
+2026-11-12). The text below is kept for the record.
 
 - **Goal:** Let docs pages live in `docs/` and stay invisible until Blake
   approves them. (Toolchain approved by Blake, 2026-11-12: Quarto with
