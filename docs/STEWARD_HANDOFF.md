@@ -43,7 +43,7 @@ not trigger a deploy.
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| 1 | Point builders to this file; record the documentation process; skip deploys for handoff files | Scribe item H-S004, **amended** below | In progress | Edits made; awaiting Blake at review stop A |
+| 1 | Point builders to this file; record the documentation process; skip deploys for handoff files | Scribe item H-S004, **amended** below | Done | `a67b467` |
 | 2 | Check whether `gh-pages` is stale; delete it only if the evidence is clear | Scribe item H-S003 | Done | Deleted 2026-11-12: `build_type` `workflow`, no references; last SHA `c8af77cb9539e303db2586ba95ca857c5aeb0ae5` (restore: `git push origin c8af77cb9539e303db2586ba95ca857c5aeb0ae5:refs/heads/gh-pages`) |
 
 **Step 1 amendment** (replaces H-S004's "What and where"):
