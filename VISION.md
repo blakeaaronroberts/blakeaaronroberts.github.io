@@ -151,21 +151,30 @@ lecture video pipeline). 4 Adoption. Do not start later-phase work early.
   everywhere. Colour roles are shared by every medium; fonts are set per
   medium (next bullet). Defaults, exports, galleries and committed renders
   always use this theme.
-- **Fonts by medium.** Each medium uses the best free font it can render
-  reliably; matching fonts across media is not required. Never add a font
-  dependency to make two media match.
+- **Maths is STIX Two everywhere (Blake, 2026-11-12: this is a priority).**
+  A formula must look the same in a figure, an animation, a slide, a site
+  page and a web tool. Text fonts may differ by medium; maths may not.
 
-  | Medium | Text | Maths | Names on elements |
+  | Medium | Maths | Text | Names on elements |
   |---|---|---|---|
-  | LaTeX outputs: figures, exports, animations, slides | STIX Two Text | STIX Two Math | Fira Mono |
-  | Site pages | The site theme's fonts | MathJax's own font, as Quarto ships it | n/a |
-  | Web tools | The site theme's fonts | MathJax's own font, if a tool shows maths | Symbol-pack SVGs |
+  | LaTeX outputs: figures, exports, animations, slides | STIX Two Math | STIX Two Text | Fira Mono |
+  | Site pages | MathJax 4 with its `mathjax-stix2` font | The site theme's fonts | n/a |
+  | Web tools | MathJax 4 with its `mathjax-stix2` font | The site theme's fonts | Symbol-pack SVGs |
 
-  The LaTeX fonts ship with MiKTeX and TeX Live, so a Linux CI runner
-  renders identically. Figures placed on the site or in a web tool are SVGs
-  whose glyphs are outlines, so they keep the LaTeX fonts in every browser.
-  Do not change the site's maths renderer or load extra maths fonts to force
-  a match; revisit only if a Quarto release ships a maths font that matches.
+  - The LaTeX fonts ship with MiKTeX and TeX Live, so a Linux CI runner
+    renders identically.
+  - On the web, load MathJax 4's single-file bundle that includes the STIX2
+    font (`tex-mml-chtml-mathjax-stix2.js` from the `@mathjax/mathjax-stix2-font`
+    package) through Quarto's `html-math-method` `url`. Pin the version;
+    never use a floating `@4` URL. Web tools load the same file.
+  - Quarto's own default is MathJax 3, which has no STIX Two font. Switching
+    to MathJax 4 must keep equation numbering, IEEE-style equation
+    references and dark mode working; if any of them breaks, stop and tell
+    Blake rather than working around it.
+  - Figures placed on the site or in a web tool are SVGs whose glyphs are
+    outlines, so they keep the LaTeX fonts in every browser.
+  - The suite stays on LaTeX (CircuiTikZ) for figures. Do not introduce a
+    second typesetting system to solve font matching.
 - **Private themes** (such as an institution's look for Blake's own slides)
   live in a git-ignored folder and are selected at render time. Never commit
   one, and never name a proprietary font or brand colour in committed code.
@@ -247,6 +256,9 @@ non-circuit figures such as timing diagrams and plots (2026-11-12).
 
 ## 10. Change log
 
+- 2026-11-12 (night): Maths unified on STIX Two in every medium; the site
+  and web tools move to MathJax 4 with its STIX2 font. Supersedes the
+  "fonts by medium" maths rule below.
 - 2026-11-12 (evening): Fonts set per medium (site and web tools keep
   MathJax's own maths font; LaTeX outputs use STIX Two). New Language
   convention. The architect chat is now called the Steward. Element count in
