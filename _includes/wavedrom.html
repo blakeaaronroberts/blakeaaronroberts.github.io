@@ -1,4 +1,6 @@
-<!-- WaveDrom timing diagrams: write <script type="WaveDrom">{...}</script> in a raw html block -->
+<!-- WaveDrom timing diagrams: write <script type="WaveDrom">{...}</script> in a raw html block.
+     Load order matters: default skin, then the "lecture" skin (overrides WaveSkin.default), then WaveDrom. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.7.0/skins/default.js"></script>
+<script src="/assets/wavedrom/lecture.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.7.0/wavedrom.min.js"></script>
 <script>window.addEventListener("load", function () { WaveDrom.ProcessAll(); });</script>

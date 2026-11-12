@@ -53,16 +53,17 @@ Diagrams are figures too; wrap them in a `#fig-` div to number and caption them 
 <div class="wavedrom-wrap">
 <script type="WaveDrom">
 { signal: [
-  { name: "clk", wave: "p......." },
-  { name: "d",   wave: "0.1..0.." },
-  { name: "q",   wave: "0..1..0." }
-],
-  config: { hscale: 2 } }
+  { name: "CLK", wave: "lP......", period: 2 },
+  { name: "D",   wave: "0.....1.......0...10..1...0.....", period: 0.5 },
+  {},
+  { name: "Q",   wave: "x...0...1.......0.......1...0...", period: 0.5, phase: -0.5 },
+  { name: "Q̅",   wave: "x...1...0.......1.......0...1...", period: 0.5, phase: -0.5 }
+]}
 </script>
 </div>
 ```
 
-Timing diagram caption.
+Positive-edge-triggered D flip-flop. Q takes the value of D at each rising CLK edge (arrows); the pulse on D between edges is ignored.
 :::
 
 ## DigitalJS circuit

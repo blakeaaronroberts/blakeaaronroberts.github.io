@@ -5,6 +5,8 @@ project:
   output-dir: _site
   render:
     - index.qmd
+  resources:
+    - "assets/**"           # static files referenced from includes (e.g. WaveDrom lecture skin)
 
 website:
   title: "Blake Roberts"
