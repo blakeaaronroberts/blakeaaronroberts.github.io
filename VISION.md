@@ -130,8 +130,10 @@ Immediate targets, in order:
    diagram, and a browser interactive where the reader flips input bits and
    watches the carry propagate. All three come from one schema file. Scope
    fence: ripple-carry only; carry-lookahead is a follow-up.
-2. **Site launch.** The public build stays a landing page until the flagship
-   exploration and a project page explaining the suite both exist.
+2. **Site launch.** Until the flagship exploration and a project page
+   explaining the suite both exist, the home page is a landing page with no
+   navigation; every other page is published but reachable only by URL and
+   marked `noindex`.
 3. **The course run.** Figures, animations and slides for the full digital
    logic course, built with the same pipeline.
 
@@ -150,7 +152,8 @@ lecture video pipeline). 4 Adoption. Do not start later-phase work early.
 - **Default theme:** the Okabe-Ito palette (`high` is vermillion, #D55E00)
   everywhere. Colour roles are shared by every medium; fonts are set per
   medium (next bullet). Defaults, exports, galleries and committed renders
-  always use this theme.
+  always use this theme. The site's own pages may use a site theme of their
+  own, but figures on the site always use the default theme.
 - **Maths is STIX Two everywhere (Blake, 2026-11-12: this is a priority).**
   A formula must look the same in a figure, an animation, a slide, a site
   page and a web tool. Text fonts may differ by medium; maths may not.
@@ -237,6 +240,19 @@ lecture video pipeline). 4 Adoption. Do not start later-phase work early.
   the repositories and reports to Blake. It does not instruct agents. The one file
   it writes is `VISION.md`, kept identical in every repository, and only with
   Blake's approval. It touches nothing else in any repository.
+- A documentation agent, the **Scribe**, writes and maintains the docs and
+  tutorials for every module. It edits documentation only (READMEs, `docs/`,
+  HOW_TO guides), never code, CI, config, `CLAUDE.md` or this file. Work that
+  needs a builder it writes up as a ready-to-run prompt in
+  `docs/SCRIBE_HANDOFF.md`, for Blake to give to the right builder agent.
+  - Builder agents ship a README stub with each new module, and still update a
+    HOW_TO in the same change that alters its pattern (section 7); the Scribe
+    owns the rest of the docs.
+  - The Scribe may commit documentation straight to `main`; docs-only commits
+    do not redeploy the site. Public pages it writes stay drafts until Blake
+    approves them.
+  - It tracks its open work in `docs/SCRIBE_TODO.md` in each repo. The Steward
+    mirrors those rows into Blake's tracker and never edits the file.
 - Plan first for architectural steps; build in batches with a review stop
   between batches.
 - Blake has a few hours a week. Prefer the smallest change that moves a
@@ -248,13 +264,16 @@ lecture video pipeline). 4 Adoption. Do not start later-phase work early.
 - The suite's real name.
 - Where the circuit schema, symbol pack and browser code live: inside
   `manimations`, in the site repo, or in a new repository.
-- Whether the site's current third-party timing-diagram and circuit
-  embeds stay as an interim or are replaced by suite tools.
-
 Settled: circuits always come from the toolbox; LaTeX figures are only for
-non-circuit figures such as timing diagrams and plots (2026-11-12).
+non-circuit figures such as timing diagrams and plots (2026-11-12). The
+WaveDrom and DigitalJS embeds stay on the site as an interim (2026-11-12).
 
 ## 10. Change log
+
+- 2026-11-12 (late): New documentation agent, the Scribe (section 8). Site
+  launch rule now matches the URL-only pre-launch site; site pages may use
+  their own theme while figures keep the default; third-party embeds settled
+  as an interim.
 
 - 2026-11-12 (night): Maths unified on STIX Two in every medium; the site
   and web tools move to MathJax 4 with its STIX2 font. Supersedes the
