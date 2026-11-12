@@ -1,23 +1,9 @@
----
-title: "README (draft)"
-module: site
-doc-type: reference
-updated: 2026-11-12
-draft: true
----
-
-<!--
-DRAFT for Blake's approval (SCRIBE_TODO SCR-011). A README can't be hidden
-as a draft, so it waits in docs/_drafts/, which Quarto never renders. Once Blake approves it, Scribe moves it to the
-repository root as README.md and removes this comment and the front matter.
--->
-
 # blakeaaronroberts.github.io
 
 The source of the suite's public home: a Quarto website, published with
 GitHub Pages. It holds the site's pages, explorations and project pages, the
 suite's public documentation (`docs/`), and the canonical copy of
-[VISION.md](../../VISION.md), the charter every repository shares.
+[VISION.md](VISION.md), the charter every repository shares.
 
 Quarto is a free, open-source publishing system: it turns Markdown pages
 with maths, figures and code (`.qmd` files) into a website.

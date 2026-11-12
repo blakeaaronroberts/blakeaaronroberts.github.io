@@ -203,6 +203,8 @@ draft: true
   module changes, recheck the page and update the field, or add a TODO.
 - `draft: true` stays until **Blake** approves the page in conversation.
   Scribe removes it only on his direct instruction, for the pages he names.
+- **READMEs are the exception** (Blake, 2026-11-12): Scribe approves them
+  itself, so a README goes in directly, with no draft stage.
 - On the site, a draft page also lives in `docs/_drafts/`, which Quarto never
   renders, and moves into `docs/` when Blake approves it. (`draft: true` alone
   isn't enough there: Quarto still writes an empty file at the page's

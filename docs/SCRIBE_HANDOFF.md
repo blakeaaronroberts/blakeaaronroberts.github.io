@@ -48,6 +48,10 @@ it. Scribe's own task list is [SCRIBE_TODO.md](SCRIBE_TODO.md).
 5. **Specs for a new module or schema are built by the Steward working
    directly with Blake.** Scribe does not draft them. When Blake approves a
    spec, Scribe documents it (reference and explanation pages).
+6. **Scribe approves READMEs itself** (Blake, 2026-11-12). A README goes in
+   directly, with no draft stage and no review by Blake. Other public pages
+   (tutorials, guides, reference, product overviews) still start as drafts
+   until Blake approves them.
 
 ## Items
 

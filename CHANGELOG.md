@@ -8,6 +8,9 @@ versioned yet; suite modules documented here will carry their own versions.
 ## [Unreleased]
 
 ### Added
+- `README.md`: what the repository is, how to preview it on Windows, how it
+  is published, and where things are. Approved by Scribe, which approves
+  READMEs itself (Blake, 2026-11-12).
 - `docs/SCRIBE_AUDIT.md`: first documentation audit of this repo, with
   Blake's decisions of 2026-11-12.
 - `docs/SCRIBE_TODO.md`: Scribe's task list for this repo.
@@ -24,8 +27,6 @@ versioned yet; suite modules documented here will carry their own versions.
 
 - `docs/_drafts/products/`: overviews of the five products (Toolbox, Studio,
   Explorations, Practice, Labs), drafts drawn from VISION.md.
-- `docs/_drafts/README.md`: draft README for this repo, waiting for Blake's
-  approval before it moves to the root.
 
 ### Changed
 - `docs/SCRIBE_HANDOFF.md`: corrected for the Steward's queue
@@ -38,3 +39,5 @@ versioned yet; suite modules documented here will carry their own versions.
   batch S1 is done, including the deletion of the stale `gh-pages` branch.
 - Draft pages moved into `docs/_drafts/`, which Quarto never renders (batch
   S2); `docs/STYLE.md` re-synced with the rule.
+- `docs/STYLE.md`, `docs/SCRIBE_HANDOFF.md`: READMEs need no draft stage;
+  Scribe approves them itself.
