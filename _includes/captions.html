@@ -1,14 +1,18 @@
-<!-- Wrap the "FIG. 1 —" label of each caption in a span so it can be styled in mono (Quarto emits it as plain text). -->
+<!-- IEEE captions. Quarto emits "Fig. 1: Text" / "TABLE I: Text" (title-delim ":" in _quarto.yml).
+     This wraps the label in a span for styling and applies IEEE punctuation:
+     "Fig. 1." before figure captions, bare "TABLE I" (on its own line via CSS) above table captions.
+     Without JS the plain "Fig. 1: Text" still reads correctly. -->
 <script>
   document.querySelectorAll(".quarto-float-caption").forEach(function (cap) {
     var t = cap.firstChild;
     if (!t || t.nodeType !== 3) return;
-    var i = t.textContent.indexOf("—");
-    if (i < 0) return;
+    var isTable = cap.classList.contains("quarto-float-tbl");
+    var m = t.textContent.match(isTable ? /^\s*(TABLE\s+[IVXLCDM]+):\s*/ : /^\s*(Fig\.\s+\S+?):\s*/);
+    if (!m) return;
     var label = document.createElement("span");
     label.className = "caption-label";
-    label.textContent = t.textContent.slice(0, i).trim() + " —";
-    t.textContent = t.textContent.slice(i + 1).replace(/^\s+/, "");
+    label.textContent = isTable ? m[1] : m[1] + ".";
+    t.textContent = t.textContent.slice(m[0].length);
     cap.insertBefore(label, t);
   });
 </script>

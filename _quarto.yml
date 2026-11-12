@@ -16,14 +16,17 @@ website:
   page-footer:
     left: "© 2026 Blake Roberts"     # CC BY-NC-SA notice lives on about.qmd and in each exploration's Reuse note
 
-# Site-wide numbering style: "FIG. 2 — caption", "TABLE 1 — caption", "Eq. 1"
+# IEEE style: captions "Fig. 1. Text" (below) and "TABLE I" + caption (above);
+# in-text "Fig. 1", "Table I", and "(1)" for equations — write equation refs as (@eq-id).
+# _includes/captions.html splits the label off each caption for styling.
 crossref:
-  fig-title: "FIG."
-  tbl-title: "TABLE"
-  eq-prefix: "Eq."
-  title-delim: "—"         # _includes/captions.html wraps "FIG. 1 —" in a span for styling
+  fig-title: "Fig."
   fig-prefix: "Fig."
+  tbl-title: "TABLE"
   tbl-prefix: "Table"
+  tbl-labels: "roman I"    # TABLE I, II, III
+  eq-prefix: ""
+  title-delim: ":"         # not "." — Quarto treats "." as a path and rewrites it to "../.."; captions.html swaps ":" for IEEE's "."
 
 date-format: "YYYY-MM-DD"
 
@@ -38,6 +41,7 @@ format:
       margin-width: 260px
       sidebar-width: 250px
     html-math-method: mathjax
+    csl: _csl/ieee.csl                # IEEE numeric citations [1] and reference list (citation-style-language/styles)
     toc: true
     code-copy: true
     link-external-newwindow: true

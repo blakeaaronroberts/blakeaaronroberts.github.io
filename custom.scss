@@ -39,9 +39,12 @@ a:hover { text-decoration-thickness: 2px; }
 code:not(pre code) { padding: .1em .3em; font-size: .9em; }
 pre { border: 1px solid $border-color; }
 
+// Tables: IEEE/booktabs style — rules above, below the header, and at the bottom only; no plate
 table { font-size: .95rem; }
-.table > :not(caption) > * > * { border-bottom: 1px solid $border-color; }
+.table { --bs-table-bg: transparent; color: $body-color; border-top: 1px solid $body-color; border-bottom: 1px solid $body-color; }
+.table > :not(caption) > * > * { border-bottom: 0; background: transparent; color: inherit; }
 .table thead th { border-bottom: 1px solid $body-color; font-weight: 600; }
+.quarto-float-tbl .table { margin: 0 auto; width: auto; min-width: 60%; }
 
 hr { border: 0; border-top: 1px solid $border-color; margin: 2.5rem 0; opacity: 1; }
 
@@ -175,23 +178,49 @@ hr { border: 0; border-top: 1px solid $border-color; margin: 2.5rem 0; opacity: 
   border-left: 1px solid $border-color; padding-left: .75rem;
 }
 
-// Figures, tables, and interactive panels sit on a printed "paper plate" in both modes
-.quarto-figure > figure > :not(figcaption), figure.quarto-float-fig > div:not(figcaption),
-.wavedrom-wrap, .digitaljs-paper {
-  background: $plate-bg; border: 1px solid $plate-border; padding: 1rem;
+// Figures (not tables) sit on a printed "paper plate" in both modes; plate content is always ink-on-paper
+figure.quarto-float-fig > :not(figcaption) {
+  background: $plate-bg; border: 1px solid $plate-border; padding: 1rem; color: #1a1917;
 }
 .quarto-figure img { display: block; margin: 0 auto; max-width: 100%; }
-.wavedrom-wrap { overflow-x: auto; margin: 1rem 0 1.5rem; }
-.digitaljs-paper { overflow: auto; min-height: 320px; margin: 1rem 0 1.5rem; }
 
-// Captions: "FIG. 1.2 — caption", label in mono
-figcaption, .table caption, .quarto-float-caption {
-  font-size: .85rem; color: $text-muted; text-align: left; margin-top: .6rem;
-  .caption-label { @include label-mono; color: $body-color; margin-right: .4em; }
+// WaveDrom: centred, scaled to the plate width (its SVG has a viewBox), skin recoloured to match the plate
+.wavedrom-wrap {
+  overflow-x: auto; text-align: center;
+  svg { display: block; margin: 0 auto; width: 100%; height: auto; }
+  svg .s5 { fill: $plate-bg !important; }        // skin's white background rectangle
+  svg .info { fill: #1a1917 !important; }        // signal names: ink instead of blue
+}
+// Standalone panels get their own plate; inside a numbered figure the figure's plate is used instead
+.wavedrom-wrap, .digitaljs-paper {
+  background: $plate-bg; border: 1px solid $plate-border; padding: 1rem; margin: 1rem 0 1.5rem;
+}
+figure .wavedrom-wrap, figure .digitaljs-paper { background: none; border: 0; padding: 0; margin: 0; }
+.digitaljs-paper {
+  overflow: auto; min-height: 320px; color: #1a1917;
+  // Centre the fixed-width circuit canvas. Auto margins (not flex) so a circuit wider than the plate
+  // falls back to left-aligned and scrolls, instead of being clipped on the left.
+  > * { margin-left: auto; margin-right: auto; }
+  svg { display: block; margin: 0 auto; }
 }
 
-// References
-#refs { font-size: .9rem; .csl-entry { margin-bottom: .6rem; padding-left: 1.5em; text-indent: -1.5em; } }
+// IEEE captions: "Fig. 1. Text" below figures; "TABLE I" over a small-caps title above tables; all centred
+figcaption, .quarto-float-caption {
+  font-size: .85rem; color: $text-muted; text-align: center; margin-top: .6rem;
+  .caption-label { @include label-mono; color: $body-color; margin-right: .4em; }
+}
+.quarto-float-caption.quarto-float-tbl {
+  text-align: center; font-variant: small-caps; letter-spacing: .03em; margin: 0 0 .5rem;
+  .caption-label { display: block; margin: 0 0 .1rem; font-variant: normal; }
+}
+
+// References: IEEE numeric list, "[1]" in a fixed left column
+#refs {
+  font-size: .9rem;
+  .csl-entry { display: grid; grid-template-columns: 2.6em 1fr; margin-bottom: .6rem; padding-left: 0; text-indent: 0; }
+  .csl-left-margin { font-family: $font-family-monospace; color: $text-muted; float: none; width: auto; }
+  .csl-right-inline { margin: 0; }
+}
 
 // TOC
 #TOC, .sidebar nav[role=doc-toc] {

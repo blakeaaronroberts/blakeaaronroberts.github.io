@@ -16,7 +16,7 @@ include-in-header:
 
 ## LaTeX math
 
-Inline $F = \bar B\bar C + \bar B\bar D$, or a numbered display equation you can reference as @eq-minterms:
+Inline $F = \bar B\bar C + \bar B\bar D$, or a numbered display equation. IEEE style refers to it as (@eq-minterms):
 
 $$
 F(A,B,C,D) = \sum m(0,1,2,5,8,9,10)
@@ -29,13 +29,13 @@ would clutter the main column.
 
 ## Figure
 
-Reference it as @fig-kmap. The caption label is set site-wide in `_quarto.yml` (`crossref`).
+Reference it as @fig-kmap. Labels follow IEEE style, set site-wide in `_quarto.yml` (`crossref`).
 
 ![Figure caption.](kmap.svg){#fig-kmap fig-alt="Describe the figure."}
 
 ### Table
 
-Tables get a caption and number too; see @tbl-groups.
+Tables are numbered with Roman numerals, captioned above; see @tbl-groups.
 
 | Group | Minterms | Term |
 |---|---|---|
@@ -46,6 +46,9 @@ Tables get a caption and number too; see @tbl-groups.
 
 ## WaveDrom timing diagram
 
+Diagrams are figures too; wrap them in a `#fig-` div to number and caption them (@fig-timing).
+
+::: {#fig-timing}
 ```{=html}
 <div class="wavedrom-wrap">
 <script type="WaveDrom">
@@ -53,21 +56,29 @@ Tables get a caption and number too; see @tbl-groups.
   { name: "clk", wave: "p......." },
   { name: "d",   wave: "0.1..0.." },
   { name: "q",   wave: "0..1..0." }
-]}
+],
+  config: { hscale: 2 } }
 </script>
 </div>
 ```
 
+Timing diagram caption.
+:::
+
 ## DigitalJS circuit
 
-Circuit JSON lives next to this file (`circuit.json`). Click the inputs to toggle them.
+Circuit JSON lives next to this file (`circuit.json`). Click the inputs to toggle them (@fig-circuit).
 
+::: {#fig-circuit}
 ::: {.digitaljs-paper data-circuit="circuit.json"}
+:::
+
+Interactive circuit caption.
 :::
 
 ## Citations
 
-Cite with `[@karnaugh1953]` from `references.bib` [@karnaugh1953]. The list renders below.
+Cite with `[@karnaugh1953]` from `references.bib`, which renders in IEEE numeric style [@karnaugh1953]. The list renders below.
 
 ## References {.unnumbered}
 
