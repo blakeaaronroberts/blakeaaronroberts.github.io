@@ -57,7 +57,8 @@ suite's public home.
 ## Workflow
 
 - Work on a branch. `main` deploys. Commit or push only when Blake asks.
-- Look at your own render before handing work over. Use headless Chrome screenshots of the preview.
+- Look at your own render before handing work over, using headless Chrome screenshots of the
+  preview, at the cadence below.
 - **Running `quarto render` while a preview is running terminates the preview.**
   With `--no-watch-inputs`, a live preview can also re-render a page from stale
   state. Stop the preview, render, then restart it.
@@ -65,3 +66,17 @@ suite's public home.
   `.gitignore` and block the checkout.
 - Shell: the default is Windows PowerShell 5.1. Redirected logs are UTF-16, and
   `2>&1` on native commands produces NativeCommandError noise.
+
+### Render and validation cadence
+
+Set by Blake on 2026-11-12 (see `DECISIONS.md`).
+
+- Make all the edits first. Never render between individual file edits.
+- **Small edits** (config, one file, a dependency): render once, screenshot only
+  the affected page, and report.
+- **Larger changes** (new pages, theme or structural work): render once the work
+  is complete, fix what's broken, then take one final screenshot of each changed page.
+- Don't screenshot the same page twice unless the first one showed a problem you then fixed.
+- Do full comparison checks (light and dark, equation numbering, references) only
+  when a change touches the theme, fonts, maths or the build config, or when Blake asks.
+- The privacy scan before any push (see Privacy) stays mandatory every time.
