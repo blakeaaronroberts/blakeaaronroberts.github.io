@@ -12,6 +12,28 @@ The Steward writes it, and adds a batch only after Blake approves it. Blake
 starts a batch by pointing a builder at it by name. VISION.md outranks this
 file.
 
+## Current state
+
+Sync of 2026-11-12, 15:50 (Pacific). Facts only; work lives in the batches below.
+
+**Changed since the last sync**
+- VISION.md rules added today: tools are free and open-source or our own
+  (section 3); builder work goes only through this queue, and the Scribe's
+  handoff feeds it (section 8); the `sync` protocol (section 8); the
+  pre-launch site rule, site theme and embeds now match Blake's decisions
+  (sections 6, 7 and 9).
+- The university IP check is no longer planned (Blake is pursuing
+  university funding). Nothing changes for builders: the repo visibility
+  in VISION.md section 5 stands.
+- S1 done: CLAUDE.md points here; commits that touch only handoff files
+  don't deploy; `gh-pages` deleted (restore SHA in the S1 notes).
+- Maths is MathJax 4 with STIX2; the render cadence is in CLAUDE.md.
+
+**Waiting**
+- Site builder: S2 (docs section), then S3 (accessibility), when Blake starts them.
+- Scribe: Blake's review of its style guide and templates.
+- The private toolbox repo: first batch done; three batches queued.
+
 ## How builders use this file
 
 - Do only the batch Blake names, in step order, and stop at every review stop.

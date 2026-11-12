@@ -267,6 +267,23 @@ lecture video pipeline). 4 Adoption. Do not start later-phase work early.
     pages it writes stay drafts until Blake approves them.
   - It tracks its open work in `docs/SCRIBE_TODO.md` in each repo. The Steward
     mirrors those rows into Blake's tracker and never edits the file.
+- **Sync.** Blake keeps every agent current by typing `sync`.
+  - **Steward first.** It reads every repository, mirrors the Scribe's rows
+    into Blake's tracker, updates its log, and rewrites the **Current state**
+    block at the top of each `docs/STEWARD_HANDOFF.md`: what changed since the
+    last sync, new decisions and rules, and what each agent is waiting on.
+    The block needs no separate approval, but holds facts only, never new
+    work. In the public site repository it mentions private repositories by
+    status only, never by content. The Steward then tells Blake which agents
+    need a sync.
+  - **Every other agent**, on `sync` and at the start of every new session:
+    pull its repository; read the Current state block, then this file, its
+    `CLAUDE.md` and the handoff files; replace anything in its own memory that
+    disagrees with them (the files win); then reply in five lines or fewer:
+    what changed, what it will now do differently, any conflict it found,
+    and what it is waiting on.
+  - A sync changes no repository files, except the Steward's Current state
+    blocks, the tracker and the log.
 - Plan first for architectural steps; build in batches with a review stop
   between batches.
 - Blake has a few hours a week. Prefer the smallest change that moves a
@@ -283,6 +300,10 @@ non-circuit figures such as timing diagrams and plots (2026-11-12). The
 WaveDrom and DigitalJS embeds stay on the site as an interim (2026-11-12).
 
 ## 10. Change log
+
+- 2026-11-12 (evening, final): `sync` protocol (section 8): Blake types
+  `sync`, the Steward refreshes a Current state block in each handoff file,
+  and every agent reconciles its memory with the files.
 
 - 2026-11-12 (evening, last): Tools rule tightened to "free and open-source
   or our own", so the suite never depends on anything it can't keep.
