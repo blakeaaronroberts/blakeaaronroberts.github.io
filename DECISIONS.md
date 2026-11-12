@@ -2,6 +2,18 @@
 
 Notable choices for this repository (VISION.md §7): date, decision, reason. Newest first.
 
+## 2026-11-12: Documentation and handoff process
+
+**Decision.**
+
+- The Scribe writes docs and commits them to `main`.
+- Work that needs a builder goes from the Scribe's `docs/SCRIBE_HANDOFF.md` to the
+  Steward, who adds it to `docs/STEWARD_HANDOFF.md` once Blake approves.
+- Blake starts each batch by name.
+- Commits that touch only those handoff and to-do files don't redeploy.
+
+**Reason.** Blake's instruction, to keep builder work in one place he has approved.
+
 ## 2026-11-12: Render and validation cadence
 
 **Decision.** Agents render and check their work at a fixed cadence, set out in `CLAUDE.md`

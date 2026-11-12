@@ -3,6 +3,7 @@
 Read [`VISION.md`](VISION.md) first. It is the shared charter for every repository
 in this project, and this repository holds the canonical copy. **Do not edit
 `VISION.md`.** If anything below disagrees with it, stop and tell Blake.
+Before starting work, read `docs/STEWARD_HANDOFF.md`. Blake starts each batch there by name.
 
 This file adds only rules specific to this repository: the Quarto site that is the
 suite's public home.
@@ -57,6 +58,9 @@ suite's public home.
 ## Workflow
 
 - Work on a branch. `main` deploys. Commit or push only when Blake asks.
+  Exceptions (Blake, 2026-11-12): the Scribe commits documentation to `main`; the
+  Steward commits VISION.md and `docs/STEWARD_HANDOFF.md` to `main`; builders commit
+  their Status updates to this handoff file.
 - Look at your own render before handing work over, using headless Chrome screenshots of the
   preview, at the cadence below.
 - **Running `quarto render` while a preview is running terminates the preview.**

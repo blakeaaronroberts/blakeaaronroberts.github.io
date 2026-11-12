@@ -3,6 +3,7 @@ name: Render & deploy site
 on:
   push:
     branches: [main]
+    paths-ignore: ['docs/SCRIBE_*.md', 'docs/STEWARD_HANDOFF.md']
   workflow_dispatch:        # allow manual re-deploys from the Actions tab
 
 permissions:
