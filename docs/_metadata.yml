@@ -1,0 +1,3 @@
+# Applies to every page under docs/ (the Scribe's reference pages and tutorials)
+include-in-header: ../_includes/noindex.html   # pre-launch: reachable by URL, kept out of search (remove at launch)
+# Drafts live in docs/_drafts/ and are never rendered; a page moves out of it when Blake approves it.

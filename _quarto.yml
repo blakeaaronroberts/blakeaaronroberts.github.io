@@ -9,6 +9,9 @@ project:
     - "*.qmd"
     - "explorations/*/*.qmd"
     - "projects/*/*.qmd"
+    - "docs/**/*.qmd"       # Scribe's pages; its handoff and to-do files are .md, so they are not rendered.
+                            # Drafts go in docs/_drafts/: Quarto never renders "_" folders, so nothing reaches _site.
+    - "!docs/templates/"    # page templates full of placeholders, not pages
   resources:
     - "assets/**"           # static files referenced from includes (e.g. WaveDrom lecture skin)
 
@@ -17,6 +20,7 @@ website:
   description: "Analog, mixed-signal, and RF IC design, system-level design, and engineering education: course notes, explorations, and projects."
   site-url: https://blakeaaronroberts.github.io
   open-graph: true
+  draft-mode: gone              # backstop for `draft: true` pages: hidden, but Quarto still writes an empty file at their address (use docs/_drafts/)
   search: true
   navbar:                       # hidden on the landing page (index.qmd), which keeps only the dark-mode toggle
     left:

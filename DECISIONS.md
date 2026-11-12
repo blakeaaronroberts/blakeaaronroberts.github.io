@@ -2,6 +2,16 @@
 
 Notable choices for this repository (VISION.md §7): date, decision, reason. Newest first.
 
+## 2026-11-12: Docs drafts live in `docs/_drafts/`
+
+**Decision.** Draft docs pages live in `docs/_drafts/`, which Quarto never renders, and move
+into `docs/` when Blake approves them. `draft-mode: gone` stays as a backstop for any page
+marked `draft: true`.
+
+**Reason.** Blake's choice. With `draft-mode: gone`, Quarto still writes an empty HTML
+file at a draft's address, so its file name can be confirmed. An underscore folder keeps
+drafts out of `_site/` completely, with no extra build code.
+
 ## 2026-11-12: Documentation and handoff process
 
 **Decision.**
