@@ -1,10 +1,23 @@
 /*-- scss:rules --*/
-// Shared by light and dark themes; every variable resolves per theme.
+// Shared by every theme and mode. No colours or fonts here: only roles from themes/<name>/.
 // Look: modernised instrument manual — hairline rules, square corners, mono labels.
 
-// ---------- Shared pieces ----------
-$plate-bg: #f4f1e8;       // figure "paper plate", identical in both modes
-$plate-border: #cfcac0;
+// ---------- Figure roles for scripts ----------
+// Charts (assets/js/figtools.js) read these, so computed figures follow the theme too.
+:root {
+  --fig-background: #{$fig-background};
+  --fig-ink: #{$fig-ink};
+  --fig-muted: #{$fig-muted};
+  --fig-rule: #{$fig-rule};
+  --fig-grid: #{$fig-grid};
+  --fig-shade: #{$fig-shade};
+  --fig-accent: #{$fig-accent};
+  --fig-high: #{$fig-high};
+  --fig-flow: #{$fig-flow};
+  --fig-highlight: #{$fig-highlight};
+  --fig-font: #{inspect($role-font-text)};
+  --fig-font-mono: #{inspect($role-font-mono)};
+}
 
 @mixin label-mono {
   font-family: $font-family-monospace;
@@ -17,7 +30,7 @@ $plate-border: #cfcac0;
 .label-mono { @include label-mono; }
 
 // ---------- Base typography ----------
-body { -webkit-font-smoothing: antialiased; font-weight: 450; }   // Plex Sans is variable; 450 = "a hair thicker"
+body { -webkit-font-smoothing: antialiased; font-weight: $role-body-weight; }
 strong, b { font-weight: 600; }
 
 h1, h2, h3, h4 { letter-spacing: -0.01em; line-height: 1.25; }
@@ -124,7 +137,7 @@ hr { border: 0; border-top: 1px solid $border-color; margin: 2.5rem 0; opacity: 
   border: 1px solid $border-color; background: $body-bg;
   transition: border-color .12s ease;
   &:hover { border-color: $primary; transform: none; box-shadow: none; }
-  .card-img-top { object-fit: contain; background: $plate-bg; border-bottom: 1px solid $border-color; padding: .6rem; }
+  .card-img-top { object-fit: contain; background: $fig-background; border-bottom: 1px solid $border-color; padding: .6rem; }
   .card-title { font-size: 1.05rem; font-weight: 600; }
   .card-text, .listing-description { font-size: .9rem; }
   .listing-date, .listing-reading-time { @include label-mono; }
@@ -180,7 +193,7 @@ hr { border: 0; border-top: 1px solid $border-color; margin: 2.5rem 0; opacity: 
 
 // Figures (not tables) sit on a printed "paper plate" in both modes; plate content is always ink-on-paper
 figure.quarto-float-fig > :not(figcaption) {
-  background: $plate-bg; border: 1px solid $plate-border; padding: 1rem; color: #1a1917;
+  background: $fig-background; border: 1px solid $fig-rule; padding: 1rem; color: $fig-ink;
 }
 .quarto-figure img { display: block; margin: 0 auto; max-width: 100%; }
 // Observable Plot output (computed figures): centred on the plate, scaled down on narrow screens
@@ -189,22 +202,29 @@ figure.quarto-float-fig .cell-output-display > svg,
 figure.quarto-float-fig .cell-output-display > figure { display: inline-block; max-width: 100%; height: auto; margin: 0 auto; text-align: left; }
 // Graphviz SVGs arrive with fixed width/height attributes that ignore the viewBox aspect; let the viewBox decide.
 // ({dot} cells nest the figure inside .cell-output-display, so match Graphviz output by its <g class="graph"> root.)
-figure.quarto-float-fig svg:has(> g.graph) { display: block; width: 100% !important; max-width: 720px !important; height: auto !important; margin: 0 auto; }
+figure.quarto-float-fig svg:has(> g.graph) {
+  display: block; width: 100% !important; max-width: 720px !important; height: auto !important; margin: 0 auto;
+  // Diagrams carry no colours or fonts of their own; the theme supplies them here.
+  text { fill: $fig-ink; font-family: $role-font-text; }
+  g.node polygon, g.node ellipse, g.edge path { stroke: $fig-ink; }
+  g.edge polygon, g.node.junction ellipse { stroke: $fig-ink; fill: $fig-ink; }
+  g.node.label text { fill: $fig-muted; font-family: $role-font-mono; }   // dot: class="label"
+}
 
 // WaveDrom: centred, scaled to the plate width (its SVG has a viewBox), skin recoloured to match the plate
 .wavedrom-wrap {
   overflow-x: auto; text-align: center;
   svg { display: block; margin: 0 auto; width: 100%; height: auto; }
-  svg .s5 { fill: $plate-bg !important; }        // skin's white background rectangle
-  svg .info { fill: #1a1917 !important; }        // signal names: ink instead of blue
+  svg .s5 { fill: $fig-background !important; }  // skin's white background rectangle
+  svg .info { fill: $fig-ink !important; }       // signal names: ink instead of blue
 }
 // Standalone panels get their own plate; inside a numbered figure the figure's plate is used instead
 .wavedrom-wrap, .digitaljs-paper {
-  background: $plate-bg; border: 1px solid $plate-border; padding: 1rem; margin: 1rem 0 1.5rem;
+  background: $fig-background; border: 1px solid $fig-rule; padding: 1rem; margin: 1rem 0 1.5rem;
 }
 figure .wavedrom-wrap, figure .digitaljs-paper { background: none; border: 0; padding: 0; margin: 0; }
 .digitaljs-paper {
-  overflow: auto; min-height: 320px; color: #1a1917;
+  overflow: auto; min-height: 320px; color: $fig-ink;
   // Centre the fixed-width circuit canvas. Auto margins (not flex) so a circuit wider than the plate
   // falls back to left-aligned and scrolls, instead of being clipped on the left.
   > * { margin-left: auto; margin-right: auto; }

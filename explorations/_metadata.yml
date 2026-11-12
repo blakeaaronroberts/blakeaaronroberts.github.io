@@ -1,5 +1,4 @@
 # Applies to every page under explorations/
-license: "CC BY-NC-SA"     # adds a "Reuse" note in each post's appendix
 number-sections: true
 abstract-title: "Summary"
 toc: true

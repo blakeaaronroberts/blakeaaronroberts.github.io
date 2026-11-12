@@ -15,7 +15,18 @@ suite's public home.
   - `_quarto-dev.yml`: the full site (home, explorations, projects, about), previewed with `quarto preview --profile dev`.
 - Per VISION.md §6, the public build stays landing-only until the ripple-carry-adder
   flagship exploration and a project page explaining the suite both exist.
-- Theme: `theme-light.scss`, `theme-dark.scss`, `custom.scss`; fonts load from `_includes/fonts.html`.
+- **Themes** (VISION.md §7):
+  - `themes/<name>/` (`light.scss`, `dark.scss`, `fonts.html`) is the only place colours and fonts are set.
+  - Default: `themes/okabe-ito/` (Okabe-Ito colours, STIX Two Text, Fira Mono), selected in `_quarto.yml`.
+  - Alternate: `themes/blueprint/`, the original warm-paper/IBM Plex look. Preview it with `quarto preview --profile dev,blueprint`.
+  - Everything else asks for a **role**, never a colour:
+    - `custom.scss` uses `$role-*` and `$fig-*`, and publishes the figure roles as `--fig-*` CSS properties.
+    - `figtools.js` `palette.accent` / `.high` / `.shade` and the others read those properties.
+    - Graphviz `{dot}` cells carry no colours or fonts. CSS styles them, with `class="label"` for muted labels and `class="junction"` for dots.
+  - Quarto reads `$body-bg` on its own, so each theme sets it as a literal and derives `$role-background` from it.
+  - Thumbnails are screenshots of figure plates. Regenerate them when the theme changes.
+- **No licence notice** anywhere until Blake chooses one (VISION.md §3).
+- Third-party embeds stay for now, by Blake's decision on 2026-11-12: WaveDrom (with its lecture skin in `assets/wavedrom/`) and DigitalJS.
 - Figures and tables use IEEE labelling: "Fig. 1", "TABLE I", numbered equations, and the IEEE CSL style in `_csl/`.
 - Shared plotting and numerics live in `assets/js/figtools.js`, imported by OJS cells.
 

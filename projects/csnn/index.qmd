@@ -76,10 +76,10 @@ import {palette, plotStyle} from "../../assets/js/figtools.js"
   return Plot.plot({
     width: 640, height: 320, style: plotStyle, marginRight: 150,
     x: {label: "Cosets (p)", domain: ["32", "24", "16", "8"]}, y: {label: "Energy per scan (pJ)", grid: true, domain: [0, 180]},
-    color: {domain: ["Sampling (E_resp)", "Inference (E_rec)"], range: [palette.blue, palette.orange], legend: true},
+    color: {domain: ["Sampling (E_resp)", "Inference (E_rec)"], range: [palette.accent, palette.high], legend: true},
     marks: [
       Plot.barY(rows, {x: "p", y: "pJ", fill: "part"}),
-      Plot.text(totals, {x: "p", y: "pJ", text: d => `${d.pJ.toFixed(1)} pJ`, dy: 11, fill: "white", fontWeight: 600}),
+      Plot.text(totals, {x: "p", y: "pJ", text: d => `${d.pJ.toFixed(1)} pJ`, dy: 11, fill: palette.background, fontWeight: 600}),
       Plot.ruleY([Enyq], {stroke: palette.ink, strokeDasharray: "5,4"}),
       Plot.text([Enyq], {frameAnchor: "right", y: d => d, text: d => `Nyquist sampling\nonly: ${d.toFixed(0)} pJ`, dx: 145, textAnchor: "end", lineHeight: 1.2, fill: palette.ink}),
       Plot.ruleY([0])
@@ -104,7 +104,7 @@ import {palette, plotStyle} from "../../assets/js/figtools.js"
     y: {label: null, domain: data.map(d => d.sys)},
     marks: [
       Plot.ruleY(data, {y: "sys", x1: 10, x2: "pJ", stroke: palette.grid, strokeWidth: 2}),
-      Plot.dot(data, {y: "sys", x: "pJ", r: 6, fill: d => d.sys === "CSNN" ? palette.orange : palette.blue}),
+      Plot.dot(data, {y: "sys", x: "pJ", r: 6, fill: d => d.sys === "CSNN" ? palette.high : palette.accent}),
       Plot.text(data, {y: "sys", x: "pJ", text: d => energy(d.pJ), dx: 10, textAnchor: "start", fill: palette.ink})
     ]
   });

@@ -1,0 +1,9 @@
+# Alternate theme profile: the site's original "blueprint" look (warm paper, IBM Plex).
+#   quarto preview --profile dev,blueprint
+# The default (Okabe-Ito) theme is set in _quarto.yml; VISION.md requires it for anything committed or deployed.
+format:
+  html:
+    theme:
+      light: [default, themes/blueprint/light.scss, custom.scss]
+      dark: [default, themes/blueprint/dark.scss, custom.scss]
+    include-in-header: themes/blueprint/fonts.html

@@ -96,9 +96,14 @@ export const midiToHz = (m, a4 = 440) => a4 * Math.pow(2, (m - 69) / 12);
 /** Pitch error of a measured frequency against a target, in cents. */
 export const centsError = (measured, target) => 1200 * Math.log2(measured / target);
 
-// ---------- shared plot styling (figures sit on the site's off-white "paper plate") ----------
-export const palette = { ink: "#1a1917", blue: "#1f4e79", orange: "#b5541a", muted: "#6b675f", grid: "#cfcac0", spec: "#d9d3c6" };
-export const plotStyle = { fontFamily: "'IBM Plex Sans', system-ui, sans-serif", fontSize: "12px", background: "transparent", color: palette.ink, overflow: "visible" };
+// ---------- shared plot styling ----------
+// Colours and fonts come from the active theme (themes/<name>/), which custom.scss publishes as
+// --fig-* CSS custom properties. Ask for a ROLE, never a colour. Outside a browser (tests) roles are undefined.
+const role = name => (typeof document === "undefined" ? undefined
+  : getComputedStyle(document.documentElement).getPropertyValue(`--fig-${name}`).trim() || undefined);
+export const palette = Object.fromEntries(
+  ["background", "ink", "muted", "rule", "grid", "shade", "accent", "high", "flow", "highlight"].map(r => [r, role(r)]));
+export const plotStyle = { fontFamily: role("font"), fontSize: "13px", background: "transparent", color: palette.ink, overflow: "visible" };
 
 /** Evenly spaced samples [a, b] (n points). */
 export const linspace = (a, b, n) => Array.from({ length: n }, (_, i) => a + (b - a) * i / (n - 1));

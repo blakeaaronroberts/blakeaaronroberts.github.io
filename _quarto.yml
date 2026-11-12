@@ -16,7 +16,7 @@ website:
   search: false
   navbar: true                  # bare navbar (dark-mode toggle only); links are added by the dev profile
   page-footer:
-    left: "© 2026 Blake Roberts"     # CC BY-NC-SA notice lives on about.qmd and in each exploration's Reuse note
+    left: "© 2026 Blake Roberts"     # no licence notice until one is chosen (VISION.md §3)
 
 # IEEE style: captions "Fig. 1. Text" (below) and "TABLE I" + caption (above);
 # in-text "Fig. 1", "Table I", and "(1)" for equations — write equation refs as (@eq-id).
@@ -35,10 +35,12 @@ date-format: "YYYY-MM-DD"
 format:
   html:
     theme:
-      light: [default, theme-light.scss, custom.scss]
-      dark: [default, theme-dark.scss, custom.scss]
+      # Default theme (VISION.md): themes/okabe-ito/ is the only place colours and fonts are set.
+      # Alternate look: quarto preview --profile dev,blueprint
+      light: [default, themes/okabe-ito/light.scss, custom.scss]
+      dark: [default, themes/okabe-ito/dark.scss, custom.scss]
     respect-user-color-scheme: true   # first visit follows the OS setting; toggle overrides
-    grid:                             # ~70ch measure at 16px Plex, with room for margin notes
+    grid:                             # ~70ch measure at 16px, with room for margin notes
       body-width: 700px
       margin-width: 260px
       sidebar-width: 250px
@@ -47,5 +49,5 @@ format:
     toc: true
     code-copy: true
     link-external-newwindow: true
-    include-in-header: _includes/fonts.html
+    include-in-header: themes/okabe-ito/fonts.html
     include-after-body: _includes/captions.html

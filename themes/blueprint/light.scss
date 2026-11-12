@@ -1,0 +1,68 @@
+/*-- scss:defaults --*/
+// ALTERNATE THEME "blueprint" (the site's original look: warm paper, IBM Plex), light mode
+// Select with:  quarto preview --profile dev,blueprint   (see _quarto-blueprint.yml)
+
+$role-font-text: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif !default;
+$role-font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !default;
+$role-body-weight: 450 !default;   // Plex Sans is variable; 450 = "a hair thicker"
+// ROLE background, set as $body-bg directly (Quarto reads this line on its own).
+$body-bg: #f6f4ee !default;
+$role-background: $body-bg !default;
+$role-ink:          #1a1917 !default;
+$role-muted:        #5c5950 !default;
+$role-rule:         #cfcac0 !default;
+$role-surface:      #ece8df !default;
+$role-accent:       #1f4e79 !default;   // deep blueprint blue
+$role-accent-hover: darken(#1f4e79, 10%) !default;
+$fig-background: #f4f1e8 !default;
+$fig-ink:        #1a1917 !default;
+$fig-muted:      #6b675f !default;
+$fig-rule:       #cfcac0 !default;
+$fig-grid:       #cfcac0 !default;
+$fig-shade:      #d9d3c6 !default;
+$fig-accent:     #1f4e79 !default;
+$fig-high:       #b5541a !default;
+$fig-flow:       #3d7a5c !default;
+$fig-highlight:  #e38b3f !default;
+// ---------- Bootstrap mapping: roles only, no colours or fonts below this line ----------
+$font-family-sans-serif: $role-font-text !default;
+$font-family-base: $role-font-text !default;
+$font-family-monospace: $role-font-mono !default;
+$body-color: $role-ink !default;
+$headings-color: $role-ink !default;
+$text-muted: $role-muted !default;
+$primary: $role-accent !default;
+$border-color: $role-rule !default;
+$code-bg: $role-surface !default;
+$code-color: $role-ink !default;
+$code-block-bg: $role-surface !default;
+$link-color: $role-accent !default;
+$link-hover-color: $role-accent-hover !default;
+$navbar-bg: $body-bg !default;
+$navbar-fg: $role-ink !default;
+$navbar-hl: $role-accent !default;
+$footer-bg: $body-bg !default;
+$footer-fg: $role-muted !default;
+$input-bg: $role-surface !default;
+$input-color: $role-ink !default;
+$input-border-color: $role-rule !default;
+
+// Shapes: square everywhere, no shadows
+$enable-rounded: false !default;
+$enable-shadows: false !default;
+$border-radius: 0 !default;
+$border-radius-sm: 0 !default;
+$border-radius-lg: 0 !default;
+$btn-border-radius: 0 !default;
+$card-border-radius: 0 !default;
+$card-border-color: $role-rule !default;
+$card-bg: $body-bg !default;
+
+// Type scale
+$font-size-base: 1rem !default;
+$line-height-base: 1.65 !default;
+$headings-font-weight: 600 !default;
+$h1-font-size: 1.75rem !default;
+$h2-font-size: 1.35rem !default;
+$h3-font-size: 1.1rem !default;
+$h4-font-size: 1rem !default;

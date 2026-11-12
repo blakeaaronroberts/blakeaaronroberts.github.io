@@ -79,8 +79,8 @@ den = polyMul(polyMul([1, -0.744], [1, -1.652, 0.8898]), [1, -1.537, 0.6723])
     marks: [
       Plot.ruleX([0], {stroke: palette.grid}), Plot.ruleY([0], {stroke: palette.grid}),
       Plot.line(circle, {x: "x", y: "y", stroke: palette.muted, strokeDasharray: "3,3"}),
-      Plot.dot(z, {x: "re", y: "im", r: 6, stroke: palette.blue, strokeWidth: 2, fill: "none"}),
-      Plot.dot(p, {x: "re", y: "im", r: 6, symbol: "times", stroke: palette.orange, strokeWidth: 2})
+      Plot.dot(z, {x: "re", y: "im", r: 6, stroke: palette.accent, strokeWidth: 2, fill: "none"}),
+      Plot.dot(p, {x: "re", y: "im", r: 6, symbol: "times", stroke: palette.high, strokeWidth: 2})
     ]
   });
 }
@@ -95,9 +95,9 @@ den = polyMul(polyMul([1, -0.744], [1, -1.652, 0.8898]), [1, -1.537, 0.6723])
     width: 640, height: 320, style: plotStyle, grid: true,
     x: {label: "Frequency (MHz)", domain: [0, 6]}, y: {label: "Magnitude (dB)", domain: [-100, 5]},
     marks: [
-      Plot.rect([{x1: 1.8, x2: 6, y1: -50, y2: 5}], {x1: "x1", x2: "x2", y1: "y1", y2: "y2", fill: palette.spec, fillOpacity: 0.6}),
-      Plot.rect([{x1: 0, x2: 0.9, y1: -100, y2: -0.25}], {x1: "x1", x2: "x2", y1: "y1", y2: "y2", fill: palette.spec, fillOpacity: 0.6}),
-      Plot.line(pts, {x: "f", y: "dB", stroke: palette.blue, strokeWidth: 1.6}),
+      Plot.rect([{x1: 1.8, x2: 6, y1: -50, y2: 5}], {x1: "x1", x2: "x2", y1: "y1", y2: "y2", fill: palette.shade, fillOpacity: 0.6}),
+      Plot.rect([{x1: 0, x2: 0.9, y1: -100, y2: -0.25}], {x1: "x1", x2: "x2", y1: "y1", y2: "y2", fill: palette.shade, fillOpacity: 0.6}),
+      Plot.line(pts, {x: "f", y: "dB", stroke: palette.accent, strokeWidth: 1.6}),
       Plot.text([{x: 3.9, y: -42, t: "stopband limit −50 dB"}], {x: "x", y: "y", text: "t", fill: palette.muted})
     ]
   });
@@ -113,9 +113,9 @@ den = polyMul(polyMul([1, -0.744], [1, -1.652, 0.8898]), [1, -1.537, 0.6723])
     width: 640, height: 260, style: plotStyle, grid: true,
     x: {label: "Frequency (MHz)"}, y: {label: "Magnitude (dB)", domain: [-0.3, 0.05]},
     marks: [
-      Plot.ruleY([-0.25], {stroke: palette.orange, strokeDasharray: "4,3"}),
-      Plot.text([{x: 0.05, y: -0.235, t: "ripple limit −0.25 dB"}], {x: "x", y: "y", text: "t", textAnchor: "start", fill: palette.orange}),
-      Plot.line(pts, {x: "f", y: "dB", stroke: palette.blue, strokeWidth: 1.6})
+      Plot.ruleY([-0.25], {stroke: palette.high, strokeDasharray: "4,3"}),
+      Plot.text([{x: 0.05, y: -0.235, t: "ripple limit −0.25 dB"}], {x: "x", y: "y", text: "t", textAnchor: "start", fill: palette.high}),
+      Plot.line(pts, {x: "f", y: "dB", stroke: palette.accent, strokeWidth: 1.6})
     ]
   });
 }
@@ -131,8 +131,8 @@ den = polyMul(polyMul([1, -0.744], [1, -1.652, 0.8898]), [1, -1.537, 0.6723])
     x: {label: "Time (µs)"}, y: {label: "Amplitude", domain: [0, 1.25]},
     marks: [
       Plot.ruleY([1], {stroke: palette.grid}),
-      Plot.line(y, {x: "t", y: "v", stroke: palette.blue, strokeWidth: 1.4, curve: "step-after"}),
-      Plot.dot(y, {x: "t", y: "v", r: 1.8, fill: palette.blue})
+      Plot.line(y, {x: "t", y: "v", stroke: palette.accent, strokeWidth: 1.4, curve: "step-after"}),
+      Plot.dot(y, {x: "t", y: "v", r: 1.8, fill: palette.accent})
     ]
   });
 }

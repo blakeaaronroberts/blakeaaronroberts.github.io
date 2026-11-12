@@ -63,8 +63,8 @@ The Power Supply unit works by taking in AC power from a prefabricated wall wart
     x: {label: null, domain: meas.map(d => d.note)}, y: {label: "Error (cents)", domain: [-15, 15], grid: true},
     marks: [
       Plot.ruleY([0], {stroke: palette.ink}),
-      Plot.ruleX(meas, {x: "note", y1: 0, y2: "cents", stroke: palette.blue, strokeWidth: 2}),
-      Plot.dot(meas, {x: "note", y: "cents", r: 6, fill: palette.blue}),
+      Plot.ruleX(meas, {x: "note", y1: 0, y2: "cents", stroke: palette.accent, strokeWidth: 2}),
+      Plot.dot(meas, {x: "note", y: "cents", r: 6, fill: palette.accent}),
       Plot.text(meas, {x: "note", y: "cents", text: d => `${d.cents >= 0 ? "+" : ""}${d.cents.toFixed(1)}¢\n${d.hz} Hz`, dx: 12, textAnchor: "start", lineHeight: 1.2, fill: palette.ink})
     ]
   });
