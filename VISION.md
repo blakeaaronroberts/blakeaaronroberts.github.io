@@ -66,7 +66,8 @@ Use these to judge every idea.
 - **Licence: not yet chosen.** Do not add LICENSE files, licence headers or
   licence badges until Blake decides.
 - **Approval.** Blake signs off on anything students or the public see.
-  Agents never mark anything approved (see section 7).
+  Agents mark something approved only when Blake directly tells them to
+  (see section 7).
 
 ## 4. Architecture
 
@@ -144,19 +145,27 @@ lecture video pipeline). 4 Adoption. Do not start later-phase work early.
 - One settings file per repo is the only place colours, line weights, sizes,
   grid and fonts are defined. Everything else reads from it or is generated
   from it. No hard-coded colours or sizes anywhere.
-- Colours are referenced by role (ink, low, high, flow, background), never
-  by hue or by brand.
-- **Default theme (decided 2026-11-11): neutral palette, open fonts.** The
-  current look (specific brand colour values, Cambria Math, Consolas) becomes
-  a private theme that is not the default. Until the neutral theme exists,
-  do not add new dependencies on the proprietary fonts.
+- Colours are referenced by role (ink, low, high, flow, accent, background),
+  never by hue or by brand. Only the style file maps roles to colours.
+- **Default theme:** the Okabe-Ito palette (`high` is vermillion, #D55E00),
+  STIX Two Text and STIX Two Math for text and maths, Fira Mono for names
+  written on elements. All are free and ship with MiKTeX and TeX Live, so a
+  Linux CI runner renders identically. Defaults, exports, galleries and
+  committed renders always use this theme.
+- **Private themes** (such as an institution's look for Blake's own slides)
+  live in a git-ignored folder and are selected at render time. Never commit
+  one, and never name a proprietary font or brand colour in committed code.
+- All on-screen words go through LaTeX, so fonts come from the style file
+  with nothing installed by hand.
 - Palettes must be colour-blind safe. Signal state must not rely on colour
   alone in web tools (add a label, pattern or value readout).
 
 ### Approval gates
 - Every element, figure, tool and page starts as a draft.
-- Only Blake changes a status to approved. Agents never write or edit
-  "approved", in any registry or front matter.
+- Only Blake decides what is approved. An agent writes "approved" in a
+  registry or front matter only when Blake directly tells it to in the
+  conversation, for the specific items he names. Never on the agent's own
+  judgement, and never as a side effect of other work.
 - Circuits and public pages use approved elements only. If something new is
   needed, add it as a draft and stop for review.
 - Look at your own render before handing work over.
@@ -205,11 +214,16 @@ lecture video pipeline). 4 Adoption. Do not start later-phase work early.
   `manimations`, in the site repo, or in a new repository.
 - Whether the site's current third-party timing-diagram and circuit
   embeds stay as an interim or are replaced by suite tools.
-- Whether the older LaTeX-figure animation pipeline in `manimations` is
-  kept alongside the toolbox or retired.
+
+Settled: circuits always come from the toolbox; LaTeX figures are only for
+non-circuit figures such as timing diagrams and plots (2026-11-12).
 
 ## 10. Change log
 
+- 2026-11-12 (later): Agents may set "approved" on Blake's direct instruction.
+  Default theme now exists (Okabe-Ito, STIX Two, Fira Mono; private themes
+  git-ignored). LaTeX-figure pipeline question settled. Prompted by
+  `manimations/DECISIONS.md`.
 - 2026-11-12: Copy placed in every repository; overseer may write this file
   and no other. All 22 toolbox elements approved.
 - 2026-11-11: First draft. Core model, neutral default theme, first flagship
