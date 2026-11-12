@@ -1,0 +1,72 @@
+---
+title: "TouchSynth Modular Audio Synthesis System"
+subtitle: "Capstone Project · ECE 441–443 · Senior Design"
+description: "A Eurorack modular synthesizer whose oscillator plays waveforms drawn on a touchscreen. Design Impact Advocacy Award, OSU Engineering Expo."
+priority: 4
+image: thumbnail.png
+categories: [capstone, analog, power, PCB, team]
+---
+
+```{ojs}
+//| echo: false
+import {midiToHz, centsError, palette, plotStyle} from "../../assets/js/figtools.js"
+```
+
+::: {.callout-note appearance="minimal"}
+**Design Impact Advocacy Award**, Oregon State University College of Engineering Expo
+([project showcase](https://projects.engineering.oregonstate.edu/projects/?id=53tYV3TNTV0I6cfH)).
+Team: Michael Laun, Cole Miller, Blake Roberts, Ai'Dan Van Iv.
+:::
+
+{{< video https://youtu.be/4UW8upIH_cM title="TouchSynth project summary" >}}
+
+## Overview
+
+TouchSynth is a modular synthesizer project. A modular synthesizer is a musical instrument that synthesizes audio using discrete modules with individual functions that can be manipulated, rearranged, replaced, and customized by the user. While many synthesizers are manufactured with all of their components and routing preselected, a modular synthesizer allows the user to control everything from the synthesizer's architecture to its signal path. Typical modules include voltage controlled oscillators (VCO), voltage controlled filters (VCF), envelopes (ADSR), voltage controlled amplifiers (VCA), and more. The centerpiece and namesake of the TouchSynth project is the digitally controlled oscillator (DCO) that allows the user to draw a waveform on a touchscreen, and then generates that waveform, mapped to the frequencies of a piano, allowing the user to play and hear their creation.
+
+The final system includes a MIDI to CV converter, DCO, VCF, ADSR, low frequency oscillator (LFO), and VCA. Each module utilizes two PCBs, one for mounting input/output jacks and connecting to potentiometers and switches, and a second board attached via header pins and sockets for the main circuit. Patch cables are used to route audio signals and control voltages between modules, allowing for many possible configurations to control and manipulate the final circuit. The modules are housed in a custom made enclosure which meets Eurorack sizing requirements and allows for expansion of the current system with extra space for additional modules. The system also has a dedicated power supply, which creates +12V, -12V, and +5V rails using a single 12V AC power supply and supplies power to each module through Eurorack standard ribbon cables. In total, the system contains 14 PCBs designed by the team, two microcontrollers, and 26 input/output jacks capable of interfacing with existing Eurorack modules.
+
+## My blocks
+
+[Block champion: Voltage Controlled Filter · Power Supply Unit · Eurorack Case]{.label-mono}
+
+### Voltage Controlled Filter
+
+The Voltage Controlled Filter module's primary function is to filter the audio signal from the digital oscillator. It is an adaptation of the legendary Moog ladder filter, featured in many of Moog's most famous and beloved synthesizer's such as the MiniMoog and the Voyager. It consists of a low-pass filter architecture constructed from a differential four-pole bipolar junction transistor ladder with a 24dB/Octave cutoff slope. User interaction is facilitated by a number of controls on the faceplate of the module. The frequency cutoff and resonance, for instance, are both adjustable by the user using knobs on the faceplate. It features two audio input jacks and one audio output jack. The audio inputs can be individually attenuated by the user using knobs on the faceplate. Additionally, it features three control voltage inputs which manipulate the cutoff frequency of the filter. Two of the control voltages can be attenuated by the user using knobs on the faceplate. One control voltage is left unattenuated.
+
+The filter works by summing the two audio inputs and sending them to the transistor ladder. The ladder is biased by a voltage controlled current source, whose input voltage is controlled by the frequency cutoff knob and/or the sum of the control voltage inputs. The transistor ladder is constructed such that the cutoff frequency is controlled by the bias current. Thus, a "voltage controlled filter" is achieved. Additionally, the negative feedback factor of the four pole cascade is controlled by the resonance knob, which applies the negative side of the differential circuit back to the input, increasing the resonance around the cutoff frequency. The output of the transistor ladder is then applied to a differencing circuit, which converts the differential output to a positive single ended output. This single ended output is then buffered and sent to the output of the module.
+
+| Input frequency | $V_{in}$ (pk–pk) | $V_{out}$ (pk–pk) | $V_{out}/V_{in}$ | Gain |
+|---|---|---|---|---|
+| 1.004 kHz | 10.6 V | 7.04 V | 0.664 | −3.6 dB |
+| 10.01 kHz | 10.6 V | 7.04 V | 0.664 | −3.6 dB |
+
+: Measured cutoff tuning: with the cutoff knob set for each frequency, a 10 Vpp sine is attenuated to about −3 dB, showing the cutoff adjustable across the required 1 kHz to 10 kHz range (oscilloscope readings, May 2024). {#tbl-vcf}
+
+### Power Supply Unit
+
+The primary function of the Power Supply unit is to provide power for the TouchSynth modules engineered and constructed for the project. It will provide +/- 12V DC, as is standard with Eurorack modules, as well as +5V DC for integration with Teensy microcontroller used in the Digital Oscillator module. The module will be connected to the individual synthesizer modules via ribbon cables, according to Eurorack standard practice.
+
+The Power Supply unit works by taking in AC power from a prefabricated wall wart. It uses diode rectification circuits to produce separate rectified positive and negative signals. Filtering capacitors are then used to smooth out the signal. After the capacitors, voltage regulators are used to produce the individual power signals. These signals are routed to a bus board, which allows the user to apply power to modules using ribbon cables.
+
+## System verification
+
+```{ojs}
+//| label: fig-pitch
+//| fig-cap: "Pitch accuracy of the full MIDI-to-oscillator chain: frequency measured on the oscilloscope for C1–C5 played on a MIDI keyboard, as error in cents from A440 equal temperament (team measurement, May 2024). The requirement allowed ±10% (about ±165 cents)."
+{
+  const meas = [{note: "C1", midi: 24, hz: 32.67}, {note: "C2", midi: 36, hz: 65.40}, {note: "C3", midi: 48, hz: 131.6},
+                {note: "C4", midi: 60, hz: 262.5}, {note: "C5", midi: 72, hz: 523.6}]
+    .map(d => ({...d, target: midiToHz(d.midi), cents: centsError(d.hz, midiToHz(d.midi))}));
+  return Plot.plot({
+    width: 640, height: 260, style: plotStyle,
+    x: {label: null, domain: meas.map(d => d.note)}, y: {label: "Error (cents)", domain: [-15, 15], grid: true},
+    marks: [
+      Plot.ruleY([0], {stroke: palette.ink}),
+      Plot.ruleX(meas, {x: "note", y1: 0, y2: "cents", stroke: palette.blue, strokeWidth: 2}),
+      Plot.dot(meas, {x: "note", y: "cents", r: 6, fill: palette.blue}),
+      Plot.text(meas, {x: "note", y: "cents", text: d => `${d.cents >= 0 ? "+" : ""}${d.cents.toFixed(1)}¢\n${d.hz} Hz`, dx: 12, textAnchor: "start", lineHeight: 1.2, fill: palette.ink})
+    ]
+  });
+}
+```

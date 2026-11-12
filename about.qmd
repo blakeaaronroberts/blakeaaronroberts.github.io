@@ -84,6 +84,16 @@ title: "About / CV"
 | Languages | Python, C/C++, Bash |
 | Instructional | Lab instruction, curriculum development, assessment, technical writing, mentorship |
 
+## Recognition
+
+::: {.cv-entry}
+[Design Impact Advocacy Award]{.cv-role}
+
+[Oregon State University College of Engineering Expo · TouchSynth (senior capstone)]{.cv-org}
+
+- [Project page](projects/touchsynth/index.qmd) · [Expo showcase](https://projects.engineering.oregonstate.edu/projects/?id=53tYV3TNTV0I6cfH)
+:::
+
 ## Affiliations
 
 ::: {.cv-entry}

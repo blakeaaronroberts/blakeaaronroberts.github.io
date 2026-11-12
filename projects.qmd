@@ -1,52 +1,11 @@
 ---
 title: "Projects"
 toc: false
+page-layout: full
+listing:
+  contents: projects
+  type: grid
+  sort: "priority"
+  image-height: 190px
+  fields: [image, title, subtitle, description]
 ---
-
-::: {.grid}
-
-::: {.g-col-12 .g-col-md-6}
-::: {.project-card}
-### CSNN: Neural-Network Compressive Spectrum Sensing
-[Graduate research · RF · PyTorch]{.tags}
-
-System-level architecture for a neural-network-based RF compressive spectrum
-sensing system, validated under sub-Nyquist sampling in PyTorch, with hardware
-performance emulated using approximate analog margin-propagation compute.
-:::
-:::
-
-::: {.g-col-12 .g-col-md-6}
-::: {.project-card}
-### Low-Noise, Wide-Tuning-Range PLL
-[ECE 524 · Wireline · Mixed-signal]{.tags}
-
-An 8-phase PLL for a 16 Gb/s wireline transceiver, targeting low noise and
-1 GHz of frequency coverage. Bandwidth and architecture chosen to minimize
-jitter under high-speed-link noise constraints.
-:::
-:::
-
-::: {.g-col-12 .g-col-md-6}
-::: {.project-card}
-### Elliptic Low-Pass Switched-Capacitor Filter
-[ECE 626 · Analog CMOS]{.tags}
-
-A 5th-order elliptic switched-capacitor filter meeting gain, ripple, and area
-constraints, with dynamic-range and minimum-capacitance scaling and analysis of
-charge injection, op-amp offset, finite gain, and bandwidth limits.
-:::
-:::
-
-::: {.g-col-12 .g-col-md-6}
-::: {.project-card}
-### TouchSynth Modular Audio Synthesizer
-[Senior capstone · Analog · Power]{.tags}
-
-An audio synthesis platform where users draw waveforms on a touchscreen.
-Includes a 4-pole 24 dB/octave voltage-controlled filter with CV-adjustable
-cutoff and resonance, and a low-noise triple-rail power supply.
-:::
-:::
-
-:::

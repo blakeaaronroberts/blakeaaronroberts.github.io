@@ -1,0 +1,187 @@
+---
+title: "Low-Pass Switched Capacitor Filter Design"
+subtitle: "Course Project · ECE 626 · Analog CMOS Circuit Design"
+description: "Designed a 5th-order elliptic low-pass switched-capacitor filter meeting strict gain, ripple, and area constraints."
+priority: 3
+image: thumbnail.png
+categories: [analog CMOS, switched-capacitor, filters]
+abstract: "Students were tasked with designing a low-pass (LP) switched capacitor (SC) filter for a 12 MHz sampling frequency. The filter was required to have a passband from 0 - 0.9 MHz and a stopband from 1.8 - 6 MHz. The filter was required to have a gain of 0 dB in the passband and a gain of -50 dB in the stopband. The minimum capacitor size was required to be 0.05 pF. The filter was designed using MATLAB Signal Processing Toolbox and the Elliptic filter topology was selected as the best topology for the filter design. The poles and zeros of the filter were determined and the filter was designed to meet the specifications. The filter was implemented in Cadence Virtuoso. Dynamic range scaling and minimum capacitor scaling were performed to ensure the filter met the specifications and minimized chip area. The complete filter was simulated using macromodels representing the finite gain and bandwidth (BW) of the op-amps. Finally, the effects of charge injection, op-amp offset voltage, slew rate, bandwidth and finite gain were analyzed to determine the effects on the filter response."
+bibliography: references.bib
+---
+
+```{ojs}
+//| echo: false
+import {polyMul, roots, freqz, stepResponse, lowpassOrders, linspace, palette, plotStyle} from "../../assets/js/figtools.js"
+```
+
+## Specifications
+
+| Specification | Value |
+|---|---|
+| Sampling Frequency | 12 MHz |
+| DC Gain | 0 dB |
+| Passband | 0 - 0.9 MHz |
+| Ripple in Passband | < 0.25 dB |
+| Stopband | 1.8 - 6 MHz |
+| Gain in Stopband | Below -50 dB |
+| Minimum Capacitor Size | 0.05 pF |
+
+: Filter Design Specifications. {#tbl-specs}
+
+In order to ensure specifications were met, the designer chose to reduce the ripple to 0.1 dB in the passband and the stopband gain to -52 dB.
+
+@tbl-orders computes the minimum order of each classic approximation for those targets; it reproduces the report's MATLAB results (Butterworth 11, Chebyshev I and II 7, elliptic 5).
+
+```{ojs}
+//| label: tbl-orders
+//| tbl-cap: "Minimum order for each approximation, computed from the pre-warped band edges (0.1 dB ripple, 52 dB attenuation)."
+Inputs.table(
+  lowpassOrders(0.9e6, 1.8e6, 12e6, 0.1, 52).map(r => ({Approximation: r.name, "Exact bound": r.exact.toFixed(2), "Order": r.order})),
+  {sort: null, layout: "auto"}
+)
+```
+
+## Transfer function
+
+The transfer function was then decomposed into the following second-order sections:
+
+$$
+H_1(z) = \frac{0.005133z^2 + 0.005133z}{z^2 - 0.744z}
+$$ {#eq-h1}
+
+$$
+H_2(z) = \frac{z^2 - 1.357z + 1}{z^2 - 1.652z + 0.8898}
+$$ {#eq-h2}
+
+$$
+H_3(z) = \frac{z^2 - 0.7563z + 1}{z^2 - 1.537z + 0.6723}
+$$ {#eq-h3}
+
+The 5th order elliptic filter was designed by cascading a standard active SC linear filter with two Tow-Thomas Biquads. The Tow-Thomas Biquad is a popular choice for SC filters due to its simplicity and ease of design. By simply matching the coefficients of the transfer functions derived in MATLAB to the symbolic transfer function derived by analyzing the circuit, one can easily obtain the SC realization of the filter. All three stages were derived from examples found in [@carusone2012].
+
+```{ojs}
+//| echo: false
+fs = 12e6
+// Cascade of (1)-(3); H1's common factor of z cancels, leaving a 5th-order H(z).
+num = polyMul(polyMul([0.005133, 0.005133], [1, -1.357, 1]), [1, -0.7563, 1])
+den = polyMul(polyMul([1, -0.744], [1, -1.652, 0.8898]), [1, -1.537, 0.6723])
+```
+
+```{ojs}
+//| label: fig-pz
+//| fig-cap: "Poles (×) and zeros (○) of the cascade, found numerically from the coefficients in (1)–(3). All zeros lie on the unit circle; all poles lie inside it."
+{
+  const z = roots(num), p = roots(den);
+  const circle = linspace(0, 2 * Math.PI, 361).map(t => ({x: Math.cos(t), y: Math.sin(t)}));
+  return Plot.plot({
+    width: 460, height: 420, style: plotStyle, grid: true,
+    x: {domain: [-1.5, 1.5], label: "Real part"}, y: {domain: [-1.25, 1.25], label: "Imaginary part"},
+    marks: [
+      Plot.ruleX([0], {stroke: palette.grid}), Plot.ruleY([0], {stroke: palette.grid}),
+      Plot.line(circle, {x: "x", y: "y", stroke: palette.muted, strokeDasharray: "3,3"}),
+      Plot.dot(z, {x: "re", y: "im", r: 6, stroke: palette.blue, strokeWidth: 2, fill: "none"}),
+      Plot.dot(p, {x: "re", y: "im", r: 6, symbol: "times", stroke: palette.orange, strokeWidth: 2})
+    ]
+  });
+}
+```
+
+```{ojs}
+//| label: fig-mag
+//| fig-cap: "Magnitude response of the cascade from 0 to 6 MHz (fs = 12 MHz), evaluated on the unit circle from (1)–(3). Shaded regions are excluded by the specification: below −0.25 dB in the passband, above −50 dB in the stopband."
+{
+  const pts = linspace(1, 6e6, 1500).map(f => freqz(num, den, f, fs)).map(d => ({f: d.f / 1e6, dB: Math.max(d.dB, -100)}));
+  return Plot.plot({
+    width: 640, height: 320, style: plotStyle, grid: true,
+    x: {label: "Frequency (MHz)", domain: [0, 6]}, y: {label: "Magnitude (dB)", domain: [-100, 5]},
+    marks: [
+      Plot.rect([{x1: 1.8, x2: 6, y1: -50, y2: 5}], {x1: "x1", x2: "x2", y1: "y1", y2: "y2", fill: palette.spec, fillOpacity: 0.6}),
+      Plot.rect([{x1: 0, x2: 0.9, y1: -100, y2: -0.25}], {x1: "x1", x2: "x2", y1: "y1", y2: "y2", fill: palette.spec, fillOpacity: 0.6}),
+      Plot.line(pts, {x: "f", y: "dB", stroke: palette.blue, strokeWidth: 1.6}),
+      Plot.text([{x: 3.9, y: -42, t: "stopband limit −50 dB"}], {x: "x", y: "y", text: "t", fill: palette.muted})
+    ]
+  });
+}
+```
+
+```{ojs}
+//| label: fig-passband
+//| fig-cap: "Passband detail, 0–0.9 MHz. Computed from the published coefficients; the reported Cadence simulation shows ripple under 0.16 dB."
+{
+  const pts = linspace(1, 0.9e6, 600).map(f => freqz(num, den, f, fs)).map(d => ({f: d.f / 1e6, dB: d.dB}));
+  return Plot.plot({
+    width: 640, height: 260, style: plotStyle, grid: true,
+    x: {label: "Frequency (MHz)"}, y: {label: "Magnitude (dB)", domain: [-0.3, 0.05]},
+    marks: [
+      Plot.ruleY([-0.25], {stroke: palette.orange, strokeDasharray: "4,3"}),
+      Plot.text([{x: 0.05, y: -0.235, t: "ripple limit −0.25 dB"}], {x: "x", y: "y", text: "t", textAnchor: "start", fill: palette.orange}),
+      Plot.line(pts, {x: "f", y: "dB", stroke: palette.blue, strokeWidth: 1.6})
+    ]
+  });
+}
+```
+
+```{ojs}
+//| label: fig-step
+//| fig-cap: "Step response of the cascade at fs = 12 MHz, from the difference equation of (1)–(3)."
+{
+  const y = stepResponse(num, den, 72).map((v, n) => ({t: n / fs * 1e6, v}));
+  return Plot.plot({
+    width: 640, height: 260, style: plotStyle, grid: true,
+    x: {label: "Time (µs)"}, y: {label: "Amplitude", domain: [0, 1.25]},
+    marks: [
+      Plot.ruleY([1], {stroke: palette.grid}),
+      Plot.line(y, {x: "t", y: "v", stroke: palette.blue, strokeWidth: 1.4, curve: "step-after"}),
+      Plot.dot(y, {x: "t", y: "v", r: 1.8, fill: palette.blue})
+    ]
+  });
+}
+```
+
+## Capacitor values
+
+| Capacitor | Initial Value | After Scaling |
+|---|---|---|
+| C1 | 68.992 fF | 50 fF |
+| C2 | 137.98 fF | 100 fF |
+| C3 | 3.4409 pF | 100.01 fF |
+| C4 | 10 pF | 290.67 fF |
+| C5 | 13.186 pF | 75.204 fF |
+| C6 | 10 pF | 199.92 fF |
+| C7 | 4.8765 pF | 107.89 fF |
+| C8 | 2.2598 pF | 50 fF |
+| C9 | 10 pF | 50 fF |
+| C10 | 4.8765 pF | 85.468 fF |
+| C11 | 10 pF | 193.97 fF |
+| C12 | 41.237 pF | 94.659 fF |
+| C13 | 4.4861 pF | 65.981 fF |
+| C14 | 14.874 pF | 50 fF |
+| C15 | 10 pF | 259.88 fF |
+| C16 | 4.4861 pF | 176.31 fF |
+| C17 | 4.8743 pF | 108.42 fF |
+| C18 | 10 pF | 222.43 fF |
+
+: Capacitor Values, before and after dynamic-range and minimum-capacitance scaling. {#tbl-caps}
+
+## Verification
+
+| Specification | Value | Result | Satisfied |
+|---|---|---|---|
+| Sampling Frequency | 12 MHz | 12 MHz | Yes |
+| DC Gain | 0 dB | 0 dB | Yes |
+| Passband | 0 - 0.9 MHz | 0 - 0.9 MHz | Yes |
+| Ripple in Passband | < 0.25 dB | < 0.16 dB | Yes |
+| Stopband | 1.8 - 6 MHz | 1.8 - 6 MHz | Yes |
+| Gain in Stopband | < -50 dB | < -50.04 dB | Yes |
+| Minimum Capacitor Size | 0.05 pF | 0.05 pF | Yes |
+
+: Filter Design Verification (Cadence Virtuoso, op-amp and switch macromodels). {#tbl-verify}
+
+## Conclusion
+
+In conclusion, the designer was able to design a 5th order elliptic low-pass switched capacitor filter that met the specifications provided. The filter was designed using MATLAB Signal Processing Toolbox and implemented using macromodels for the op-amps and switches in Cadence Virtuoso. The poles and zeros of the filter were determined and the filter was designed to meet the specifications. Dynamic range scaling and minimum capacitor scaling were performed to ensure the filter met the specifications and minimized chip area. The effects of charge injection, op-amp offset voltage, slew rate, bandwidth and finite gain were analyzed to determine the effects on the filter response.
+
+## References {.unnumbered}
+
+::: {#refs}
+:::

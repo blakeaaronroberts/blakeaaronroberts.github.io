@@ -1,0 +1,118 @@
+---
+title: "CSNN - Compressive Sensing Neural Network"
+subtitle: "An Approximate Compute based Neural Network Framework for Compressive Spectrum Sensing"
+description: "Designed system-level architecture for a neural network–based RF compressive spectrum sensing system."
+priority: 1
+image: thumbnail.png
+categories: [graduate research, RF, compressive sensing, analog compute]
+abstract: "The growing prevalence of short-range wireless technologies has made dynamic spectrum access (DSA) through spectrum sensing (SS) using cognitive radios (CRs) increasingly essential. Because the radio frequency (RF) spectrum is a finite and heavily regulated resource, secondary users (SUs) must be able to detect occupied frequency bands and opportunistically access those bands without interfering with registered primary users (PUs). Compressive sensing (CS) enables signal reconstruction from far fewer measurements than the Nyquist theorem dictates, by formulating the problem as an optimization over an underdetermined system. Because this optimization is computationally expensive, much of the prior work has turned to iterative greedy matching algorithms like Compressive Sampling Matching Pursuit (CoSaMP) to reduce computational cost. Machine learning (ML) models such as neural networks (NNs) can approximate the same solution without iterations. Furthermore, since fully connected feedforward neural networks can be viewed as a set of sequential matrix operations, they are well-suited to implementation in analog approximate computing hardware, such as margin-propagation (MP) compute. We present a neural network model for spectrum sensing in a sub-Nyquist CS framework. We introduce the Compressive Sensing Neural Network (CSNN), detail the data generation, training, and testing pipelines, benchmark its performance against CoSaMP, provide MP hardware emulation results, and offer recommendations for future work."
+---
+
+[Non-Thesis Project · Graduate Research · Oregon State University · Advisor: Dr. Arun Natarajan]{.label-mono}
+
+```{ojs}
+//| echo: false
+import {palette, plotStyle} from "../../assets/js/figtools.js"
+```
+
+## Dataset and sampling
+
+| Parameter | Variable | Value |
+|---|---|---|
+| Amplitude | $A$ | 1 |
+| Min. Frequency | $F_{min}$ | 8 MHz |
+| Max Frequency | $F_{max}$ | 328 MHz |
+| Nyquist Rate | $F_N$ | 640 MHz |
+| Down-sampling Factor | $L$ | 40 |
+| Coset Rate | $F_{coset}$ | 16 MHz |
+| Resolution | $F_{res}$ | 8 MHz |
+| Sampling Duration | $T_d$ | 125 ns |
+
+: Dataset Parameters. {#tbl-dataset}
+
+## Network
+
+| Layer | Dimension |
+|---|---|
+| Input | $2p \le 64$ |
+| Hidden Layer 1 | 128 |
+| Hidden Layer 2 | 64 |
+| Output | 40 |
+
+: Layer Dimensions ($p$ = number of cosets). {#tbl-layers}
+
+```{ojs}
+//| label: tbl-params
+//| tbl-cap: "Trainable parameters (weights + biases) computed from the layer dimensions, against the published counts."
+{
+  const layers = p => [[2 * p, 128], [128, 64], [64, 40]];
+  const count = p => layers(p).reduce((s, [nin, nout]) => s + nin * nout + nout, 0);
+  const published = {32: 19176, 24: 17128, 16: 15080, 8: 13032};
+  return Inputs.table([32, 24, 16, 8].map(p => ({
+    "Cosets (p)": p, "Input (2p)": 2 * p, "Computed": count(p), "Published": published[p],
+    "Match": count(p) === published[p] ? "yes" : "NO"
+  })), {sort: null, layout: "auto", format: {"Computed": d => d, "Published": d => d}});
+}
+```
+
+## Energy per scan
+
+```{ojs}
+//| label: fig-energy
+//| fig-cap: "Estimated energy per scan, E = E_resp + E_rec, computed from Eqs. (24)–(31): coset sampling over T_d = 125 ns plus margin-propagation inference (232 cells × 8 µW for 3 × 5 ns). The dashed line is Nyquist-rate sampling alone (Eqs. (32)–(33)). Sampler power scales from 20 µW at 10 MS/s, the value used in the paper's Table V."
+{
+  const P10 = 20e-6, Td = 125e-9;                         // W at 10 MS/s (65 nm, 1.2 V); sampling window
+  const Prec = (128 + 64 + 40) * 8e-6, Trec = 3 * 5e-9;    // MP compute power; 3 pipelined layers
+  const Erec = Prec * Trec;
+  const rows = [32, 24, 16, 8].flatMap(p => {
+    const Presp = P10 * (p * 640e6 / 40) / 10e6;
+    return [
+      {p: String(p), part: "Sampling (E_resp)", pJ: Presp * Td * 1e12},
+      {p: String(p), part: "Inference (E_rec)", pJ: Erec * 1e12}
+    ];
+  });
+  const Enyq = P10 * (640e6 / 10e6) * Td * 1e12;
+  const totals = d3.rollups(rows, v => d3.sum(v, d => d.pJ), d => d.p).map(([p, pJ]) => ({p, pJ}));
+  return Plot.plot({
+    width: 640, height: 320, style: plotStyle, marginRight: 150,
+    x: {label: "Cosets (p)", domain: ["32", "24", "16", "8"]}, y: {label: "Energy per scan (pJ)", grid: true, domain: [0, 180]},
+    color: {domain: ["Sampling (E_resp)", "Inference (E_rec)"], range: [palette.blue, palette.orange], legend: true},
+    marks: [
+      Plot.barY(rows, {x: "p", y: "pJ", fill: "part"}),
+      Plot.text(totals, {x: "p", y: "pJ", text: d => `${d.pJ.toFixed(1)} pJ`, dy: 11, fill: "white", fontWeight: 600}),
+      Plot.ruleY([Enyq], {stroke: palette.ink, strokeDasharray: "5,4"}),
+      Plot.text([Enyq], {frameAnchor: "right", y: d => d, text: d => `Nyquist sampling\nonly: ${d.toFixed(0)} pJ`, dx: 145, textAnchor: "end", lineHeight: 1.2, fill: palette.ink}),
+      Plot.ruleY([0])
+    ]
+  });
+}
+```
+
+```{ojs}
+//| label: fig-compare
+//| fig-cap: "Estimated inference/DSP energy at fixed sparsity K = 3 for OMP-based digital CS architectures and CSNN (values from the paper's Table VI; log scale)."
+{
+  const data = [
+    {sys: "TS-QAIC", uJ: 1.51}, {sys: "MWC", uJ: 0.79}, {sys: "DRF2IC", uJ: 0.34},
+    {sys: "QAIC", uJ: 0.26}, {sys: "CSNN", uJ: 27.9e-6}
+  ].map(d => ({...d, pJ: d.uJ * 1e6}));                     // plot in pJ so ticks read as energies
+  const energy = pJ => pJ >= 1e6 ? `${+(pJ / 1e6).toPrecision(3)} µJ` : pJ >= 1e3 ? `${+(pJ / 1e3).toPrecision(3)} nJ` : `${+pJ.toPrecision(3)} pJ`;
+  return Plot.plot({
+    width: 640, height: 230, style: plotStyle, marginLeft: 70, marginRight: 70,
+    x: {type: "log", label: "Inference / DSP energy (log scale)", domain: [10, 4e6], grid: true,
+        ticks: [10, 100, 1e3, 1e4, 1e5, 1e6], tickFormat: energy},
+    y: {label: null, domain: data.map(d => d.sys)},
+    marks: [
+      Plot.ruleY(data, {y: "sys", x1: 10, x2: "pJ", stroke: palette.grid, strokeWidth: 2}),
+      Plot.dot(data, {y: "sys", x: "pJ", r: 6, fill: d => d.sys === "CSNN" ? palette.orange : palette.blue}),
+      Plot.text(data, {y: "sys", x: "pJ", text: d => energy(d.pJ), dx: 10, textAnchor: "start", fill: palette.ink})
+    ]
+  });
+}
+```
+
+## Conclusion
+
+This paper presented CSNN, an approximate compute based NN framework for compressive spectrum sensing. By leveraging a fully-connected FNN architecture which operates solely on compressive sampled data, CSNN learns a direct mapping from compressed measurements to spectral occupancy, without the latency and compute energy of traditional iterative CS algorithms like OMP and CoSaMP.
+
+Experimental results show that CSNN achieves performance comparable to or exceeding CoSaMP, especially in high-occupancy cases where the CoSaMP algorithm's performance degrades rapidly. CSNN maintains this superior performance even when an analog approximation of the inner product is used to emulate MP. Energy estimates are promising, as CSNN greatly outperforms the FFT in terms of energy consumption based on sampling alone, as well as digital CS architectures based on estimated DSP energy consumption alone. There is a tradeoff for these energy savings in terms of area, but these results position CSNN as a promising framework for ultra low-power, low-latency, real-time DSA systems for CRs.

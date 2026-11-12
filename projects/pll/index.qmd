@@ -1,0 +1,167 @@
+---
+title: "Low Power, Wide Tuning Range PLL with 8 Output Phases"
+subtitle: "Course Project · ECE 524 · Phase Locked Loops"
+description: "Designed an 8-phase PLL for a 16 Gb/s wireline transceiver, targeting low noise and 1 GHz frequency coverage."
+priority: 2
+image: thumbnail.png
+categories: [mixed-signal, PLL, wireline, 180 nm CMOS]
+bibliography: references.bib
+abstract: "A type II, third order phase-locked loop (PLL) with eight evenly spaced phase outputs is presented. The system contains a 3-state phase-frequency detector(PFD), source-switched current steering charge pump (CP), a passive loop filter (LF), fully differential voltage-controlled ring oscillator (VCO), and a divide-by-32 (DIV32) block. Attempted Novel additions are discussed. Performance is interpreted in terms of phase noise, jitter, and power consumption."
+---
+
+[Louis Marun and Blake Roberts · ECE 524 · Spring 2025 · Oregon State University]{.label-mono}
+
+```{ojs}
+//| echo: false
+import {palette, plotStyle} from "../../assets/js/figtools.js"
+```
+
+## Specifications
+
+| | |
+|---|---|
+| Technology | 0.18 µm CMOS |
+| Supply | ≤ 1.8 V |
+| Operating Frequency | 1.0 GHz – 2.0 GHz |
+| Feedback Divider (Fixed) | 32 |
+| Absolute Jitter | 1800 ppm of the period (rms) |
+| Power Consumption | Minimum (all blocks in MOSFET) |
+| Reference Clock Source | Noise Free (assumption) |
+| Output Clock Phases | 8 (ϕ0, ϕ45, ϕ90, ϕ135, ϕ180, ϕ225, ϕ270, ϕ315, ϕ360) |
+
+: Technical Specifications. {#tbl-specs}
+
+## Architecture
+
+The PLL pictured in @fig-arch consists of a Phase-Frequency Detector (PFD), a source-switched current-steering charge pump (CP), an analog loop filter (LF), a current-starved voltage-controlled ring oscillator (VCO), and a divide-by-32 feedback divider (DIV32). This architecture was chosen for it's relative simplicity, ease of implementation, and suitability for a wide acquisition range. Additionally, some advantages of CP PLL over a classic analog PLL with XOR PD include improved noise suppression, a wider lock range, better power efficiency, and lower jitter. These are all important benefits when considering the aim of this project.
+
+```{dot}
+//| label: fig-arch
+//| fig-cap: "Top-Level Architecture: type II, third-order charge-pump PLL with an eight-phase differential ring VCO and a sense-amp flip-flop divide-by-32."
+//| fig-width: 7
+//| fig-height: 2.1
+digraph PLL {
+  // Fixed positions (inches) so the loop reads left to right with the divider feedback underneath.
+  layout=neato; bgcolor="transparent"; pad=0.15; splines=line;
+  node [shape=box, fontname="IBM Plex Sans", fontsize=13, color="#1a1917", fontcolor="#1a1917", penwidth=1.2, width=1.05, height=0.6, fixedsize=true];
+  edge [color="#1a1917", fontname="IBM Plex Mono", fontsize=10, fontcolor="#6b675f", arrowsize=0.7, penwidth=1.1];
+  ref [shape=plaintext, label="f_ref", pos="0,1.2!", width=0.7];
+  PFD [pos="1.3,1.2!"];
+  CP  [label="CP\n47 µA", pos="3.0,1.2!"];
+  LF  [label="LF\nR, C1, C2", pos="4.7,1.2!"];
+  VCO [label="VCO\n8-stage ring", pos="6.5,1.2!", width=1.3];
+  out [shape=plaintext, label="8 phases", pos="8.1,1.2!", width=0.95];
+  DIV [label="÷32\nSAFF", pos="6.5,0!"];
+  corner [shape=point, width=0.01, pos="1.3,0!"];
+  // Edge labels as fixed plaintext nodes, so they sit above the wires instead of on the boxes.
+  node [shape=plaintext, fontname="IBM Plex Mono", fontsize=10, fontcolor="#6b675f", width=0.6, height=0.25];
+  lUD [label="UP/DN", pos="2.15,1.42!"]; lV [label="Vctrl", pos="5.6,1.42!"]; lFB [label="FB", pos="3.9,0.18!"];
+  ref -> PFD; PFD -> CP; CP -> LF; LF -> VCO; VCO -> out;
+  VCO -> DIV; DIV -> corner [arrowhead=none]; corner -> PFD;
+}
+```
+
+## Loop design
+
+While the bandwidth of the PLL is typically set to 1/10 of the minimum reference frequency, there is a tradeoff when trying to minimize phase noise. Since the phase noise of the VCO experiences a high-pass response [@razavi2020], maximizing the bandwidth reduces the absolute jitter. As such, the system bandwidth was raised slightly above the typical starting value.
+
+$$
+K_c = \frac{C_1}{C_2} = 2\left(\tan^2(\Phi_M) + \tan(\Phi_M)\sqrt{\tan^2(\Phi_M) + 1}\right)
+$$ {#eq-kc}
+
+$$
+\omega_z = \frac{\omega_{ugb}}{\sqrt{\frac{C_1}{C_2} + 1}}, \qquad C_1 = \frac{1}{\omega_z R}, \qquad C_2 = \frac{C_1}{K_c}
+$$ {#eq-wz}
+
+$$
+\omega_{p3} = \frac{1}{R\,\frac{C_1 C_2}{C_1 + C_2}}
+$$ {#eq-wp3}
+
+| Parameter | Value |
+|---|---|
+| $f_{ugb}$ | 4 MHz |
+| $\Phi_M$ | 65° |
+| $R$ | 10 kΩ |
+| $K_c$ | 20 |
+| $f_z$ | 0.89 MHz |
+| $C_1$ | 18 pF |
+| $C_2$ | 0.9 pF |
+| $I_{cp}$ | 47 µA |
+
+: Loop design parameters. {#tbl-loop}
+
+```{ojs}
+//| label: tbl-loopcheck
+//| tbl-cap: "Loop-filter values recomputed from (1) and (2), and the third pole from (3), for f_ugb = 4 MHz, Φ_M = 65°, R = 10 kΩ."
+{
+  const fugb = 4e6, PM = 65 * Math.PI / 180, R = 10e3;
+  const t = Math.tan(PM);
+  const Kc = 2 * (t * t + t * Math.sqrt(t * t + 1));
+  const fz = fugb / Math.sqrt(Kc + 1);
+  const C1 = 1 / (2 * Math.PI * fz * R), C2 = C1 / Kc;
+  const fp3 = 1 / (2 * Math.PI * R * (C1 * C2 / (C1 + C2)));
+  return Inputs.table([
+    {Quantity: "K_c = C1/C2", Computed: Kc.toFixed(2), Table: "20"},
+    {Quantity: "f_z", Computed: `${(fz / 1e6).toFixed(3)} MHz`, Table: "0.89 MHz"},
+    {Quantity: "C1", Computed: `${(C1 * 1e12).toFixed(1)} pF`, Table: "18 pF"},
+    {Quantity: "C2", Computed: `${(C2 * 1e12).toFixed(3)} pF`, Table: "0.9 pF"},
+    {Quantity: "f_p3", Computed: `${(fp3 / 1e6).toFixed(1)} MHz (${(fp3 / fugb).toFixed(1)} × f_ugb)`, Table: "—"}
+  ], {sort: null, layout: "auto"});
+}
+```
+
+## Performance
+
+The PLL was simulated in 180 nm CMOS technology. the simulations were performed in Cadence Virtuoso using the included PSPICE simulator. Results were then exported to MATLAB for analysis and plotting.
+
+| Output frequency | V~ctrl~ | Lock time | Phase offset |
+|---|---|---|---|
+| 1 GHz | ≈ 0.525 V | ≈ 1 µs | ∼450 ps |
+| 2 GHz | 1.19 V | ≈ 4 µs | ∼130 ps |
+
+: Simulated lock behavior at each end of the tuning range. The 1–2 GHz range spans 0.665 V of control voltage, an average K~VCO~ of 1.50 GHz/V. {#tbl-lock}
+
+```{ojs}
+//| label: tbl-jitter
+//| tbl-cap: "Integrated jitter (1 kHz–10 MHz) at each end of the tuning range, against the 1800 ppm specification; ppm of the period converted to rms time."
+Inputs.table([{f: 1, ppm: 1504}, {f: 2, ppm: 1475}].map(d => ({
+  "Frequency": `${d.f} GHz`, "Jitter (ppm)": d.ppm, "Jitter (ps rms)": (d.ppm * 1e-6 * 1e3 / d.f).toFixed(3),
+  "Spec (ps rms)": (1800e-6 * 1e3 / d.f).toFixed(2), "Margin": `${((1 - d.ppm / 1800) * 100).toFixed(0)}%`
+})), {sort: null, layout: "auto"})
+```
+
+```{ojs}
+//| label: fig-power
+//| fig-cap: "Power consumption by active block at each end of the tuning range (simulated, Fig. 13 of the report; log scale). Totals: 8.62 mW at 1 GHz and 16.44 mW at 2 GHz; the VCO draws about 93% in both cases."
+{
+  const p = [
+    {block: "VCO", f: "1 GHz", mW: 7.992}, {block: "DIV32", f: "1 GHz", mW: 0.4662}, {block: "CP", f: "1 GHz", mW: 0.115}, {block: "PFD", f: "1 GHz", mW: 0.0414},
+    {block: "VCO", f: "2 GHz", mW: 15.4},  {block: "DIV32", f: "2 GHz", mW: 0.829},  {block: "CP", f: "2 GHz", mW: 0.124}, {block: "PFD", f: "2 GHz", mW: 0.08755}
+  ];
+  return Plot.plot({
+    width: 640, height: 300, style: plotStyle, marginLeft: 60, marginRight: 80,
+    x: {type: "log", label: "Power (mW, log scale)", domain: [0.02, 30], grid: true, ticks: [0.03, 0.1, 0.3, 1, 3, 10, 30], tickFormat: d => `${d}`},
+    fy: {label: null, domain: ["VCO", "DIV32", "CP", "PFD"], padding: 0.15},
+    y: {axis: null, domain: ["1 GHz", "2 GHz"], padding: 0.3},
+    color: {domain: ["1 GHz", "2 GHz"], range: [palette.blue, palette.orange], legend: true},
+    marks: [
+      Plot.ruleY(p, {fy: "block", y: "f", x1: 0.02, x2: "mW", stroke: "f", strokeOpacity: 0.35, strokeWidth: 2}),
+      Plot.dot(p, {fy: "block", y: "f", x: "mW", fill: "f", r: 5}),
+      Plot.text(p, {fy: "block", y: "f", x: "mW", text: d => `${d.mW} mW`, dx: 9, textAnchor: "start", fill: palette.ink})
+    ]
+  });
+}
+```
+
+## Novel additions
+
+Two different novel additions were attempted for this PLL. First, based on the work in [@lee2022], an RC low-pass (LP) filter was placed at the biasing points V~bn~ and V~bp~ in the bias network for the VCO and the values were swept across a wide range. Since these nodes are biasing the current-starving transistors in the delay cells, the intention was to reduce overall noise contribution. However, the effect was minimal-to-none for all combinations of R and C. This was most likely due to the use of ideal supply voltage sources in the design. For a design with noise in the supply, it would likely be a worthwhile addition. Secondly, based on the work in [@li2010], diode-tied transistors were placed in parallel with the current-starving transistors in the VCO. The intention here was to linearize K~vco~, which was achieved to a certain extent. However, the linearization was not impactful enough to account for the overall loss in gain. Since neither of these additions seemed to improve the design in a meaningful way, neither were implemented in the final revision.
+
+## Conclusion
+
+In the end, the design and simulation of the low power, wide tuning range PLL with 8 output phases was both challenging and rewarding. Balancing the tradeoffs between noise and power, while maintaining system stability, was a process which required careful attention and planning. Ultimately the specifications were met and the design was completed. While the novel additions didn't work out as the authors had hoped, it was still an educational experience to think critically about what could be done to improve the PLL architecture.
+
+## References {.unnumbered}
+
+::: {#refs}
+:::

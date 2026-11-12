@@ -1,0 +1,10 @@
+# Applies to every page under projects/
+toc: true
+toc-location: left
+title-block-banner: false
+abstract-title: "Abstract"
+# Figures are computed in the browser (Observable JS) from the numbers in each report.
+# The code is shown, folded, under every figure so readers can audit it.
+echo: true
+code-fold: true
+code-summary: "Show the code"

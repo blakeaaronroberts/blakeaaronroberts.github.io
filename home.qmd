@@ -13,12 +13,12 @@ date-modified: last-modified
 date-format: "YYYY-MM"       # feeds the REV stamp
 listing:
   - id: featured
-    contents: explorations
+    contents: projects
     type: grid
     grid-columns: 3
     max-items: 3
-    sort: "date desc"
-    fields: [image, title, description, date]
+    sort: "priority"
+    fields: [image, title, subtitle]
 ---
 
 {{< include _title-block.qmd >}}

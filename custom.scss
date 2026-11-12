@@ -183,6 +183,13 @@ figure.quarto-float-fig > :not(figcaption) {
   background: $plate-bg; border: 1px solid $plate-border; padding: 1rem; color: #1a1917;
 }
 .quarto-figure img { display: block; margin: 0 auto; max-width: 100%; }
+// Observable Plot output (computed figures): centred on the plate, scaled down on narrow screens
+figure.quarto-float-fig .cell-output-display { text-align: center; }
+figure.quarto-float-fig .cell-output-display > svg,
+figure.quarto-float-fig .cell-output-display > figure { display: inline-block; max-width: 100%; height: auto; margin: 0 auto; text-align: left; }
+// Graphviz SVGs arrive with fixed width/height attributes that ignore the viewBox aspect; let the viewBox decide.
+// ({dot} cells nest the figure inside .cell-output-display, so match Graphviz output by its <g class="graph"> root.)
+figure.quarto-float-fig svg:has(> g.graph) { display: block; width: 100% !important; max-width: 720px !important; height: auto !important; margin: 0 auto; }
 
 // WaveDrom: centred, scaled to the plate width (its SVG has a viewBox), skin recoloured to match the plate
 .wavedrom-wrap {
