@@ -237,20 +237,27 @@ lecture video pipeline). 4 Adoption. Do not start later-phase work early.
 ## 8. How work flows
 
 - Blake talks to each agent directly. A separate chat, the **Steward**, reads
-  the repositories and reports to Blake. It does not instruct agents. The one file
-  it writes is `VISION.md`, kept identical in every repository, and only with
-  Blake's approval. It touches nothing else in any repository.
+  the repositories and reports to Blake. It does not instruct agents itself.
+  It writes two kinds of file, both only with Blake's approval, and touches
+  nothing else in any repository:
+  - `VISION.md`, kept identical in every repository;
+  - `docs/STEWARD_HANDOFF.md` in each repository: the single queue of builder
+    work, grouped into batches, each with its intent, steps and review stops.
+    A batch goes in only after Blake approves it. Blake starts a batch by
+    pointing a builder at it by name; builders do that batch, update its
+    Status and notes, and change nothing else in the file.
 - A documentation agent, the **Scribe**, writes and maintains the docs and
   tutorials for every module. It edits documentation only (READMEs, `docs/`,
   HOW_TO guides), never code, CI, config, `CLAUDE.md` or this file. Work that
   needs a builder it writes up as a ready-to-run prompt in
-  `docs/SCRIBE_HANDOFF.md`, for Blake to give to the right builder agent.
+  `docs/SCRIBE_HANDOFF.md`; the Steward folds approved items into
+  `docs/STEWARD_HANDOFF.md`.
   - Builder agents ship a README stub with each new module, and still update a
     HOW_TO in the same change that alters its pattern (section 7); the Scribe
     owns the rest of the docs.
-  - The Scribe may commit documentation straight to `main`; docs-only commits
-    do not redeploy the site. Public pages it writes stay drafts until Blake
-    approves them.
+  - The Scribe may commit documentation straight to `main`. Commits that
+    change only the handoff and to-do files do not redeploy the site. Public
+    pages it writes stay drafts until Blake approves them.
   - It tracks its open work in `docs/SCRIBE_TODO.md` in each repo. The Steward
     mirrors those rows into Blake's tracker and never edits the file.
 - Plan first for architectural steps; build in batches with a review stop
@@ -269,6 +276,10 @@ non-circuit figures such as timing diagrams and plots (2026-11-12). The
 WaveDrom and DigitalJS embeds stay on the site as an interim (2026-11-12).
 
 ## 10. Change log
+
+- 2026-11-12 (evening, late): Builder work is centralised in
+  `docs/STEWARD_HANDOFF.md`, written by the Steward with Blake's approval;
+  the Scribe's handoff feeds it.
 
 - 2026-11-12 (late): New documentation agent, the Scribe (section 8). Site
   launch rule now matches the URL-only pre-launch site; site pages may use
