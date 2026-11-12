@@ -14,6 +14,12 @@ date-modified: last-modified
 date-format: "YYYY-MM"       # feeds the REV stamp
 ---
 
+::: {.content-visible when-profile="dev"}
+::: {.dev-banner}
+[Dev preview]{.label-mono} This is the public landing page. [Open the full site →](home.qmd)
+:::
+:::
+
 {{< include _title-block.qmd >}}
 
 [Site under construction]{.label-mono}
