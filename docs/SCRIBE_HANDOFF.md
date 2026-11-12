@@ -32,6 +32,10 @@ Rules for this file:
    writes the message as a ready-to-paste prompt**: thorough, clear and
    strategic (context, what to do in what order and why, decision rules,
    limits, how to report back). Blake never has to compose it himself.
+5. **Specs for a new module or schema are built by Rising Edge working
+   directly with Blake.** Scribe does not draft them. When Blake approves a
+   spec, Rising Edge adds a row to this file addressed to Scribe, and Scribe
+   documents it (reference and explanation pages).
 
 ## Items
 
@@ -122,7 +126,9 @@ Rules for this file:
   `project.render` and set `website.draft-mode: gone`. Add
   `docs/_metadata.yml` with the `noindex` include, as in
   `explorations/_metadata.yml`. Scribe's handoff files in `docs/` are `.md`,
-  so they stay outside the render list.
+  so they stay outside the render list. Exclude `docs/templates/` from
+  rendering (for example `"!docs/templates/"` in `project.render`; confirm
+  Quarto skips it): the templates are full of placeholders and are not pages.
 - **Scope limits:** no theme, maths or navbar changes; no new top-level page;
   do not edit VISION.md.
 - **Mandatory:** the render cadence in CLAUDE.md; confirm that a test page

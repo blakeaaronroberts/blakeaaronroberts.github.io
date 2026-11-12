@@ -1,0 +1,55 @@
+---
+title: "<Why …, or How … works: sentence case>"
+module: <module>
+module-version: <X.Y.Z>
+doc-type: explanation
+updated: <YYYY-MM-DD>
+draft: true
+---
+
+<!--
+EXPLANATION TEMPLATE. The why: design decisions and the theory behind a circuit.
+- No step-by-step instructions; link to tutorials and how-to guides instead.
+- Ground every design claim in DECISIONS.md, VISION.md or the code; cite it.
+- Ground every theory claim in a standard reference; cite it.
+Remove these comments, and every <placeholder>, before the page leaves draft.
+See docs/STYLE.md.
+-->
+
+## The question
+
+<One short paragraph: the question this page answers, and who would ask it.
+E.g. "Why does the toolbox draw leads in Manim instead of in CircuiTikZ?"
+or "Why does a ripple-carry adder get slower as it gets wider?">
+
+## The short answer
+
+<Two or three sentences a reader could stop after.>
+
+## The longer answer
+
+<The theory or the design reasoning, in order. Use a figure from the toolbox
+where a circuit helps, and an equation where it is exact:>
+
+$$
+<equation>
+$$ {#eq-<name>}
+
+<Refer to it as (@eq-<name>).>
+
+![<Factual caption.>](<path.svg>){#fig-<name> fig-alt="<What the figure shows.>"}
+
+## Alternatives considered
+
+| Option | Why not chosen |
+|---|---|
+| <alternative> | <reason, with a link to DECISIONS.md if recorded> |
+
+## Consequences
+
+<What this decision or theory means in practice: for authors using the
+toolbox, for students reading a figure, for later work.>
+
+## Further reading
+
+- <DECISIONS.md entry, VISION.md section, or a standard textbook reference.>

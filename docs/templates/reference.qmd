@@ -1,0 +1,104 @@
+---
+title: "<Element name, e.g. Full adder>"
+module: toolbox
+module-version: <X.Y.Z>
+doc-type: reference
+updated: <YYYY-MM-DD>
+draft: true
+element: <registry key, e.g. full_adder>
+class: <e.g. manimations.toolbox.elements.full_adder:FullAdder>
+---
+
+<!--
+REFERENCE TEMPLATE (one page per toolbox element). Complete and dry.
+- Every fact comes from the code at the module version above: the .py, the
+  .tex snippet, registry.toml and the gallery card. Check each one.
+- Never hand-copy a signature; link to the generated API reference instead.
+- Save as docs/reference/elements/<registry key>.qmd. Figure paths below are
+  relative to that folder (three levels up to the repo root).
+- Non-element reference pages (schema fields, a module's API) keep the same
+  order: summary, figure if any, tables, notes, generated API, how built.
+Remove these comments, and every <placeholder>, before the page leaves draft.
+See docs/STYLE.md.
+-->
+
+<One sentence: what the element is, in circuit terms.> Registry status:
+**<draft | approved>** (`toolbox/registry.toml`, as of <module-version>).
+
+![<Factual caption, e.g. "The full-adder element as exported by the toolbox.">](../../../exports/elements/<registry key>.svg){#fig-symbol fig-alt="<What the symbol looks like: its shape, pin names and where they sit.>"}
+
+## Behaviour
+
+<What the element does as a circuit element: its truth table, equation or
+I–V relation. For logic elements, give the truth table and the equations,
+e.g. $S = A \oplus B \oplus C_\mathrm{in}$.>
+
+## Pins
+
+| Pin | Anchor on node `E` | Lead direction | Meaning |
+|---|---|---|---|
+| `<A>` | `<bin 1>` | left | <input A> |
+| `<Y>` | `<bout>` | right | <output> |
+
+The first pin (`<A>`) is the one the element is snapped to the grid by.
+Every pin tip lies on the 0.25 cm grid.
+
+## Parameters
+
+| Argument | Type | Default | Effect |
+|---|---|---|---|
+| `label` | `str` or `None` | `None` | <Where the label goes (`label_at`), or "This element has no label position; passing a label raises `ValueError`."> |
+
+<Class attributes that change rendering, e.g. `lead_steps`, with their
+values for this element.>
+
+## Rendering
+
+- **Symbol:** <CircuiTikZ shape, or plain TikZ in `[module]` units>, from
+  `toolbox/elements/<registry key>.tex`.
+- **Leads:** drawn by the toolbox, <one module | one grid step> long.
+- **Text on the element:** <pin labels, element name in the mono font>.
+- **Logic levels:** each lead is coloured by `set_level(pin, 0 | 1)` or
+  `level_anim(...)`, in the low and high roles.
+
+## Exports
+
+| Output | Path | Made by |
+|---|---|---|
+| SVG, PDF, standalone TeX | `exports/elements/<registry key>.svg|.pdf|.tex` | `uv run python -m manimations.toolbox.export` |
+| Gallery card | `gallery/<registry key>.png` | `uv run python -m manimations.toolbox.gallery <registry key>` |
+
+The standalone `.tex` needs `circuitstyle.sty` (exported beside it) and
+compiles with XeLaTeX.
+
+## Example
+
+```python
+from manimations.toolbox import Circuit
+from manimations.toolbox.elements import <Class>
+
+c = Circuit()
+e = c.place(<Class>(), at=(0, 0))
+<one wire or label that shows typical use>
+```
+
+## API
+
+<!-- Link to the generated quartodoc page once it exists (handoff H-M001). -->
+Generated reference: <link to the page for `<Class>` under docs/reference/api/>.
+
+## How this was built
+
+<!--
+For someone who knows the circuit well and is still learning the codebase.
+Explain the choices, not just the result.
+-->
+
+- **The snippet.** <Show `<registry key>.tex` and explain each line: the
+  shape, its options, any labels drawn inside.>
+- **Why these anchors.** <Why each pin uses its anchor; why body anchors
+  (`b…`) where CircuiTikZ offers them.>
+- **Grid fit.** <How the sizes in `style.toml` keep the pins on the grid,
+  and what would push them off.>
+- **What to copy for a similar element.** <Which existing element to start
+  from, and what to change.>

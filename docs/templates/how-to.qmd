@@ -1,0 +1,74 @@
+---
+title: "How to <do one concrete task>"
+module: <module>
+module-version: <X.Y.Z>
+doc-type: how-to
+updated: <YYYY-MM-DD>
+tested: false
+tested-on: null
+draft: true
+---
+
+<!--
+HOW-TO TEMPLATE. One concrete task, for a reader who already knows the basics.
+- The title names the task. One task per page.
+- Skip teaching; link to the tutorial or explanation instead.
+- Variant: "Build a new element like this one" (section at the end), for
+  how-to guides that create toolbox elements. Delete it otherwise.
+Remove these comments, and every <placeholder>, before the page leaves draft.
+See docs/STYLE.md.
+-->
+
+<One sentence: the task, and when you would want to do it.>
+
+## Assumptions
+
+- <What the reader already has: e.g. the toolbox set up, an approved element.>
+- <What they already know: e.g. how `Circuit.place` and `Circuit.wire` work.>
+
+## Steps
+
+1. <Imperative step.>
+
+   ```powershell
+   <command or code>
+   ```
+
+2. <Imperative step.>
+
+3. <Imperative step.>
+
+## Check the result
+
+<How to tell it worked: the file that appears, the render to look at, the
+warning that should not appear.>
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| <message or visible problem> | <cause> | <fix> |
+
+## Build a new element like this one
+
+<!-- Delete this section unless the guide creates or changes a toolbox element. -->
+
+Written for someone who knows the circuit well and is still learning the
+codebase. Follow `HOW_TO_ADD_ELEMENT.md` for the full pattern; this section
+covers what is specific to elements like <this one>.
+
+1. **Pick the CircuiTikZ shape or draw it in TikZ.** <Which shape this
+   element uses and why; when plain TikZ in `[module]` units is the better
+   choice.>
+2. **Choose the anchors.** <Which anchors become pins, and which pin comes
+   first (it sets the grid snap).>
+3. **Set the lead directions.** <Inputs left, outputs right, and any
+   exceptions.>
+4. **Register it as a draft** in `toolbox/registry.toml`, and render its
+   gallery card to check that the pins land on the grid.
+5. **Stop for Blake's review.** Only Blake approves elements.
+
+## Related
+
+- <Reference page(s) for what this guide uses.>
+- <Tutorial that covers the basics.>

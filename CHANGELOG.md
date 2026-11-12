@@ -14,3 +14,13 @@ versioned yet; suite modules documented here will carry their own versions.
 - `docs/SCRIBE_HANDOFF.md`: work for Rising Edge and the builder agents.
 - `docs/SCRIBE_HANDOFF.md`: standing rule that Scribe writes a ready-to-paste
   prompt whenever Blake must relay something to Rising Edge.
+- `docs/STYLE.md` and `docs/templates/`: copies of the suite's documentation
+  style guide and the four page templates (drafts), kept in sync with their
+  originals; see `docs/SYNCED.md`.
+- `docs/SCRIBE_HANDOFF.md`: standing rule that specs for a new module or
+  schema are built by Rising Edge with Blake; H-S001 now excludes
+  `docs/templates/` from rendering.
+
+### Changed
+- `docs/SCRIBE_AUDIT.md`: the pre-launch arrangement and the third-party
+  embeds are now settled in VISION.md.

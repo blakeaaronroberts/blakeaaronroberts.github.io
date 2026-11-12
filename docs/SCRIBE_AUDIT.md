@@ -24,8 +24,8 @@ for this repo are at the end. Work for builder agents is in
 | Themes | `themes/`, `custom.scss`, `_quarto-okabe-ito.yml` | partial (CLAUDE.md) | Role-based, as VISION.md §7 requires. No how-to for adding a theme. |
 | Maths | `_quarto.yml` `html-math-method` | partial | MathJax 4 + STIX2 pinned at 4.1.3, as VISION.md §7 requires. |
 | `assets/js/figtools.js` | 14 exports (complex arithmetic, `polyMul`, `roots`, `freqz`, `stepResponse`, `ellipK`, `lowpassOrders`, `midiToHz`, `centsError`, `palette`, `plotStyle`, `linspace`) | **none** | Shared by the project pages' OJS cells. First candidate for JSDoc. |
-| WaveDrom include | `_includes/wavedrom.html`, `assets/wavedrom/lecture.js` | stub (comment) | Third-party; stays for now (VISION.md §9 open). |
-| DigitalJS include | `_includes/digitaljs.html` | stub (comment) | Third-party; stays for now. |
+| WaveDrom include | `_includes/wavedrom.html`, `assets/wavedrom/lecture.js` | stub (comment) | Third-party; stays as an interim (settled in VISION.md §9, 2026-11-12). |
+| DigitalJS include | `_includes/digitaljs.html` | stub (comment) | Third-party; stays as an interim (VISION.md §9). |
 | Explorations | `explorations/kmaps/` | stub | A feature template, not an exploration yet. `circuit.json` there is DigitalJS format, **not** the suite schema. |
 | Project pages | `projects/*/index.qmd` (4) | n/a (Blake's prose) | Out of Scribe's scope for writing. |
 | Suite docs pages | none | none | Will go in `docs/` as drafts, copied from each module's repo once that module is public. |
@@ -46,8 +46,8 @@ for this repo are at the end. Work for builder agents is in
 5. **Charter drift, reported, not fixed:**
    - `CLAUDE.md` records a pre-launch arrangement (all pages built, unlinked,
      `noindex`) that it describes as departing from VISION.md §6's
-     landing-only rule. It is dated as your decision, but VISION.md still says
-     otherwise, so the Steward may want to reconcile the two.
+     landing-only rule. *Resolved 2026-11-12:* VISION.md §6 now describes the
+     same arrangement.
    - `CLAUDE.md` says "Work on a branch. `main` deploys. Commit or push only
      when Blake asks." On 2026-11-12 Blake decided that Scribe commits
      documentation-only changes directly to `main`, in this repo too.

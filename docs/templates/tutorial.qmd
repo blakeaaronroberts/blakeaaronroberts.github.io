@@ -1,0 +1,65 @@
+---
+title: "<Build a … : sentence case, starts with a verb>"
+module: <module>
+module-version: <X.Y.Z>
+doc-type: tutorial
+updated: <YYYY-MM-DD>
+tested: false
+tested-on: null
+draft: true
+---
+
+<!--
+TUTORIAL TEMPLATE. Learning by doing, start to finish, guaranteed to work.
+- One path only: no options, no "alternatively". Choices belong in how-to guides.
+- Every step ends with something the reader can see or check.
+- Every code block runs as written. Copy from working code.
+- Remove these comments, and every <placeholder>, before the page leaves draft.
+See docs/STYLE.md.
+-->
+
+::: {.callout-warning}
+## Not yet tested
+This tutorial has not been run by CI yet, so a step may fail. Remove this
+banner only when CI sets `tested: true` (docs/STYLE.md, section 11).
+:::
+
+<!-- One or two sentences: what the reader will build, and why it is worth building. -->
+In this tutorial you build <the thing>. By the end you will have <the visible
+result> and you will know how to <the skill>.
+
+![<Factual caption of the finished result.>](<path/to/final-result.svg>){#fig-result fig-alt="<What the finished result shows, in one to three sentences.>"}
+
+## Before you start
+
+You need:
+
+- <Knowledge: e.g. how a full adder works (link to the explanation page).>
+- <Software: e.g. the toolbox set up as in the README's Setup section.>
+- <Time: about N minutes.>
+
+## 1. <First step: verb phrase>
+
+<What you do and why, in one or two sentences.>
+
+```powershell
+<command or code>
+```
+
+<!-- The check: what the reader should see. -->
+You should now see <result>. <If not, the most likely cause, in one sentence.>
+
+## 2. <Next step>
+
+<Repeat the pattern: do, then check.>
+
+## What you built
+
+<Two or three sentences restating the result, and the one or two ideas the
+reader should take away.>
+
+## Next steps
+
+- <A how-to guide that extends this result.>
+- <The reference page for the main element or function used.>
+- <The explanation page for the theory behind it.>
