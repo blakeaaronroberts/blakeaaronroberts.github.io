@@ -16,7 +16,7 @@ where builders record Status.
 
 | ID | Date | Repo | Item | Needs | Status |
 |----|------|------|------|-------|--------|
-| SCR-036 | 2026-11-12 | site | Review the product overviews (`docs/_drafts/products/`). On approval Scribe moves them into `docs/`. (The README no longer needs review: SCR-011) | Blake | Open |
+| SCR-036 | 2026-11-12 | site | Review, in the review queue (https://claude.ai/artifact/FDHW1JabMUu84xd2VTm1JV), the product overviews (`docs/_drafts/products/`). On approval Scribe moves them into `docs/`. (The README no longer needs review: SCR-011) | Blake | Open |
 | SCR-035 | 2026-11-12 | site | Product overviews: Toolbox, Studio, Explorations, Practice, Labs (drafts, from VISION.md) | Scribe | Done |
 | SCR-018 | 2026-11-12 | site | CLAUDE.md says "commit or push only when Blake asks"; Blake now lets Scribe commit docs-only changes to `main`. Point builders to the handoff file; log in DECISIONS.md. H-S004 | Builder agent | Done (`a67b467`) |
 | SCR-014 | 2026-11-12 | site | Check whether the `gh-pages` branch is stale; delete it if so (Blake pre-authorised). H-S003 | Builder agent | Done (branch deleted; restore SHA in STEWARD_HANDOFF.md, S1) |

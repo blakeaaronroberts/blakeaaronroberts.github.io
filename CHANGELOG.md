@@ -8,6 +8,8 @@ versioned yet; suite modules documented here will carry their own versions.
 ## [Unreleased]
 
 ### Added
+- `docs/SCRIBE_HANDOFF.md`: every draft is listed in Blake's review queue
+  (https://claude.ai/artifact/FDHW1JabMUu84xd2VTm1JV), with an approval dropdown Scribe reads each session.
 - `README.md`: what the repository is, how to preview it on Windows, how it
   is published, and where things are. Approved by Scribe, which approves
   READMEs itself (Blake, 2026-11-12).

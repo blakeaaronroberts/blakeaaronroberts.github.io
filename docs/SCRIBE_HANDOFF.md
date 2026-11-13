@@ -52,6 +52,12 @@ it. Scribe's own task list is [SCRIBE_TODO.md](SCRIBE_TODO.md).
    directly, with no draft stage and no review by Blake. Other public pages
    (tutorials, guides, reference, product overviews) still start as drafts
    until Blake approves them.
+7. **Every draft goes in the review queue** (Blake, 2026-11-13):
+   https://claude.ai/artifact/FDHW1JabMUu84xd2VTm1JV. It lists each draft with a link and an approval dropdown that
+   only Blake can change. Scribe adds a row whenever it writes a draft
+   (and lists the READMEs it approves, as approved by Scribe), reads the
+   statuses and notes at the start of each session, and acts on them:
+   approved pages leave draft status, and changes requested get made.
 
 ## Items
 
