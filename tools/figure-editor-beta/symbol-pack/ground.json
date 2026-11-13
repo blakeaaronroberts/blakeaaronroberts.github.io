@@ -1,0 +1,32 @@
+{
+  "pack": "symbols/0.1",
+  "type": "ground",
+  "description": "Ground (open triangle), connects upward",
+  "status": "approved",
+  "mirrorable": true,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "ground.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-0.69999, -0.7, 1.39998, 1.90013]
+  },
+  "bbox": {
+    "min": [-1.0, -2.0],
+    "max": [1.0, 1.0]
+  },
+  "pins": {
+    "1": {
+      "tip": [0, 1],
+      "direction": "up",
+      "lead": {
+        "from": [0.0, 0.0],
+        "length": 1.0
+      }
+    }
+  },
+  "label": null,
+  "parameters": []
+}

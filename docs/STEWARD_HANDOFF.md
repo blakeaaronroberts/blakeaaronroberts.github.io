@@ -73,7 +73,7 @@ happens when Blake says "deploy", or when his prompt authorises it.
 | F3 | Figure editor v1 finish: labels in STIX Two, wire level colours, PNG copy, private theme, shortcuts, draft toggle | Open | 2026-11-12 |
 | F2.3 | Figure editor polish and unlisted go-live: site look, structured side panel, no scroll bars, half-module grid (adjustable), then publish at an unlisted URL | Open | 2026-11-13 |
 | F4 | Figure editor options before launch: grid, whole-figure line weight (thin, regular, bold) and a dark theme, saved with the figure | Open | 2026-11-13 |
-| F2.4 | Beta editor page, canvas that follows the site's light/dark setting, all-white-stroke dark mode | Open | 2026-11-13 |
+| F2.4 | Beta editor page, canvas that follows the site's light/dark setting, all-white-stroke dark mode | Done | 2026-11-13 |
 | F6 | Figure editor: drag a wire segment, click and delete a wire | Open | 2026-11-13 |
 | F7 | Figure editor: autosave and Save/Open of circuits | Open | 2026-11-13 |
 | F5 | Figure editor: configurable block (rect, chevron, triangle, circle) with presets, wire arrows, bus marks, level-coloured elements | Open | 2026-11-13 |
@@ -342,9 +342,9 @@ version is built, and wants the whole editor dark in dark mode (2026-11-13).
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| F2.4.1 | Beta page and banner; stable page untouched | Steward, approved by Blake 2026-11-13 | Open | |
-| F2.4.2 | Follow the site's mode, live; Canvas option | Steward, approved by Blake 2026-11-13 | Open | |
-| F2.4.3 | Dark palette, all-light strokes, zero-black check, export checkbox | Steward, approved by Blake 2026-11-13 | Open | |
+| F2.4.1 | Beta page and banner; stable page untouched | Steward, approved by Blake 2026-11-13 | Done | Branch beta-f2-4. tools/figure-editor-beta/ is a full copy of the editor (own src, styles, symbol-pack copy, tests); unlisted, noindex through tools/_metadata.yml, no link from anywhere. Banner "BETA, may break" with a link to ../figure-editor/. Own browser-storage keys (figure-editor-beta/...), so autosave and saves never mix with the stable editor. tools/figure-editor/ is byte-identical to main (git diff empty). Duplication is temporary; Blake said to change only this file under docs, so the DECISIONS.md entry the batch asks for is NOT written: Scribe or Steward, please add "beta editor is a temporary full copy, remove when promoted". 
+| F2.4.2 | Follow the site's mode, live; Canvas option | Steward, approved by Blake 2026-11-13 | Done | The beta reads the site mode from the site's own --role-background (the toggle swaps the stylesheets), so it follows the OS first and the navbar button after, live. Browser check "toggle": starts light, clicks the site toggle, canvas and palette turn dark with no reload, and back. Canvas option (Auto, Light, Dark) kept from the stable editor. Batch asked for no new code here: the logic was already in the copied app.js. 
+| F2.4.3 | Dark palette, all-light strokes, zero-black check, export checkbox | Steward, approved by Blake 2026-11-13 | Done | Zero-black check, headless Chrome, sample full adder and all 21 elements, in dark: black strokes in the canvas DOM 0 (of 46 and 98 stroked shapes); pure-black pixels on the canvas 0, in the palette 0; in light the same detector finds 2129, so it works. The previous attempt showed black bodies with white legs; that does not reproduce here, and the check would catch it. Dark values (canvas #141312 from site background #1c1b19; ratio vs canvas): ink and low #EBEBEB 15.57; high #FE7000 6.66; unknown #CC79A7 6.06; floating, accent, debug #56B4E9 8.04; flow #009E73 5.42; highlight #E69F00 8.24; grid #434341 1.87 (decorative). Command: quarto run tools/figure-editor-beta/test/browser/check.js dark toggle colours. Export in dark theme checkbox kept, off by default. 85 Deno tests pass. 
 
 **Scope limits.** No pack, toolbox or circuit-model changes.
 

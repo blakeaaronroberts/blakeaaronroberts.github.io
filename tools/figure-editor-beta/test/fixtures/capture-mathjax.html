@@ -1,0 +1,36 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>capture MathJax output</title>
+<!--
+  Makes test/fixtures/mathjax.json: the SVG text MathJax 4 (the version and bundle the editor loads, src/mathjax.js)
+  gives for each TeX string below, so the DOM-free tests can use real MathJax output without MathJax.
+  Regenerate with headless Chrome, then copy the text of the pre element (id "out") to mathjax.json:
+
+    chrome --headless=new --dump-dom --virtual-time-budget=20000 capture-mathjax.html
+
+  Keep LIST in step with the sample figure (examples/full-adder-levels.js) and test/labels.test.js.
+-->
+<script>window.MathJax = { startup: { typeset: false }, svg: { fontCache: "none", linebreaks: { inline: false } } };</script>
+<script src="https://cdn.jsdelivr.net/npm/@mathjax/mathjax-stix2-font@4.1.3/tex-mml-svg-mathjax-stix2.js"></script>
+<pre id="out">waiting</pre>
+<script>
+const LIST = [
+  "X", "A", "B", "S", "C_{\\mathrm{in}}", "C_{\\mathrm{out}}", "A \\oplus B", "R_1",
+  "\\text{4-bit adder}", "\\text{Value $x$ here}",
+  "\\mathrm{0}", "\\mathrm{1}", "\\mathrm{X}", "\\mathrm{Z}",
+  "\\text{\u4e2d}",           // a glyph the STIX2 font lacks: MathJax falls back to a <text> element
+  "\\notamacro",              // an unknown macro: MathJax draws its error message as <text>
+];
+// As the editor does (src/mathjax.js): load the dynamic glyph files, typeset synchronously, and insist on a
+// single <svg> per label (with line breaking on, MathJax would split "A + B" into several).
+MathJax.startup.promise.then(async () => {
+  await MathJax.startup.output.font.loadDynamicFiles();
+  const out = {};
+  for (const tex of LIST) {
+    const svgs = MathJax.tex2svg(tex, { display: false }).querySelectorAll("svg");
+    if (svgs.length !== 1) throw new Error(JSON.stringify(tex) + ": " + svgs.length + " svg elements");
+    out[tex] = new XMLSerializer().serializeToString(svgs[0]);
+  }
+  document.getElementById("out").textContent = JSON.stringify({ mathjax: MathJax.version, svg: out }, null, 1);
+});
+</script>

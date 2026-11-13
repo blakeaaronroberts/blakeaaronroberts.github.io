@@ -1,0 +1,56 @@
+{
+  "pack": "symbols/0.1",
+  "type": "mux2",
+  "description": "2:1 multiplexer (inputs 0/1, select at the bottom)",
+  "status": "approved",
+  "mirrorable": false,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "mux2.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-2.2, -2.19987, 4.4, 4.89987]
+  },
+  "bbox": {
+    "min": [-4.0, -5.0],
+    "max": [4.0, 4.0]
+  },
+  "pins": {
+    "I0": {
+      "tip": [-4, 2],
+      "direction": "left",
+      "lead": {
+        "from": [-2.0, 2.0],
+        "length": 2.0
+      }
+    },
+    "I1": {
+      "tip": [-4, -2],
+      "direction": "left",
+      "lead": {
+        "from": [-2.0, -2.0],
+        "length": 2.0
+      }
+    },
+    "S": {
+      "tip": [0, -5],
+      "direction": "down",
+      "lead": {
+        "from": [0.0, -3.0],
+        "length": 2.0
+      }
+    },
+    "Y": {
+      "tip": [4, 0],
+      "direction": "right",
+      "lead": {
+        "from": [2.0, 0.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": null,
+  "parameters": []
+}
