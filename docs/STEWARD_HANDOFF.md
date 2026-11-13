@@ -14,25 +14,24 @@ file.
 
 ## Current state
 
-Sync of 2026-11-12, 16:05 (Pacific). Facts only; work lives in the batches below.
+Sync of 2026-11-12, 17:55 (Pacific). Facts only; work lives in the batches below.
 
 **Changed since the last sync**
-- S2 done (`706d1bb`): `docs/` is a site section. `draft-mode: gone` still
-  writes an empty page at a draft's address, so drafts live in
-  `docs/_drafts/`, which Quarto never renders (Blake, 2026-11-12).
-- The Scribe published the root `README.md` under Blake's standing
-  delegation for READMEs (2026-11-12), and wrote five product overviews as
-  drafts in `docs/_drafts/`, waiting for Blake's review.
-- Earlier today: tools are free and open-source or our own (VISION.md
-  section 3); builder work goes only through this queue; the `sync`
-  protocol (section 8). The university IP check is no longer planned.
-- VISION.md: READMEs need no draft stage; site drafts live in `docs/_drafts/`.
+- S3 done (`ffcb352`): alt text on all 12 figures, exposed in the
+  accessibility tree. DigitalJS shows state by colour only, so a visible,
+  live status line reports the input and output values (Blake's choice).
+  Every site batch is now done.
+- The Scribe keeps a review queue for Blake: every draft, with a link and an
+  approval control.
+- Rule changes this cycle: VISION.md section 3 now names the README
+  exception (the Scribe approves READMEs).
+- The private toolbox repo finished all its queued batches, including the
+  circuit-schema proposal, which Blake has decided on. A new public repo for
+  the shared circuit model is planned but not yet created.
 
 **Waiting**
-- Site builder: S3 (accessibility), when Blake starts it.
-- Scribe: Blake's review of its style guide, templates and overviews.
-- The private toolbox repo: one batch done, four queued.
-
+- Site builder: no open batch.
+- Scribe: Blake's reviews in the review queue.
 
 ## How builders use this file
 
@@ -53,7 +52,7 @@ Sync of 2026-11-12, 16:05 (Pacific). Facts only; work lives in the batches below
 |---|---|---|---|
 | S1 | Make this queue visible to every builder, stop handoff edits from redeploying the site, and clear out the stale `gh-pages` branch | Done | 2026-11-12 |
 | S2 | Give the Scribe a `docs/` section on the site whose drafts stay hidden until Blake approves them | Done | 2026-11-12 |
-| S3 | Accessibility pass: real alt text on every figure, and no logic state shown by colour alone | Open | 2026-11-12 |
+| S3 | Accessibility pass: real alt text on every figure, and no logic state shown by colour alone | Done | 2026-11-12 |
 
 ---
 
