@@ -85,3 +85,14 @@ export function gridShape(n, aspect) {
   }
   return { cols: best.cols, rows: best.rows };
 }
+
+// Net labels: a wire's signal name, kept in groups["wire_labels"] ({ wireId: text }) so the file stays valid.
+export const wireLabelOf = (doc, id) => doc.groups?.wire_labels?.[id] ?? "";
+export function setWireLabels(doc, ids, text) {
+  const d = clone(doc), map = { ...(d.groups?.wire_labels ?? {}) };
+  for (const id of ids) if (text) map[id] = text; else delete map[id];
+  const groups = { ...(d.groups ?? {}) };
+  if (Object.keys(map).length) groups.wire_labels = map; else delete groups.wire_labels;
+  if (Object.keys(groups).length) d.groups = groups; else delete d.groups;
+  return d;
+}
