@@ -52,6 +52,10 @@ export function mount(root) {
       view.innerHTML = "";
       WaveDrom.RenderWaveForm(0, r.value, "WaveDrom_Display_");
       const s = svgEl();
+      // Rounded line ends and corners on every stroked path (the skin has butt caps). The rule lives inside the SVG so the export keeps it.
+      const round = document.createElementNS("http://www.w3.org/2000/svg", "style");
+      round.textContent = "path[class]{stroke-linecap:round;stroke-linejoin:round}";
+      s.prepend(round);
       natural = { w: Number(s.getAttribute("width")), h: Number(s.getAttribute("height")) };
       if (!custom) { wIn.value = natural.w; hIn.value = natural.h; }
       applySize();
