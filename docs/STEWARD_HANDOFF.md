@@ -655,7 +655,7 @@ defaults. Exports use the figure's choice.
 |---|---|---|---|---|
 | T2.1 | Phase and step width controls | Steward, approved by Blake 2026-11-13 | Open | |
 | T2.2 | Edge and arrow UI with labels | Steward, approved by Blake 2026-11-13 | Open | |
-| T2.3 | Per-transition export of the diagram, then with schematic frames | Steward, approved by Blake 2026-11-13 | Open | Schematic frames exist in the editor (see F11.2, part 1-2 done). Timing tool reading frames and its per-frame export: not started. |
+| T2.3 | Per-transition export of the diagram, then with schematic frames | Steward, approved by Blake 2026-11-13 | Open | Schematic frames exist in the editor (see F11.2, part 1-2 done). Timing tool reading frames and its per-frame export: not started. Rounded line ends and corners on the timing diagram (stroke-linecap/linejoin round, rule kept inside the exported SVG): done, tools/timing-diagram/src/app.js. |
 
 ---
 
