@@ -8,9 +8,25 @@ export function nodesOf(text) {
   try { doc = JSON.parse(String(text)); } catch { return { ok: false, error: "Not a circuit file (not JSON)." }; }
   if (!doc || typeof doc !== "object" || typeof doc.schema !== "string" || !doc.schema.startsWith("circuit/")) return { ok: false, error: "Not a circuit file (no circuit schema)." };
   const seen = new Set(), nodes = [];
+  const clean = (t) => (typeof t === "string" && NAME.test(t.trim()) ? t.trim() : null);
+  const labelFor = (key, refs) => {
+    const members = new Set(refs);
+    for (const p of doc.ports ?? []) if (members.has(p?.id) && clean(p.label)) return clean(p.label);   // a port's own label
+    const pts = [];
+    for (const w of Array.isArray(doc.wires) ? doc.wires : []) {
+      if (![w?.from, w?.to].some((e) => typeof e === "string" && members.has(e))) continue;
+      for (const e of [w.from, w.to, ...(Array.isArray(w.via) ? w.via : [])]) if (Array.isArray(e)) pts.push(e);
+    }
+    let best = null, bd = 3.01;   // a free label within 3 grid steps of the net's wire corners or ends
+    for (const l of Array.isArray(doc.labels) ? doc.labels : []) {
+      if (!clean(l?.text) || !Array.isArray(l.at)) continue;
+      for (const p of pts) { const d = Math.max(Math.abs(p[0] - l.at[0]), Math.abs(p[1] - l.at[1])); if (d < bd) { bd = d; best = clean(l.text); } }
+    }
+    return best;
+  };
   const add = (name, dir) => { if (typeof name === "string" && NAME.test(name) && !seen.has(name) && nodes.length < 200) { seen.add(name); nodes.push({ name, dir: dir === "in" || dir === "out" ? dir : null }); } };
-  if (Array.isArray(doc.ports)) for (const p of doc.ports) if (p && typeof p === "object") add(p.id, p.dir);
-  if (doc.nets && typeof doc.nets === "object" && !Array.isArray(doc.nets)) for (const k of Object.keys(doc.nets)) add(k, null);
+  if (Array.isArray(doc.ports)) for (const p of doc.ports) if (p && typeof p === "object") add(clean(p.label) ?? p.id, p.dir);
+  if (doc.nets && typeof doc.nets === "object" && !Array.isArray(doc.nets)) for (const [k, refs] of Object.entries(doc.nets)) add(Array.isArray(refs) ? (labelFor(k, refs) ?? k) : k, null);
   return { ok: true, title: typeof doc.title === "string" ? doc.title.slice(0, 120) : "", nodes };
 }
 
