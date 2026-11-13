@@ -36,6 +36,10 @@ website:
         text: Projects
       - href: about.qmd
         text: About / CV
+      - text: Tools
+        menu:
+          - text: Figure editor
+            href: tools/figure-editor/index.qmd
     right:
       - icon: github
         href: https://github.com/blakeaaronroberts
