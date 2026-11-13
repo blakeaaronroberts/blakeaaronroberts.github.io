@@ -186,7 +186,7 @@ Keyboard-usable; visible focus.
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| F1.1 | Plan mode: write `proposals/figure-editor.md` (two pages at most): data model (schema v0.2 in memory), how wires anchor and rubber-band, junction rules, undo design, the symbol-pack loading, label typesetting path, export path, file layout, and a test plan. List open questions for Blake | Steward, approved by Blake 2026-11-12 | Open | |
+| F1.1 | Plan mode: write `proposals/figure-editor.md` (two pages at most): data model (schema v0.2 in memory), how wires anchor and rubber-band, junction rules, undo design, the symbol-pack loading, label typesetting path, export path, file layout, and a test plan. List open questions for Blake | Steward, approved by Blake 2026-11-12 | Done | `6e55c94` on branch `figure-editor-plan` (not merged): proposal approved with Blake's answers in section 10; DECISIONS.md entry |
 | F2.1 | Build the core as the approved plan says: canvas with zoom and pan; palette; place, move, rotate, mirror, delete; anchored orthogonal wires with T-junctions and automatic four-way dots; select, box select, copy and paste; undo and redo; save, load and autosave; SVG export | Steward, approved by Blake 2026-11-12 | Open | |
 | F2.2 | Tests: geometry and wiring rules under `node --test` (no extra dependency), and one headless-browser screenshot of a sample figure | Steward, approved by Blake 2026-11-12 | Open | |
 | F3.1 | Labels via MathJax STIX2 (outlined in exports); wire level colours; copy as PNG; real-size and scale options; private theme from a local file; draft toggle; a "?" panel listing the keys | Steward, approved by Blake 2026-11-12 | Open | |
