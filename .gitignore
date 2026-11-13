@@ -8,3 +8,6 @@
 # Stray single-file renders (e.g. editor render-on-save of a dev-only page)
 /*.html
 /*_files/
+
+# Private figure-editor themes (kept in the browser; never committed)
+*.private-theme.json

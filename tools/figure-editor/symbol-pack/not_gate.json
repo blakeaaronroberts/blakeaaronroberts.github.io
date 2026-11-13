@@ -1,0 +1,40 @@
+{
+  "pack": "symbols/0.1",
+  "type": "not_gate",
+  "description": "NOT gate (inverter)",
+  "status": "approved",
+  "mirrorable": true,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "not_gate.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-2.2, -1.20016, 4.9, 2.40003]
+  },
+  "bbox": {
+    "min": [-4.0, -2.0],
+    "max": [5.0, 2.0]
+  },
+  "pins": {
+    "A": {
+      "tip": [-4, 0],
+      "direction": "left",
+      "lead": {
+        "from": [-2.0, 0.0],
+        "length": 2.0
+      }
+    },
+    "Y": {
+      "tip": [5, 0],
+      "direction": "right",
+      "lead": {
+        "from": [2.08, 0.0],
+        "length": 2.92
+      }
+    }
+  },
+  "label": null,
+  "parameters": []
+}

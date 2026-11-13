@@ -1,0 +1,48 @@
+{
+  "pack": "symbols/0.1",
+  "type": "nmos",
+  "description": "N-channel enhancement MOSFET: gate G, drain D, source S",
+  "status": "approved",
+  "mirrorable": true,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "nmos.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-1.2, -2.2, 2.43866, 4.4]
+  },
+  "bbox": {
+    "min": [-2.0, -4.0],
+    "max": [2.077, 4.0]
+  },
+  "pins": {
+    "G": {
+      "tip": [-2, 0],
+      "direction": "left",
+      "lead": {
+        "from": [0.0, 0.0],
+        "length": 2.0
+      }
+    },
+    "D": {
+      "tip": [2, 4],
+      "direction": "up",
+      "lead": {
+        "from": [2.0, 2.0],
+        "length": 2.0
+      }
+    },
+    "S": {
+      "tip": [2, -4],
+      "direction": "down",
+      "lead": {
+        "from": [2.0, -2.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": null,
+  "parameters": []
+}

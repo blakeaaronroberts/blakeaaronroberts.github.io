@@ -12,8 +12,12 @@ project:
     - "docs/**/*.qmd"       # Scribe's pages; its handoff and to-do files are .md, so they are not rendered.
                             # Drafts go in docs/_drafts/: Quarto never renders "_" folders, so nothing reaches _site.
     - "!docs/templates/"    # page templates full of placeholders, not pages
+    - "tools/*/index.qmd"   # web tools (unlisted, noindex via tools/_metadata.yml)
   resources:
     - "assets/**"           # static files referenced from includes (e.g. WaveDrom lecture skin)
+    - "tools/*/src/**"      # web tools' ES modules, loaded by the page at run time
+    - "tools/*/symbol-pack/**"   # the figure editor's pinned symbol pack (fetched at run time)
+    - "tools/*/examples/*.json"  # sample figures (open with ?open=examples/<file>.json)
 
 website:
   title: "Blake Roberts"

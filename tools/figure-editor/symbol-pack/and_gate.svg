@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="2.45cm" height="1.20005cm" viewBox="-2.2 -1.20019 4.9 2.40009" version="1.1">
+  <g class="body">
+    <g transform="matrix(0.07187301 0 0 0.07187301 -1.56731981 -1.03893331)">
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:round;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M -17.442379 14.17487 L 3.269368 14.17487 C 11.096458 14.17487 17.443285 7.828043 17.443285 0.000952462 C 17.443285 -7.826138 11.096458 -14.172965 3.269368 -14.172965 L -17.442379 -14.172965 Z M -17.442379 14.17487 " transform="matrix(0.981667,0,0,-0.981667,25.017133,14.45406)" />
+    </g>
+  </g>
+  <g class="leads">
+    <path class="lead" data-pin="A" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -1 -0.5 L -2 -0.5" />
+    <path class="lead" data-pin="B" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -1 0.5 L -2 0.5" />
+    <path class="lead" data-pin="Y" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M 1.4615 0 L 2.5 0" />
+  </g>
+</svg>

@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1.21933cm" height="2.2cm" viewBox="-1.2 -2.2 2.43866 4.4" version="1.1">
+  <g class="body">
+    <g transform="matrix(0.0727689 0 0 0.0727689 -0.53468298 -1.05202016)">
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:round;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M 0.00130017 -14.173176 L 0.00130017 14.173937 " transform="matrix(0.969565,0,0,-0.969565,7.346396,14.4574)" />
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:round;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M 0.00130017 7.087159 L 14.174857 14.173937 " transform="matrix(0.969565,0,0,-0.969565,7.346396,14.4574)" />
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:round;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M 0.00130017 -7.086398 L 8.840636 -11.506066 " transform="matrix(0.969565,0,0,-0.969565,7.346396,14.4574)" />
+      <path style=" stroke:none;fill-rule:nonzero;fill:rgb(0%,0%,0%);fill-opacity:1;" d="M 19.984375 27.648438 L 17.128906 23.789062 L 16.15625 25.734375 L 15.183594 27.675781 Z M 19.984375 27.648438 " />
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:miter;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M 4.963612 -0.000958874 L 0.548958 2.242456 L 0.548938 -0.000919384 L 0.547116 -2.240691 Z M 4.963612 -0.000958874 " transform="matrix(0.86714,0.43356,0.43356,-0.86714,15.680643,25.49558)" />
+      <path style=" stroke:none;fill-rule:nonzero;fill:rgb(0%,0%,0%);fill-opacity:1;" d="M 21.621094 28.199219 C 21.621094 27.90625 21.382812 27.667969 21.089844 27.667969 C 20.796875 27.667969 20.558594 27.90625 20.558594 28.199219 C 20.558594 28.492188 20.796875 28.730469 21.089844 28.730469 C 21.382812 28.730469 21.621094 28.492188 21.621094 28.199219 Z M 21.621094 28.199219 " />
+    </g>
+    <circle cx="1" cy="-1" r="0.03866" fill="#000000" />
+  </g>
+  <g class="leads">
+    <path class="lead" data-pin="B" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M 0 0 L -1 0" />
+    <path class="lead" data-pin="C" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M 1 -1 L 1 -2" />
+    <path class="lead" data-pin="E" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M 1 1 L 1 2" />
+  </g>
+</svg>
