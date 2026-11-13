@@ -678,3 +678,48 @@ scenarios.import = async (ctx) => {
   } finally { await page.close(); try { await Deno.remove(tmp, { recursive: true }); } catch { /* temp */ } }
   return res;
 };
+
+/** F10: the slide frame on the canvas, in light and dark; its exports (SVG and PNG at real size); and a reload. */
+scenarios.frame = async (ctx) => {
+  const res = [];
+  for (const scheme of ["light", "dark"]) {
+    const page = await ctx.launch({ scheme, port: nextPort++ });
+    try {
+      await page.goto(`${ctx.url}?open=examples/cla-chevron.json`);
+      await page.waitFor(ready);
+      await page.sleep(2500);
+      const set = (name, value) => page.eval(`(() => { const i = document.querySelector('[name="${name}"]'); if (i.type === "checkbox") i.checked = ${JSON.stringify(value)}; else i.value = ${JSON.stringify(value)}; i.dispatchEvent(new Event("change", { bubbles: true })); })()`);
+      const frameRects = () => page.eval(`document.querySelectorAll(".fe-overlay rect[stroke-dasharray]").length`);
+      res.push([(await frameRects()) === 0, `${scheme}: no frame until asked for`]);
+      await set("fe-frame-show", true); await set("fe-frame-layout", "below"); await page.sleep(200);
+      await page.eval(`document.querySelector('[data-cmd="framecentre"]').click()`);
+      await page.eval(`document.querySelector('[data-cmd="fit"]').click()`);   // fit the figure; the frame is bigger, so zoom out to see it all
+      for (let i = 0; i < 4; i++) await page.eval(`document.querySelector('[data-cmd="zoomout"]').click()`);
+      await page.sleep(500);
+      res.push([(await frameRects()) >= 1, `${scheme}: the frame is drawn on the canvas (${await frameRects()} dashed rectangle)`]);
+      await page.shot(`${ctx.out}/beta-frame-${scheme}.png`);
+      const note = await page.eval(`document.querySelector(".fe-frame-note").textContent`);
+      res.push([note === "", `${scheme}: the figure fits the schematic's part of the frame (note "${note}")`]);
+      if (scheme === "dark") {
+        const px = await page.eval(PIXELS(await page.shotData())), scene = await page.eval(SCENE);
+        res.push([px.canvas.black === 0 && scene.black.length === 0, `dark: no black pixels with the frame shown (${px.canvas.black})`]);
+      }
+      // The frame export is exactly the slide.
+      const svg = await page.eval(`(async () => { const o = window.figureEditor; return await o.exportSvg(true); })()`);
+      const g = (n) => new RegExp(`<svg[^>]* ${n}="([^"]*)"`).exec(svg)?.[1];
+      res.push([g("width") === "33.867cm" && g("height") === "19.05cm" && g("overflow") === "hidden", `${scheme}: the frame export is ${g("width")} by ${g("height")}`]);
+      const png = await page.eval(`(async () => { const b = await window.figureEditor.png(true); const m = await createImageBitmap(b); return [m.width, m.height]; })()`);
+      res.push([Math.abs(png[0] / png[1] - 16 / 9) < 0.01 && png[0] > 3000, `${scheme}: the frame PNG is 16:9 at 300 dpi (${png[0]} x ${png[1]})`]);
+      // 4:3 and a reload.
+      await set("fe-frame-format", "4:3"); await page.sleep(200);
+      const svg43 = await page.eval(`window.figureEditor.exportSvg(true)`);
+      res.push([/width="25\.4cm"/.test(svg43), `${scheme}: 4:3 gives 25.4 cm wide`]);
+      await page.sleep(300);
+      await page.goto(ctx.url); await page.waitFor(ready); await page.sleep(800);
+      const back = await page.eval(`({ show: document.querySelector('[name="fe-frame-show"]').checked, format: document.querySelector('[name="fe-frame-format"]').value, layout: document.querySelector('[name="fe-frame-layout"]').value })`);
+      res.push([back.show && back.format === "4:3" && back.layout === "below", `${scheme}: the frame settings come back after a reload (${JSON.stringify(back)})`]);
+      res.push([page.errors.length === 0, `${scheme}: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+    } finally { await page.close(); }
+  }
+  return res;
+};
