@@ -131,7 +131,7 @@ should carry a university or work address (VISION.md section 3).
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| 1 | Run `git config --local user.email` in this repo. If it prints anything, run `git config --local --unset user.email`, then confirm `git config user.email` prints the noreply address | Steward, approved by Blake 2026-11-12 | Open | |
+| 1 | Run `git config --local user.email` in this repo. If it prints anything, run `git config --local --unset user.email`, then confirm `git config user.email` prints the noreply address | Steward, approved by Blake 2026-11-12 | Done | No local email set (nothing to unset); effective `user.email` is the noreply address from global config. History untouched. |
 
 **Scope limits:** git configuration only. Don't rewrite history.
 
