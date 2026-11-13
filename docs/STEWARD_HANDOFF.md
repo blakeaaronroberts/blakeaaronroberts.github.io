@@ -86,7 +86,7 @@ Blake's prompt.
 | F14 | Promote the beta editor to stable | In progress | 2026-11-13 |
 | F15 | Editor: level colour fixes (titles, blocks in the Elements pane, global) | Done | 2026-11-13 |
 | F16 | Editor: Elements pane grouped into collapsible categories | Done | 2026-11-13 |
-| F17 | Editor: configurable level colours | Open | 2026-11-13 |
+| F17 | Editor: configurable level colours | Blocked | 2026-11-13 |
 | T2 | Timing tool: transition timing, arrows between transitions, per-transition exports | Open | 2026-11-13 |
 
 ---
@@ -636,7 +636,7 @@ defaults. Exports use the figure's choice.
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| F17.1 | Role override UI, saved in the figure, contrast warning, reset, export uses it | Steward, approved by Blake 2026-11-13 | Open | |
+| F17.1 | Role override UI, saved in the figure, contrast warning, reset, export uses it | Steward, approved by Blake 2026-11-13 | Blocked | Not started. The figure has no `style` block today (F4.4, which would add it to the circuit schema, is still Open, and the schema is the circuit-model repo's). Needs Blake or the Steward to decide: add `style` to circuit/0.2 first (circuit-model), or keep the override outside the file. T2 not started (budget). |
 
 ---
 
