@@ -9,12 +9,15 @@
     "sky_blue": "#56B4E9",
     "bluish_green": "#009E73",
     "blue": "#0072B2",
+    "reddish_purple": "#CC79A7",
     "pale_blue": "#D4E6F3"
   },
   "roles": {
     "ink": "#000000",
     "low": "#000000",
     "high": "#D55E00",
+    "unknown": "#CC79A7",
+    "floating": "#0072B2",
     "flow": "#009E73",
     "accent": "#0072B2",
     "highlight": "#E69F00",
@@ -28,7 +31,8 @@
     "width_cm": 0.03866,
     "width_module": 0.07732,
     "join": "round",
-    "cap": "butt"
+    "cap": "butt",
+    "straight_joint_frac": 0.6
   },
   "junction": {
     "diameter_pt": 4.5,

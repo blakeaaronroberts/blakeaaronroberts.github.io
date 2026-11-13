@@ -91,6 +91,6 @@ Deno.test("a wire continuing a pin's lead gets a straight seam patch; an L gets 
   doc = addWire(doc, pack, P([0, 0]), P([6, 0])).doc;
   doc = addWire(doc, pack, P([6, 0]), P([12, 0])).doc;     // straight on
   doc = addWire(doc, pack, P([0, 0]), P([0, 6])).doc;      // at a right angle
-  const j = joints(doc, pack, allCorners(doc, pack));
+  const j = joints(doc, pack, allCorners(doc, pack)).map(({ at, straight }) => ({ at, straight }));
   assertEquals(j, [{ at: [0, 0], straight: false }, { at: [6, 0], straight: true }]);
 });

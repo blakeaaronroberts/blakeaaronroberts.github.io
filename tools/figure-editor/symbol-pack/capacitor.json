@@ -3,6 +3,7 @@
   "type": "capacitor",
   "description": "Capacitor, horizontal, optional label above",
   "status": "approved",
+  "mirrorable": true,
   "grid_cm": 0.25,
   "svg": {
     "file": "capacitor.svg",

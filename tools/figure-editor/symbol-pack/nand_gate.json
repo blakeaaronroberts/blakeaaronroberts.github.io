@@ -3,6 +3,7 @@
   "type": "nand_gate",
   "description": "2-input NAND gate",
   "status": "approved",
+  "mirrorable": true,
   "grid_cm": 0.25,
   "svg": {
     "file": "nand_gate.svg",

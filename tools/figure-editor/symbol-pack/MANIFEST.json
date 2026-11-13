@@ -2,15 +2,15 @@
   "note": "Written by tools/figure-editor/scripts/copy-symbol-pack.js. Do not edit this folder by hand.",
   "source": "circuit-model",
   "path": "symbols/",
-  "ref": "symbols-v0.1.0",
-  "tag": "symbols-v0.1.0",
-  "commit": "0cf7f80c59016776997c5b7769a6b6cd98ee8a47",
+  "ref": "symbols-v0.2.0",
+  "tag": "symbols-v0.2.0",
+  "commit": "ca165396d663f9c65df95b0a476483a688676f79",
   "pack": "symbols/0.1",
   "files": [
     {
       "name": "and_gate.json",
-      "bytes": 854,
-      "sha256": "9f04ca60223fe95a8f559ee37c137ce03643091007193c5143aef92ac8626ceb"
+      "bytes": 876,
+      "sha256": "e7aa7e63b430b6807d5b6d1bfc3365c2288b8a68ed57b7701454619425aedbe1"
     },
     {
       "name": "and_gate.svg",
@@ -19,8 +19,8 @@
     },
     {
       "name": "capacitor.json",
-      "bytes": 787,
-      "sha256": "55760a4499fd8f2a3208f71b9909e7ee595ef2b0bdbd9796c64d6222bd91ad91"
+      "bytes": 809,
+      "sha256": "d12ab99fe732f986a4b6f6f6bd88c8c8e3d152ed1e970a14b8b3fd4719b95ec8"
     },
     {
       "name": "capacitor.svg",
@@ -29,8 +29,8 @@
     },
     {
       "name": "d_flipflop.json",
-      "bytes": 1033,
-      "sha256": "65f66eadfa1b72756bb6a5e9befe42553830447fbcb23c2cbd927f846df91af0"
+      "bytes": 1056,
+      "sha256": "19a15ca4e5e8ac5f1b805214e31e90d285f06503e9ca7b014f462be04521a7d7"
     },
     {
       "name": "d_flipflop.svg",
@@ -39,8 +39,8 @@
     },
     {
       "name": "d_latch.json",
-      "bytes": 1024,
-      "sha256": "4b41d59f379564ac11812b0790659edef8cff3b68d5d97253dc9f472143fb633"
+      "bytes": 1047,
+      "sha256": "6f0b7a0586ac2e573d4f2e596ddadb80f31f2e35a9115c52f560325b857eac14"
     },
     {
       "name": "d_latch.svg",
@@ -49,8 +49,8 @@
     },
     {
       "name": "decoder2to4.json",
-      "bytes": 1321,
-      "sha256": "6f468cd0df3eb9ad8ccc51c41e68bf547ce442be8d55bb8c380f657c41acac70"
+      "bytes": 1344,
+      "sha256": "ada03123614002e7fe5f72949217b0640118aef8653592dfeef6330059830d25"
     },
     {
       "name": "decoder2to4.svg",
@@ -59,8 +59,8 @@
     },
     {
       "name": "diode.json",
-      "bytes": 800,
-      "sha256": "9ad11e5f76f9f14ef23534a12971d3a2760b349d69965aeb52cb83db72498127"
+      "bytes": 822,
+      "sha256": "458ea05f97116f26281e958aa9d6ba0a18717b765223373cf544cdc982072b54"
     },
     {
       "name": "diode.svg",
@@ -69,8 +69,8 @@
     },
     {
       "name": "full_adder.json",
-      "bytes": 1180,
-      "sha256": "d9e670dd0c144571c419f5ecc0f3dfa5327b311a7a6e05fef5dc843fc194f2ba"
+      "bytes": 1203,
+      "sha256": "85f6cbb15438d457da99829afc344c4ec9823c596e54a38644cdfe7c7b0ba2a5"
     },
     {
       "name": "full_adder.svg",
@@ -79,8 +79,8 @@
     },
     {
       "name": "ground.json",
-      "bytes": 584,
-      "sha256": "a018be07d5a51d7768a197818fc11c983df60d4072f89fc679a79b2716677198"
+      "bytes": 606,
+      "sha256": "25739dd3b97596f3a5b3a988b8d178f064d4ce17ae633676229229dc30ad8048"
     },
     {
       "name": "ground.svg",
@@ -94,8 +94,8 @@
     },
     {
       "name": "inductor.json",
-      "bytes": 797,
-      "sha256": "303e7dc79b9437592569262f756bf40591d337f8b39dd859f4cc2c8900ecc2fa"
+      "bytes": 819,
+      "sha256": "11758245c2e576b25519cab2c7ec837551fcab6b3a66486924eebfdf5a559048"
     },
     {
       "name": "inductor.svg",
@@ -104,8 +104,8 @@
     },
     {
       "name": "mux2.json",
-      "bytes": 1020,
-      "sha256": "5d8afe745272c01fa9d0db00aae65228ef6319a47abbb7f7482ecda42e4386f0"
+      "bytes": 1043,
+      "sha256": "12effff10d8943c99ebfb5e4edf08fe4177f1e5eb69516297eb2382f2e3e196c"
     },
     {
       "name": "mux2.svg",
@@ -114,8 +114,8 @@
     },
     {
       "name": "nand_gate.json",
-      "bytes": 857,
-      "sha256": "fac3d059e95d9a797e35644f12d89a9a455ecd405f423b7c6132e90f418bc9a2"
+      "bytes": 879,
+      "sha256": "5f86247e25d6594e40d6ba6d4a4a17d5f98de270cf10334357068dcede713ffe"
     },
     {
       "name": "nand_gate.svg",
@@ -124,8 +124,8 @@
     },
     {
       "name": "nmos.json",
-      "bytes": 873,
-      "sha256": "786f90eef43a972c46d0ef012af8b648b91b7360081e79805d301b97ee71caa8"
+      "bytes": 895,
+      "sha256": "196ea2f23a873b77757baed57ea6be8ed267fd04cd3487fa9744038b85602e58"
     },
     {
       "name": "nmos.svg",
@@ -134,8 +134,8 @@
     },
     {
       "name": "nor_gate.json",
-      "bytes": 854,
-      "sha256": "613dbae54562fdc2b11ad06faf0c35d44f6e1f48b32f7a7e50a6768538e9a6d4"
+      "bytes": 876,
+      "sha256": "89f6ea10cd62f8669f2b9145d682dbea51fe61dd872c9255d987f027bf623aee"
     },
     {
       "name": "nor_gate.svg",
@@ -144,8 +144,8 @@
     },
     {
       "name": "not_gate.json",
-      "bytes": 711,
-      "sha256": "93c823092c6381e27a9d881459aa4be69029d7f8c5e9a595d775a69cef7ef7ee"
+      "bytes": 733,
+      "sha256": "a289176032141667d50b3429c228f5f8baa1d44be9fac7e1878c2d643a9b3529"
     },
     {
       "name": "not_gate.svg",
@@ -154,8 +154,8 @@
     },
     {
       "name": "npn_bjt.json",
-      "bytes": 878,
-      "sha256": "a21e75838ef2d7f9ab57fb08d0d333150160b0c35cb7b35ae4bc5f3e09fd4644"
+      "bytes": 900,
+      "sha256": "39a4e76825d10f43c381217512d5df78a7ec5310886dfa73d0265e82fa1ee232"
     },
     {
       "name": "npn_bjt.svg",
@@ -164,8 +164,8 @@
     },
     {
       "name": "or_gate.json",
-      "bytes": 851,
-      "sha256": "557e7ca51314e3d9cc8e5fe78de4500f8ef42decbe3f95152a97b70fe7208da8"
+      "bytes": 873,
+      "sha256": "981bc5ef4ca0ecbce5f831dd5e8208f2a04bccd0c7e0005681ac27abb43b060b"
     },
     {
       "name": "or_gate.svg",
@@ -174,8 +174,8 @@
     },
     {
       "name": "resistor.json",
-      "bytes": 808,
-      "sha256": "4dc3f287a7b0a738000047d6f264c26924d8fc37c3df7f6a46f5776fed993dfc"
+      "bytes": 830,
+      "sha256": "34b33b18b11152706306d80a171093eaf7c55cf6eb2307514055310157b4bf76"
     },
     {
       "name": "resistor.svg",
@@ -184,8 +184,8 @@
     },
     {
       "name": "switch.json",
-      "bytes": 802,
-      "sha256": "3534a932c4b8bf991efde1afd749d4dad15f7a86608770d617257d2bf6f5c3f8"
+      "bytes": 824,
+      "sha256": "190ac878d6d98432e339545c12fbe16eee25da0af0bd58b5b5892500be28e5e9"
     },
     {
       "name": "switch.svg",
@@ -194,13 +194,13 @@
     },
     {
       "name": "theme.json",
-      "bytes": 1046,
-      "sha256": "9ca577dc5e01aacbf6270ffcc209525f4f59f8ee51e0faf4a64e2768cb70115c"
+      "bytes": 1164,
+      "sha256": "48fa561360a4599f4ba66fa84b9c79ad96b35037e81e41280757037952791a0c"
     },
     {
       "name": "vdd.json",
-      "bytes": 666,
-      "sha256": "e02931d21e556aa6b8f1d88c56a70115d3a3c745e0a130c13e19613f8997577d"
+      "bytes": 688,
+      "sha256": "d4275fb30d104bf945f7629366ecdfb4491284fe4f35f5c80e0063ca0ef3e926"
     },
     {
       "name": "vdd.svg",
@@ -209,8 +209,8 @@
     },
     {
       "name": "voltage_source.json",
-      "bytes": 829,
-      "sha256": "26ed48440388ed065539cd46b895132d391b3c8adf8e0993186c78be64289276"
+      "bytes": 852,
+      "sha256": "dc066afac11a1a50572fd27ecdc7f3e82e94662afff3a26d1eaa1c603f6923ab"
     },
     {
       "name": "voltage_source.svg",
@@ -219,8 +219,8 @@
     },
     {
       "name": "xor_gate.json",
-      "bytes": 854,
-      "sha256": "edf2031f56e1cd23465c87525fe063fe28e5c213d63375072f77e873a955ce11"
+      "bytes": 876,
+      "sha256": "426aff86d7a0aaf4df4e552792c7eb731283c3dec3bdd661a13a4f82b1081fa9"
     },
     {
       "name": "xor_gate.svg",

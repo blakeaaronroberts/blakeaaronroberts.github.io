@@ -3,6 +3,7 @@
   "type": "npn_bjt",
   "description": "NPN bipolar transistor: base B, collector C, emitter E",
   "status": "approved",
+  "mirrorable": true,
   "grid_cm": 0.25,
   "svg": {
     "file": "npn_bjt.svg",

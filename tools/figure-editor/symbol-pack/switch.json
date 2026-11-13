@@ -3,6 +3,7 @@
   "type": "switch",
   "description": "Switch (normally open, with closing arrow), optional label above",
   "status": "approved",
+  "mirrorable": true,
   "grid_cm": 0.25,
   "svg": {
     "file": "switch.svg",

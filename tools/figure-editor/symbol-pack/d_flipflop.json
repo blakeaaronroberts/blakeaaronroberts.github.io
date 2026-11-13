@@ -3,6 +3,7 @@
   "type": "d_flipflop",
   "description": "Positive-edge D flip-flop (clock wedge at the bottom)",
   "status": "approved",
+  "mirrorable": false,
   "grid_cm": 0.25,
   "svg": {
     "file": "d_flipflop.svg",

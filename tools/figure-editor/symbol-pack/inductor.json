@@ -3,6 +3,7 @@
   "type": "inductor",
   "description": "Inductor (US bumps), horizontal, optional label above",
   "status": "approved",
+  "mirrorable": true,
   "grid_cm": 0.25,
   "svg": {
     "file": "inductor.svg",

@@ -3,6 +3,7 @@
   "type": "decoder2to4",
   "description": "2-to-4 decoder (inputs A1, A0; outputs Y0..Y3)",
   "status": "approved",
+  "mirrorable": false,
   "grid_cm": 0.25,
   "svg": {
     "file": "decoder2to4.svg",

@@ -3,6 +3,7 @@
   "type": "diode",
   "description": "Diode (open triangle): anode A, cathode K; optional label above",
   "status": "approved",
+  "mirrorable": true,
   "grid_cm": 0.25,
   "svg": {
     "file": "diode.svg",

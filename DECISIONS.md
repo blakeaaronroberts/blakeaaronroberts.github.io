@@ -2,6 +2,48 @@
 
 Notable choices for this repository (VISION.md §7): date, decision, reason. Newest first.
 
+## 2026-11-13: Figure editor finish (F3): build choices
+
+**Decision.** Choices made while building F3, where the pack or the plan left room:
+
+- **Pack re-copied from tag `symbols-v0.2.0`** (commit `ca16539`); all 44 manifest hashes
+  checked against the working copy and the tag's own files. Mirror now follows each element's
+  `mirrorable` flag (15 on, 6 off). The `unknown` and `floating` levels use the theme's roles.
+  The straight-joint size is `line.straight_joint_frac`; a pack without it is refused, so no
+  drawing constant lives in the editor.
+- **Label size is not in the pack, so it is a setting.** The toolbox's labels are LaTeX's 10 pt
+  (the `standalone` class default). The editor uses `theme.label.size_pt` if a pack ever has it,
+  else 10 pt, which the user can change (Export panel). Points convert to cm with the pack's own
+  ratio (line width in pt and in cm). To fix properly, the toolbox could export the size.
+- **Labels: MathJax 4.1.3, SVG output, `fontCache: "none"`**, from the site's pinned STIX2 package
+  (`tex-mml-svg-mathjax-stix2.js`); no new dependency. Two MathJax 4 behaviours were found by
+  looking at real glyphs, and are handled in `src/mathjax.js`:
+  - Automatic line breaking cut `A ⊕ B` into two `<svg>` lines (only the "A" was drawn). Inline
+    line breaking is off, and output in more than one piece is refused.
+  - Dynamic glyph files are preloaded once. `tex2svgPromise` never settled in headless Chrome, so
+    the synchronous call is used after that preload.
+- **A label that would carry a colour or a font is refused.** MathJax draws an unknown TeX command
+  in literal red and `\color` sets named colours; a glyph the font lacks falls back to `<text>`.
+  Any such label is an error and the export stops, so the file never has a colour that is not
+  from the theme or a font.
+- **Labels need no schema change.** Ports (`label`, `side`) and free labels (`text`, `at`, `side`)
+  already exist in circuit/0.2. A port has no symbol in the pack, so only its label is drawn;
+  the editor marks ports on screen (never in an export). An element's own label is drawn only
+  where the pack gives that element a label position.
+- **Levels** are the schema's optional wire `level` (circuit-model `1b63797`): "0", "1", "X",
+  "Z", set per wire (several selected wires at once, or keys 0 1 X Z). A wire's pin leads, line
+  joints and junction dots take its colour. The level is always written as text in the panel.
+  The export's optional 0/1/X/Z tag is an export setting (off by default), not part of the saved
+  figure, because the schema has no field for it.
+- **Private theme:** `roles` only, `#RRGGBB`, kept in `localStorage`. The pack's symbols carry
+  their colours baked in, so the editor maps each baked colour to the role that owns it (`ink`
+  first) and then to the private colour.
+- **Copy as PNG** draws the exported SVG to a canvas at 300 dpi (capped at 16000 px a side); if
+  the browser refuses clipboard access the PNG downloads instead.
+
+**Reason.** Blake's F3.1 instructions and proposal section 10; each item records a choice a later
+reader might otherwise take for an accident.
+
 ## 2026-11-12: Figure editor core (F2): build choices
 
 **Decision.** Choices made while building F2, where the plan left room or its letter

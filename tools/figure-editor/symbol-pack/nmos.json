@@ -3,6 +3,7 @@
   "type": "nmos",
   "description": "N-channel enhancement MOSFET: gate G, drain D, source S",
   "status": "approved",
+  "mirrorable": true,
   "grid_cm": 0.25,
   "svg": {
     "file": "nmos.svg",

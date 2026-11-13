@@ -9,7 +9,7 @@ css: editor.css
 <noscript><p>The figure editor needs JavaScript.</p></noscript>
 <script type="module">
   import { mount } from "./src/app.js";
-  mount(document.getElementById("figure-editor"), {
+  window.figureEditor = await mount(document.getElementById("figure-editor"), {
     pack: "./symbol-pack/",
     open: new URLSearchParams(location.search).get("open"),
   });

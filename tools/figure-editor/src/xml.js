@@ -1,14 +1,14 @@
 // A small XML reader and writer for the symbol pack's SVGs. No DOM, so the core
 // (and the export) runs in tests exactly as in the browser. It handles what the
 // toolbox exporter writes: elements, attributes, comments, the XML declaration.
-// Text content is refused except in <title> and <desc>: the pack carries text as outlined paths.
+// Text content is refused except in <title> and <desc> (and in whatever `textTags` adds): the pack carries text as outlined paths.
 
 const ENT = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
 const decode = (s) => s.replace(/&(amp|lt|gt|quot|apos);/g, (_, e) => ENT[e]);
 const encode = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** Parse to {tag, attrs: [[name, value], ...], children: [...]}; returns the root element. */
-export function parseXml(text) {
+export function parseXml(text, textTags = []) {
   let i = 0;
   const root = { tag: "#root", attrs: [], children: [] };
   const stack = [root];
@@ -18,7 +18,7 @@ export function parseXml(text) {
     const chunk = text.slice(i, lt < 0 ? text.length : lt);
     if (chunk.trim()) {
       const open = stack[stack.length - 1];
-      if (open.tag !== "title" && open.tag !== "desc") fail(`unexpected text "${chunk.trim().slice(0, 20)}"`);
+      if (open.tag !== "title" && open.tag !== "desc" && !textTags.includes(open.tag)) fail(`unexpected text "${chunk.trim().slice(0, 20)}"`);
       open.children.push({ tag: "#text", text: decode(chunk), attrs: [], children: [] });
     }
     if (lt < 0) break;

@@ -22,13 +22,27 @@ Deno.test("mirror is applied before rotation, and pins mirror with the element",
   assertEquals(svgTransform(el), "translate(5 0) rotate(-90) scale(-1 1)");
 });
 
-Deno.test("the pinned pack marks nothing mirrorable yet, so mirror is refused for every element", () => {
+Deno.test("mirror works on elements the pack marks mirrorable, and is refused on the rest", () => {
   for (const type of pack.types()) {
     const { doc, id } = addElement(newDoc(), pack, type, [0, 0]);
     const r = mirrorElements(doc, pack, [id]);
-    assertEquals(r.refused, [id], type);
-    assertEquals(r.doc.elements[0].mirror, undefined, type);
+    if (pack.def(type).mirrorable === true) {
+      assertEquals(r.refused, [], type);
+      assertEquals(r.doc.elements[0].mirror, true, type);
+    } else {
+      assertEquals(r.refused, [id], type);
+      assertEquals(r.doc.elements[0].mirror, undefined, type);
+    }
   }
+});
+
+Deno.test("a mirrored element's pins mirror with it: left and right swap, up and down stay", () => {
+  const def = pack.def("and_gate");
+  const el = { id: "g", type: "and_gate", at: [0, 0], mirror: true };
+  assertEquals(pinOf(el, def, "A"), { at: [4, 1], dir: [1, 0] });    // was [-4, 1] pointing left
+  assertEquals(pinOf(el, def, "Y"), { at: [-5, 0], dir: [-1, 0] });  // was [5, 0] pointing right
+  const vdd = { id: "v", type: "vdd", at: [0, 0], mirror: true };
+  assertEquals(pinOf(vdd, pack.def("vdd"), "1").dir, [0, -1]);        // down stays down
 });
 
 Deno.test("an element marked mirrorable toggles mirror", () => {

@@ -1,8 +1,8 @@
 // The canvas: draws the document into an inline <svg>. DOM code lives here and in app.js only.
 //
 // The scene comes from export.js drawing(), so the screen and the exported file agree.
-// Each pack element is defined once as a <symbol> and placed with <use>. Every colour
-// and size comes from the pack's theme.json (roles, line, junction); the editor sets none.
+// Every colour and size comes from the active theme (the pack's theme.json, or a private
+// theme's roles over it); the editor sets none of its own.
 
 import { fmt, fromSvg, svgTransform, toSvg } from "./geometry.js";
 import { drawing, pathData } from "./export.js";
@@ -10,26 +10,26 @@ import { writeXml } from "./xml.js";
 
 const NS = "http://www.w3.org/2000/svg";
 export const symbolId = (type) => `fe-sym-${type}`;
+const same = (a, b) => a.toUpperCase() === b.toUpperCase();
 
-export function createView(svg, pack) {
-  const { roles, line, junction } = pack.theme;
-  const lw = line.width_module;
-  const defs = pack.types(true).map((type) => {
-    const inner = pack.svgs.get(type).children.map((n) => writeXml(n)).join("");
+export function createView(svg, basePack) {
+  // Palette previews reuse these <symbol>s (the pack's colours, as shipped).
+  const defs = basePack.types(true).map((type) => {
+    const inner = basePack.svgs.get(type).children.map((n) => writeXml(n)).join("");
     return `<symbol id="${symbolId(type)}" overflow="visible">${inner}</symbol>`;
   }).join("");
   svg.innerHTML = `
     <defs>
       ${defs}
       <pattern id="fe-grid" patternUnits="userSpaceOnUse" x="-0.5" y="-0.5" width="1" height="1">
-        <circle cx="0.5" cy="0.5" r="${fmt(lw / 2)}" fill="${roles.grid}"/>
+        <circle class="fe-grid-dot" cx="0.5" cy="0.5"/>
       </pattern>
     </defs>
-    <rect class="fe-paper" fill="${roles.background}"/>
+    <rect class="fe-paper"/>
     <rect class="fe-gridlayer" fill="url(#fe-grid)"/>
     <g class="fe-scene"></g>
     <g class="fe-overlay" fill="none"></g>`;
-  const paper = svg.querySelector(".fe-paper"), grid = svg.querySelector(".fe-gridlayer");
+  const paper = svg.querySelector(".fe-paper"), grid = svg.querySelector(".fe-gridlayer"), gridDot = svg.querySelector(".fe-grid-dot");
   const scene = svg.querySelector(".fe-scene"), overlay = svg.querySelector(".fe-overlay");
 
   // View: centre (modules) and modules per screen pixel.
@@ -78,35 +78,58 @@ export function createView(svg, pack) {
     applyCamera();
   }
 
+  /**
+   * state: {doc, pack (the active theme's), selection {elements, wires, ports, labels}, typeset, labelPt,
+   * levelTags, ghost, rubber, hover, box}. Returns the drawing.
+   */
   function render(state) {
-    const d = drawing(state.doc, pack);
+    const { pack } = state;
+    const { roles, line, junction } = pack.theme;
+    const lw = line.width_module;
+    paper.setAttribute("fill", roles.background);
+    gridDot.setAttribute("r", fmt(lw / 2)); gridDot.setAttribute("fill", roles.grid);
+
+    const d = drawing(state.doc, pack, { typeset: state.typeset, labelPt: state.labelPt, levelTags: state.levelTags });
     const parts = [];
-    parts.push(`<g stroke="${roles.low}" stroke-width="${fmt(lw)}" stroke-linecap="${line.cap}" stroke-linejoin="${line.join}" fill="none">`);
-    for (const w of d.wires) parts.push(`<path data-wire="${w.id}" d="${pathData(w.points)}"/>`);
+    parts.push(`<g stroke="${roles.ink}" stroke-width="${fmt(lw)}" stroke-linecap="${line.cap}" stroke-linejoin="${line.join}" fill="none">`);
+    for (const w of d.wires) parts.push(`<path data-wire="${w.id}"${same(w.colour, roles.ink) ? "" : ` stroke="${w.colour}"`} d="${pathData(w.points)}"/>`);
     parts.push("</g>");
-    for (const e of d.elements) parts.push(`<use data-el="${e.el.id}" href="#${symbolId(e.el.type)}" transform="${e.transform}"/>`);
-    parts.push(`<g fill="${roles.low}">`);
-    for (const c of [...d.joints, ...d.dots]) parts.push(`<circle cx="${fmt(c.at[0])}" cy="${fmt(c.at[1])}" r="${fmt(c.r)}"/>`);
+    for (const e of d.elements) parts.push(`<g data-el="${e.el.id}" transform="${e.transform}">${e.nodes.map((n) => writeXml(n)).join("")}</g>`);
+    parts.push(`<g fill="${roles.ink}">`);
+    for (const c of [...d.joints, ...d.dots]) parts.push(`<circle cx="${fmt(c.at[0])}" cy="${fmt(c.at[1])}" r="${fmt(c.r)}"${same(c.colour, roles.ink) ? "" : ` fill="${c.colour}"`}/>`);
     parts.push("</g>");
+    for (const l of d.labels) parts.push(`<g data-label="${l.key}" transform="${l.transform}">${l.nodes.map((n) => writeXml(n)).join("")}</g>`);
     scene.innerHTML = parts.join("");
 
     const o = [];
     const sel = state.selection;
     const accent = `stroke="${roles.accent}" stroke-width="${fmt(lw)}"`;
-    for (const e of d.elements) {
-      if (!sel.elements.includes(e.el.id)) continue;
-      const b = e.box;
-      o.push(`<rect ${accent} stroke-dasharray="${fmt(lw * 3)} ${fmt(lw * 2)}" x="${fmt(b.min[0])}" y="${fmt(b.min[1])}" width="${fmt(b.max[0] - b.min[0])}" height="${fmt(b.max[1] - b.min[1])}"/>`);
-    }
+    const dash = `stroke-dasharray="${fmt(lw * 3)} ${fmt(lw * 2)}"`;
+    const rect = (b, extra = "") => `<rect ${accent} ${extra} x="${fmt(b.min[0])}" y="${fmt(b.min[1])}" width="${fmt(b.max[0] - b.min[0])}" height="${fmt(b.max[1] - b.min[1])}"/>`;
+    for (const e of d.elements) if (sel.elements.includes(e.el.id)) o.push(rect(e.box, dash));
     for (const w of d.wires) {
       if (sel.wires.includes(w.id)) o.push(`<path stroke="${roles.accent}" stroke-opacity="0.45" stroke-width="${fmt(lw * 4)}" stroke-linejoin="round" stroke-linecap="round" d="${pathData(w.points)}"/>`);
+    }
+    // Ports have no symbol of their own: the editor marks them (never exported) so they can be found and selected.
+    for (const p of state.doc.ports) {
+      const [x, y] = toSvg(p.at);
+      const on = (sel.ports ?? []).includes(p.id);
+      o.push(`<circle ${accent} stroke-opacity="${on ? 1 : 0.5}" ${on ? "" : dash} cx="${fmt(x)}" cy="${fmt(y)}" r="${fmt(junction.radius_module * 1.8)}"/>`);
+    }
+    for (const l of d.labels) {
+      const on = l.kind === "label" ? (sel.labels ?? []).includes(l.index) : l.kind === "port" ? (sel.ports ?? []).includes(l.id) : false;
+      if (on) o.push(rect({ min: [l.box.min[0] - lw, l.box.min[1] - lw], max: [l.box.max[0] + lw, l.box.max[1] + lw] }, dash));
+    }
+    for (const i of sel.labels ?? []) {            // a free label that could not be drawn is still selectable at its anchor
+      const l = state.doc.labels[i];
+      if (l && !d.labels.some((x) => x.key === `label:${i}`)) { const [x, y] = toSvg(l.at); o.push(`<circle ${accent} cx="${fmt(x)}" cy="${fmt(y)}" r="${fmt(junction.radius_module * 1.8)}"/>`); }
     }
     if (state.ghost) {
       const el = state.ghost;
       o.push(`<g opacity="0.55"><use href="#${symbolId(el.type)}" transform="${svgTransform(el)}"/></g>`);
     }
     if (state.rubber && state.rubber.length > 1) {
-      o.push(`<path stroke="${roles.accent}" stroke-width="${fmt(lw)}" stroke-dasharray="${fmt(lw * 3)} ${fmt(lw * 2)}" d="${pathData(state.rubber.map(toSvg))}"/>`);
+      o.push(`<path stroke="${roles.accent}" stroke-width="${fmt(lw)}" ${dash} d="${pathData(state.rubber.map(toSvg))}"/>`);
     }
     if (state.hover) {
       const [x, y] = toSvg(state.hover);

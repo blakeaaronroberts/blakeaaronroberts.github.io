@@ -124,13 +124,14 @@ export function addElement(doc, pack, type, at, rotation = 0) {
 export function moveSelection(doc, pack, sel, d) {
   doc = clone(doc);
   const els = new Set(sel.elements ?? []);
+  const ports = new Set(sel.ports ?? []);
   const whole = new Set(sel.wires ?? []);
   const junctionWire = new Map(doc.junctions.map((j) => [j.id, j.on]));
   const endMoves = (end) => {
     if (isPoint(end)) return false;
     const dot = end.indexOf(".");
     if (dot > 0) return els.has(end.slice(0, dot));
-    return junctionWire.has(end) && whole.has(junctionWire.get(end));
+    return ports.has(end) || (junctionWire.has(end) && whole.has(junctionWire.get(end)));
   };
   for (let grew = true; grew;) {              // a junction on a moving wire moves, which can move more wires
     grew = false;
@@ -139,6 +140,8 @@ export function moveSelection(doc, pack, sel, d) {
     }
   }
   for (const el of doc.elements) if (els.has(el.id)) el.at = add(el.at, d);
+  for (const p of doc.ports) if (ports.has(p.id)) p.at = add(p.at, d);
+  for (const i of sel.labels ?? []) if (doc.labels[i]) doc.labels[i].at = add(doc.labels[i].at, d);
   for (const w of doc.wires) {
     if (!whole.has(w.id)) continue;
     if (w.via) w.via = w.via.map((p) => add(p, d));
@@ -175,18 +178,22 @@ export function mirrorElements(doc, pack, ids) {
 /** Delete elements and wires. Wires that ended on deleted things keep their drawn end as a free end. */
 export function deleteSelection(doc, pack, sel) {
   const els = new Set(sel.elements ?? []), ws = new Set(sel.wires ?? []);
+  const ports = new Set(sel.ports ?? []), labels = new Set(sel.labels ?? []);
   const before = doc;
   doc = clone(doc);
   for (const w of doc.wires) {
     for (const side of ["from", "to"]) {
       const end = w[side];
-      if (!isPoint(end) && end.includes(".") && els.has(end.slice(0, end.indexOf(".")))) {
+      const gone = !isPoint(end) && (end.includes(".") ? els.has(end.slice(0, end.indexOf("."))) : ports.has(end));
+      if (gone) {
         const e = endpoint(before, pack, end);
         if (e) w[side] = [...e.at];
       }
     }
   }
   doc.elements = doc.elements.filter((e) => !els.has(e.id));
+  doc.ports = doc.ports.filter((p) => !ports.has(p.id));
+  doc.labels = doc.labels.filter((_, i) => !labels.has(i));
   doc.wires = doc.wires.filter((w) => !ws.has(w.id));
   return normalize(doc, pack);
 }
@@ -240,11 +247,12 @@ export function addWire(doc, pack, from, to, via = []) {
 export function extractFragment(doc, pack, sel) {
   const els = new Set(sel.elements ?? []);
   const ws = new Set(sel.wires ?? []);
+  const ports = new Set(sel.ports ?? []);
   const js = new Set();
   const inside = (end) => {
     if (isPoint(end)) return false;
     const dot = end.indexOf(".");
-    return dot > 0 ? els.has(end.slice(0, dot)) : js.has(end);
+    return dot > 0 ? els.has(end.slice(0, dot)) : js.has(end) || ports.has(end);
   };
   for (let grew = true; grew;) {
     grew = false;
@@ -260,6 +268,8 @@ export function extractFragment(doc, pack, sel) {
     elements: doc.elements.filter((e) => els.has(e.id)).map(clone),
     wires,
     junctions: doc.junctions.filter((j) => js.has(j.id)).map(clone),
+    ports: doc.ports.filter((p) => ports.has(p.id)).map(clone),
+    labels: (sel.labels ?? []).filter((i) => doc.labels[i]).map((i) => clone(doc.labels[i])),
   };
 }
 
@@ -272,6 +282,7 @@ export function pasteFragment(doc, pack, frag, d) {
   for (const e of frag.elements) fresh(e.id, prefixFor(e.type));
   for (const w of frag.wires) fresh(w.id, stem(w.id));
   for (const j of frag.junctions) fresh(j.id, stem(j.id));
+  for (const p of frag.ports ?? []) fresh(p.id, stem(p.id));
   const remap = (end) => {
     if (isPoint(end)) return add(end, d);
     const dot = end.indexOf(".");
@@ -284,10 +295,118 @@ export function pasteFragment(doc, pack, frag, d) {
     doc.wires.push(n);
   }
   for (const j of frag.junctions) doc.junctions.push({ id: map.get(j.id), on: map.get(j.on), at: add(j.at, d) });
+  for (const p of frag.ports ?? []) doc.ports.push({ ...clone(p), id: map.get(p.id), at: add(p.at, d) });
+  const firstLabel = doc.labels.length;
+  for (const l of frag.labels ?? []) doc.labels.push({ ...clone(l), at: add(l.at, d) });
   return {
     doc: normalize(doc, pack),
-    selection: { elements: frag.elements.map((e) => map.get(e.id)), wires: frag.wires.map((w) => map.get(w.id)) },
+    selection: {
+      elements: frag.elements.map((e) => map.get(e.id)),
+      wires: frag.wires.map((w) => map.get(w.id)),
+      ports: (frag.ports ?? []).map((p) => map.get(p.id)),
+      labels: (frag.labels ?? []).map((_, i) => firstLabel + i),
+    },
   };
+}
+
+// ---- ports, labels and wire levels -------------------------------------------------------
+
+const SIDES = ["left", "right", "up", "down"];
+export const LEVEL_VALUES = ["0", "1", "X", "Z"];
+
+const sideName = (v) => (Math.abs(v[0]) >= Math.abs(v[1]) ? (v[0] > 0 ? "right" : "left") : (v[1] > 0 ? "up" : "down"));
+
+/**
+ * Which side of a grid point a label should sit on so it lies clear of what ends there: outward from
+ * a pin's tip, or away from the wire that ends at the point. null if nothing ends there.
+ */
+export function exitSide(doc, pack, at) {
+  for (const el of doc.elements) {
+    const def = pack.def(el.type);
+    if (!def) continue;
+    for (const name of Object.keys(def.pins)) {
+      const p = pinOf(el, def, name);
+      if (same(p.at, at)) return sideName(p.dir);
+    }
+  }
+  for (const c of allCorners(doc, pack).values()) {
+    for (const [a, b] of [[c[0], c[1]], [c[c.length - 1], c[c.length - 2]]]) {
+      if (b && same(a, at)) return sideName([a[0] - b[0], a[1] - b[1]]);
+    }
+  }
+  return null;
+}
+
+/** An input or output port at a grid point. Its id is also its net's name. */
+export function addPort(doc, pack, at, dir = "in") {
+  doc = clone(doc);
+  const id = nextId(doc, dir === "in" ? "in" : "out");
+  doc.ports.push({ id, dir, at: [...at] });
+  return { doc: normalize(doc, pack), id };
+}
+
+/** Change a port's id, direction, label or side. An empty label or side removes it. Renaming follows the wires on it. */
+export function setPort(doc, pack, id, fields) {
+  doc = clone(doc);
+  const p = doc.ports.find((x) => x.id === id);
+  if (!p) throw new Error(`no port ${id}`);
+  if (fields.dir !== undefined) {
+    if (!["in", "out"].includes(fields.dir)) throw new Error(`direction must be in or out`);
+    p.dir = fields.dir;
+  }
+  for (const k of ["label", "side"]) {
+    if (!(k in fields)) continue;
+    if (k === "side" && fields.side && !SIDES.includes(fields.side)) throw new Error(`side must be left, right, up or down`);
+    if (fields[k]) p[k] = fields[k]; else delete p[k];
+  }
+  if (fields.id !== undefined && fields.id !== id) {
+    if (!ID.test(fields.id)) throw new Error(`"${fields.id}" is not an id: start with a letter, then letters, digits and _`);
+    if (allIds(doc).has(fields.id)) throw new Error(`the id ${fields.id} is already used`);
+    for (const w of doc.wires) { if (w.from === id) w.from = fields.id; if (w.to === id) w.to = fields.id; }
+    p.id = fields.id;
+  }
+  return normalize(doc, pack);
+}
+
+/** Free text (a title, a signal name) at a grid point, on a side of it or centred. */
+export function addLabel(doc, at, text, side = null) {
+  doc = clone(doc);
+  const l = { text, at: [...at] };
+  if (side) l.side = side;
+  doc.labels.push(l);
+  return { doc, index: doc.labels.length - 1 };
+}
+
+export function setLabel(doc, index, fields) {
+  doc = clone(doc);
+  const l = doc.labels[index];
+  if (!l) throw new Error(`no label ${index}`);
+  if (fields.text !== undefined) l.text = fields.text;
+  if ("side" in fields) {
+    if (fields.side && !SIDES.includes(fields.side)) throw new Error(`side must be left, right, up or down`);
+    if (fields.side) l.side = fields.side; else delete l.side;
+  }
+  return doc;
+}
+
+/** An element's own label (shown only where the pack gives that element a label position). */
+export function setElementLabel(doc, id, text) {
+  doc = clone(doc);
+  const el = doc.elements.find((e) => e.id === id);
+  if (!el) throw new Error(`no element ${id}`);
+  if (text) el.label = text; else delete el.label;
+  return doc;
+}
+
+/** The logic level wires are drawn at: "0", "1", "X", "Z", or null for the default colour. */
+export function setLevel(doc, wireIds, level) {
+  if (level !== null && !LEVEL_VALUES.includes(level)) throw new Error(`level must be 0, 1, X or Z`);
+  doc = clone(doc);
+  for (const w of doc.wires) {
+    if (!wireIds.includes(w.id)) continue;
+    if (level === null) delete w.level; else w.level = level;
+  }
+  return doc;
 }
 
 // ---- nets (derived on save, never edited) --------------------------------------------
@@ -373,8 +492,10 @@ export function lint(doc, pack) {
   for (const el of els) {
     if (!pack.def(el.type)) out.push(`${el.id}: "${el.type}" is not in the symbol pack, so it is not drawn`);
     else if (el.mirror && !pack.mirrorable(el.type)) out.push(`${el.id}: mirrored, but the pack does not mark ${el.type} mirrorable (its text would print backwards)`);
+    else if (el.label && !pack.def(el.type).label) out.push(`${el.id}: has a label, but the pack gives ${el.type} no label position, so it is not drawn`);
   }
   for (const w of doc.wires) {
+    if (w.level && !pack.levelColour(w.level)) out.push(`${w.id}: level ${w.level} has no colour in this theme, so it is drawn in the default colour`);
     const a = endpoint(doc, pack, w.from), b = endpoint(doc, pack, w.to);
     if (!a || !b) { out.push(`${w.id}: ends on ${!a ? JSON.stringify(w.from) : JSON.stringify(w.to)}, which does not exist`); continue; }
     const c = route(a, b, w.via ?? [], w.first ?? null);
@@ -402,7 +523,7 @@ const ORDER = {
   top: ["schema", "id", "title", "grid_cm", "elements", "ports", "nets", "wires", "junctions", "groups", "labels"],
   element: ["id", "type", "at", "rotation", "mirror", "label", "params"],
   port: ["id", "dir", "at", "label", "side"],
-  wire: ["id", "from", "to", "via", "first"],
+  wire: ["id", "from", "to", "via", "first", "level"],
   junction: ["id", "on", "at"],
   label: ["text", "at", "side"],
 };
@@ -498,6 +619,7 @@ export function parse(text) {
     end(x.from, `${w}.from`); end(x.to, `${w}.to`);
     (x.via ?? []).forEach((p, k) => point(p, `${w}.via[${k}]`));
     if (x.first !== undefined && !["h", "v"].includes(x.first)) fail(`${w}: first must be "h" or "v"`);
+    if (x.level !== undefined && !LEVEL_VALUES.includes(x.level)) fail(`${w}: level must be "0", "1", "X" or "Z" (as a string)`);
   });
   doc.junctions.forEach((j, i) => {
     const w = `junctions[${i}]`;

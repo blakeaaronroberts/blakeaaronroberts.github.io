@@ -3,6 +3,7 @@
   "type": "full_adder",
   "description": "1-bit full adder block (A, B, Cin in; S, Cout out)",
   "status": "approved",
+  "mirrorable": false,
   "grid_cm": 0.25,
   "svg": {
     "file": "full_adder.svg",

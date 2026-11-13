@@ -16,7 +16,7 @@
   },
   "wires": [
     { "id": "w1", "from": "A", "to": "g1.A", "first": "v" },
-    { "id": "w2", "from": "g1.Y", "to": [8, 8], "via": [[0, 8]] }
+    { "id": "w2", "from": "g1.Y", "to": [8, 8], "via": [[0, 8]], "level": "X" }
   ],
   "groups": {
     "bus": ["A", "B"]

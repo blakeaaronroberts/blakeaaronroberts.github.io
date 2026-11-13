@@ -3,6 +3,7 @@
   "type": "voltage_source",
   "description": "Independent voltage source, vertical with + on top; optional label to the right",
   "status": "approved",
+  "mirrorable": false,
   "grid_cm": 0.25,
   "svg": {
     "file": "voltage_source.svg",

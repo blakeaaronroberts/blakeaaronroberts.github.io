@@ -7,13 +7,12 @@
 //
 // Joints (toolbox circuit.py, Circuit._line_end): lines have flat ends. Where two line
 // ends meet at an angle, a round joint one line width across fills the notch; where
-// they meet in a straight line, a smaller patch only covers the hairline seam.
+// they meet in a straight line, a smaller patch only covers the hairline seam. The patch's
+// size is theme.json's line.straight_joint_frac (a fraction of the line width); the editor
+// has no size of its own.
 
 import { pinOf } from "./geometry.js";
 import { isPoint } from "./doc.js";
-
-/** Straight joints: dot diameter as a fraction of the line width (toolbox wire.py Joint.SEAM_PATCH). */
-export const SEAM_PATCH = 0.6;
 
 /** Wires meeting at each junction: 2 for the tap plus one per wire end on it. */
 export function junctionCounts(doc) {
@@ -53,9 +52,10 @@ export function lineEnds(doc, pack, corners) {
 }
 
 /**
- * Joints where two or more line ends meet: {at, straight}. Ends that all point the same
+ * Joints where two or more line ends meet: {at, straight, owners}. Ends that all point the same
  * way (the same line twice) need nothing. If every end lies on one axis the joint is a
- * straight seam patch; otherwise it is a full round joint.
+ * straight seam patch; otherwise it is a full round joint. `owners` names the lines that end
+ * there: wire ids, and "element.pin" for a pin's lead.
  */
 export function joints(doc, pack, corners) {
   const byPoint = new Map();
@@ -70,7 +70,7 @@ export function joints(doc, pack, corners) {
     const d0 = ends[0].into;
     const dot = (e) => e.into[0] * d0[0] + e.into[1] * d0[1];
     if (ends.every((e) => dot(e) > 0.99)) continue;
-    out.push({ at: ends[0].at, straight: ends.every((e) => Math.abs(dot(e)) > 0.99) });
+    out.push({ at: ends[0].at, straight: ends.every((e) => Math.abs(dot(e)) > 0.99), owners: ends.map((e) => e.owner) });
   }
   return out;
 }
