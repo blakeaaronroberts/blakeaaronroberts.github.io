@@ -116,3 +116,18 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 /* ---- dark canvas: the plate follows the dark figure roles; the drawing itself is mapped by the editor ---- */
 [data-canvas="dark"] .fe-stage, [data-canvas="dark"] .fe-canvas { background: var(--fig-dark-background); }
 [data-canvas="dark"] .fe-thumb { background: var(--fig-dark-background); border-color: var(--role-rule); }
+
+
+/* ---- wires: the cursor shows which way a run slides ---- */
+.fe-canvas[data-hit="wire-h"] { cursor: ns-resize; }
+.fe-canvas[data-hit="wire-v"] { cursor: ew-resize; }
+
+/* ---- errors in the status line ---- */
+.fe-status[data-error] { color: var(--role-ink); font-weight: 700; }
+
+/* ---- block presets: a second palette group ---- */
+.fe-palette-head { margin: .25rem .75rem .25rem; font-size: .8rem; font-weight: 600; color: var(--role-muted, inherit); }
+
+/* ---- backdrop panel: the two shift fields sit side by side ---- */
+.fe-pair { display: flex; gap: .35rem; }
+.fe-pair input { min-width: 0; }

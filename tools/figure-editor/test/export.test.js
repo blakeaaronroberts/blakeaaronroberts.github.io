@@ -18,11 +18,11 @@ Deno.test("export is real size in cm with a viewBox in modules (0.5 cm)", () => 
 Deno.test("export has no text, fonts, links, ids, classes, styles or <use>", () => {
   const tags = new Set(), names = new Set();
   walk(root, (n) => {
-    if (n.tag !== "title") n.children.forEach((c) => assert(c.tag !== "#text", `text inside <${n.tag}>`));
+    if (n.tag !== "title" && n.tag !== "metadata") n.children.forEach((c) => assert(c.tag !== "#text", `text inside <${n.tag}>`));
     if (n.tag !== "#text") tags.add(n.tag);
     n.attrs.forEach(([k]) => names.add(k));
   });
-  assertEquals([...tags].sort(), ["circle", "g", "path", "svg", "title"]);
+  assertEquals([...tags].sort(), ["circle", "g", "metadata", "path", "svg", "title"]);   // <metadata> holds the circuit (F12)
   for (const bad of ["href", "xlink:href", "id", "class", "style", "font-family"]) assert(!names.has(bad), `has ${bad}`);
   assert(!/url\(|@import|<text|<style|https?:\/\/(?!www\.w3\.org\/2000\/svg)/.test(svg), "external reference found");
 });

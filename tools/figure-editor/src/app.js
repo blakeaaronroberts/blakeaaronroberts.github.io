@@ -9,12 +9,17 @@
 import { LEVELS, loadPack, parsePrivateTheme } from "./pack.js";
 import * as D from "./doc.js";
 import { History } from "./history.js";
-import { exportSize, exportSvg, labelBoxes } from "./export.js";
+import { drawing, exportSize, exportSvg, labelBoxes } from "./export.js";
 import { hitTest, inBox } from "./hit.js";
 import { packLabelPt, texNeeded } from "./labels.js";
 import { typesetAll } from "./mathjax.js";
-import { route } from "./router.js";
-import { createView, thumbnail } from "./view.js";
+import { nearestOnPolyline, route } from "./router.js";
+import { createView, thumbnail, blockThumbnail } from "./view.js";
+import { BLOCK, formatPins, handlesOf, parsePins, SHAPES, geometryOf } from "./block.js";
+import { PRESETS, presetById } from "./presets.js";
+import { circuitFromSvg, sanitizeSvg, MAX_SVG_BYTES } from "./svgimport.js";
+import { FORMATS, LAYOUTS, centreOn, cleanFrame, frameBox, overflow } from "./frame.js";
+import { orient } from "./geometry.js";
 
 const AUTOSAVE = "figure-editor/autosave";
 const SAVES = "figure-editor/saves";               // the last 10 manual saves
@@ -41,11 +46,14 @@ export const KEYS = [
   ["R", "Rotate the selected parts 90° counter-clockwise (or the part being placed)"],
   ["M", "Mirror the selected parts, for elements the symbol pack marks mirrorable"],
   ["Delete, Backspace", "Delete the selection"],
-  ["0  1  X  Z", "Set the logic level the selected wires are drawn at (low, high, unknown, floating)"],
+  ["0  1  X  Z", "Set the logic level the selected wires and elements are drawn at (low, high, unknown, floating)"],
+  ["Selected wire", "The panel sets arrowheads (at either end or both) and a bus mark: a slash across the wire, with a label"],
   ["Ctrl+Z, Ctrl+Y", "Undo, redo (Ctrl+Shift+Z also redoes)"],
   ["Ctrl+C, Ctrl+V, Ctrl+A", "Copy, paste, select all"],
   ["Ctrl+S", "Save the figure as a .json file"],
   ["Arrow keys", "Move the selection (a grid step for parts, as the Grid control sets it; half a module for wires and labels); pan when nothing is selected"],
+  ["Click a wire", "Select it (it is highlighted); Delete or Backspace removes it, Ctrl+Z brings it back"],
+  ["Drag a wire", "Slide the run under the pointer sideways: the next runs stretch, the ends stay on their pins, one step at a time. One drag is one undo step"],
   ["Shift+click", "Add to or remove from the selection; while placing, keep placing"],
   ["Drag on empty canvas", "Box select"],
   ["Mouse wheel, + and −", "Zoom"],
@@ -125,13 +133,15 @@ export async function mount(root, options = {}) {
         ${btn("new", "New")}${btn("open", "Open…")}${btn("save", "Save", "Control+S")}${btn("export", "Export SVG")}${btn("png", "Copy as PNG")}
       </div>
       <div class="fe-group fe-group-end">${btn("help", "?", "?", ' aria-label="Keys"')}</div>
-      <input type="file" class="fe-file" accept=".json,application/json" hidden>
+      <input type="file" class="fe-file" accept=".json,.svg,application/json,image/svg+xml" hidden>
       <input type="file" class="fe-theme-file" accept=".json,application/json" hidden>
     </div>
     <details class="fe-palette fe-pane" open>
       <summary class="label-mono">Elements</summary>
       <label class="fe-drafts"><input type="checkbox" name="fe-drafts"> Show drafts</label>
-      <nav aria-label="Elements"><ul></ul></nav>
+      <nav aria-label="Elements"><ul class="fe-parts"></ul></nav>
+      <h3 class="fe-palette-head label-mono">Blocks</h3>
+      <nav aria-label="Blocks"><ul class="fe-blocks"></ul></nav>
     </details>
     <div class="fe-stage">
       <svg class="fe-canvas" tabindex="0" role="application" aria-label="Figure canvas" xmlns="http://www.w3.org/2000/svg"></svg>
@@ -159,6 +169,26 @@ export async function mount(root, options = {}) {
         <label class="form-label">Canvas <select class="form-select form-select-sm" name="fe-canvas"><option value="auto">Auto (follows system)</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
         <p class="fe-theme-note"></p>
         <div class="fe-theme-buttons" role="group" aria-label="Theme">${btn("theme", "Private theme…")}${btn("themereset", "Default theme")}</div>
+      </details>
+      <details class="fe-pane fe-frame-pane" name="fe-doc">
+        <summary class="label-mono">Slide frame</summary>
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-frame-show"> <span class="form-check-label">Show a slide-size frame on the canvas</span></label>
+        <label class="form-label">Slide <select class="form-select form-select-sm" name="fe-frame-format">${Object.entries(FORMATS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("")}</select></label>
+        <label class="form-label">Layout <select class="form-select form-select-sm" name="fe-frame-layout">${Object.entries(LAYOUTS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("")}</select></label>
+        <label class="form-label">Frame centre, right and up (grid steps) <span class="fe-pair"><input class="form-control form-control-sm" type="number" name="fe-frame-x" step="1"><input class="form-control form-control-sm" type="number" name="fe-frame-y" step="1"></span></label>
+        <div class="fe-theme-buttons" role="group" aria-label="Slide frame">${btn("framecentre", "Centre on the figure")}${btn("exportframe", "Frame as SVG")}${btn("pngframe", "Frame as PNG")}</div>
+        <p class="fe-hint">The frame exports at the slide's real size, exactly what lies inside it at 1:1 (times the Scale option). The Export SVG button writes the schematic alone. The timing diagram, and its own export, arrive with the scenario player. The frame is kept in this browser, not in the circuit file.</p>
+        <p class="fe-frame-note" aria-live="polite"></p>
+      </details>
+      <details class="fe-pane fe-backdrop-pane" name="fe-doc">
+        <summary class="label-mono">Backdrop</summary>
+        <p class="fe-hint fe-backdrop-note">Open an SVG that this editor did not make to trace over it. It sits behind the grid, locked, and is never saved or exported.</p>
+        <div class="fe-backdrop-controls" hidden>
+          <label class="form-label">Opacity (%) <input class="form-control form-control-sm" type="number" name="fe-bd-opacity" min="0" max="100" step="5"></label>
+          <label class="form-label">Scale (%) <input class="form-control form-control-sm" type="number" name="fe-bd-scale" min="5" max="2000" step="5"></label>
+          <label class="form-label">Shift right, up (grid steps) <span class="fe-pair"><input class="form-control form-control-sm" type="number" name="fe-bd-x" step="1"><input class="form-control form-control-sm" type="number" name="fe-bd-y" step="1"></span></label>
+          <div class="fe-theme-buttons">${btn("backdropremove", "Remove backdrop")}</div>
+        </div>
       </details>
       <details class="fe-pane fe-warnings" open>
         <summary class="label-mono">Warnings</summary>
@@ -188,12 +218,13 @@ export async function mount(root, options = {}) {
   const history = new History();
   let selection = none();
   let tool = "select";               // select | wire | port | label | place
-  let placing = null;                // {type, rotation}
+  let placing = null;                // {type, rotation, params?}: params for a block
   let wiring = null;                 // {from: target, fromAt, via: [...]}
   let pendingLabel = null;           // {at, side}: a label waiting for its text
   let drag = null;
   let pointer = null;                // last pointer position, grid steps
   let hover = null, ghost = null, rubber = null, boxSel = null;
+  let hoverWire = null;              // the wire under the pointer in Select, for a hover highlight and the resize cursor
   let clipboard = null, pasteCount = 0;
   let loadWarnings = [];
   let spaceHeld = false;
@@ -201,16 +232,22 @@ export async function mount(root, options = {}) {
   let autosaveTimer = null;
   const typeset = new Map();         // TeX to parseTypeset's result (every label drawn is typeset once)
 
-  const opt = { scale: 1, labelPt: null, levelTags: false, drafts: false, grid: 1, canvas: "auto", exportDark: false, ...(() => { try { return JSON.parse(store.get(OPTIONS) ?? "{}"); } catch { return {}; } })() };
+  const opt = { frame: null, scale: 1, labelPt: null, levelTags: false, drafts: false, grid: 1, canvas: "auto", exportDark: false, ...(() => { try { return JSON.parse(store.get(OPTIONS) ?? "{}"); } catch { return {}; } })() };
   if (opt.grid !== 2) opt.grid = 1;   // snap for parts, in grid steps: 1 is half a module (default), 2 is a whole module
   if (!["auto", "light", "dark"].includes(opt.canvas)) opt.canvas = "auto";
   opt.exportDark = opt.exportDark === true;
+  opt.frame = cleanFrame(opt.frame);
   /** Snap a point (grid steps) to the part grid. Wires, ports and labels always snap to one step (half a module). */
   function snapPart(p) { const g = opt.grid; return [g * Math.round(p[0] / g) || 0, g * Math.round(p[1] / g) || 0]; }
   const saveOptions = () => store.set(OPTIONS, JSON.stringify(opt));
   const drawOpts = () => ({ typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags, scale: opt.scale });
 
-  const status = (msg) => { statusEl.textContent = msg; };
+  /** The status line. An error is bold and announced at once, and stays until the next message. */
+  const status = (msg, error = false) => {
+    statusEl.textContent = msg;
+    statusEl.toggleAttribute("data-error", error);
+    statusEl.setAttribute("role", error ? "alert" : "status");
+  };
 
   // ---- the private theme (kept in this browser only) ----------------------------------------
   let privateRoles = null;                             // a loaded private theme's roles, or null
@@ -280,7 +317,7 @@ export async function mount(root, options = {}) {
   // ---- rendering -------------------------------------------------------------------------
   function render() {
     lastDrawing = view.render({
-      doc, pack, selection, ghost, rubber, hover, box: boxSel,
+      doc, pack, selection, ghost, rubber, hover, hoverWire, box: boxSel, frame: opt.frame,
       typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags,
     });
     if (lastDrawing.pending.length) queueTypeset();
@@ -288,8 +325,10 @@ export async function mount(root, options = {}) {
   }
 
   function renderPalette() {
-    $(".fe-palette ul").innerHTML = pack.types(opt.drafts).map((t) =>
+    $(".fe-palette .fe-parts").innerHTML = pack.types(opt.drafts).map((t) =>
       `<li><button type="button" class="fe-part" data-type="${esc(t)}" title="${esc(pack.def(t).description)}">${thumbnail(pack, t)}<span>${esc(t)}</span></button></li>`).join("");
+    $(".fe-palette .fe-blocks").innerHTML = PRESETS.map((p) =>
+      `<li><button type="button" class="fe-part" data-preset="${esc(p.id)}" title="${esc(p.name)}: a block with these pins; size, shape, pins and labels can all be changed">${blockThumbnail(pack, p.params)}<span>${esc(p.name)}</span></button></li>`).join("");
   }
 
   function updateUI() {
@@ -317,6 +356,7 @@ export async function mount(root, options = {}) {
     $(".fe-warnings").hidden = !warnings.length;
     if (lastDrawing) {
       const { widthCm, heightCm } = exportSize(lastDrawing, opt.scale);
+      syncFrame();
       $(".fe-size").textContent = lastDrawing.box ? `File size: ${widthCm.toFixed(2)} × ${heightCm.toFixed(2)} cm${opt.scale === 1 ? " (real size)" : ""}` : "Nothing to export yet.";
     }
     $(".fe-theme-note").textContent = privateRoles
@@ -330,6 +370,15 @@ export async function mount(root, options = {}) {
   const SIDE_OPTS = [["", "centred on the point"], ["left", "left of the point"], ["right", "right of the point"], ["up", "above the point"], ["down", "below the point"]];
   const levelOpts = () => [["", "none (default colour)"], ...LEVELS.map((l) => [l.value, `${l.value}: ${l.name}`, !pack.levelColour(l.value)])];
 
+  const BLOCK_PIN_FIELDS = { blkLeft: "left", blkRight: "right", blkTop: "top", blkBottom: "bottom" };
+  const blockFields = () => `<p class="fe-hint">Size is in whole modules; a side needs one more module than it has pins.</p>` +
+    choice("Shape", "blkShape", SHAPES.map((s) => [s, s])) +
+    `<label class="form-label">Width (modules) <input class="form-control form-control-sm" type="number" min="1" step="1" data-field="blkW"></label>` +
+    `<label class="form-label">Height (modules) <input class="form-control form-control-sm" type="number" min="1" step="1" data-field="blkH"></label>` +
+    field("Text in the block (TeX or words)", "blkLabel") +
+    `<p class="fe-hint">Pins, top to bottom or left to right: names with an optional label, such as A, B: $B_1$, Cin: $C_{in}$.</p>` +
+    field("Pins on the left", "blkLeft") + field("Pins on the right", "blkRight") + field("Pins on the top", "blkTop") + field("Pins on the bottom", "blkBottom");
+
   function propsModel() {
     const only = (list) => list.length === 1 && total(selection) === 1;
     const text = {}, values = {};
@@ -339,7 +388,7 @@ export async function mount(root, options = {}) {
       html = `<p>New label at [${pendingLabel.at.join(", ")}]</p>${field("Label text (TeX, such as $A_0$)", "pendingText")}<p class="fe-hint">Press Enter to add it, Esc to cancel.</p>`;
     } else if (only(selection.elements)) {
       const el = doc.elements.find((e) => e.id === selection.elements[0]);
-      const def = el && pack.def(el.type);
+      const def = el && pack.defFor(el);
       key = `el:${el?.id}`;
       html = `<dl><dt>Element</dt><dd data-text="elDesc"></dd><dt>Position</dt><dd data-text="elPos"></dd><dt>Rotation</dt><dd data-text="elRot"></dd><dt>Mirror</dt><dd data-text="elMirror"></dd></dl>` +
         field("Label (TeX, such as $R_1$)", "elLabel");
@@ -347,6 +396,12 @@ export async function mount(root, options = {}) {
         text.elDesc = `${el.id}: ${el.type}. ${def?.description ?? ""}`; text.elPos = `[${el.at.join(", ")}] grid steps`; text.elRot = `${el.rotation ?? 0}°`;
         text.elMirror = pack.mirrorable(el.type) ? (el.mirror ? "on" : "off") : "not available: the symbol pack does not mark this element mirrorable";
         values.elLabel = el.label ?? "";
+        const g = el.type === BLOCK ? geometryOf(el.params) : null;
+        if (g) {
+          html += blockFields();
+          Object.assign(values, { blkShape: g.params.shape, blkW: String(g.params.w), blkH: String(g.params.h), blkLabel: g.params.label });
+          for (const [f, side] of Object.entries(BLOCK_PIN_FIELDS)) values[f] = formatPins(g.params.pins[side]);
+        }
       }
     } else if (only(selection.ports)) {
       const p = doc.ports.find((x) => x.id === selection.ports[0]);
@@ -370,14 +425,26 @@ export async function mount(root, options = {}) {
         html += `<dl><dt>Wire</dt><dd>${esc(wires[0].id)}: ${esc(end(wires[0].from))} to ${esc(end(wires[0].to))}</dd></dl>`;
       }
     }
-    if (!pendingLabel && selection.wires.length) {   // the level applies to every selected wire
+    if (!pendingLabel && (selection.wires.length || selection.elements.length)) {   // the level applies to every selected wire and element
       const wires = selection.wires.map((id) => doc.wires.find((w) => w.id === id)).filter(Boolean);
-      const levels = new Set(wires.map((w) => w.level ?? ""));
+      const els = selection.elements.map((id) => doc.elements.find((e) => e.id === id)).filter(Boolean);
+      const levels = new Set([...wires, ...els].map((x) => x.level ?? ""));
       const one = levels.size === 1 ? [...levels][0] : null;
-      key += `|level`;
-      html += `<p class="fe-level" data-text="levelText"></p>${choice("Level", "level", levelOpts())}`;
+      const what = els.length && wires.length ? "wires and elements" : els.length ? "elements" : "wires";
+      html += `<p class="fe-level" data-text="levelText"></p>${choice(`Level (colours the body of an element, the line of a wire)`, "level", levelOpts())}`;
+      key += "|level";
+      if (wires.length) {
+        const arrows = new Set(wires.map((w) => w.arrow ?? "none")), buses = new Set(wires.map((w) => w.bus ?? ""));
+        const arrow = arrows.size === 1 ? [...arrows][0] : null;
+        key += arrow === null ? "|mixed" : "";
+        html += choice("Arrowheads", "wireArrow", [...(arrow === null ? [["", "mixed (pick one)", true]] : []), ["none", "none"], ["end", "at the end"], ["start", "at the start"], ["both", "at both ends"]]) +
+          field("Bus mark: a slash with this label (such as N or 4)", "wireBus") +
+          `<p class="fe-hint">A wire starts where it was begun and ends where it was finished. An arrowhead's tip lands exactly on the pin, wire or point it points at.</p>`;
+        values.wireArrow = arrow ?? "";
+        values.wireBus = buses.size === 1 ? [...buses][0] : "";
+      }
       const name = LEVELS.find((l) => l.value === one);
-      text.levelText = one === null ? "Level: mixed" : one === "" ? "Level: none (default colour)" : `Level: ${one} (${name.name})`;
+      text.levelText = one === null ? "Level: mixed" : one === "" ? "Level: none (default colour)" : `Level: ${one} (${name.name}) on the selected ${what}`;
       values.level = one ?? "";
     }
     return { key, html, text, values };
@@ -407,6 +474,19 @@ export async function mount(root, options = {}) {
         setTool("select");
       } else if (name === "elLabel") {
         commit(D.setElementLabel(doc, selection.elements[0], v.trim()), "Label changed.");
+      } else if (name.startsWith("blk")) {
+        const id = selection.elements[0], el = doc.elements.find((x) => x.id === id);
+        const patch = {};
+        if (name === "blkShape") patch.shape = v;
+        else if (name === "blkW") patch.w = Number(v);
+        else if (name === "blkH") patch.h = Number(v);
+        else if (name === "blkLabel") patch.label = v.trim();
+        else patch.pins = { ...geometryOf(el.params).params.pins, [BLOCK_PIN_FIELDS[name]]: parsePins(v) };
+        const next = D.setBlockParams(doc, pack, id, patch);
+        const got = next.elements.find((x) => x.id === id).params;
+        commit(next, "Block changed.");
+        const was = geometryOf(el.params).params;
+        if ((patch.w && got.w > patch.w) || (patch.h && got.h > patch.h) || (patch.pins && (got.w > was.w || got.h > was.h))) status(`Block changed. The size was raised to ${got.w} by ${got.h} modules: the pins need the room.`);
       } else if (name.startsWith("port")) {
         const id = selection.ports[0];
         const field = { portId: "id", portDir: "dir", portLabel: "label", portSide: "side" }[name];
@@ -418,6 +498,10 @@ export async function mount(root, options = {}) {
         commit(D.setLabel(doc, selection.labels[0], { [field]: v.trim() }), "Label changed.");
       } else if (name === "level") {
         setLevel(v === "" ? null : v);
+      } else if (name === "wireArrow") {
+        if (v) commit(D.setWireStyle(doc, selection.wires, { arrow: v }), v === "none" ? "Arrowheads removed." : "Arrowheads set.");
+      } else if (name === "wireBus") {
+        commit(D.setWireStyle(doc, selection.wires, { bus: v }), v.trim() ? "Bus mark set." : "Bus mark removed.");
       }
     } catch (err) { status(err.message); }
     render();
@@ -431,12 +515,23 @@ export async function mount(root, options = {}) {
 
   // ---- editing ---------------------------------------------------------------------------
   let unsaved = false;   // edits not yet written to a .json file; autosave stays in this browser only
+  let autosavePending = false, autosaveWarned = false;
+  /** Write the autosave now if an edit is waiting. Storage may be missing, blocked or full: say so once, and carry on. */
+  function flushAutosave() {
+    clearTimeout(autosaveTimer);
+    if (!autosavePending) return;
+    autosavePending = false;
+    let ok = false;
+    try { ok = store.set(AUTOSAVE, D.serialize(doc, pack)); } catch { ok = false; }
+    if (!ok && !autosaveWarned) { autosaveWarned = true; status("Autosave is off: this browser will not store the figure. Use Save to keep it.", true); }
+  }
   function changed(msg) {
     unsaved = true;
     render();
     if (msg) status(msg);
+    autosavePending = true;
     clearTimeout(autosaveTimer);
-    autosaveTimer = setTimeout(() => store.set(AUTOSAVE, D.serialize(doc, pack)), 800);
+    autosaveTimer = setTimeout(flushAutosave, 800);
     queueTypeset();
   }
 
@@ -468,10 +563,11 @@ export async function mount(root, options = {}) {
   }
 
   function setLevel(level) {
-    if (!selection.wires.length) { status("Select one or more wires first."); return; }
+    if (!selection.wires.length && !selection.elements.length) { status("Select one or more wires or elements first."); return; }
     if (level && !pack.levelColour(level)) { status(`This theme has no colour for level ${level}.`); return; }
     const name = LEVELS.find((l) => l.value === level)?.name;
-    commit(D.setLevel(doc, selection.wires, level), level ? `Level ${level} (${name}) set on ${count(selection.wires.length, "wire")}.` : "Level cleared.");
+    const n = selection.wires.length + selection.elements.length;
+    commit(D.setLevel(doc, selection.wires, level, selection.elements), level ? `Level ${level} (${name}) set on ${count(n, n === selection.wires.length ? "wire" : "item")}.` : "Level cleared.");
   }
 
   function setGrid(g) {
@@ -480,11 +576,11 @@ export async function mount(root, options = {}) {
     status(g === 1 ? "Parts snap to half a module." : "Parts snap to a whole module.");
   }
 
-  function startPlacing(type, viaKeyboard) {
+  function startPlacing(type, viaKeyboard, params = null) {
     if (viaKeyboard) {
       // No pointer: place at the middle of the view and select it, so arrow keys can move it.
       const c = view.cam, at = snapPart([c.cx * 2, -c.cy * 2]);
-      const r = D.addElement(doc, pack, type, at);
+      const r = D.addElement(doc, pack, type, at, 0, params);
       commit(r.doc, `Placed ${r.id}. Arrow keys move it; R rotates.`);
       selection = { ...none(), elements: [r.id] };
       setTool("select");
@@ -492,8 +588,8 @@ export async function mount(root, options = {}) {
       return;
     }
     setTool("place");
-    placing = { type, rotation: 0 };
-    if (pointer) ghost = { type, at: snapPart(pointer), rotation: 0 };
+    placing = { type, rotation: 0, params };
+    if (pointer) ghost = { type, at: snapPart(pointer), rotation: 0, params };
     status(`Placing ${type}: click to place (Shift keeps placing), R rotates, Esc cancels.`);
     render();
   }
@@ -646,6 +742,22 @@ export async function mount(root, options = {}) {
     async export() {
       try { download(await svgNow(), `${doc.id}.svg`, "image/svg+xml"); status(`Exported ${doc.id}.svg.`); } catch (e) { status(e.message); }
     },
+    async exportframe() {
+      try { download(await svgNow(true), `${doc.id}-slide.svg`, "image/svg+xml"); status(`Exported ${doc.id}-slide.svg: the slide frame at real size.`); } catch (e) { status(e.message); }
+    },
+    async pngframe() {
+      try {
+        const blob = await pngNow(true);
+        download(blob, `${doc.id}-slide.png`, "image/png");
+        status(`Exported ${doc.id}-slide.png: the slide frame at 300 dpi.`);
+      } catch (e) { status(e.message); }
+    },
+    framecentre() {
+      if (!lastDrawing?.box) { status("Nothing to centre on yet."); return; }
+      opt.frame = centreOn(opt.frame, lastDrawing.box);
+      saveOptions(); syncFrame(); render();
+      status("The frame is centred on the figure.");
+    },
     async png() {
       try {
         const blob = await pngNow();
@@ -669,16 +781,16 @@ export async function mount(root, options = {}) {
   };
 
   /** The SVG as the export option settings say; labels are typeset first. Throws if one cannot be drawn. */
-  async function svgNow() {
+  async function svgNow(framed = false) {
     await typesetAll(texNeeded(doc, pack, { levelTags: opt.levelTags }), typeset);
-    return exportSvg(doc, packFor(opt.exportDark), drawOpts());   // light by default; dark only if asked
+    return exportSvg(doc, packFor(opt.exportDark), { ...drawOpts(), frame: framed ? frameBox(opt.frame) : null });   // light by default; dark only if asked
   }
 
   const DPI = 300, MAX_PIXELS = 16000;
 
   /** The figure as a PNG at 300 dpi at its exported size (scale option included), on a transparent background. */
-  async function pngNow() {
-    const text = await svgNow();
+  async function pngNow(framed = false) {
+    const text = await svgNow(framed);
     const cm = (name) => +new RegExp(`${name}="([\\d.]+)cm"`).exec(text)[1];
     let dpi = DPI;
     const longest = Math.max(cm("width"), cm("height"));
@@ -704,6 +816,7 @@ export async function mount(root, options = {}) {
   /** Open a saved file. With `record`, it is an undo step; on start-up it is not. */
   function load(text, record = true) {
     const { doc: next, nets } = D.parse(text);
+    try { drawing(next, pack, { typeset }); D.lint(next, pack); } catch (e) { throw new Error(`the figure could not be drawn (${e.message})`); }   // a dry run: nothing changes if it fails
     loadWarnings = D.netsMatch(nets, D.deriveNets(next, pack)) ? [] :
       ["The file's nets did not match its drawing. Saving writes the nets the drawing makes."];
     if (record) commit(next, `Opened ${next.id}.`);
@@ -722,10 +835,29 @@ export async function mount(root, options = {}) {
   });
   root.querySelector(".fe-palette").addEventListener("click", (e) => {
     const b = e.target.closest("[data-type]");
-    if (b) startPlacing(b.dataset.type, e.detail === 0);
+    if (b) { startPlacing(b.dataset.type, e.detail === 0); return; }
+    const pre = e.target.closest("[data-preset]");
+    const preset = pre && presetById(pre.dataset.preset);
+    if (preset) startPlacing(BLOCK, e.detail === 0, structuredClone(preset.params));
   });
   draftsInput.checked = !!opt.drafts;
   draftsInput.addEventListener("change", () => { opt.drafts = draftsInput.checked; saveOptions(); renderPalette(); status(opt.drafts ? "Showing draft elements too." : "Showing approved elements only."); });
+  // ---- the slide frame (F10) -------------------------------------------------------------------------
+  const frameEls = { show: $('[name="fe-frame-show"]'), format: $('[name="fe-frame-format"]'), layout: $('[name="fe-frame-layout"]'), x: $('[name="fe-frame-x"]'), y: $('[name="fe-frame-y"]') };
+  function syncFrame() {
+    frameEls.show.checked = opt.frame.show; frameEls.format.value = opt.frame.format; frameEls.layout.value = opt.frame.layout;
+    if (document.activeElement !== frameEls.x) frameEls.x.value = String(opt.frame.x);
+    if (document.activeElement !== frameEls.y) frameEls.y.value = String(opt.frame.y);
+    const out = lastDrawing?.box ? overflow(opt.frame, lastDrawing.box) : [];
+    $(".fe-frame-note").textContent = opt.frame.show && out.length ? `The figure sticks out of the schematic's part of the frame on the ${out.join(", ")}: it is cut off in the frame export.` : "";
+  }
+  for (const [k, el] of Object.entries(frameEls)) {
+    el.addEventListener("change", () => {
+      opt.frame = cleanFrame({ ...opt.frame, [k]: k === "show" ? el.checked : el.value });
+      saveOptions(); syncFrame(); render();
+    });
+  }
+  syncFrame();
   scaleInput.value = String(Math.round(opt.scale * 100));
   scaleInput.addEventListener("change", () => {
     const v = +scaleInput.value;
@@ -747,11 +879,44 @@ export async function mount(root, options = {}) {
   exportDarkInput.addEventListener("change", () => { opt.exportDark = exportDarkInput.checked; saveOptions(); status(opt.exportDark ? "SVG and PNG exports will use the dark theme." : "SVG and PNG exports will use the default light theme."); });
   tagsInput.checked = !!opt.levelTags;
   tagsInput.addEventListener("change", () => { opt.levelTags = tagsInput.checked; saveOptions(); render(); queueTypeset(); });
+  // ---- a backdrop to trace over (F12.2): never part of the figure, never saved or exported ----------------------
+  let backdrop = null;                     // {href, width, height (modules at 100%), cx, cy (modules), scale, opacity}
+  const bdOpacity = $('[name="fe-bd-opacity"]'), bdScale = $('[name="fe-bd-scale"]'), bdX = $('[name="fe-bd-x"]'), bdY = $('[name="fe-bd-y"]');
+  function applyBackdrop() {
+    if (!backdrop) { view.setBackdrop(null); $(".fe-backdrop-controls").hidden = true; return; }
+    const w = backdrop.width * backdrop.scale, h = backdrop.height * backdrop.scale;
+    view.setBackdrop({ href: backdrop.href, x: backdrop.cx - w / 2, y: backdrop.cy - h / 2, width: w, height: h, opacity: backdrop.opacity });
+    $(".fe-backdrop-controls").hidden = false;
+    bdOpacity.value = String(Math.round(backdrop.opacity * 100)); bdScale.value = String(Math.round(backdrop.scale * 100));
+    bdX.value = String(Math.round(backdrop.cx * 2)); bdY.value = String(Math.round(-backdrop.cy * 2));
+  }
+  function importBackdrop(text, name) {
+    const r = sanitizeSvg(text);
+    backdrop = { href: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(r.svg)}`, width: r.width, height: r.height, cx: view.cam.cx, cy: view.cam.cy, scale: 1, opacity: 0.5 };
+    applyBackdrop();
+    $(".fe-backdrop-pane").open = true;
+    status(`${name} is not one of this editor's exports, so it is a locked backdrop to trace over (scripts and external references removed). Opacity, scale and position are in the Backdrop panel; it is never saved or exported.`);
+  }
+  commands.backdropremove = () => { backdrop = null; applyBackdrop(); status("Backdrop removed."); };
+  bdOpacity.addEventListener("change", () => { if (backdrop && bdOpacity.value !== "") backdrop.opacity = Math.min(1, Math.max(0, +bdOpacity.value / 100)); applyBackdrop(); });
+  bdScale.addEventListener("change", () => { if (backdrop && +bdScale.value >= 5) backdrop.scale = Math.min(20, +bdScale.value / 100); applyBackdrop(); });
+  for (const input of [bdX, bdY]) input.addEventListener("change", () => { if (backdrop) { backdrop.cx = (+bdX.value || 0) / 2; backdrop.cy = -(+bdY.value || 0) / 2; } applyBackdrop(); });
+
   fileInput.addEventListener("change", async () => {
     const f = fileInput.files[0];
     fileInput.value = "";
     if (!f) return;
-    try { load(await f.text()); } catch (e) { status(`Could not open ${f.name}: ${e.message}`); }
+    const isSvg = /\.svg$/i.test(f.name) || f.type === "image/svg+xml";
+    const limit = isSvg ? MAX_SVG_BYTES : 5e6;
+    if (f.size > limit) { status(`Could not open ${f.name}: it is ${(f.size / 1e6).toFixed(1)} MB, over the ${limit / 1e6} MB limit. The figure on the canvas is unchanged.`, true); return; }
+    try {
+      const text = await f.text();
+      if (isSvg || /^\s*<(\?xml|svg)/.test(text)) {
+        const circuit = circuitFromSvg(text);
+        if (circuit) { load(circuit); status(`Opened ${doc.id} from the circuit inside ${f.name}.`); }
+        else importBackdrop(text, f.name);
+      } else load(text);
+    } catch (e) { status(`Could not open ${f.name}: ${e.message}. The figure on the canvas is unchanged.`, true); }
   });
   themeInput.addEventListener("change", async () => {
     const f = themeInput.files[0];
@@ -770,6 +935,19 @@ export async function mount(root, options = {}) {
     commit(next, "Title changed.");
   });
 
+  /** The resize handle of the one selected block under the pointer, if any: {id, el}. */
+  function blockHandleAt(p) {
+    if (total(selection) !== 1 || selection.elements.length !== 1) return null;
+    const el = doc.elements.find((x) => x.id === selection.elements[0]);
+    if (el?.type !== BLOCK) return null;
+    let best = null;
+    for (const h of handlesOf(el.params)) {
+      const at = D.placeAt(el, h.at), d = Math.hypot(at[0] - p[0], at[1] - p[1]);
+      if (d <= 0.9 && (!best || d < best.d)) best = { id: h.id, el, d };
+    }
+    return best;
+  }
+
   const LIST = { element: "elements", wire: "wires", port: "ports", label: "labels" };
   const keyOf = (h) => (h.kind === "label" ? h.index : h.kind === "wire" || h.kind === "port" || h.kind === "element" ? h.id : null);
 
@@ -785,7 +963,7 @@ export async function mount(root, options = {}) {
     }
     if (e.button !== 0) return;
     if (tool === "place" && placing) {
-      const r = D.addElement(doc, pack, placing.type, snapPart(p), placing.rotation);
+      const r = D.addElement(doc, pack, placing.type, snapPart(p), placing.rotation, placing.params);
       commit(r.doc, `Placed ${r.id}.`);
       selection = { ...none(), elements: [r.id] };
       if (!e.shiftKey) setTool("select"); else render();
@@ -794,6 +972,13 @@ export async function mount(root, options = {}) {
     if (tool === "wire") { wireClick(p); return; }
     if (tool === "port") { portClick(p); return; }
     if (tool === "label") { labelClick(p); return; }
+    const handle = blockHandleAt(p);
+    if (handle) {
+      drag = { kind: "resize", id: handle.el.id, handle: handle.id, start: p, base: doc, el: handle.el };
+      svg.setPointerCapture(e.pointerId);
+      status("Drag to resize the block in whole modules. One drag is one undo step.");
+      return;
+    }
     const hits = targets(p);
     let target = hits.find((h) => ["port", "wire", "label", "element"].includes(h.kind));
     if (!target) { const pin = hits.find((h) => h.kind === "pin"); if (pin) target = { kind: "element", id: pin.ref.split(".")[0] }; }
@@ -805,7 +990,12 @@ export async function mount(root, options = {}) {
       } else if (!isSel) {
         selection = { ...none(), [list]: [k] };
       }
-      drag = { kind: "move", start: p, base: doc, sel: structuredClone(selection), delta: [0, 0] };
+      const c = target.kind === "wire" && !e.shiftKey && total(selection) === 1 ? D.allCorners(doc, pack).get(k) : null;
+      if (c) {   // a lone wire: dragging slides the run under the pointer sideways
+        const index = nearestOnPolyline(p, c).segment;
+        drag = { kind: "segment", id: k, index, horizontal: c[index][1] === c[index + 1][1], start: p, base: doc, d: 0 };
+        status(`Wire ${k} selected. Drag it sideways to move this run; Delete removes the wire.`);
+      } else drag = { kind: "move", start: p, base: doc, sel: structuredClone(selection), delta: [0, 0] };
     } else {
       if (!e.shiftKey) selection = none();
       drag = { kind: "box", start: p, add: e.shiftKey ? structuredClone(selection) : null };
@@ -818,6 +1008,26 @@ export async function mount(root, options = {}) {
     const p = view.toGrid(e);
     pointer = p;
     if (drag?.kind === "pan") { view.panBy(e.clientX - drag.x, e.clientY - drag.y); drag.x = e.clientX; drag.y = e.clientY; return; }
+    if (drag?.kind === "segment") {
+      const d = Math.round(drag.horizontal ? p[1] - drag.start[1] : p[0] - drag.start[0]);   // whole grid steps (half a module)
+      if (d !== drag.d) {
+        drag.d = d;
+        try { doc = d === 0 ? drag.base : D.moveWireSegment(drag.base, pack, drag.id, drag.index, d); } catch (err) { doc = drag.base; status(`${err.message}.`); }
+        render();
+      }
+      return;
+    }
+    if (drag?.kind === "resize") {
+      // The pointer's move in the block's own frame (undo the rotation, then the mirror), in whole modules along the dragged edges.
+      const el = drag.el, h = drag.handle;
+      let local = orient([p[0] - drag.start[0], p[1] - drag.start[1]], (360 - (el.rotation ?? 0)) % 360, false);
+      if (el.mirror) local = [-local[0], local[1]];
+      const dw = Math.round((h.includes("e") ? local[0] : h.includes("w") ? -local[0] : 0) / 2);
+      const dh = Math.round((h.includes("n") ? local[1] : h.includes("s") ? -local[1] : 0) / 2);
+      try { doc = D.resizeBlock(drag.base, pack, drag.id, h, dw, dh); } catch (err) { doc = drag.base; status(`${err.message}.`); }
+      render();
+      return;
+    }
     if (drag?.kind === "move") {
       const raw = [p[0] - drag.start[0], p[1] - drag.start[1]];
       const delta = drag.sel.elements.length ? snapPart(raw) : snapStep(raw);
@@ -833,15 +1043,34 @@ export async function mount(root, options = {}) {
       render();
       return;
     }
-    if (tool === "place" && placing) { ghost = { type: placing.type, at: snapPart(p), rotation: placing.rotation }; render(); return; }
+    if (tool === "select" && !drag) updateHoverWire(p);
+    if (tool === "place" && placing) { ghost = { type: placing.type, at: snapPart(p), rotation: placing.rotation, params: placing.params }; render(); return; }
     if (tool === "wire") {
       if (wiring) updateRubber(p);
       else { const t = wireTarget(p); const h = t.kind !== "point" ? t.at : null; if (!same(h, hover)) { hover = h; render(); } }
     }
   });
 
+  /** Highlight the wire a click would pick, and show which way its run slides (the cursor). */
+  function updateHoverWire(p) {
+    const t = targets(p).find((h) => ["port", "wire", "label", "element"].includes(h.kind));
+    const id = t?.kind === "wire" ? t.id : null;
+    const c = id ? D.allCorners(doc, pack).get(id) : null;
+    const i = c ? nearestOnPolyline(p, c).segment : 0;
+    const dir = c ? (c[i][1] === c[i + 1][1] ? "wire-h" : "wire-v") : "";
+    if (id === hoverWire && (svg.dataset.hit ?? "") === dir) return;
+    hoverWire = id;
+    if (dir) svg.dataset.hit = dir; else delete svg.dataset.hit;
+    render();
+  }
+
   const endDrag = () => {
-    if (drag?.kind === "move" && !same(drag.delta, [0, 0])) {
+    if (drag?.kind === "resize") {
+      if (doc !== drag.base && JSON.stringify(doc) !== JSON.stringify(drag.base)) { history.record(drag.base); changed("Resized the block."); }
+      else doc = drag.base;
+    } else if (drag?.kind === "segment") {
+      if (doc !== drag.base) { history.record(drag.base); changed("Moved a wire run."); }   // the whole drag is one undo step
+    } else if (drag?.kind === "move" && !same(drag.delta, [0, 0])) {
       history.record(drag.base);   // the whole drag is one undo step
       changed("Moved.");
     } else if (drag?.kind === "box" && boxSel) {
@@ -857,6 +1086,7 @@ export async function mount(root, options = {}) {
   };
   svg.addEventListener("pointerup", endDrag);
   svg.addEventListener("pointercancel", endDrag);
+  svg.addEventListener("pointerleave", () => { if (hoverWire && !drag) { hoverWire = null; delete svg.dataset.hit; render(); } });
   svg.addEventListener("dblclick", (e) => e.preventDefault());
   svg.addEventListener("wheel", (e) => { e.preventDefault(); view.zoomAt(e.deltaY > 0 ? 1.15 : 1 / 1.15, e); }, { passive: false });
   svg.addEventListener("contextmenu", (e) => { if (wiring) { e.preventDefault(); wiring = null; rubber = null; render(); } });
@@ -897,7 +1127,7 @@ export async function mount(root, options = {}) {
     if (k === "r") return run("rotate");
     if (k === "m") return run("mirror");
     if (k === "f") return run("fit");
-    if (selection.wires.length && ["0", "1", "x", "z"].includes(k)) { e.preventDefault(); return setLevel(k.toUpperCase()); }
+    if ((selection.wires.length || selection.elements.length) && ["0", "1", "x", "z"].includes(k)) { e.preventDefault(); return setLevel(k.toUpperCase()); }
     if (e.key === "Delete" || e.key === "Backspace") return run("delete");
     if (e.key === "+" || e.key === "=") return run("zoomin");
     if (e.key === "-") return run("zoomout");
@@ -913,6 +1143,8 @@ export async function mount(root, options = {}) {
   });
 
   window.addEventListener("beforeunload", (e) => { if (unsaved) { e.preventDefault(); e.returnValue = ""; } });
+  window.addEventListener("pagehide", flushAutosave);                                   // an edit made in the last 0.8 s still reaches the autosave
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushAutosave(); });
 
   // ---- start ----------------------------------------------------------------------------------
   view.setGrid(opt.grid);
@@ -933,7 +1165,7 @@ export async function mount(root, options = {}) {
   }
   const saved = !opened && store.get(AUTOSAVE);
   if (saved) {
-    try { load(saved, false); status("Restored the autosaved figure."); } catch { /* an unreadable autosave is ignored */ }
+    try { load(saved, false); status("Restored the autosaved figure."); } catch (e) { status(`The autosaved figure could not be read (${e.message}). It is left alone until your next edit replaces it.`, true); }
   }
   if (!opened && !saved) status("Pick an element on the left to place it, or press W to draw a wire. Press ? for the keys. Autosave stays in this browser; use Save to take a figure to another computer.");
 

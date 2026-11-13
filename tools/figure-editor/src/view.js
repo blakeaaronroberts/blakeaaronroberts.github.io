@@ -5,8 +5,11 @@
 // theme's roles over it); the editor sets none of its own.
 
 import { fmt, fromSvg, STEPS_PER_MODULE, svgTransform, toSvg } from "./geometry.js";
-import { drawing, hex, pathData } from "./export.js";
+import { drawing, headPath, hex, pathData } from "./export.js";
 import { writeXml } from "./xml.js";
+import { BLOCK, blockDef, blockNodes, handlesOf } from "./block.js";
+import { place } from "./geometry.js";
+import { frameBox, regions } from "./frame.js";
 
 const NS = "http://www.w3.org/2000/svg";
 export const symbolId = (type) => `fe-sym-${type}`;
@@ -28,6 +31,7 @@ export function createView(svg, basePack) {
       </pattern>
     </defs>
     <rect class="fe-paper"/>
+    <image class="fe-backdrop" pointer-events="none" visibility="hidden"/>
     <rect class="fe-gridlayer" fill="url(#fe-grid)"/>
     <g class="fe-scene"></g>
     <g class="fe-overlay" fill="none"></g>`;
@@ -94,7 +98,14 @@ export function createView(svg, basePack) {
     const d = drawing(state.doc, pack, { typeset: state.typeset, labelPt: state.labelPt, levelTags: state.levelTags });
     const parts = [];
     parts.push(`<g stroke="${roles.ink}" stroke-width="${fmt(lw)}" stroke-linecap="${line.cap}" stroke-linejoin="${line.join}" fill="none">`);
-    for (const w of d.wires) parts.push(`<path data-wire="${w.id}"${same(w.colour, roles.ink) ? "" : ` stroke="${w.colour}"`} d="${pathData(w.points)}"/>`);
+    for (const w of d.wires) {
+      const own = same(w.colour, roles.ink) ? "" : ` stroke="${w.colour}"`;
+      parts.push(`<path data-wire="${w.id}"${own} d="${pathData(w.points)}"/>`);
+      if (w.slash) parts.push(`<path data-bus="${w.id}"${own} d="${pathData(w.slash)}"/>`);
+    }
+    parts.push("</g>");
+    parts.push(`<g fill="${roles.ink}" stroke="none">`);
+    for (const w of d.wires) for (const h of w.heads) parts.push(`<path data-head="${w.id}"${same(w.colour, roles.ink) ? "" : ` fill="${w.colour}"`} d="${headPath(h)}"/>`);
     parts.push("</g>");
     for (const e of d.elements) parts.push(`<g data-el="${e.el.id}" transform="${e.transform}">${e.nodes.map((n) => writeXml(n)).join("")}</g>`);
     parts.push(`<g fill="${roles.ink}">`);
@@ -108,9 +119,20 @@ export function createView(svg, basePack) {
     const accent = `stroke="${roles.accent}" stroke-width="${fmt(lw)}"`;
     const dash = `stroke-dasharray="${fmt(lw * 3)} ${fmt(lw * 2)}"`;
     const rect = (b, extra = "") => `<rect ${accent} ${extra} x="${fmt(b.min[0])}" y="${fmt(b.min[1])}" width="${fmt(b.max[0] - b.min[0])}" height="${fmt(b.max[1] - b.min[1])}"/>`;
+    // The slide frame: its outline, and the timing diagram's region tinted (the timing diagram itself comes with F9).
+    if (state.frame?.show) {
+      const rg = regions(state.frame);
+      if (rg.timing) o.push(`<rect fill="${roles.accent}" fill-opacity="0.08" stroke="none" x="${fmt(rg.timing.min[0])}" y="${fmt(rg.timing.min[1])}" width="${fmt(rg.timing.max[0] - rg.timing.min[0])}" height="${fmt(rg.timing.max[1] - rg.timing.min[1])}"/>`);
+      o.push(rect(frameBox(state.frame), `stroke-opacity="0.8" stroke-width="${fmt(lw * 2)}" stroke-dasharray="${fmt(lw * 8)} ${fmt(lw * 4)}"`));
+      if (rg.timing) o.push(`<path stroke="${roles.accent}" stroke-opacity="0.8" stroke-width="${fmt(lw)}" stroke-dasharray="${fmt(lw * 4)} ${fmt(lw * 3)}" d="M ${fmt(rg.timing.min[0])} ${fmt(rg.timing.min[1])} L ${fmt(rg.timing.min[0] === rg.schematic.min[0] ? rg.timing.max[0] : rg.timing.min[0])} ${fmt(rg.timing.min[0] === rg.schematic.min[0] ? rg.timing.min[1] : rg.timing.max[1])}"/>`);
+    }
     for (const e of d.elements) if (sel.elements.includes(e.el.id)) o.push(rect(e.box, dash));
     for (const w of d.wires) {
       if (sel.wires.includes(w.id)) o.push(`<path stroke="${roles.accent}" stroke-opacity="0.45" stroke-width="${fmt(lw * 4)}" stroke-linejoin="round" stroke-linecap="round" d="${pathData(w.points)}"/>`);
+    }
+    if (state.hoverWire && !sel.wires.includes(state.hoverWire)) {
+      const w = d.wires.find((x) => x.id === state.hoverWire);
+      if (w) o.push(`<path stroke="${roles.accent}" stroke-opacity="0.22" stroke-width="${fmt(lw * 4)}" stroke-linejoin="round" stroke-linecap="round" d="${pathData(w.points)}"/>`);
     }
     // Ports have no symbol of their own: the editor marks them (never exported) so they can be found and selected.
     for (const p of state.doc.ports) {
@@ -126,9 +148,21 @@ export function createView(svg, basePack) {
       const l = state.doc.labels[i];
       if (l && !d.labels.some((x) => x.key === `label:${i}`)) { const [x, y] = toSvg(l.at); o.push(`<circle ${accent} cx="${fmt(x)}" cy="${fmt(y)}" r="${fmt(junction.radius_module * 1.8)}"/>`); }
     }
+    // A single selected block shows its eight resize handles (drag one to change the size in whole modules).
+    if (sel.elements.length === 1 && total(sel) === 1) {
+      const el = state.doc.elements.find((e) => e.id === sel.elements[0]);
+      if (el?.type === BLOCK) {
+        const s = junction.radius_module * 1.6;
+        for (const h of handlesOf(el.params)) {
+          const [x, y] = toSvg(place(el, h.at));
+          o.push(`<rect data-handle="${h.id}" fill="${roles.background}" ${accent} x="${fmt(x - s)}" y="${fmt(y - s)}" width="${fmt(2 * s)}" height="${fmt(2 * s)}"/>`);
+        }
+      }
+    }
     if (state.ghost) {
       const el = state.ghost;
-      o.push(`<g opacity="0.55"><use href="#${symbolId(el.type)}" transform="${svgTransform(el)}"/></g>`);
+      if (el.type === BLOCK) o.push(`<g opacity="0.55" transform="${svgTransform(el)}">${blockNodes(el.params, pack).map((n) => writeXml(n)).join("")}</g>`);
+      else o.push(`<g opacity="0.55"><use href="#${symbolId(el.type)}" transform="${svgTransform(el)}"/></g>`);
     }
     if (state.rubber && state.rubber.length > 1) {
       o.push(`<path stroke="${roles.accent}" stroke-width="${fmt(lw)}" ${dash} d="${pathData(state.rubber.map(toSvg))}"/>`);
@@ -146,6 +180,17 @@ export function createView(svg, basePack) {
   }
 
   applyCamera();
+  /** A locked image behind the grid, for tracing: {href, x, y, width, height (modules, top-left), opacity} or null to remove it. */
+  function setBackdrop(b) {
+    const img = svg.querySelector(".fe-backdrop");
+    if (!b) { img.setAttribute("visibility", "hidden"); img.removeAttribute("href"); return; }
+    img.setAttribute("href", b.href);
+    for (const k of ["x", "y", "width", "height"]) img.setAttribute(k, String(b[k]));
+    img.setAttribute("opacity", String(b.opacity));
+    img.setAttribute("preserveAspectRatio", "none");
+    img.setAttribute("visibility", "visible");
+  }
+
   /** Dot spacing, in grid steps (1 = half a module, 2 = a module). Dots sit on multiples of it. */
   function setGrid(steps) {
     const w = steps / STEPS_PER_MODULE, pat = svg.querySelector("#fe-grid");
@@ -157,7 +202,16 @@ export function createView(svg, basePack) {
   /** Redraw the palette's symbols with a pack's colour mapping (the light or dark canvas). */
   const setSymbols = (pack) => { svg.querySelector(".fe-symbols").innerHTML = symbolsFor(pack); };
 
-  return { render, toGrid, zoomAt, panBy, fit, applyCamera, setGrid, setSymbols, cam };
+  return { render, toGrid, zoomAt, panBy, fit, applyCamera, setGrid, setSymbols, setBackdrop, cam };
+}
+
+const total = (s) => s.elements.length + s.wires.length + s.ports.length + s.labels.length;
+
+/** A small preview of a block preset for the palette: its outline and pins, drawn in the active theme (no text). */
+export function blockThumbnail(pack, params) {
+  const def = blockDef(params);
+  if (!def) return "";
+  return `<svg xmlns="${NS}" class="fe-thumb" viewBox="${def.svg.viewBox.join(" ")}" aria-hidden="true" focusable="false">${blockNodes(params, pack).map((n) => writeXml(n)).join("")}</svg>`;
 }
 
 /** A small preview of one pack element for the palette (uses the canvas's <symbol>). */
