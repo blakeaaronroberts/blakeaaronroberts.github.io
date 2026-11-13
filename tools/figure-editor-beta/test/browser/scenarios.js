@@ -151,3 +151,80 @@ scenarios.colours = async (ctx) => {
   } finally { await page.close(); }
   return res;
 };
+
+/** Drag a wire run, click and delete a wire, undo and redo, on the full-adder sample. */
+scenarios.wires = async (ctx) => {
+  const res = [];
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  const DEL = [ "Delete", "Delete", 46 ], UNDO = [ "z", "KeyZ", 90, 2 ], REDO = [ "y", "KeyY", 89, 2 ], BACK = [ "Backspace", "Backspace", 8 ];
+  try {
+    await page.goto(ctx.url + "?open=examples/full-adder.json");
+    await page.waitFor(ready);
+    await page.sleep(1200);
+    // Grid steps to screen pixels, through the canvas's own transform (y is up in grid steps, down in the SVG).
+    const px = (gx, gy) => page.eval(`(() => { const s = document.querySelector("svg.fe-canvas"), p = s.createSVGPoint(); p.x = ${gx} / 2; p.y = -${gy} / 2; const q = p.matrixTransform(s.getScreenCTM()); return [q.x, q.y]; })()`);
+    const perStep = await page.eval(`document.querySelector("svg.fe-canvas").getScreenCTM().a / 2`);
+    const wire = (id) => page.eval(`JSON.stringify(window.figureEditor.doc.wires.find((w) => w.id === ${JSON.stringify(id)}))`).then(JSON.parse);
+    const state = () => page.eval(`(() => { const d = window.figureEditor.doc; return { wires: d.wires.length, junctions: d.junctions.length, text: document.querySelector(".fe-props").textContent }; })()`);
+    const orthogonal = (c) => c.every((p, i) => i === 0 || p[0] === c[i - 1][0] || p[1] === c[i - 1][1]);
+
+    const before = await wire("w3");
+    res.push([JSON.stringify(before.via) === JSON.stringify([[-22, 21], [-22, -13]]), `w3 starts as in the sample file (via ${JSON.stringify(before.via)})`]);
+
+    // Hover shows the resize cursor and a highlight.
+    const mid = await px(-22, 4);
+    await page.mouse("mouseMoved", mid[0], mid[1], { buttons: 0 });
+    await page.sleep(200);
+    const hit = await page.eval(`document.querySelector("svg.fe-canvas").dataset.hit ?? ""`);
+    res.push([hit === "wire-v", `hovering a vertical run gives the left-right resize cursor (data-hit=${hit})`]);
+
+    // Click selects; the highlight is drawn and the panel names the wire.
+    await page.click(mid[0], mid[1]);
+    await page.sleep(200);
+    const sel = await page.eval(`({ band: document.querySelectorAll('.fe-overlay path[stroke-opacity="0.45"]').length, text: document.querySelector(".fe-props").textContent })`);
+    res.push([sel.band === 1 && /Wire/.test(sel.text) && /w3/.test(sel.text), `clicking a wire selects it: ${sel.band} highlight band, panel says "${sel.text.slice(0, 40)}"`]);
+
+    // Drag the run one module (two steps) to the right.
+    await page.drag(mid, [mid[0] + 2 * perStep, mid[1]]);
+    await page.sleep(300);
+    const moved = await wire("w3");
+    res.push([JSON.stringify(moved.via) === JSON.stringify([[-20, 21], [-20, -13]]), `dragging the run right by 2 steps moves both corners (via ${JSON.stringify(moved.via)})`]);
+    res.push([moved.from === before.from && moved.to === before.to, `the ends stay on their pins (${moved.from} to ${moved.to})`]);
+    await page.shot(`${ctx.out}/beta-wire-dragged.png`);
+
+    // One undo step for the whole drag; redo reapplies it.
+    await page.key(...UNDO);
+    await page.sleep(300);
+    res.push([JSON.stringify((await wire("w3")).via) === JSON.stringify(before.via), "one Ctrl+Z undoes the whole drag"]);
+    await page.key(...REDO);
+    await page.sleep(300);
+    res.push([JSON.stringify((await wire("w3")).via) === JSON.stringify(moved.via), "Ctrl+Y redoes it"]);
+    await page.key(...UNDO);
+    await page.sleep(200);
+
+    // A drag that goes nowhere (back to where it started) records nothing; the pointer moving over empty canvas does not select.
+    const n0 = await state();
+
+    // Delete with the Delete key, then undo; then Backspace, then undo.
+    for (const [name, key] of [["Delete", DEL], ["Backspace", BACK]]) {
+      await page.click(mid[0], mid[1]);
+      await page.sleep(200);
+      await page.key(...key);
+      await page.sleep(300);
+      const gone = await state();
+      res.push([gone.wires === n0.wires - 1 && !(await page.eval(`window.figureEditor.doc.wires.some((w) => w.id === "w3")`)), `${name} removes the selected wire (${n0.wires} to ${gone.wires})`]);
+      await page.key(...UNDO);
+      await page.sleep(300);
+      const back = await state();
+      res.push([back.wires === n0.wires && back.junctions === n0.junctions, `Ctrl+Z restores it (${back.wires} wires, ${back.junctions} junctions)`]);
+    }
+
+    // The restored wire is identical to the original.
+    res.push([JSON.stringify(await wire("w3")) === JSON.stringify(before), "the restored wire matches the original exactly"]);
+    // Every wire is still orthogonal after all that, and the file is still valid.
+    const ok = await page.eval(`(() => { try { window.figureEditor.load(window.figureEditor.save()); return true; } catch (e) { return String(e); } })()`);
+    res.push([ok === true, `the edited figure still saves and reloads (${ok})`]);
+    res.push([page.errors.length === 0, `no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};

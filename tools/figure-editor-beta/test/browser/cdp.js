@@ -81,9 +81,9 @@ export async function launch({ port = 9333, width = 1366, height = 768, scheme =
       await page.mouse("mouseReleased", to[0], to[1]);
     },
     async click(x, y) { await page.mouse("mouseMoved", x, y, { buttons: 0 }); await page.mouse("mousePressed", x, y); await page.mouse("mouseReleased", x, y); },
-    async key(key, code = key, extra = {}) {
-      await send("Input.dispatchKeyEvent", { type: "keyDown", key, code, windowsVirtualKeyCode: extra.vk ?? 0, ...extra });
-      await send("Input.dispatchKeyEvent", { type: "keyUp", key, code, windowsVirtualKeyCode: extra.vk ?? 0 });
+    async key(key, code = key, vk = 0, modifiers = 0) {
+      await send("Input.dispatchKeyEvent", { type: "keyDown", key, code, windowsVirtualKeyCode: vk, modifiers });
+      await send("Input.dispatchKeyEvent", { type: "keyUp", key, code, windowsVirtualKeyCode: vk, modifiers });
     },
     async shotData() { return (await send("Page.captureScreenshot", { format: "png" })).data; },
     async shot(path) {
