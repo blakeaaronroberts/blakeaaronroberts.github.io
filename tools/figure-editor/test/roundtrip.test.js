@@ -100,6 +100,7 @@ Deno.test("a level that is not \"0\", \"1\", \"X\" or \"Z\" is refused on load",
 });
 
 Deno.test("the committed sample file is what the sample builder makes", async () => {
-  const committed = await Deno.readTextFile(new URL("../examples/full-adder-levels.json", import.meta.url));
+  // Git may check the file out with CRLF (core.autocrlf on Windows); the content is what counts.
+  const committed = (await Deno.readTextFile(new URL("../examples/full-adder-levels.json", import.meta.url))).replace(/\r\n/g, "\n");
   assertEquals(committed, serialize(buildFullAdderLevels(pack), pack));
 });
