@@ -9,7 +9,7 @@
 import { DIRECTIONS, fmt, orient, place } from "./geometry.js";
 import { BLOCK, geometryOf } from "./block.js";
 import { allCorners } from "./doc.js";
-import { busMark } from "./marks.js";
+import { busMark, tagAnchor } from "./marks.js";
 import { attr, parseXml } from "./xml.js";
 
 /** Typeset once, to measure a capital letter: labels beside a wire are centred on this height, not on their own box. */
@@ -163,6 +163,8 @@ export function labelItems(doc, pack, corners = allCorners(doc, pack)) {
   }
   for (const w of doc.wires) {
     const c = w.bus && corners.get(w.id);
+    const net = doc.groups?.wire_labels?.[w.id], nc = net && corners.get(w.id);   // the net label sits on the other side of the wire from the level tag
+    if (nc) { const t = tagAnchor(nc); add({ key: `net:${w.id}`, kind: "net", id: w.id, text: net, at: t.at, dir: [-t.dir[0], -t.dir[1]] }); }
     if (c) { const m = busMark(c, pack.theme.line.width_module).label; add({ key: `bus:${w.id}`, kind: "bus", id: w.id, text: w.bus, at: m.at, dir: m.dir }); }
   }
   for (const p of doc.ports) if (p.label) add({ key: `port:${p.id}`, kind: "port", id: p.id, text: p.label, at: p.at, dir: side(p.side) });
