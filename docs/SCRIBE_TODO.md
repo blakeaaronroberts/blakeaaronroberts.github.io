@@ -20,6 +20,6 @@ where builders record Status.
 | SCR-035 | 2026-11-12 | site | Product overviews: Toolbox, Studio, Explorations, Practice, Labs (drafts, from VISION.md) | Scribe | Done |
 | SCR-018 | 2026-11-12 | site | CLAUDE.md says "commit or push only when Blake asks"; Blake now lets Scribe commit docs-only changes to `main`. Point builders to the handoff file; log in DECISIONS.md. H-S004 | Builder agent | Done (`a67b467`) |
 | SCR-014 | 2026-11-12 | site | Check whether the `gh-pages` branch is stale; delete it if so (Blake pre-authorised). H-S003 | Builder agent | Done (branch deleted; restore SHA in STEWARD_HANDOFF.md, S1) |
-| SCR-012 | 2026-11-12 | site | Alt text: kmaps placeholder, WaveDrom and DigitalJS figures, figure-drawing OJS cells on project pages; check DigitalJS shows values, not colour alone. H-S002 | Builder agent | Open |
+| SCR-012 | 2026-11-12 | site | Alt text: kmaps placeholder, WaveDrom and DigitalJS figures, figure-drawing OJS cells on project pages; check DigitalJS shows values, not colour alone. H-S002 | Builder agent | Done (`ffcb352`, batch S3) |
 | SCR-011 | 2026-11-12 | site | Write `README.md` (what the repo is, how to preview on Windows, how it deploys). Written; published at the root by Scribe, which approves READMEs itself (Blake, 2026-11-12) | Scribe | Done |
 | SCR-007 | 2026-11-12 | site | `docs/` in the render list with `draft-mode: gone`. H-S001 | Builder agent | Done (`706d1bb`) |

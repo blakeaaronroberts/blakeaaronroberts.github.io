@@ -68,7 +68,7 @@ commit `e0d1ac7`).
 |----|------|------|------|------|------|------|
 | H-S004 | 2026-11-12 | Builder (CLAUDE.md, DECISIONS.md) | Point builders to the handoff queue; record Blake's documentation process | SCR-018 | S1, step 1 (amended) | Done (`a67b467`) |
 | H-S003 | 2026-11-12 | Builder | Check whether the `gh-pages` branch is stale; delete it if so | SCR-014 | S1, step 2 | Done (deleted; restore SHA in the S1 note) |
-| H-S002 | 2026-11-12 | Builder | Alt text, and signal state not carried by colour alone | SCR-012 | S3, step 1 | Open |
+| H-S002 | 2026-11-12 | Builder | Alt text, and signal state not carried by colour alone | SCR-012 | S3, step 1 | Done (`ffcb352`) |
 | H-S001 | 2026-11-12 | Builder | `docs/` section with drafts hidden | SCR-007 | S2, step 1 | Done (`706d1bb`; drafts in `docs/_drafts/`) |
 
 ---

@@ -8,6 +8,7 @@ versioned yet; suite modules documented here will carry their own versions.
 ## [Unreleased]
 
 ### Added
+- `docs/SCRIBE_HANDOFF.md`, `docs/SCRIBE_TODO.md`: batch S3 (alt text) done.
 - `docs/SCRIBE_HANDOFF.md`: every draft is listed in Blake's review queue
   (https://claude.ai/artifact/FDHW1JabMUu84xd2VTm1JV), with an approval dropdown Scribe reads each session.
 - `README.md`: what the repository is, how to preview it on Windows, how it
