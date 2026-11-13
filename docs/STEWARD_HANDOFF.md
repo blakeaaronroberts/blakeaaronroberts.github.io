@@ -485,8 +485,8 @@ the site.
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
 | T1.1 | The page: source, live preview, size controls, tidy button | Steward, approved by Blake 2026-11-13 | Done | Page tools/timing-diagram/ (unlisted, noindex): WaveDrom source, live preview in the lecture skin, width and height, Tidy. Source is read as data, never evaluated. |
-| T1.2 | Skin tuned to match an existing timing figure | Steward, approved by Blake 2026-11-13 | Open | |
-| T1.3 | SVG export, a sample diagram, privacy scan | Steward, approved by Blake 2026-11-13 | In progress | SVG export works (live text, not outlined). Nodes from the circuit and the editor button follow. |
+| T1.2 | Skin tuned to match an existing timing figure | Steward, approved by Blake 2026-11-13 | Done | Skin is the site lecture skin (assets/wavedrom/lecture.js), loaded as on the existing timing figure; not retuned. |
+| T1.3 | SVG export, a sample diagram, privacy scan | Steward, approved by Blake 2026-11-13 | In progress | SVG export works (live text, not outlined). Page reads labelled nodes (ports, net names) from the beta editor autosave (guarded) or Open .json, offers starter lines, flags unknown names. Next: editor button and Back link. |
 
 **Scope limits.** No new dependencies without asking (WaveDrom is already
 used). Nothing in `manimations` or `circuit-model`.
