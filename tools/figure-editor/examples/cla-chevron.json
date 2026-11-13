@@ -1,0 +1,30 @@
+{
+  "schema": "circuit/0.2",
+  "id": "cla_chevron",
+  "title": "N-bit carry-lookahead adder, chevron form (sample)",
+  "grid_cm": 0.25,
+  "elements": [
+    { "id": "blk1", "type": "block", "at": [0, 0], "params": { "shape": "chevron", "w": 5, "h": 4, "label": "CLA", "pins": { "left": [{ "name": "A", "label": "$A$" }, { "name": "B", "label": "$B$" }], "right": [{ "name": "S", "label": "$S$" }], "top": [{ "name": "Cin", "label": "$C_{\\mathrm{in}}$" }], "bottom": [{ "name": "Cout", "label": "$C_{\\mathrm{out}}$" }] } } }
+  ],
+  "ports": [
+    { "id": "in1", "dir": "in", "at": [-24, 6], "label": "$A_{N-1:0}$", "side": "left" },
+    { "id": "in2", "dir": "in", "at": [-24, -6], "label": "$B_{N-1:0}$", "side": "left" },
+    { "id": "out1", "dir": "out", "at": [22, 0], "label": "$S_{N-1:0}$", "side": "right" },
+    { "id": "in3", "dir": "in", "at": [0, 14], "label": "$C_{\\mathrm{in}}$", "side": "up" },
+    { "id": "out2", "dir": "out", "at": [0, -14], "label": "$C_{\\mathrm{out}}$", "side": "down" }
+  ],
+  "nets": {
+    "in1": ["blk1.A", "in1"],
+    "in2": ["blk1.B", "in2"],
+    "in3": ["blk1.Cin", "in3"],
+    "out1": ["blk1.S", "out1"],
+    "out2": ["blk1.Cout", "out2"]
+  },
+  "wires": [
+    { "id": "w1", "from": "in1", "to": "blk1.A", "first": "h", "arrow": "end", "bus": "$N$" },
+    { "id": "w2", "from": "in2", "to": "blk1.B", "first": "h", "arrow": "end", "bus": "$N$" },
+    { "id": "w3", "from": "blk1.S", "to": "out1", "arrow": "end", "bus": "$N$" },
+    { "id": "w4", "from": "in3", "to": "blk1.Cin", "arrow": "end" },
+    { "id": "w5", "from": "blk1.Cout", "to": "out2", "arrow": "end" }
+  ]
+}

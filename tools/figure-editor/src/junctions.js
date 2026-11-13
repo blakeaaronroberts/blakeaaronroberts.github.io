@@ -35,18 +35,22 @@ const unit = (v) => { const n = Math.hypot(v[0], v[1]); return [v[0] / n, v[1] /
 export function lineEnds(doc, pack, corners) {
   const ends = [];
   for (const el of doc.elements) {
-    const def = pack.def(el.type);
+    const def = pack.defFor(el);
     if (!def) continue;
     for (const name of Object.keys(def.pins)) {
+      if (def.pins[name].lead?.length === 0) continue;       // a block pin on its outline has no lead: the wire's end butts the outline
       const { at, dir } = pinOf(el, def, name);
       ends.push({ at, into: [-dir[0], -dir[1]], owner: `${el.id}.${name}` });
     }
   }
+  const arrow = new Map(doc.wires.map((w) => [w.id, w.arrow]));
   for (const [id, c] of corners) {
     if (c.length < 2) continue;
     const n = c.length;
-    ends.push({ at: c[0], into: unit([c[1][0] - c[0][0], c[1][1] - c[0][1]]), owner: id });
-    ends.push({ at: c[n - 1], into: unit([c[n - 2][0] - c[n - 1][0], c[n - 2][1] - c[n - 1][1]]), owner: id });
+    // an end with an arrowhead is not a flat line end: the head's tip is the point it points at, and no joint belongs there
+    const a = arrow.get(id), start = a !== "start" && a !== "both", end = a !== "end" && a !== "both";
+    if (start) ends.push({ at: c[0], into: unit([c[1][0] - c[0][0], c[1][1] - c[0][1]]), owner: id });
+    if (end) ends.push({ at: c[n - 1], into: unit([c[n - 2][0] - c[n - 1][0], c[n - 2][1] - c[n - 1][1]]), owner: id });
   }
   return ends;
 }

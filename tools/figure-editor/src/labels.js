@@ -7,6 +7,9 @@
 // lacks; such a label is refused instead of being drawn with a font.
 
 import { DIRECTIONS, fmt, orient, place } from "./geometry.js";
+import { BLOCK, geometryOf } from "./block.js";
+import { allCorners } from "./doc.js";
+import { busMark } from "./marks.js";
 import { attr, parseXml } from "./xml.js";
 
 /** Typeset once, to measure a capital letter: labels beside a wire are centred on this height, not on their own box. */
@@ -136,18 +139,31 @@ export function labelSpec(def) {
  * own label, at the pack's anchor), "port" or "label" (free text). An element with no pack anchor uses labelSpec's fallback. If the
  * element has no bounding box it is skipped. `error` is set (and `tex` null) if the text cannot be converted.
  */
-export function labelItems(doc, pack) {
+export function labelItems(doc, pack, corners = allCorners(doc, pack)) {
   const out = [];
   const add = (item) => {
     try { out.push({ ...item, tex: texOf(item.text), error: null }); } catch (e) { out.push({ ...item, tex: null, error: e.message }); }
   };
   const side = (s) => (s ? DIRECTIONS[s] ?? null : null);
   for (const el of doc.elements) {
-    const def = pack.def(el.type);
+    const def = pack.defFor(el);
     const spec = labelSpec(def);
-    if (!el.label || !spec) continue;
-    add({ key: `element:${el.id}`, kind: "element", id: el.id, text: el.label, at: place(el, spec.anchor),
-      dir: orient(DIRECTIONS[spec.direction], el.rotation ?? 0, el.mirror ?? false) });
+    const turn = (v) => orient(v, el.rotation ?? 0, el.mirror ?? false);
+    if (el.label && spec) {
+      add({ key: `element:${el.id}`, kind: "element", id: el.id, text: el.label, at: place(el, spec.anchor), dir: turn(DIRECTIONS[spec.direction]) });
+    }
+    // A block's own text is drawn upright whatever its rotation: the label in the middle, and each pin's label just inside the outline.
+    const g = el.type === BLOCK ? geometryOf(el.params) : null;
+    if (g) {
+      if (g.params.label) add({ key: `block:${el.id}`, kind: "block", id: el.id, text: g.params.label, at: place(el, g.centre), dir: null });
+      for (const [name, q] of Object.entries(g.pins)) {
+        if (q.label) add({ key: `pin:${el.id}.${name}`, kind: "pin", id: `${el.id}.${name}`, text: q.label, at: place(el, q.labelAt), dir: turn(q.labelDir) });
+      }
+    }
+  }
+  for (const w of doc.wires) {
+    const c = w.bus && corners.get(w.id);
+    if (c) { const m = busMark(c, pack.theme.line.width_module).label; add({ key: `bus:${w.id}`, kind: "bus", id: w.id, text: w.bus, at: m.at, dir: m.dir }); }
   }
   for (const p of doc.ports) if (p.label) add({ key: `port:${p.id}`, kind: "port", id: p.id, text: p.label, at: p.at, dir: side(p.side) });
   doc.labels.forEach((l, index) => add({ key: `label:${index}`, kind: "label", index, text: l.text, at: l.at, dir: side(l.side) }));
@@ -158,6 +174,6 @@ export function labelItems(doc, pack) {
 export function texNeeded(doc, pack, { levelTags = false } = {}) {
   const need = new Set([REFERENCE_TEX]);
   for (const i of labelItems(doc, pack)) if (i.tex) need.add(i.tex);
-  if (levelTags) for (const w of doc.wires) if (w.level) need.add(levelTagTex(w.level));
+  if (levelTags) for (const x of [...doc.wires, ...doc.elements]) if (x.level) need.add(levelTagTex(x.level));
   return [...need];
 }

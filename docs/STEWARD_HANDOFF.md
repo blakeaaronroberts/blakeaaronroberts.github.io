@@ -83,7 +83,7 @@ Blake's prompt.
 | F9 | Figure editor: play a scenario, timing diagram linked to the wires | Open | 2026-11-13 |
 | F11 | Figure editor: animated SVG, animated PNG and per-transition exports | Open | 2026-11-13 |
 | F13 | Figure editor: KiCad import | Open | 2026-11-13 |
-| F14 | Promote the beta editor to stable | Open | 2026-11-13 |
+| F14 | Promote the beta editor to stable | In progress | 2026-11-13 |
 
 ---
 
@@ -581,7 +581,7 @@ redirects to the stable one.
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| F14.1 | Promote, remove the duplicate, redirect, tests | Steward, approved by Blake 2026-11-13 | Open | |
+| F14.1 | Promote, remove the duplicate, redirect, tests | Steward, approved by Blake 2026-11-13 | In progress | 2026-11-13 revised (Blake): tag editor-stable-before-snapshot set; beta copied over tools/figure-editor/ as frozen stable, no banner, own autosave keys (figure-editor/...); beta page kept; 155 tests and browser checks pass. |
 
 ---
 
