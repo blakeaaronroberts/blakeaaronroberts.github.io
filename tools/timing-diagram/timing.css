@@ -16,3 +16,4 @@
 .td-chip { display: inline-block; margin: 0 .35rem .35rem 0; padding: 0 .45rem; border: 1px solid var(--role-rule, currentColor); font: inherit; background: transparent; color: inherit; cursor: pointer; }
 .td-chip:hover { border-color: var(--role-accent, currentColor); }
 .td-flag { margin: .35rem 0; font-weight: 700; }
+.td-back { font-size: .85rem; text-decoration: underline; text-underline-offset: 2px; }

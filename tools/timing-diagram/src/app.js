@@ -13,6 +13,7 @@ export function mount(root) {
   root.innerHTML = `
     <section class="td-pane">
       <div class="td-bar">
+        <a class="td-back" href="../figure-editor-beta/">Back to editor</a>
         <button type="button" data-do="tidy">Tidy</button>
         <button type="button" data-do="export">Export SVG</button>
         <label class="td-file">Open circuit .json<input type="file" accept=".json,application/json" data-do="open"></label>
