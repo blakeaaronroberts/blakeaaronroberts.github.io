@@ -259,3 +259,10 @@ a screenshot with the grid on and off, then wait. Going live (merging into
   `quarto run tools/figure-editor/scripts/copy-symbol-pack.js`, `.../test/run.js` and
   `.../scripts/build-sample.js`. Only a stub `tools/figure-editor/README.md` exists. The
   copy script is `.js`, not the `.mjs` the proposal names (`quarto run` refuses `.mjs`).
+- 2026-11-13 (F3.1, branch `figure-editor`): the editor page gained a Port tool (P), a Label tool
+  (T), keys 0 1 X Z for wire levels, a "?" panel of keys, export options (scale, label size, level
+  tags), Copy as PNG, a private theme loaded from a local file (browser only; `roles` only) and a
+  show-drafts switch. New commands: none; `copy-symbol-pack.js` now takes `--ref symbols-v0.2.0`.
+  The labelled sample is `examples/full-adder-levels.*`. Labels load MathJax 4.1.3 and its font
+  data from jsDelivr on first use. A reference page for the key list (`KEYS` in `src/app.js`) and
+  the private-theme file format is the Scribe's.
