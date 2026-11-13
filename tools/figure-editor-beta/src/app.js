@@ -18,6 +18,7 @@ import { createView, thumbnail, blockThumbnail } from "./view.js";
 import { BLOCK, formatPins, handlesOf, parsePins, SHAPES, geometryOf } from "./block.js";
 import { PRESETS, presetById } from "./presets.js";
 import { circuitFromSvg, sanitizeSvg, MAX_SVG_BYTES } from "./svgimport.js";
+import { FORMATS, LAYOUTS, centreOn, cleanFrame, frameBox, overflow } from "./frame.js";
 import { orient } from "./geometry.js";
 
 const AUTOSAVE = "figure-editor-beta/autosave";
@@ -169,6 +170,16 @@ export async function mount(root, options = {}) {
         <p class="fe-theme-note"></p>
         <div class="fe-theme-buttons" role="group" aria-label="Theme">${btn("theme", "Private theme…")}${btn("themereset", "Default theme")}</div>
       </details>
+      <details class="fe-pane fe-frame-pane" name="fe-doc">
+        <summary class="label-mono">Slide frame</summary>
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-frame-show"> <span class="form-check-label">Show a slide-size frame on the canvas</span></label>
+        <label class="form-label">Slide <select class="form-select form-select-sm" name="fe-frame-format">${Object.entries(FORMATS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("")}</select></label>
+        <label class="form-label">Layout <select class="form-select form-select-sm" name="fe-frame-layout">${Object.entries(LAYOUTS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("")}</select></label>
+        <label class="form-label">Frame centre, right and up (grid steps) <span class="fe-pair"><input class="form-control form-control-sm" type="number" name="fe-frame-x" step="1"><input class="form-control form-control-sm" type="number" name="fe-frame-y" step="1"></span></label>
+        <div class="fe-theme-buttons" role="group" aria-label="Slide frame">${btn("framecentre", "Centre on the figure")}${btn("exportframe", "Frame as SVG")}${btn("pngframe", "Frame as PNG")}</div>
+        <p class="fe-hint">The frame exports at the slide's real size, exactly what lies inside it at 1:1 (times the Scale option). The Export SVG button writes the schematic alone. The timing diagram, and its own export, arrive with the scenario player. The frame is kept in this browser, not in the circuit file.</p>
+        <p class="fe-frame-note" aria-live="polite"></p>
+      </details>
       <details class="fe-pane fe-backdrop-pane" name="fe-doc">
         <summary class="label-mono">Backdrop</summary>
         <p class="fe-hint fe-backdrop-note">Open an SVG that this editor did not make to trace over it. It sits behind the grid, locked, and is never saved or exported.</p>
@@ -221,10 +232,11 @@ export async function mount(root, options = {}) {
   let autosaveTimer = null;
   const typeset = new Map();         // TeX to parseTypeset's result (every label drawn is typeset once)
 
-  const opt = { scale: 1, labelPt: null, levelTags: false, drafts: false, grid: 1, canvas: "auto", exportDark: false, ...(() => { try { return JSON.parse(store.get(OPTIONS) ?? "{}"); } catch { return {}; } })() };
+  const opt = { frame: null, scale: 1, labelPt: null, levelTags: false, drafts: false, grid: 1, canvas: "auto", exportDark: false, ...(() => { try { return JSON.parse(store.get(OPTIONS) ?? "{}"); } catch { return {}; } })() };
   if (opt.grid !== 2) opt.grid = 1;   // snap for parts, in grid steps: 1 is half a module (default), 2 is a whole module
   if (!["auto", "light", "dark"].includes(opt.canvas)) opt.canvas = "auto";
   opt.exportDark = opt.exportDark === true;
+  opt.frame = cleanFrame(opt.frame);
   /** Snap a point (grid steps) to the part grid. Wires, ports and labels always snap to one step (half a module). */
   function snapPart(p) { const g = opt.grid; return [g * Math.round(p[0] / g) || 0, g * Math.round(p[1] / g) || 0]; }
   const saveOptions = () => store.set(OPTIONS, JSON.stringify(opt));
@@ -305,7 +317,7 @@ export async function mount(root, options = {}) {
   // ---- rendering -------------------------------------------------------------------------
   function render() {
     lastDrawing = view.render({
-      doc, pack, selection, ghost, rubber, hover, hoverWire, box: boxSel,
+      doc, pack, selection, ghost, rubber, hover, hoverWire, box: boxSel, frame: opt.frame,
       typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags,
     });
     if (lastDrawing.pending.length) queueTypeset();
@@ -344,6 +356,7 @@ export async function mount(root, options = {}) {
     $(".fe-warnings").hidden = !warnings.length;
     if (lastDrawing) {
       const { widthCm, heightCm } = exportSize(lastDrawing, opt.scale);
+      syncFrame();
       $(".fe-size").textContent = lastDrawing.box ? `File size: ${widthCm.toFixed(2)} × ${heightCm.toFixed(2)} cm${opt.scale === 1 ? " (real size)" : ""}` : "Nothing to export yet.";
     }
     $(".fe-theme-note").textContent = privateRoles
@@ -729,6 +742,22 @@ export async function mount(root, options = {}) {
     async export() {
       try { download(await svgNow(), `${doc.id}.svg`, "image/svg+xml"); status(`Exported ${doc.id}.svg.`); } catch (e) { status(e.message); }
     },
+    async exportframe() {
+      try { download(await svgNow(true), `${doc.id}-slide.svg`, "image/svg+xml"); status(`Exported ${doc.id}-slide.svg: the slide frame at real size.`); } catch (e) { status(e.message); }
+    },
+    async pngframe() {
+      try {
+        const blob = await pngNow(true);
+        download(blob, `${doc.id}-slide.png`, "image/png");
+        status(`Exported ${doc.id}-slide.png: the slide frame at 300 dpi.`);
+      } catch (e) { status(e.message); }
+    },
+    framecentre() {
+      if (!lastDrawing?.box) { status("Nothing to centre on yet."); return; }
+      opt.frame = centreOn(opt.frame, lastDrawing.box);
+      saveOptions(); syncFrame(); render();
+      status("The frame is centred on the figure.");
+    },
     async png() {
       try {
         const blob = await pngNow();
@@ -752,16 +781,16 @@ export async function mount(root, options = {}) {
   };
 
   /** The SVG as the export option settings say; labels are typeset first. Throws if one cannot be drawn. */
-  async function svgNow() {
+  async function svgNow(framed = false) {
     await typesetAll(texNeeded(doc, pack, { levelTags: opt.levelTags }), typeset);
-    return exportSvg(doc, packFor(opt.exportDark), drawOpts());   // light by default; dark only if asked
+    return exportSvg(doc, packFor(opt.exportDark), { ...drawOpts(), frame: framed ? frameBox(opt.frame) : null });   // light by default; dark only if asked
   }
 
   const DPI = 300, MAX_PIXELS = 16000;
 
   /** The figure as a PNG at 300 dpi at its exported size (scale option included), on a transparent background. */
-  async function pngNow() {
-    const text = await svgNow();
+  async function pngNow(framed = false) {
+    const text = await svgNow(framed);
     const cm = (name) => +new RegExp(`${name}="([\\d.]+)cm"`).exec(text)[1];
     let dpi = DPI;
     const longest = Math.max(cm("width"), cm("height"));
@@ -813,6 +842,22 @@ export async function mount(root, options = {}) {
   });
   draftsInput.checked = !!opt.drafts;
   draftsInput.addEventListener("change", () => { opt.drafts = draftsInput.checked; saveOptions(); renderPalette(); status(opt.drafts ? "Showing draft elements too." : "Showing approved elements only."); });
+  // ---- the slide frame (F10) -------------------------------------------------------------------------
+  const frameEls = { show: $('[name="fe-frame-show"]'), format: $('[name="fe-frame-format"]'), layout: $('[name="fe-frame-layout"]'), x: $('[name="fe-frame-x"]'), y: $('[name="fe-frame-y"]') };
+  function syncFrame() {
+    frameEls.show.checked = opt.frame.show; frameEls.format.value = opt.frame.format; frameEls.layout.value = opt.frame.layout;
+    if (document.activeElement !== frameEls.x) frameEls.x.value = String(opt.frame.x);
+    if (document.activeElement !== frameEls.y) frameEls.y.value = String(opt.frame.y);
+    const out = lastDrawing?.box ? overflow(opt.frame, lastDrawing.box) : [];
+    $(".fe-frame-note").textContent = opt.frame.show && out.length ? `The figure sticks out of the schematic's part of the frame on the ${out.join(", ")}: it is cut off in the frame export.` : "";
+  }
+  for (const [k, el] of Object.entries(frameEls)) {
+    el.addEventListener("change", () => {
+      opt.frame = cleanFrame({ ...opt.frame, [k]: k === "show" ? el.checked : el.value });
+      saveOptions(); syncFrame(); render();
+    });
+  }
+  syncFrame();
   scaleInput.value = String(Math.round(opt.scale * 100));
   scaleInput.addEventListener("change", () => {
     const v = +scaleInput.value;

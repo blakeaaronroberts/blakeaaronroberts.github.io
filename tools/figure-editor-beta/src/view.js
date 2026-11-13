@@ -9,6 +9,7 @@ import { drawing, headPath, hex, pathData } from "./export.js";
 import { writeXml } from "./xml.js";
 import { BLOCK, blockDef, blockNodes, handlesOf } from "./block.js";
 import { place } from "./geometry.js";
+import { frameBox, regions } from "./frame.js";
 
 const NS = "http://www.w3.org/2000/svg";
 export const symbolId = (type) => `fe-sym-${type}`;
@@ -118,6 +119,13 @@ export function createView(svg, basePack) {
     const accent = `stroke="${roles.accent}" stroke-width="${fmt(lw)}"`;
     const dash = `stroke-dasharray="${fmt(lw * 3)} ${fmt(lw * 2)}"`;
     const rect = (b, extra = "") => `<rect ${accent} ${extra} x="${fmt(b.min[0])}" y="${fmt(b.min[1])}" width="${fmt(b.max[0] - b.min[0])}" height="${fmt(b.max[1] - b.min[1])}"/>`;
+    // The slide frame: its outline, and the timing diagram's region tinted (the timing diagram itself comes with F9).
+    if (state.frame?.show) {
+      const rg = regions(state.frame);
+      if (rg.timing) o.push(`<rect fill="${roles.accent}" fill-opacity="0.08" stroke="none" x="${fmt(rg.timing.min[0])}" y="${fmt(rg.timing.min[1])}" width="${fmt(rg.timing.max[0] - rg.timing.min[0])}" height="${fmt(rg.timing.max[1] - rg.timing.min[1])}"/>`);
+      o.push(rect(frameBox(state.frame), `stroke-opacity="0.8" stroke-width="${fmt(lw * 2)}" stroke-dasharray="${fmt(lw * 8)} ${fmt(lw * 4)}"`));
+      if (rg.timing) o.push(`<path stroke="${roles.accent}" stroke-opacity="0.8" stroke-width="${fmt(lw)}" stroke-dasharray="${fmt(lw * 4)} ${fmt(lw * 3)}" d="M ${fmt(rg.timing.min[0])} ${fmt(rg.timing.min[1])} L ${fmt(rg.timing.min[0] === rg.schematic.min[0] ? rg.timing.max[0] : rg.timing.min[0])} ${fmt(rg.timing.min[0] === rg.schematic.min[0] ? rg.timing.min[1] : rg.timing.max[1])}"/>`);
+    }
     for (const e of d.elements) if (sel.elements.includes(e.el.id)) o.push(rect(e.box, dash));
     for (const w of d.wires) {
       if (sel.wires.includes(w.id)) o.push(`<path stroke="${roles.accent}" stroke-opacity="0.45" stroke-width="${fmt(lw * 4)}" stroke-linejoin="round" stroke-linecap="round" d="${pathData(w.points)}"/>`);

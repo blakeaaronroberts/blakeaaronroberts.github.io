@@ -223,9 +223,9 @@ export function withBodyColour(nodes, ink, colour) {
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 /** The exported file's size for a drawing: real size (its box plus a module of margin, 0.5 cm a module) times the scale option. */
-export function exportSize(d, scale = 1) {
-  const box = d.box ?? { min: [0, 0], max: [0, 0] };
-  return { widthCm: (box.max[0] - box.min[0] + 2) * MODULE_CM * scale, heightCm: (box.max[1] - box.min[1] + 2) * MODULE_CM * scale };
+export function exportSize(d, scale = 1, frame = null) {
+  const box = frame ?? d.box ?? { min: [0, 0], max: [0, 0] }, m = frame ? 0 : 1;
+  return { widthCm: (box.max[0] - box.min[0] + 2 * m) * MODULE_CM * scale, heightCm: (box.max[1] - box.min[1] + 2 * m) * MODULE_CM * scale };
 }
 
 /**
@@ -239,13 +239,14 @@ export function exportSvg(doc, pack, opts = {}) {
   const d = drawing(doc, pack, opts);
   if (d.problems.length) throw new ExportError(`Not exported: ${d.problems.join("; ")}.`);
   const ink = roles.ink;
-  const m = 1;   // one module of margin
-  const box = d.box ?? { min: [0, 0], max: [0, 0] };
+  const framed = opts.frame ?? null;   // a slide frame ({min, max} in modules): exactly that rectangle, no margin, at 1:1
+  const m = framed ? 0 : 1;            // otherwise one module of margin
+  const box = framed ?? d.box ?? { min: [0, 0], max: [0, 0] };
   const [x0, y0] = [box.min[0] - m, box.min[1] - m];
   const [w, h] = [box.max[0] - box.min[0] + 2 * m, box.max[1] - box.min[1] + 2 * m];
   const out = [
     `<?xml version="1.0" encoding="UTF-8"?>`,
-    `<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="${fmt(w * MODULE_CM * scale)}cm" height="${fmt(h * MODULE_CM * scale)}cm" viewBox="${fmt(x0)} ${fmt(y0)} ${fmt(w)} ${fmt(h)}">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="${fmt(w * MODULE_CM * scale)}cm" height="${fmt(h * MODULE_CM * scale)}cm" viewBox="${fmt(x0)} ${fmt(y0)} ${fmt(w)} ${fmt(h)}"${framed ? ' overflow="hidden"' : ""}>`,
     `  <title>${esc(doc.title ?? doc.id)}</title>`,
     metadataOf(serialize(doc, pack)),   // the circuit itself, so Open on this file brings the figure back editable
   ];

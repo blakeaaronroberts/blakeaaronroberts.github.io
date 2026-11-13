@@ -516,7 +516,7 @@ own, at real size.
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| F10.1 | Slide frame, placement of the schematic and timing diagram, export of the frame or of either part | Steward, approved by Blake 2026-11-13 | Open | |
+| F10.1 | Slide frame, placement of the schematic and timing diagram, export of the frame or of either part | Steward, approved by Blake 2026-11-13 | In progress | Branch beta-f10, beta page only. New src/frame.js (DOM-free) and a Slide frame panel. A dashed slide-size rectangle on the canvas, in the drawing's own coordinates: 16:9 (33.87 x 19.05 cm, PowerPoint's size, default) or 4:3 (25.4 x 19.05 cm); layout is schematic only, or with a timing-diagram region below (60/40) or beside (55/45), tinted. Position by centre in grid steps, or Centre on the figure. Frame as SVG and Frame as PNG (300 dpi) write exactly what lies inside the rectangle at real size, 1:1 times the Scale option, no margin, drawn identically to the plain export (tested); a figure larger than the schematic's part is cut at the edge and the panel says which sides. The existing Export SVG writes the schematic alone. NOT DONE, waits for F9 or T1: the timing diagram itself (there is none to place yet, so only its region is reserved) and its separate export. The frame is a browser option (kept across reloads), not in the circuit file, because circuit/0.2 has no place for it; say if it should be saved with the figure. Browser check: check.js frame (light and dark, canvas, exports, 4:3, reload; zero black in dark). 9 new Deno tests (155 pass). |
 
 ---
 
