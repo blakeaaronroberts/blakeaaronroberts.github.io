@@ -9,9 +9,10 @@
 // (each <use> in the pack's SVG is expanded in place, and MathJax's labels are paths already),
 // colours resolved to attributes, and no fonts, links, ids, classes or CSS.
 
-import { boxOf, elementSvgBox, fmt, fromSvg, MODULE_CM, svgTransform, toSvg } from "./geometry.js";
+import { boxOf, elementBox, elementSvgBox, fmt, fromSvg, MODULE_CM, svgTransform, toSvg } from "./geometry.js";
 import { allCorners } from "./doc.js";
 import { BLOCK, blockNodes } from "./block.js";
+import { busMark, tagAnchor, withArrows } from "./marks.js";
 import { dots, joints } from "./junctions.js";
 import { colourNodes, emModules, labelItems, levelTagTex, packLabelPt, placeLabel, REFERENCE_TEX } from "./labels.js";
 import { attr, walk, writeXml } from "./xml.js";
@@ -43,14 +44,25 @@ export function drawing(doc, pack, opts = {}) {
     for (const end of [w.from, w.to]) if (typeof end === "string" && end.includes(".") && !leadColour.has(end)) leadColour.set(end, c);
   }
 
+  // Element level: the body (outline, glyphs; not the leads) is drawn in the level's colour.
+  const bodyColour = new Map(doc.elements.filter((e) => e.level && pack.levelColour(e.level)).map((e) => [e.id, pack.levelColour(e.level)]));
   const elements = doc.elements.filter((el) => pack.defFor(el)).map((el) => {
     const def = pack.defFor(el);
     const byPin = {};
     for (const pin of Object.keys(def.pins)) if (leadColour.has(`${el.id}.${pin}`)) byPin[pin] = leadColour.get(`${el.id}.${pin}`);
-    const nodes = el.type === BLOCK ? blockNodes(el.params, pack, { leads: byPin }) : withLeadColours(standaloneSymbol(pack, el.type), byPin);
+    const body = bodyColour.get(el.id) ?? null;
+    const nodes = el.type === BLOCK ? blockNodes(el.params, pack, { body, leads: byPin })
+      : withBodyColour(withLeadColours(standaloneSymbol(pack, el.type), byPin), ink, body);
     return { el, transform: svgTransform(el), box: elementSvgBox(el, def), nodes };
   });
-  const wires = [...corners].map(([id, c]) => ({ id, points: c.map(toSvg), level: levelOf.get(id) ?? null, colour: wireColour(id) }));
+  // A wire with arrowheads is drawn shorter, ending inside each head; a bus mark is a slash across its longest run.
+  const spec = new Map(doc.wires.map((w) => [w.id, w]));
+  const wires = [...corners].map(([id, c]) => {
+    const w = spec.get(id), full = c.map(toSvg);
+    const { points, heads } = withArrows(full, w.arrow, lw);
+    const mark = w.bus ? busMark(c, lw) : null;
+    return { id, points, heads, slash: mark?.slash ?? null, level: levelOf.get(id) ?? null, colour: wireColour(id) };
+  });
 
   const jts = joints(doc, pack, corners).map((j) => {
     const owner = j.owners.find((o) => leadColour.has(o) || levelOf.has(o));
@@ -74,9 +86,10 @@ export function drawing(doc, pack, opts = {}) {
     if (!ts.ok) { problems.push(`${describe}: ${ts.error}`); return; }
     const dir = item.dir ? [item.dir[0], -item.dir[1]] : null;
     const placed = placeLabel(ts, ref, toSvg(item.at), dir, em, gap);
-    labels.push({ key: item.key, kind: item.kind, id: item.id, index: item.index, transform: placed.transform, box: placed.box, nodes: colourNodes(ts.nodes, ink) });
+    const colour = item.kind === "block" ? (bodyColour.get(item.id) ?? ink) : ink;   // a block's middle text is part of its body
+    labels.push({ key: item.key, kind: item.kind, id: item.id, index: item.index, transform: placed.transform, box: placed.box, nodes: colourNodes(ts.nodes, colour) });
   };
-  for (const item of labelItems(doc, pack)) put(item, `label ${JSON.stringify(item.text)}`);
+  for (const item of labelItems(doc, pack, corners)) put(item, `label ${JSON.stringify(item.text)}`);
   if (opts.levelTags) {
     for (const [id, c] of corners) {
       const level = levelOf.get(id);
@@ -86,25 +99,31 @@ export function drawing(doc, pack, opts = {}) {
     }
   }
 
+  if (opts.levelTags) {   // a leveled element's tag sits just right of its top-right corner
+    for (const el of doc.elements) {
+      if (!el.level || !pack.defFor(el)) continue;
+      put({ key: `tag:${el.id}`, kind: "tag", id: el.id, tex: levelTagTex(el.level), at: elementBox(el, pack.defFor(el)).max, dir: [1, 0], error: null }, `level tag of ${el.id}`);
+    }
+  }
+
   const pts = [];
   for (const e of elements) pts.push(e.box.min, e.box.max);
   const hw = lw / 2;
-  for (const w of wires) for (const [x, y] of w.points) pts.push([x - hw, y - hw], [x + hw, y + hw]);
+  for (const w of wires) {
+    for (const [x, y] of w.points) pts.push([x - hw, y - hw], [x + hw, y + hw]);
+    for (const h of w.heads) pts.push(h.tip, h.a, h.b);
+    for (const [x, y] of w.slash ?? []) pts.push([x - hw, y - hw], [x + hw, y + hw]);
+  }
   for (const d of ds) pts.push([d.at[0] - d.r, d.at[1] - d.r], [d.at[0] + d.r, d.at[1] + d.r]);
   for (const l of labels) pts.push(l.box.min, l.box.max);
   return { elements, wires, joints: jts, dots: ds, labels, problems, pending: [...new Set(pending)], box: pts.length ? boxOf(pts) : null };
 }
 
 /** Where a wire's 0/1/X/Z tag goes: the middle of its longest segment, above it (horizontal) or to its right (vertical). Grid steps, y up. */
-export function tagAnchor(corners) {
-  let best = { len: -1, a: corners[0], b: corners[0] };
-  for (let i = 0; i + 1 < corners.length; i++) {
-    const len = Math.abs(corners[i + 1][0] - corners[i][0]) + Math.abs(corners[i + 1][1] - corners[i][1]);
-    if (len > best.len) best = { len, a: corners[i], b: corners[i + 1] };
-  }
-  const horizontal = best.a[1] === best.b[1];
-  return { at: [(best.a[0] + best.b[0]) / 2, (best.a[1] + best.b[1]) / 2], dir: horizontal ? [0, 1] : [1, 0] };
-}
+export { tagAnchor };
+
+/** An arrowhead as path data (modules). */
+export const headPath = (h) => `M ${fmt(h.tip[0])} ${fmt(h.tip[1])} L ${fmt(h.a[0])} ${fmt(h.a[1])} L ${fmt(h.b[0])} ${fmt(h.b[1])} Z`;
 
 /** Label and port boxes in grid steps (y up), for hit-testing and box selection. */
 export function labelBoxes(d) {
@@ -189,6 +208,17 @@ export function withLeadColours(nodes, byPin) {
   return nodes.map(walkCopy);
 }
 
+/** The symbol's body nodes with ink recoloured to `colour` (a copy). Leads (nodes with a pin) keep theirs; fills that are not ink stay. */
+export function withBodyColour(nodes, ink, colour) {
+  if (!colour) return nodes;
+  const walkCopy = (n) => {
+    if (n.pin) return n;
+    const attrs = n.attrs.map(([k, v]) => [k, (k === "fill" || k === "stroke") && sameColour(v, ink) ? colour : v]);
+    return { ...n, attrs, children: n.children.map(walkCopy) };
+  };
+  return nodes.map(walkCopy);
+}
+
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 /** The exported file's size for a drawing: real size (its box plus a module of margin, 0.5 cm a module) times the scale option. */
@@ -219,8 +249,18 @@ export function exportSvg(doc, pack, opts = {}) {
   ];
   if (d.wires.length) {
     out.push(`  <g fill="none" stroke="${ink}" stroke-width="${fmt(line.width_module)}" stroke-linecap="${line.cap}" stroke-linejoin="${line.join}">`);
-    for (const wire of d.wires) out.push(`    <path${sameColour(wire.colour, ink) ? "" : ` stroke="${wire.colour}"`} d="${pathData(wire.points)}"/>`);
+    for (const wire of d.wires) {
+      const own = sameColour(wire.colour, ink) ? "" : ` stroke="${wire.colour}"`;
+      out.push(`    <path${own} d="${pathData(wire.points)}"/>`);
+      if (wire.slash) out.push(`    <path${own} d="${pathData(wire.slash)}"/>`);
+    }
     out.push("  </g>");
+    const heads = d.wires.flatMap((wire) => wire.heads.map((h) => ({ h, colour: wire.colour })));
+    if (heads.length) {
+      out.push(`  <g fill="${ink}" stroke="none">`);
+      for (const { h, colour } of heads) out.push(`    <path${sameColour(colour, ink) ? "" : ` fill="${colour}"`} d="${headPath(h)}"/>`);
+      out.push("  </g>");
+    }
   }
   for (const e of d.elements) {
     out.push(`  <g transform="${e.transform}">`);

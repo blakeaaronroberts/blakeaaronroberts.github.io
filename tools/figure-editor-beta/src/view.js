@@ -5,7 +5,7 @@
 // theme's roles over it); the editor sets none of its own.
 
 import { fmt, fromSvg, STEPS_PER_MODULE, svgTransform, toSvg } from "./geometry.js";
-import { drawing, hex, pathData } from "./export.js";
+import { drawing, headPath, hex, pathData } from "./export.js";
 import { writeXml } from "./xml.js";
 import { BLOCK, blockDef, blockNodes, handlesOf } from "./block.js";
 import { place } from "./geometry.js";
@@ -96,7 +96,14 @@ export function createView(svg, basePack) {
     const d = drawing(state.doc, pack, { typeset: state.typeset, labelPt: state.labelPt, levelTags: state.levelTags });
     const parts = [];
     parts.push(`<g stroke="${roles.ink}" stroke-width="${fmt(lw)}" stroke-linecap="${line.cap}" stroke-linejoin="${line.join}" fill="none">`);
-    for (const w of d.wires) parts.push(`<path data-wire="${w.id}"${same(w.colour, roles.ink) ? "" : ` stroke="${w.colour}"`} d="${pathData(w.points)}"/>`);
+    for (const w of d.wires) {
+      const own = same(w.colour, roles.ink) ? "" : ` stroke="${w.colour}"`;
+      parts.push(`<path data-wire="${w.id}"${own} d="${pathData(w.points)}"/>`);
+      if (w.slash) parts.push(`<path data-bus="${w.id}"${own} d="${pathData(w.slash)}"/>`);
+    }
+    parts.push("</g>");
+    parts.push(`<g fill="${roles.ink}" stroke="none">`);
+    for (const w of d.wires) for (const h of w.heads) parts.push(`<path data-head="${w.id}"${same(w.colour, roles.ink) ? "" : ` fill="${w.colour}"`} d="${headPath(h)}"/>`);
     parts.push("</g>");
     for (const e of d.elements) parts.push(`<g data-el="${e.el.id}" transform="${e.transform}">${e.nodes.map((n) => writeXml(n)).join("")}</g>`);
     parts.push(`<g fill="${roles.ink}">`);

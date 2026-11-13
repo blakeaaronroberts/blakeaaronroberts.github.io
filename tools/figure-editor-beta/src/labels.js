@@ -8,6 +8,8 @@
 
 import { DIRECTIONS, fmt, orient, place } from "./geometry.js";
 import { BLOCK, geometryOf } from "./block.js";
+import { allCorners } from "./doc.js";
+import { busMark } from "./marks.js";
 import { attr, parseXml } from "./xml.js";
 
 /** Typeset once, to measure a capital letter: labels beside a wire are centred on this height, not on their own box. */
@@ -137,7 +139,7 @@ export function labelSpec(def) {
  * own label, at the pack's anchor), "port" or "label" (free text). An element with no pack anchor uses labelSpec's fallback. If the
  * element has no bounding box it is skipped. `error` is set (and `tex` null) if the text cannot be converted.
  */
-export function labelItems(doc, pack) {
+export function labelItems(doc, pack, corners = allCorners(doc, pack)) {
   const out = [];
   const add = (item) => {
     try { out.push({ ...item, tex: texOf(item.text), error: null }); } catch (e) { out.push({ ...item, tex: null, error: e.message }); }
@@ -159,6 +161,10 @@ export function labelItems(doc, pack) {
       }
     }
   }
+  for (const w of doc.wires) {
+    const c = w.bus && corners.get(w.id);
+    if (c) { const m = busMark(c, pack.theme.line.width_module).label; add({ key: `bus:${w.id}`, kind: "bus", id: w.id, text: w.bus, at: m.at, dir: m.dir }); }
+  }
   for (const p of doc.ports) if (p.label) add({ key: `port:${p.id}`, kind: "port", id: p.id, text: p.label, at: p.at, dir: side(p.side) });
   doc.labels.forEach((l, index) => add({ key: `label:${index}`, kind: "label", index, text: l.text, at: l.at, dir: side(l.side) }));
   return out;
@@ -168,6 +174,6 @@ export function labelItems(doc, pack) {
 export function texNeeded(doc, pack, { levelTags = false } = {}) {
   const need = new Set([REFERENCE_TEX]);
   for (const i of labelItems(doc, pack)) if (i.tex) need.add(i.tex);
-  if (levelTags) for (const w of doc.wires) if (w.level) need.add(levelTagTex(w.level));
+  if (levelTags) for (const x of [...doc.wires, ...doc.elements]) if (x.level) need.add(levelTagTex(x.level));
   return [...need];
 }
