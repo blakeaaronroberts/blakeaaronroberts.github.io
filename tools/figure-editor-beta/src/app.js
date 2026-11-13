@@ -44,7 +44,8 @@ export const KEYS = [
   ["R", "Rotate the selected parts 90° counter-clockwise (or the part being placed)"],
   ["M", "Mirror the selected parts, for elements the symbol pack marks mirrorable"],
   ["Delete, Backspace", "Delete the selection"],
-  ["0  1  X  Z", "Set the logic level the selected wires are drawn at (low, high, unknown, floating)"],
+  ["0  1  X  Z", "Set the logic level the selected wires and elements are drawn at (low, high, unknown, floating)"],
+  ["Selected wire", "The panel sets arrowheads (at either end or both) and a bus mark: a slash across the wire, with a label"],
   ["Ctrl+Z, Ctrl+Y", "Undo, redo (Ctrl+Shift+Z also redoes)"],
   ["Ctrl+C, Ctrl+V, Ctrl+A", "Copy, paste, select all"],
   ["Ctrl+S", "Save the figure as a .json file"],
@@ -400,14 +401,26 @@ export async function mount(root, options = {}) {
         html += `<dl><dt>Wire</dt><dd>${esc(wires[0].id)}: ${esc(end(wires[0].from))} to ${esc(end(wires[0].to))}</dd></dl>`;
       }
     }
-    if (!pendingLabel && selection.wires.length) {   // the level applies to every selected wire
+    if (!pendingLabel && (selection.wires.length || selection.elements.length)) {   // the level applies to every selected wire and element
       const wires = selection.wires.map((id) => doc.wires.find((w) => w.id === id)).filter(Boolean);
-      const levels = new Set(wires.map((w) => w.level ?? ""));
+      const els = selection.elements.map((id) => doc.elements.find((e) => e.id === id)).filter(Boolean);
+      const levels = new Set([...wires, ...els].map((x) => x.level ?? ""));
       const one = levels.size === 1 ? [...levels][0] : null;
-      key += `|level`;
-      html += `<p class="fe-level" data-text="levelText"></p>${choice("Level", "level", levelOpts())}`;
+      const what = els.length && wires.length ? "wires and elements" : els.length ? "elements" : "wires";
+      html += `<p class="fe-level" data-text="levelText"></p>${choice(`Level (colours the body of an element, the line of a wire)`, "level", levelOpts())}`;
+      key += "|level";
+      if (wires.length) {
+        const arrows = new Set(wires.map((w) => w.arrow ?? "none")), buses = new Set(wires.map((w) => w.bus ?? ""));
+        const arrow = arrows.size === 1 ? [...arrows][0] : null;
+        key += arrow === null ? "|mixed" : "";
+        html += choice("Arrowheads", "wireArrow", [...(arrow === null ? [["", "mixed (pick one)", true]] : []), ["none", "none"], ["end", "at the end"], ["start", "at the start"], ["both", "at both ends"]]) +
+          field("Bus mark: a slash with this label (such as N or 4)", "wireBus") +
+          `<p class="fe-hint">A wire starts where it was begun and ends where it was finished. An arrowhead's tip lands exactly on the pin, wire or point it points at.</p>`;
+        values.wireArrow = arrow ?? "";
+        values.wireBus = buses.size === 1 ? [...buses][0] : "";
+      }
       const name = LEVELS.find((l) => l.value === one);
-      text.levelText = one === null ? "Level: mixed" : one === "" ? "Level: none (default colour)" : `Level: ${one} (${name.name})`;
+      text.levelText = one === null ? "Level: mixed" : one === "" ? "Level: none (default colour)" : `Level: ${one} (${name.name}) on the selected ${what}`;
       values.level = one ?? "";
     }
     return { key, html, text, values };
@@ -461,6 +474,10 @@ export async function mount(root, options = {}) {
         commit(D.setLabel(doc, selection.labels[0], { [field]: v.trim() }), "Label changed.");
       } else if (name === "level") {
         setLevel(v === "" ? null : v);
+      } else if (name === "wireArrow") {
+        if (v) commit(D.setWireStyle(doc, selection.wires, { arrow: v }), v === "none" ? "Arrowheads removed." : "Arrowheads set.");
+      } else if (name === "wireBus") {
+        commit(D.setWireStyle(doc, selection.wires, { bus: v }), v.trim() ? "Bus mark set." : "Bus mark removed.");
       }
     } catch (err) { status(err.message); }
     render();
@@ -522,10 +539,11 @@ export async function mount(root, options = {}) {
   }
 
   function setLevel(level) {
-    if (!selection.wires.length) { status("Select one or more wires first."); return; }
+    if (!selection.wires.length && !selection.elements.length) { status("Select one or more wires or elements first."); return; }
     if (level && !pack.levelColour(level)) { status(`This theme has no colour for level ${level}.`); return; }
     const name = LEVELS.find((l) => l.value === level)?.name;
-    commit(D.setLevel(doc, selection.wires, level), level ? `Level ${level} (${name}) set on ${count(selection.wires.length, "wire")}.` : "Level cleared.");
+    const n = selection.wires.length + selection.elements.length;
+    commit(D.setLevel(doc, selection.wires, level, selection.elements), level ? `Level ${level} (${name}) set on ${count(n, n === selection.wires.length ? "wire" : "item")}.` : "Level cleared.");
   }
 
   function setGrid(g) {
@@ -1021,7 +1039,7 @@ export async function mount(root, options = {}) {
     if (k === "r") return run("rotate");
     if (k === "m") return run("mirror");
     if (k === "f") return run("fit");
-    if (selection.wires.length && ["0", "1", "x", "z"].includes(k)) { e.preventDefault(); return setLevel(k.toUpperCase()); }
+    if ((selection.wires.length || selection.elements.length) && ["0", "1", "x", "z"].includes(k)) { e.preventDefault(); return setLevel(k.toUpperCase()); }
     if (e.key === "Delete" || e.key === "Backspace") return run("delete");
     if (e.key === "+" || e.key === "=") return run("zoomin");
     if (e.key === "-") return run("zoomout");

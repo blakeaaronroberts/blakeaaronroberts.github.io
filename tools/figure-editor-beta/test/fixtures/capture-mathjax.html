@@ -8,18 +8,77 @@
 
     chrome --headless=new --dump-dom --virtual-time-budget=20000 capture-mathjax.html
 
-  Keep LIST in step with the sample figure (examples/full-adder-levels.js) and test/labels.test.js.
+  Keep LIST in step with the sample figures (examples/*.js), the block presets (src/presets.js) and the tests.
+  `quarto run tools/figure-editor-beta/scripts/tex-needed.js` prints it: everything already in mathjax.json plus what
+  the figures and presets need. Copy its output over LIST, run Chrome as above, and replace mathjax.json with the result.
 -->
 <script>window.MathJax = { startup: { typeset: false }, svg: { fontCache: "none", linebreaks: { inline: false } } };</script>
 <script src="https://cdn.jsdelivr.net/npm/@mathjax/mathjax-stix2-font@4.1.3/tex-mml-svg-mathjax-stix2.js"></script>
 <pre id="out">waiting</pre>
 <script>
 const LIST = [
-  "X", "A", "B", "S", "C_{\\mathrm{in}}", "C_{\\mathrm{out}}", "A \\oplus B", "R_1",
-  "\\text{4-bit adder}", "\\text{Value $x$ here}",
-  "\\mathrm{0}", "\\mathrm{1}", "\\mathrm{X}", "\\mathrm{Z}",
-  "\\text{\u4e2d}",           // a glyph the STIX2 font lacks: MathJax falls back to a <text> element
-  "\\notamacro",              // an unknown macro: MathJax draws its error message as <text>
+  "X",
+  "A",
+  "B",
+  "S",
+  "C_{\\mathrm{in}}",
+  "C_{\\mathrm{out}}",
+  "A \\oplus B",
+  "R_1",
+  "\\text{4-bit adder}",
+  "\\text{Value $x$ here}",
+  "\\mathrm{0}",
+  "\\mathrm{1}",
+  "\\mathrm{X}",
+  "\\mathrm{Z}",
+  "\\text{中}",
+  "\\notamacro",
+  "\\mathrm{FA}_3",
+  "\\mathrm{FA}_2",
+  "\\mathrm{FA}_1",
+  "\\mathrm{FA}_0",
+  "A_3",
+  "B_3",
+  "S_3",
+  "A_2",
+  "B_2",
+  "S_2",
+  "A_1",
+  "B_1",
+  "S_1",
+  "A_0",
+  "B_0",
+  "S_0",
+  "\\text{CLA}",
+  "N",
+  "A_{N-1:0}",
+  "B_{N-1:0}",
+  "S_{N-1:0}",
+  "\\text{HA}",
+  "\\text{FA}",
+  "+",
+  "-",
+  "Y",
+  "=",
+  "\\ll",
+  "\\mathrm{shamt}",
+  "\\text{ROT}",
+  "\\times",
+  "P",
+  "\\text{ALU}",
+  "F",
+  "\\text{Register file}",
+  "\\mathrm{WD}_3",
+  "\\mathrm{RD}_1",
+  "\\mathrm{RD}_2",
+  "\\mathrm{CLK}",
+  "\\mathrm{WE}_3",
+  "\\text{Shift register}",
+  "S_{\\mathrm{in}}",
+  "S_{\\mathrm{out}}",
+  "K",
+  "\\int",
+  "\\text{4}",
 ];
 // As the editor does (src/mathjax.js): load the dynamic glyph files, typeset synchronously, and insist on a
 // single <svg> per label (with line breaking on, MathJax would split "A + B" into several).

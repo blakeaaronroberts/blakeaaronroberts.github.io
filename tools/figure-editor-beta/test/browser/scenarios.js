@@ -445,3 +445,165 @@ scenarios.blocks = async (ctx) => {
   } finally { await page.close(); }
   return res;
 };
+
+/** Arrows, bus marks and element level on the two sample figures; then a close look at a chevron notch, an arrowhead tip and a bus slash. */
+scenarios.marks = async (ctx) => {
+  const res = [];
+  const samples = ["cla-chevron", "ripple-carry-blocks"];
+  for (const scheme of ["light", "dark"]) {
+    for (const sample of samples) {
+      const page = await ctx.launch({ scheme, port: nextPort++ });
+      try {
+        await page.goto(`${ctx.url}?open=examples/${sample}.json`);
+        await page.waitFor(ready);
+        await page.sleep(3500);
+        await page.shot(`${ctx.out}/beta-${sample}-${scheme}.png`);
+        const scene = await page.eval(SCENE), px = await page.eval(PIXELS(await page.shotData()));
+        const q = await page.eval(`({ heads: document.querySelectorAll(".fe-scene [data-head]").length, buses: document.querySelectorAll(".fe-scene [data-bus]").length, labels: document.querySelectorAll(".fe-scene [data-label]").length, warn: [...document.querySelectorAll(".fe-warnings li")].map((l) => l.textContent), wires: window.figureEditor.doc.wires.length })`);
+        const want = sample === "cla-chevron" ? { heads: 5, buses: 3 } : { heads: 3 * 4 + 5, buses: 0 };
+        res.push([q.heads === want.heads && q.buses === want.buses, `${scheme} ${sample}: ${q.heads} arrowheads and ${q.buses} bus slashes drawn (expected ${want.heads} and ${want.buses})`]);
+        res.push([q.warn.length === 0 && q.labels >= 10, `${scheme} ${sample}: ${q.labels} labels, no warnings ${q.warn.slice(0, 2).join("; ")}`]);
+        if (scheme === "dark") {
+          res.push([scene.black.length === 0 && px.canvas.black === 0, `dark ${sample}: zero black strokes (${scene.black.length}) and zero black pixels (${px.canvas.black}) on the canvas`]);
+          const headFills = await page.eval(`[...document.querySelectorAll(".fe-scene [data-head]")].map((p) => getComputedStyle(p).fill)`);
+          res.push([headFills.every((f) => f !== "rgb(0, 0, 0)"), `dark ${sample}: arrowheads are filled in the light ink, not black (${headFills[0]})`]);
+        }
+        res.push([page.errors.length === 0, `${scheme} ${sample}: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+      } finally { await page.close(); }
+    }
+  }
+
+  // The panel: arrows, bus mark and element level, on the chevron sample, with real clicks.
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(`${ctx.url}?open=examples/cla-chevron.json`);
+    await page.waitFor(ready);
+    await page.sleep(3000);
+    const px = (gx, gy) => page.eval(`(() => { const s = document.querySelector("svg.fe-canvas"), p = s.createSVGPoint(); p.x = ${gx} / 2; p.y = -${gy} / 2; const q = p.matrixTransform(s.getScreenCTM()); return [q.x, q.y]; })()`);
+    const setField = (name, value) => page.eval(`(() => { const i = document.querySelector('[data-field="${name}"]'); i.value = ${JSON.stringify(value)}; i.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
+    const wire = (id) => page.eval(`JSON.stringify(window.figureEditor.doc.wires.find((w) => w.id === ${JSON.stringify(id)}))`).then(JSON.parse);
+    const count = (what) => page.eval(`document.querySelectorAll(".fe-scene [data-${what}]").length`);
+
+    const at = await px(0, 9);                       // the carry-in wire, between its port and the block
+    await page.click(at[0], at[1]);
+    await page.sleep(300);
+    res.push([(await page.eval(`document.querySelector('[data-field="wireArrow"]')?.value`)) === "end", "selecting the carry-in wire shows its arrow setting (end)"]);
+    await setField("wireArrow", "both"); await page.sleep(200);
+    res.push([(await wire("w4")).arrow === "both" && (await count("head")) === 6, `arrowheads at both ends: ${await count("head")} heads in the scene`]);
+    await setField("wireArrow", "none"); await page.sleep(200);
+    res.push([(await wire("w4")).arrow === undefined && (await count("head")) === 4, `none removes the field and the head (${await count("head")} left)`]);
+    await setField("wireBus", "8"); await page.sleep(200);
+    res.push([(await wire("w4")).bus === "8" && (await count("bus")) === 4, `a bus mark of 8 adds a slash (${await count("bus")} slashes)`]);
+    for (let i = 0; i < 3; i++) { await page.key("z", "KeyZ", 90, 2); await page.sleep(200); }
+    res.push([JSON.stringify(await wire("w4")) === JSON.stringify({ id: "w4", from: "in3", to: "blk1.Cin", arrow: "end" }), "three undos bring the wire back to the sample's"]);
+
+    // Element level: click the block, set level 1 from the panel; the outline turns the level colour, the leads keep theirs.
+    const mid = await px(0, 0);
+    await page.click(mid[0], mid[1]); await page.sleep(300);
+    await setField("level", "1"); await page.sleep(300);
+    const colours = await page.eval(`(() => { const g = document.querySelector('[data-el="blk1"]'); return [...g.querySelectorAll("path")].map((p) => getComputedStyle(p).stroke); })()`);
+    res.push([(await page.eval(`window.figureEditor.doc.elements[0].level`)) === "1", "the panel sets the block's level to 1"]);
+    res.push([colours[0] === "rgb(213, 94, 0)" && colours.slice(1).every((c) => c === "rgb(0, 0, 0)"), `the outline is the level-1 colour, the leads stay ink (${colours.join(" | ")})`]);
+    await setField("level", ""); await page.sleep(200);
+    res.push([(await page.eval(`window.figureEditor.doc.elements[0].level`)) === undefined, "clearing the level removes the field"]);
+    await page.shot(`${ctx.out}/beta-marks-panel.png`);
+    res.push([page.errors.length === 0, `no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+
+  // Close look at the exported file: notch, arrowhead tip, bus slash, each filling the window. Pictures go to --out.
+  const look = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await look.goto(ctx.url);
+    await look.waitFor(ready);
+    const info = await look.eval(`(async () => {
+      window.figureEditor.load(await (await fetch("./examples/cla-chevron.json")).text());
+      const text = await window.figureEditor.exportSvg();   // the file the Export SVG button writes
+      const doc = new DOMParser().parseFromString(text, "image/svg+xml");
+      const nums = (d) => d.match(/-?[0-9.]+/g).map(Number);
+      const heads = [...doc.querySelectorAll('g[fill="#000000"][stroke="none"] path')].map((p) => nums(p.getAttribute("d")));
+      const slashes = [...doc.querySelectorAll('g[fill="none"] path')].map((p) => p.getAttribute("d")).filter((d) => (d.match(/L/g) || []).length === 1 && d.length < 60).map(nums);
+      window.__svg = text;
+      return { heads, slashes };
+    })()`);
+    const show = async (name, cx, cy, h) => {
+      await look.eval(`(() => {
+        document.body.innerHTML = ""; document.body.style.cssText = "margin:0;background:#fff";
+        const host = document.createElement("div"); host.innerHTML = window.__svg; document.body.append(host);
+        const s = host.querySelector("svg"); const w = 1366, hh = 768, vw = ${h} * w / hh;
+        s.setAttribute("width", w); s.setAttribute("height", hh); s.setAttribute("viewBox", [${cx} - vw / 2, ${cy} - ${h} / 2, vw, ${h}].join(" "));
+        s.style.display = "block";
+      })()`);
+      await look.sleep(300);
+      await look.shot(`${ctx.out}/beta-zoom-${name}.png`);
+    };
+    // Heads are [tip x, tip y, ...]; the first head is the one on the A bus. The notch apex is at (-1.5, 0) modules.
+    const h = info.heads[0];
+    await show("notch", -1.5, 0, 3.2);                       // about 240 px a module: 15x the editor's fit zoom
+    await show("arrowhead", h[0], h[1], 1.4);
+    const s = info.slashes[0];
+    await show("slash", (s[0] + s[2]) / 2, (s[1] + s[3]) / 2, 1.4);
+    res.push([info.heads.length === 5 && info.slashes.length >= 3, `the exported file has ${info.heads.length} arrowheads and ${info.slashes.length} slashes; zoomed pictures saved`]);
+  } finally { await look.close(); }
+  return res;
+};
+
+/** Element level: from the panel, in light and dark, in the SVG and PNG exports, as text on request, and through reload. */
+scenarios.levels = async (ctx) => {
+  const res = [];
+  const BLOCK_PNG = (dark) => `(async () => {
+    const blob = await window.figureEditor.png();
+    const bmp = await createImageBitmap(blob);
+    const c = document.createElement("canvas"); c.width = bmp.width; c.height = bmp.height;
+    const x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(bmp, 0, 0);
+    const d = x.getImageData(0, 0, c.width, c.height).data;
+    let level = 0, black = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 200) continue;
+      if (Math.abs(d[i] - 213) < 6 && Math.abs(d[i + 1] - 94) < 6 && d[i + 2] < 6) level++;   // the light theme's high colour, #D55E00
+      if (d[i] <= 8 && d[i + 1] <= 8 && d[i + 2] <= 8) black++;
+    }
+    return { w: bmp.width, h: bmp.height, level, black };
+  })()`;
+  for (const scheme of ["light", "dark"]) {
+    const page = await ctx.launch({ scheme, port: nextPort++ });
+    try {
+      await page.goto(`${ctx.url}?open=examples/cla-chevron.json`);
+      await page.waitFor(ready);
+      await page.sleep(3000);
+      const px = (gx, gy) => page.eval(`(() => { const s = document.querySelector("svg.fe-canvas"), p = s.createSVGPoint(); p.x = ${gx} / 2; p.y = -${gy} / 2; const q = p.matrixTransform(s.getScreenCTM()); return [q.x, q.y]; })()`);
+      const setField = (name, value) => page.eval(`(() => { const i = document.querySelector('[data-field="${name}"]'); i.value = ${JSON.stringify(value)}; i.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
+      const mid = await px(0, 0);
+      await page.click(mid[0], mid[1]); await page.sleep(300);
+      await setField("level", "1"); await page.sleep(300);
+      const body = await page.eval(`getComputedStyle(document.querySelector('[data-el="blk1"] path')).stroke`);
+      const want = scheme === "light" ? "rgb(213, 94, 0)" : "rgb(254, 112, 0)";
+      res.push([body === want, `${scheme}: the block's outline is the level-1 role colour (${body}); the panel says "${(await page.eval(`document.querySelector(".fe-level").textContent`))}"`]);
+      // SVG export (light by default, dark when asked): the level colour comes from the role, with no other colour added.
+      const svg = await page.eval(`window.figureEditor.exportSvg()`);
+      const colours = [...new Set((svg.match(/(?:fill|stroke)="#[0-9A-Fa-f]{6}"/g) || []).map((s) => s.slice(-8, -1).toUpperCase()))];
+      res.push([colours.includes("#D55E00") && colours.every((c) => ["#000000", "#D55E00"].includes(c)), `${scheme}: SVG export colours are only ink and the level role (${colours.join(", ")})`]);
+      if (scheme === "light") {
+        const png = await page.eval(BLOCK_PNG());
+        res.push([png.level > 100 && png.black > 100, `light: PNG export (${png.w}x${png.h}) has ${png.level} level-colour pixels and ${png.black} ink pixels`]);
+      }
+      // Level as text on request.
+      const before = await page.eval(`document.querySelectorAll('.fe-scene [data-label="tag:blk1"]').length`);
+      await page.eval(`(() => { const i = document.querySelector('[name="fe-tags"]'); i.checked = true; i.dispatchEvent(new Event("change", { bubbles: true })); })()`);
+      await page.sleep(1500);
+      const after = await page.eval(`document.querySelectorAll('.fe-scene [data-label="tag:blk1"]').length`);
+      res.push([before === 0 && after === 1, `${scheme}: the level shows as text "1" beside the block when asked (${before} then ${after})`]);
+      await page.shot(`${ctx.out}/beta-level-${scheme}.png`);
+      const scene = await page.eval(SCENE);
+      if (scheme === "dark") res.push([scene.black.length === 0, `dark: zero black strokes with a leveled block (${scene.black.length})`]);
+      // Reload: autosave brings the level back.
+      const saved = await page.eval(`window.figureEditor.save()`);
+      await page.sleep(1200);
+      await page.goto(ctx.url);
+      await page.waitFor(ready);
+      await page.sleep(1200);
+      res.push([(await page.eval(`window.figureEditor.save()`)) === saved && /"level": "1"/.test(saved), `${scheme}: the level survives save and reload (autosave)`]);
+      res.push([page.errors.length === 0, `${scheme}: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+    } finally { await page.close(); }
+  }
+  return res;
+};

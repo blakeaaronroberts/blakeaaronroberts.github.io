@@ -43,11 +43,14 @@ export function lineEnds(doc, pack, corners) {
       ends.push({ at, into: [-dir[0], -dir[1]], owner: `${el.id}.${name}` });
     }
   }
+  const arrow = new Map(doc.wires.map((w) => [w.id, w.arrow]));
   for (const [id, c] of corners) {
     if (c.length < 2) continue;
     const n = c.length;
-    ends.push({ at: c[0], into: unit([c[1][0] - c[0][0], c[1][1] - c[0][1]]), owner: id });
-    ends.push({ at: c[n - 1], into: unit([c[n - 2][0] - c[n - 1][0], c[n - 2][1] - c[n - 1][1]]), owner: id });
+    // an end with an arrowhead is not a flat line end: the head's tip is the point it points at, and no joint belongs there
+    const a = arrow.get(id), start = a !== "start" && a !== "both", end = a !== "end" && a !== "both";
+    if (start) ends.push({ at: c[0], into: unit([c[1][0] - c[0][0], c[1][1] - c[0][1]]), owner: id });
+    if (end) ends.push({ at: c[n - 1], into: unit([c[n - 2][0] - c[n - 1][0], c[n - 2][1] - c[n - 1][1]]), owner: id });
   }
   return ends;
 }

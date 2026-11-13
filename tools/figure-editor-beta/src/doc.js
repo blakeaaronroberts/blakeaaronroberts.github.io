@@ -459,13 +459,25 @@ export function setElementLabel(doc, id, text) {
   return doc;
 }
 
-/** The logic level wires are drawn at: "0", "1", "X", "Z", or null for the default colour. */
-export function setLevel(doc, wireIds, level) {
-  if (level !== null && !LEVEL_VALUES.includes(level)) throw new Error(`level must be 0, 1, X or Z`);
+/** Arrowheads and a bus mark on wires: `fields` holds arrow ("none", "start", "end", "both") and/or bus (text; empty removes it). */
+export function setWireStyle(doc, wireIds, fields) {
+  if (fields.arrow !== undefined && !ARROWS.includes(fields.arrow)) throw new Error(`arrow must be none, start, end or both`);
+  if (fields.bus !== undefined && typeof fields.bus !== "string") throw new Error("the bus mark is text, such as N or 4");
   doc = clone(doc);
   for (const w of doc.wires) {
     if (!wireIds.includes(w.id)) continue;
-    if (level === null) delete w.level; else w.level = level;
+    if (fields.arrow !== undefined) { if (fields.arrow === "none") delete w.arrow; else w.arrow = fields.arrow; }
+    if (fields.bus !== undefined) { if (fields.bus.trim()) w.bus = fields.bus.trim(); else delete w.bus; }
+  }
+  return doc;
+}
+
+/** The logic level wires are drawn at: "0", "1", "X", "Z", or null for the default colour. */
+export function setLevel(doc, wireIds, level, elementIds = []) {
+  if (level !== null && !LEVEL_VALUES.includes(level)) throw new Error(`level must be 0, 1, X or Z`);
+  doc = clone(doc);
+  for (const x of [...doc.wires.filter((w) => wireIds.includes(w.id)), ...doc.elements.filter((e) => elementIds.includes(e.id))]) {
+    if (level === null) delete x.level; else x.level = level;
   }
   return doc;
 }
@@ -551,6 +563,7 @@ export function lint(doc, pack) {
   const out = [];
   const els = doc.elements;
   for (const el of els) {
+    if (el.level && !pack.levelColour(el.level)) out.push(`${el.id}: level ${el.level} has no colour in this theme, so it is drawn in the default colour`);
     if (el.type === BLOCK) {
       try { normalizeBlock(el.params); } catch (e) { out.push(`${el.id}: ${e.message}, so it is not drawn`); }
     } else if (!pack.defFor(el)) out.push(`${el.id}: "${el.type}" is not in the symbol pack, so it is not drawn`);
