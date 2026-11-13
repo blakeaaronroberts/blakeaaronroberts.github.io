@@ -53,6 +53,13 @@ Sync of 2026-11-12, 21:20 (Pacific). Facts only; work lives in the batches below
 
 ## Batches
 
+**Order of work (Blake, 2026-11-13).** Today's goal is the most usable editor
+for lecturing chapter 5: **F2.3** (polish and unlisted go-live), then **F3
+labels and wire levels only**, then **F5** (configurable block, arrows, bus
+marks, level-coloured elements), then **T1** (timing diagram tool). The rest
+of F3 (PNG copy, scale options, private theme, draft switch, keys panel) and
+F4 come after. Each deploy to `main` happens when Blake says "deploy".
+
 | Batch | Intent | Status | Approved by Blake |
 |---|---|---|---|
 | S1 | Make this queue visible to every builder, stop handoff edits from redeploying the site, and clear out the stale `gh-pages` branch | Done | 2026-11-12 |
@@ -64,6 +71,8 @@ Sync of 2026-11-12, 21:20 (Pacific). Facts only; work lives in the batches below
 | F3 | Figure editor v1 finish: labels in STIX Two, wire level colours, PNG copy, private theme, shortcuts, draft toggle | Open | 2026-11-12 |
 | F2.3 | Figure editor polish and unlisted go-live: site look, structured side panel, no scroll bars, half-module grid (adjustable), then publish at an unlisted URL | Open | 2026-11-13 |
 | F4 | Figure editor options before launch: grid, whole-figure line weight (thin, regular, bold) and a dark theme, saved with the figure | Open | 2026-11-13 |
+| F5 | Figure editor: configurable block (rect, chevron, triangle, circle) with presets, wire arrows, bus marks, level-coloured elements | Open | 2026-11-13 |
+| T1 | Timing diagram tool: a WaveDrom page in the lecture look, adjustable size, SVG export | Open | 2026-11-13 |
 
 ---
 
@@ -287,6 +296,81 @@ references, fonts or CSS variables. Keep the F2 and F3 tests passing.
 **Review stop.** Show Blake the sample at all three weights and in dark, plus
 a screenshot with the grid on and off, then wait. Going live (merging into
 `main`) is Blake's separate decision.
+
+---
+
+### F5: configurable block, arrows, bus marks, level-coloured elements
+
+**Why now.** Chapter 5 is mostly labelled boxes. One configurable block in the
+editor covers adders, subtractors, comparators, shifters, rotators,
+multipliers, ALUs, register files and the basic control-system blocks without
+waiting for new toolbox symbols (Blake, 2026-11-13).
+
+**Prerequisites.** F3 labels are done and `circuit-model` has batch C5.
+
+**Blake's decisions (2026-11-13).**
+- **Block.** The editor draws the `block` primitive from its `params`, as C5
+  defines them, in the active style and with the toolbox's joint and line
+  rules, and with labels from the F3 label engine. Shapes: rect, chevron (the
+  notched shape for adders, subtractors and ALUs), triangle (gain) and circle
+  (summing junction with sign labels). Width and height are adjustable on the
+  fly in whole modules, by handles or the side panel, and so are the pins on
+  each side and their labels.
+- **Presets** are only pre-filled params: half adder, full adder, carry-propagate
+  adder and N-bit CLA (each in block and chevron form), subtractor (both
+  forms), comparator, shifter, rotator, multiplier, ALU, register file,
+  shift register, gain, summing junction, integrator, generic block.
+- **Arrows.** Per-wire arrow at either end or both, with a sharp mitred head
+  whose tip lands exactly on the line or pin it points to. A wire may start or
+  end unattached, so a free-standing arrow works.
+- **Bus mark.** A per-wire slash with a label, placed on the middle of the
+  longest segment.
+- **Element level.** Any element can be coloured by logic level: body colour
+  from the level, leads keep their wire's colour. Shown as text on screen too.
+- Saved as C5 defines. Nothing here changes the symbol pack.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F5.1 | Block: draw, pin and size editing, presets, palette group | Steward, approved by Blake 2026-11-13 | Open | |
+| F5.2 | Arrows and bus marks | Steward, approved by Blake 2026-11-13 | Open | |
+| F5.3 | Element level colouring | Steward, approved by Blake 2026-11-13 | Open | |
+| F5.4 | Tests (pin rule, save and load, validation against C5) and a sample figure: 4-bit ripple-carry adder in block form, and a chevron CLA. The 4x zoom check on a chevron notch, an arrowhead tip and a bus slash | Steward, approved by Blake 2026-11-13 | Open | |
+
+**Scope limits.** No new dependencies, nothing in `manimations` or
+`circuit-model`. The toolbox does not draw the block yet; the Steward queues
+a shared implementation later.
+
+**Review stop.** Show Blake the sample figures and exported SVGs, then wait.
+
+---
+
+### T1: timing diagram tool
+
+**Why now.** Blake wants quick timing diagrams that look like his own
+(2026-11-13). WaveDrom and its lecture skin (`assets/wavedrom/`) are already on
+the site.
+
+**Blake's decisions (2026-11-13).**
+- A page `tools/timing-diagram/`, unlisted and `noindex`: WaveDrom source on
+  the left, live preview on the right, in the lecture skin. Check the look
+  against one existing timing figure in `figures/` and tune the skin to match.
+- Adjustable in both dimensions (width and height), and a "tidy" button that
+  reformats the source.
+- Exports SVG at real size. Text should be outlined; if that takes more than a
+  small step, export live text, say so, and leave outlining for later.
+- Out of scope today: linking to the figure editor so wires take levels from
+  the diagram. That is a later batch built on scenario files.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| T1.1 | The page: source, live preview, size controls, tidy button | Steward, approved by Blake 2026-11-13 | Open | |
+| T1.2 | Skin tuned to match an existing timing figure | Steward, approved by Blake 2026-11-13 | Open | |
+| T1.3 | SVG export, a sample diagram, privacy scan | Steward, approved by Blake 2026-11-13 | Open | |
+
+**Scope limits.** No new dependencies without asking (WaveDrom is already
+used). Nothing in `manimations` or `circuit-model`.
+
+**Review stop.** Show Blake a sample diagram and its exported SVG, then wait.
 
 ---
 
