@@ -2,10 +2,36 @@
 // Shared by every theme and mode. No colours or fonts here: only roles from themes/<name>/.
 // Look: modernised instrument manual — hairline rules, square corners, mono labels.
 
+// The dark canvas sits a shade below the site's dark background. Both site modes derive it from the dark token
+// (in light mode that is the near-black ink role), so the dark canvas looks the same in either.
+$fig-dark-base: if(lightness($role-background) < 50%, $role-background, $role-ink);
+$fig-dark-background: darken($fig-dark-base, 3%);
+$fig-dark-grid: mix($fig-dark-ink, $fig-dark-background, 22%);
+
 // ---------- Figure roles for scripts ----------
 // Charts (assets/js/figtools.js) read these, so computed figures follow the theme too.
 :root {
+  --role-background: #{$role-background};   // site chrome roles, for pages that style their own panels (the figure editor)
+  --role-ink: #{$role-ink};
+  --role-muted: #{$role-muted};
+  --role-rule: #{$role-rule};
+  --role-surface: #{$role-surface};
+  --role-accent: #{$role-accent};
+  --role-accent-hover: #{$role-accent-hover};
   --fig-background: #{$fig-background};
+  // Dark canvas (interim): hues from themes/okabe-ito/figures.scss; background and grid derived below from the site's dark background
+  --fig-dark-ink: #{$fig-dark-ink};
+  --fig-dark-low: #{$fig-dark-low};
+  --fig-dark-high: #{$fig-dark-high};
+  --fig-dark-unknown: #{$fig-dark-unknown};
+  --fig-dark-floating: #{$fig-dark-floating};
+  --fig-dark-flow: #{$fig-dark-flow};
+  --fig-dark-accent: #{$fig-dark-accent};
+  --fig-dark-highlight: #{$fig-dark-highlight};
+  --fig-dark-debug: #{$fig-dark-debug};
+  --fig-dark-debug_bad: #{$fig-dark-debug-bad};
+  --fig-dark-background: #{$fig-dark-background};
+  --fig-dark-grid: #{$fig-dark-grid};
   --fig-ink: #{$fig-ink};
   --fig-muted: #{$fig-muted};
   --fig-rule: #{$fig-rule};

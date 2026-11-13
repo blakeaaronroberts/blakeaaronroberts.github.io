@@ -87,7 +87,7 @@ Deno.test("beside a wire a capital is centred on the point, so A, C_in and B sha
   assertClose(baseline, 3 + (ref.height * em) / 2, 1e-4);
 });
 
-Deno.test("labels of a document: ports and free text always, an element's only where the pack gives it a label position", () => {
+Deno.test("labels of a document: every element can carry one, at the pack's anchor or else above its bounding box", () => {
   let doc = newDoc();
   const r = addElement(doc, pack, "resistor", [0, 0]), g = addElement(r.doc, pack, "and_gate", [10, 0]);
   doc = setElementLabel(setElementLabel(g.doc, "R1", "$R_1$"), "and1", "$G$");
@@ -95,10 +95,12 @@ Deno.test("labels of a document: ports and free text always, an element's only w
   doc = setPort(p.doc, pack, "in1", { label: "$A$", side: "left" });
   doc = addLabel(doc, [4, 8], "4-bit adder").doc;
   const items = labelItems(doc, pack);
-  assertEquals(items.map((i) => [i.kind, i.tex]), [["element", "R_1"], ["port", "A"], ["label", "\\text{4-bit adder}"]]);
+  assertEquals(items.map((i) => [i.kind, i.tex]), [["element", "R_1"], ["element", "G"], ["port", "A"], ["label", "\\text{4-bit adder}"]]);
   assertEquals(items[0].dir, [0, 1]);                              // the resistor's label sits above (pack: direction up)
-  assertEquals(items[1].dir, [-1, 0]);
-  assertEquals(items[2].dir, null);
+  assertEquals(items[1].dir, [0, 1]);                              // the AND gate has no pack anchor: above the middle of its box
+  assertEquals(items[1].at, [10.5, 2]);                            // bbox x -4..5, y up to 2, placed at [10, 0]
+  assertEquals(items[2].dir, [-1, 0]);
+  assertEquals(items[3].dir, null);
 });
 
 Deno.test("an element's label turns with the element and stays upright", () => {
