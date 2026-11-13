@@ -2,7 +2,7 @@
 title: "Steward handoff: site"
 repo: blakeaaronroberts.github.io
 doc-type: handoff
-updated: 2026-11-12
+updated: 2026-11-13
 ---
 
 # Steward handoff: site
@@ -62,6 +62,7 @@ Sync of 2026-11-12, 21:20 (Pacific). Facts only; work lives in the batches below
 | F1 | Figure editor, plan: a short design for the first web tool, reviewed before any code | Open | 2026-11-12 |
 | F2 | Figure editor v1 core: place, move, rotate and mirror elements on the grid; wires that stay anchored to pins; save, load and SVG export | Open | 2026-11-12 |
 | F3 | Figure editor v1 finish: labels in STIX Two, wire level colours, PNG copy, private theme, shortcuts, draft toggle | Open | 2026-11-12 |
+| F4 | Figure editor options before launch: grid, whole-figure line weight (thin, regular, bold) and a dark theme, saved with the figure | Open | 2026-11-13 |
 
 ---
 
@@ -200,6 +201,53 @@ same publication-grade check the toolbox uses. Privacy scan before every push.
 against VISION.md first). After F2, show Blake the editor running with a
 sample figure built from today's 21 elements, plus an exported SVG. After
 F3, the same with labels and colours.
+
+---
+
+### F4: figure editor options before launch (grid, line weight, dark theme)
+
+**Why now.** Blake wants these in the editor before it goes live (2026-11-13).
+They build on the `figure-editor` branch, after F3.
+
+**Blake's decisions (2026-11-13).**
+- **Grid option.** Show or hide the grid dots, and snap on or off. The grid
+  is a view setting kept in the browser, never in the saved file and never in
+  an export. Dot spacing and colour come from the pack's `theme.json`.
+- **Line weight.** Three presets: thin, regular (the default) and bold. One
+  choice for the whole figure, never per element. The editor does **not**
+  scale strokes itself, because that leaves gaps and notches at joints. It
+  loads the matching pack (`symbols`, `symbols-thin`, `symbols-bold` in
+  `circuit-model`), whose files the toolbox drew at that weight. Wires and
+  junction dots take their widths from that pack's `theme.json`.
+- **Theme.** `default` (Okabe-Ito on light) and `dark`. Each symbol colour is
+  marked with a `data-role` attribute; the editor recolours by role from the
+  chosen theme (`theme.json`, or `theme-dark.json` beside it). The dark theme
+  waits for Blake to approve the VISION.md line the Steward is drafting.
+- The figure's weight and theme are saved in the figure's optional `style`
+  block (batch C4 in `circuit-model`), so a reload looks the same. Private
+  themes are never named in a saved figure.
+- A private theme loaded from a local file keeps working.
+
+**Prerequisites.** F3 is done, and `circuit-model` has tag `symbols-v0.3.0`
+(toolbox batch E0.3 and `circuit-model` batch C4). Do not start before then.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F4.1 | Grid option: show or hide, snap on or off, as a view setting kept in the browser. Exports never contain the grid | Steward, approved by Blake 2026-11-13 | Open | |
+| F4.2 | Weights: extend the copy script to pin all three packs from the tag, with a manifest and hashes for each; a weight selector that loads the matching pack. Check that every element has the same pin positions in all three packs, and stop if not | Steward, approved by Blake 2026-11-13 | Open | |
+| F4.3 | Theme: recolour symbols by `data-role` from the chosen theme; theme selector; canvas background; wire level colours in each theme; the export uses the chosen weight and theme. No hard-coded colour in the editor | Steward, approved by Blake 2026-11-13 | Waiting | Dark theme waits for Blake's approval of the VISION.md line. Weights (F4.2) don't wait |
+| F4.4 | Save and load the `style` block (weight and theme); validate against `circuit.schema.json`; load figures without one as regular and default | Steward, approved by Blake 2026-11-13 | Open | |
+| F4.5 | Tests and checks: Deno tests for the style round trip, recolouring and pack switching; a sample figure exported at thin, regular and bold and in dark; the 4x zoom check on a joint, a corner and a four-way junction at every weight and in dark; privacy scan | Steward, approved by Blake 2026-11-13 | Open | |
+
+**Scope limits.** No change in `manimations` or `circuit-model`. No per-element
+weights. No new dependency without asking.
+
+**Mandatory.** Draw only from the packs. Exported SVG has no external
+references, fonts or CSS variables. Keep the F2 and F3 tests passing.
+
+**Review stop.** Show Blake the sample at all three weights and in dark, plus
+a screenshot with the grid on and off, then wait. Going live (merging into
+`main`) is Blake's separate decision.
 
 ---
 
