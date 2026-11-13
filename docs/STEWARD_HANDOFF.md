@@ -53,14 +53,13 @@ Sync of 2026-11-12, 21:20 (Pacific). Facts only; work lives in the batches below
 
 ## Batches
 
-**Order of work (Blake, 2026-11-13, revised).** All of this work goes on the
-BETA page `tools/figure-editor-beta/`, a copy of the editor; the stable
-`tools/figure-editor/` is never touched until Blake promotes the beta.
-Session 1: **F2.4** (beta copy, dark canvas), **F6** (wires), **F7** (save and
-load). Session 2: **F5** (chapter 5 blocks). **F8** (editing tools) waits.
-Wires come before F5 because arrows and bus marks are wire properties. Bend
-handles, end reconnect and SVG import are next week. Each deploy to `main`
-happens when Blake says "deploy", or when his prompt authorises it.
+**Order of work (Blake, 2026-11-13, next week).** Each repository is a module
+with its own builder, joined only by versioned formats (`circuit`, `scenario`,
+`trace`, the symbol pack), each pinned by tag. Site order: **F5** (today), then
+**F12** and **F10** (no simulator needed), then **F9** and **F11** on the
+circuit-model C7 tag, then **F13** on the C8 tag, then **F14** when Blake says
+"promote". F8 and T1 wait. Work goes on the beta page until F14. Deploys follow
+Blake's prompt.
 
 | Batch | Intent | Status | Approved by Blake |
 |---|---|---|---|
@@ -79,6 +78,12 @@ happens when Blake says "deploy", or when his prompt authorises it.
 | F5 | Figure editor: configurable block (rect, chevron, triangle, circle) with presets, wire arrows, bus marks, level-coloured elements | Open | 2026-11-13 |
 | T1 | Timing diagram tool: a WaveDrom page in the lecture look, adjustable size, SVG export | Open | 2026-11-13 |
 | F8 | Figure editor: box select, copy and paste, align and distribute, label editing, shortcuts | Open | 2026-11-13 |
+| F12 | Figure editor: SVG import (own exports as circuits, other SVGs as a backdrop) | Open | 2026-11-13 |
+| F10 | Figure editor: slide frame for arranging the schematic and timing diagram | Open | 2026-11-13 |
+| F9 | Figure editor: play a scenario, timing diagram linked to the wires | Open | 2026-11-13 |
+| F11 | Figure editor: animated SVG, animated PNG and per-transition exports | Open | 2026-11-13 |
+| F13 | Figure editor: KiCad import | Open | 2026-11-13 |
+| F14 | Promote the beta editor to stable | Open | 2026-11-13 |
 
 ---
 
@@ -483,6 +488,118 @@ the site.
 used). Nothing in `manimations` or `circuit-model`.
 
 **Review stop.** Show Blake a sample diagram and its exported SVG, then wait.
+
+---
+
+### F12: SVG import
+
+**Blake's decisions (2026-11-13).**
+- Every SVG the editor exports embeds its `circuit` JSON (in `<metadata>`), so
+  importing one of our own SVGs restores the editable circuit exactly.
+- Any other SVG imports as a locked backdrop image behind the canvas, with an
+  opacity control, for tracing over by hand. Sanitise it: strip scripts, event
+  handlers and external references before displaying.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F12.1 | Embed the circuit in exported SVGs; import restores it (round-trip test) | Steward, approved by Blake 2026-11-13 | Open | |
+| F12.2 | Backdrop import with sanitising and opacity | Steward, approved by Blake 2026-11-13 | Open | |
+
+---
+
+### F10: slide frame
+
+**Blake's decisions (2026-11-13).** A slide-size rectangle (16:9 default, 4:3
+option) on the canvas where the schematic and the timing diagram are arranged
+together. Export the frame as one figure, or the schematic or the diagram on its
+own, at real size.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F10.1 | Slide frame, placement of the schematic and timing diagram, export of the frame or of either part | Steward, approved by Blake 2026-11-13 | Open | |
+
+---
+
+### F9: play a scenario
+
+**Prerequisites.** circuit-model tag with C6 and C7 (copied in with the pinned
+copy script, like the symbol pack; never import from the circuit-model repo
+directly).
+
+**Blake's decisions (2026-11-13).**
+- Load or create a scenario (input ports, steps). Play, pause and step. Wires
+  and level-coloured elements take their colour from the trace at each step; no
+  moving marks.
+- A timing diagram drawn from the same trace, in the lecture look, beside or
+  below the schematic, with the current step marked, and arrangeable in the F10
+  slide frame.
+- Signal state never relies on colour alone: show the value as text on request.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F9.1 | Scenario editing and playback driven by the pinned simulator | Steward, approved by Blake 2026-11-13 | Open | |
+| F9.2 | Linked timing diagram with current-step marker | Steward, approved by Blake 2026-11-13 | Open | |
+| F9.3 | Tests: full adder and D flip-flop scenarios match the simulator's trace | Steward, approved by Blake 2026-11-13 | Open | |
+
+---
+
+### F11: animation exports
+
+**Blake's decisions (2026-11-13).**
+- Animated SVG (self-playing, CSS or SMIL, no script), animated PNG (APNG,
+  built in the browser with no new dependency), and **per-transition** export:
+  one SVG or PNG per step, numbered, so the steps go on successive slides.
+- Each export works for the slide frame, the schematic alone or the timing
+  diagram alone. Default theme unless the dark-export option is on.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F11.1 | Animated SVG | Steward, approved by Blake 2026-11-13 | Open | |
+| F11.2 | Per-transition SVG and PNG sequence | Steward, approved by Blake 2026-11-13 | Open | |
+| F11.3 | APNG | Steward, approved by Blake 2026-11-13 | Open | |
+
+---
+
+### F13: KiCad import in the editor
+
+**Prerequisites.** circuit-model tag with C8. An "Import KiCad" action that runs
+the pinned importer in the browser and opens the result; report unknown parts
+(imported as blocks) in a short list.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F13.1 | Import action, error reporting, fixture test | Steward, approved by Blake 2026-11-13 | Open | |
+
+---
+
+### F14: promote the beta
+
+**Blake's decisions (2026-11-13).** Only when Blake says "promote": the beta
+replaces the stable editor at `tools/figure-editor/`, the duplicate code and the
+banner are removed, saved figures and autosave keep working, and the beta URL
+redirects to the stable one.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F14.1 | Promote, remove the duplicate, redirect, tests | Steward, approved by Blake 2026-11-13 | Open | |
+
+---
+
+## Reviews (Blake, 2026-11-13)
+
+Four reviewer agents are report-only. Each runs on demand when Blake names it,
+reads this repository (and the live site where relevant), and writes only its
+own file `reviews/<agent>.md` here: date, then its top 10 findings ranked, each
+with file and line, why it matters, and a suggested fix. They never change code,
+docs, config or this file. The Steward triages findings into batches; Blake
+approves them.
+
+| Agent | Looks for |
+|---|---|
+| security | Exposed private data (emails, phone numbers, CV files, student data), secrets and tokens, private-repo content leaking into public output, unsafe dependencies, web vulnerabilities (XSS in label and import paths, unsafe file parsing) |
+| engineer | Accuracy: logic, timing, symbols, pin placement and simulation results against the textbook behaviour; then features that are close to done |
+| aesthetic | Design consistency across the suite against the style files and the site theme; improvements using lightweight open-source tools only |
+| code-review | Correctness, duplication, dead code, test gaps and refactors, proposed as batches, never done directly |
 
 ---
 
