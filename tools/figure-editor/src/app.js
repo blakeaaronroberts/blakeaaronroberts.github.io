@@ -340,7 +340,9 @@ export async function mount(root, options = {}) {
   });
 
   // ---- editing ---------------------------------------------------------------------------
+  let unsaved = false;   // edits not yet written to a .json file; autosave stays in this browser only
   function changed(msg) {
+    unsaved = true;
     render();
     if (msg) status(msg);
     clearTimeout(autosaveTimer);
@@ -536,6 +538,7 @@ export async function mount(root, options = {}) {
     save() {
       const text = D.serialize(doc, pack);
       download(text, `${doc.id}.json`, "application/json");
+      unsaved = false;   // the file has been handed to the browser; the saved-list copy below is only a backup
       let saves = [];
       try { saves = JSON.parse(store.get(SAVES) ?? "[]"); } catch { saves = []; }
       saves.unshift({ id: doc.id, saved: new Date().toISOString(), text });
@@ -607,6 +610,7 @@ export async function mount(root, options = {}) {
       ["The file's nets did not match its drawing. Saving writes the nets the drawing makes."];
     if (record) commit(next, `Opened ${next.id}.`);
     else { doc = next; history.clear(); }
+    unsaved = false;   // what was just opened matches a file
     selection = none();
     render();
     queueTypeset().then(() => view.fit(lastDrawing?.box ?? null));
@@ -806,6 +810,8 @@ export async function mount(root, options = {}) {
     }
   });
 
+  window.addEventListener("beforeunload", (e) => { if (unsaved) { e.preventDefault(); e.returnValue = ""; } });
+
   // ---- start ----------------------------------------------------------------------------------
   renderPalette();
   render();
@@ -826,7 +832,7 @@ export async function mount(root, options = {}) {
   if (saved) {
     try { load(saved, false); status("Restored the autosaved figure."); } catch { /* an unreadable autosave is ignored */ }
   }
-  if (!opened && !saved) status("Pick an element on the left to place it, or press W to draw a wire. Press ? for the keys.");
+  if (!opened && !saved) status("Pick an element on the left to place it, or press W to draw a wire. Press ? for the keys. Autosave stays in this browser; use Save to take a figure to another computer.");
 
   return {
     get doc() { return doc; },
