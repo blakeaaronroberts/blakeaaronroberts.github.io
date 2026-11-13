@@ -17,6 +17,7 @@ import { busMark, tagAnchor, withArrows } from "./marks.js";
 import { dots, joints } from "./junctions.js";
 import { colourNodes, emModules, labelItems, levelTagTex, packLabelPt, placeLabel, REFERENCE_TEX } from "./labels.js";
 import { attr, walk, writeXml } from "./xml.js";
+import { frameTex, gridShape } from "./levelframes.js";
 
 export class ExportError extends Error {}
 
@@ -281,6 +282,55 @@ export function exportSvg(doc, pack, opts = {}) {
     for (const n of l.nodes) out.push(writeXml(n, "    "));
     out.push("  </g>");
   }
+  out.push("</svg>", "");
+  return out.join("\n");
+}
+
+/**
+ * Every frame on one slide: each frame's schematic (as exportSvg draws it, at that frame's levels) shrunk to
+ * fit a cell of a grid, with the frame's name under it as outlined paths. `slide` is {w, h} in modules, `frames`
+ * is [{name, doc}] (the document already at the frame's levels). Options as exportSvg, plus `typeset` holding
+ * frameTex(name) for every name. Never scaled up: a figure that fits is drawn at its real size.
+ */
+export function exportGridSvg(doc, pack, frames, slide, opts = {}) {
+  const scale = opts.scale ?? 1;
+  if (!frames.length) throw new ExportError("There are no frames to put on a slide.");
+  const typeset = opts.typeset ?? new Map();
+  const em = emModules(pack, opts.labelPt ?? packLabelPt(pack));
+  const gap = pack.theme.geometry.label_gap_cm / pack.theme.geometry.module_cm;
+  const ref = typeset.get(REFERENCE_TEX);
+  const margin = 1, n = frames.length;
+  const { cols, rows } = gridShape(n, slide.w / slide.h);
+  const cw = (slide.w - 2 * margin) / cols, ch = (slide.h - 2 * margin) / rows;
+  const labelRoom = em * 1.8 + gap;
+  const parts = frames.map((f) => {
+    const text = exportSvg(f.doc, pack, { ...opts, scale: 1, frame: null });
+    const vb = /viewBox="([^"]+)"/.exec(text)[1].split(" ").map(Number);
+    const inner = text.slice(text.indexOf("</metadata>") + "</metadata>".length, text.lastIndexOf("</svg>")).replace(/^\n/, "");
+    return { f, vb, inner };
+  });
+  const s = Math.min(1, ...parts.map((p) => Math.min(cw / p.vb[2], (ch - labelRoom) / p.vb[3])));
+  const out = [
+    `<?xml version="1.0" encoding="UTF-8"?>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="${fmt(slide.w * MODULE_CM * scale)}cm" height="${fmt(slide.h * MODULE_CM * scale)}cm" viewBox="0 0 ${fmt(slide.w)} ${fmt(slide.h)}" overflow="hidden">`,
+    `  <title>${esc(doc.title ?? doc.id)}</title>`,
+    metadataOf(serialize(doc, pack)),
+  ];
+  parts.forEach((p, i) => {
+    const col = i % cols, row = Math.floor(i / cols);
+    const cx = margin + (col + 0.5) * cw, top = margin + row * ch;
+    const figH = ch - labelRoom;
+    const [vx, vy, vw, vh] = p.vb;
+    // centre the figure's box in the cell's figure area
+    const tx = cx - (vx + vw / 2) * s, ty = top + (figH - vh * s) / 2 - vy * s;
+    out.push(`  <g transform="translate(${fmt(tx)} ${fmt(ty)}) scale(${fmt(s)})">`, p.inner.replace(/\n$/, ""), "  </g>");
+    const ts = typeset.get(frameTex(p.f.name));
+    if (!ts?.ok) throw new ExportError(`The name "${p.f.name}" could not be drawn${ts?.error ? `: ${ts.error}` : ""}.`);
+    const placed = placeLabel(ts, ref, [cx, top + (figH + vh * s) / 2], [0, 1], em, gap);
+    out.push(`  <g transform="${placed.transform}">`);
+    for (const node of colourNodes(ts.nodes, pack.theme.roles.ink)) out.push(writeXml(node, "    "));
+    out.push("  </g>");
+  });
   out.push("</svg>", "");
   return out.join("\n");
 }

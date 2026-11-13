@@ -9,7 +9,7 @@
 import { LEVELS, loadPack, parsePrivateTheme } from "./pack.js";
 import * as D from "./doc.js";
 import { History } from "./history.js";
-import { drawing, exportSize, exportSvg, labelBoxes } from "./export.js";
+import { drawing, exportSize, exportSvg, exportGridSvg, labelBoxes } from "./export.js";
 import { hitTest, inBox } from "./hit.js";
 import { packLabelPt, texNeeded } from "./labels.js";
 import { typesetAll } from "./mathjax.js";
@@ -19,8 +19,9 @@ import { BLOCK, formatPins, handlesOf, parsePins, SHAPES, geometryOf } from "./b
 import { PRESETS, presetById } from "./presets.js";
 import { sections } from "./categories.js";
 import { circuitFromSvg, sanitizeSvg, MAX_SVG_BYTES } from "./svgimport.js";
-import { FORMATS, LAYOUTS, centreOn, cleanFrame, frameBox, overflow } from "./frame.js";
+import { FORMATS, LAYOUTS, centreOn, cleanFrame, frameBox, overflow, sizeOf } from "./frame.js";
 import { orient } from "./geometry.js";
+import { applyFrame, captureFrame, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame } from "./levelframes.js";
 
 const AUTOSAVE = "figure-editor-beta/autosave";
 const SAVES = "figure-editor-beta/saves";               // the last 10 manual saves
@@ -179,6 +180,16 @@ export async function mount(root, options = {}) {
         <p class="fe-hint">The frame exports at the slide's real size, exactly what lies inside it at 1:1 (times the Scale option). The Export SVG button writes the schematic alone. The timing diagram, and its own export, arrive with the scenario player. The frame is kept in this browser, not in the circuit file.</p>
         <p class="fe-frame-note" aria-live="polite"></p>
       </details>
+      <details class="fe-pane fe-frames-pane" name="fe-doc">
+        <summary class="label-mono">Frames</summary>
+        <p class="fe-hint">A frame is a snapshot of the wire and element levels, one per transition. Set the levels, then Capture. Frames are saved in the figure file.</p>
+        <div class="fe-theme-buttons" role="group" aria-label="Frames">${btn("framecapture", "Capture frame")}${btn("framerecapture", "Update selected")}</div>
+        <ol class="fe-frame-list" aria-label="Frames"></ol>
+        <div class="fe-theme-buttons" role="group" aria-label="Edit the selected frame">${btn("framerename", "Rename")}${btn("frameup", "Move up")}${btn("framedown", "Move down")}${btn("framedelete", "Delete")}</div>
+        <label class="form-label">Export each frame as <select class="form-select form-select-sm" name="fe-frames-what"><option value="schematic">The schematic alone</option><option value="slide">The slide frame</option></select></label>
+        <div class="fe-theme-buttons" role="group" aria-label="Export frames">${btn("framesexport", "Export frames")}${btn("framesslide", "Export all on one slide")}</div>
+        <p class="fe-hint">Export frames writes one SVG and one PNG per frame, numbered 01, 02, … (your browser may ask to allow several downloads). The one-slide export lays every frame out as a grid of small figures, labelled with their names, at the slide's size.</p>
+      </details>
       <details class="fe-pane fe-backdrop-pane" name="fe-doc">
         <summary class="label-mono">Backdrop</summary>
         <p class="fe-hint fe-backdrop-note">Open an SVG that this editor did not make to trace over it. It sits behind the grid, locked, and is never saved or exported.</p>
@@ -228,6 +239,8 @@ export async function mount(root, options = {}) {
   let loadWarnings = [];
   let spaceHeld = false;
   let lastDrawing = null;
+  let selectedFrame = -1;            // the frame chosen in the Frames list (level frames, F11.2)
+  const framesWhat = $('[name="fe-frames-what"]');
   let autosaveTimer = null;
   const typeset = new Map();         // TeX to parseTypeset's result (every label drawn is typeset once)
 
@@ -363,7 +376,7 @@ export async function mount(root, options = {}) {
     $(".fe-warnings").hidden = !warnings.length;
     if (lastDrawing) {
       const { widthCm, heightCm } = exportSize(lastDrawing, opt.scale);
-      syncFrame();
+      syncFrame(); renderFrames();
       $(".fe-size").textContent = lastDrawing.box ? `File size: ${widthCm.toFixed(2)} × ${heightCm.toFixed(2)} cm${opt.scale === 1 ? " (real size)" : ""}` : "Nothing to export yet.";
     }
     $(".fe-theme-note").textContent = privateRoles
@@ -765,6 +778,55 @@ export async function mount(root, options = {}) {
       saveOptions(); syncFrame(); render();
       status("The frame is centred on the figure.");
     },
+    framecapture() {
+      commit(captureFrame(doc), null);
+      const frames = framesOf(doc);
+      selectedFrame = frames.length - 1;
+      status(`Captured "${frames[selectedFrame].name}" (frame ${selectedFrame + 1}) from the current levels.`);
+      renderFrames();
+    },
+    framerecapture() {
+      if (!frameSelected()) return;
+      commit(recaptureFrame(doc, selectedFrame), `Frame "${framesOf(doc)[selectedFrame].name}" now holds the current levels.`);
+    },
+    framerename() {
+      if (!frameSelected()) return;
+      const name = window.prompt("Name of this frame", framesOf(doc)[selectedFrame].name);
+      if (name && name.trim()) commit(renameFrame(doc, selectedFrame, name), `Renamed to "${name.trim()}".`);
+    },
+    frameup() { moveSelected(-1); },
+    framedown() { moveSelected(1); },
+    framedelete() {
+      if (!frameSelected()) return;
+      commit(removeFrame(doc, selectedFrame), "Frame deleted.");
+      selectedFrame = Math.min(selectedFrame, framesOf(doc).length - 1);
+      renderFrames();
+    },
+    async framesexport() {
+      const frames = framesOf(doc);
+      if (!frames.length) { status("There are no frames yet: set the levels and press Capture frame."); return; }
+      const framed = framesWhat.value === "slide";
+      try {
+        for (const [i, f] of frames.entries()) {
+          const at = applyFrame(doc, f), nn = numbered(i, frames.length), name = `${doc.id}-${nn}`;
+          const text = await svgNow(framed, at);
+          download(text, `${name}.svg`, "image/svg+xml");
+          download(await pngOf(text), `${name}.png`, "image/png");
+          await new Promise((r) => setTimeout(r, 200));   // so the browser takes every download
+        }
+        status(`Exported ${frames.length} frames as ${doc.id}-${numbered(0, frames.length)} to ${numbered(frames.length - 1, frames.length)}, each as SVG and PNG${framed ? ", at the slide frame" : ""}.`);
+      } catch (e) { status(e.message, true); }
+    },
+    async framesslide() {
+      const frames = framesOf(doc);
+      if (!frames.length) { status("There are no frames yet: set the levels and press Capture frame."); return; }
+      try {
+        const text = await slideNow(frames);
+        download(text, `${doc.id}-all-frames.svg`, "image/svg+xml");
+        download(await pngOf(text), `${doc.id}-all-frames.png`, "image/png");
+        status(`Exported ${doc.id}-all-frames: ${frames.length} frames on one slide, SVG and PNG.`);
+      } catch (e) { status(e.message, true); }
+    },
     async png() {
       try {
         const blob = await pngNow();
@@ -788,16 +850,17 @@ export async function mount(root, options = {}) {
   };
 
   /** The SVG as the export option settings say; labels are typeset first. Throws if one cannot be drawn. */
-  async function svgNow(framed = false) {
-    await typesetAll(texNeeded(doc, pack, { levelTags: opt.levelTags }), typeset);
-    return exportSvg(doc, packFor(opt.exportDark), { ...drawOpts(), frame: framed ? frameBox(opt.frame) : null });   // light by default; dark only if asked
+  async function svgNow(framed = false, at = doc) {
+    await typesetAll(texNeeded(at, pack, { levelTags: opt.levelTags }), typeset);
+    return exportSvg(at, packFor(opt.exportDark), { ...drawOpts(), frame: framed ? frameBox(opt.frame) : null });   // light by default; dark only if asked
   }
 
   const DPI = 300, MAX_PIXELS = 16000;
 
   /** The figure as a PNG at 300 dpi at its exported size (scale option included), on a transparent background. */
-  async function pngNow(framed = false) {
-    const text = await svgNow(framed);
+  async function pngNow(framed = false) { return pngOf(await svgNow(framed)); }
+
+  async function pngOf(text) {
     const cm = (name) => +new RegExp(`${name}="([\\d.]+)cm"`).exec(text)[1];
     let dpi = DPI;
     const longest = Math.max(cm("width"), cm("height"));
@@ -810,6 +873,39 @@ export async function mount(root, options = {}) {
     canvas.width = w; canvas.height = h;
     canvas.getContext("2d").drawImage(img, 0, 0, w, h);
     return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("could not make the PNG"))), "image/png"));
+  }
+
+
+  // ---- level frames (F11.2) ---------------------------------------------------------------------------
+  const frameSelected = () => { if (framesOf(doc)[selectedFrame]) return true; status("Select a frame in the list first."); return false; };
+  function moveSelected(by) {
+    if (!frameSelected()) return;
+    const n = framesOf(doc).length, j = selectedFrame + by;
+    if (j < 0 || j >= n) return;
+    commit(moveFrame(doc, selectedFrame, by), null);
+    selectedFrame = j;
+    renderFrames();
+  }
+  function renderFrames() {
+    const frames = framesOf(doc);
+    if (selectedFrame >= frames.length) selectedFrame = frames.length - 1;
+    const ol = $(".fe-frame-list");
+    ol.innerHTML = frames.length ? frames.map((f, i) => `<li><button type="button" class="fe-frame-item${i === selectedFrame ? " is-selected" : ""}" data-frame="${i}" aria-pressed="${i === selectedFrame}">${numbered(i, frames.length)} ${esc(f.name)}</button></li>`).join("") : `<li class="fe-hint">No frames yet.</li>`;
+  }
+  $(".fe-frame-list").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-frame]");
+    if (!b) return;
+    selectedFrame = +b.dataset.frame;
+    const f = framesOf(doc)[selectedFrame];
+    commit(applyFrame(doc, f), `Showing frame "${f.name}": its levels are on the canvas.`);
+    renderFrames();
+  });
+
+  /** One slide with every frame as a small figure, labelled with its name. */
+  async function slideNow(frames) {
+    const pk = packFor(opt.exportDark), size = sizeOf(opt.frame);
+    await typesetAll([...texNeeded(doc, pk, { levelTags: opt.levelTags }), ...frames.map((f) => frameTex(f.name))], typeset);
+    return exportGridSvg(doc, pk, frames.map((f) => ({ name: f.name, doc: applyFrame(doc, f) })), size, drawOpts());
   }
 
   function download(content, name, type) {

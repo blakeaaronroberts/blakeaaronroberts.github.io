@@ -141,3 +141,7 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 .fe-cat > summary:hover { color: var(--role-accent, inherit); }
 .fe-count { font-weight: 400; opacity: .7; }
 .fe-count::before { content: "("; } .fe-count::after { content: ")"; }
+
+.fe-frame-list { list-style: none; margin: .4rem 0; padding: 0; display: grid; gap: .2rem; max-height: 14rem; overflow: auto; }
+.fe-frame-item { width: 100%; text-align: left; padding: .2rem .5rem; border: 1px solid var(--role-rule, currentColor); background: transparent; color: inherit; font: inherit; border-radius: 4px; }
+.fe-frame-item.is-selected { background: var(--role-accent, #0072B2); color: var(--role-background, #fff); }
