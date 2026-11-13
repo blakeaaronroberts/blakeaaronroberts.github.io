@@ -30,6 +30,7 @@ export function createView(svg, basePack) {
       </pattern>
     </defs>
     <rect class="fe-paper"/>
+    <image class="fe-backdrop" pointer-events="none" visibility="hidden"/>
     <rect class="fe-gridlayer" fill="url(#fe-grid)"/>
     <g class="fe-scene"></g>
     <g class="fe-overlay" fill="none"></g>`;
@@ -171,6 +172,17 @@ export function createView(svg, basePack) {
   }
 
   applyCamera();
+  /** A locked image behind the grid, for tracing: {href, x, y, width, height (modules, top-left), opacity} or null to remove it. */
+  function setBackdrop(b) {
+    const img = svg.querySelector(".fe-backdrop");
+    if (!b) { img.setAttribute("visibility", "hidden"); img.removeAttribute("href"); return; }
+    img.setAttribute("href", b.href);
+    for (const k of ["x", "y", "width", "height"]) img.setAttribute(k, String(b[k]));
+    img.setAttribute("opacity", String(b.opacity));
+    img.setAttribute("preserveAspectRatio", "none");
+    img.setAttribute("visibility", "visible");
+  }
+
   /** Dot spacing, in grid steps (1 = half a module, 2 = a module). Dots sit on multiples of it. */
   function setGrid(steps) {
     const w = steps / STEPS_PER_MODULE, pat = svg.querySelector("#fe-grid");
@@ -182,7 +194,7 @@ export function createView(svg, basePack) {
   /** Redraw the palette's symbols with a pack's colour mapping (the light or dark canvas). */
   const setSymbols = (pack) => { svg.querySelector(".fe-symbols").innerHTML = symbolsFor(pack); };
 
-  return { render, toGrid, zoomAt, panBy, fit, applyCamera, setGrid, setSymbols, cam };
+  return { render, toGrid, zoomAt, panBy, fit, applyCamera, setGrid, setSymbols, setBackdrop, cam };
 }
 
 const total = (s) => s.elements.length + s.wires.length + s.ports.length + s.labels.length;

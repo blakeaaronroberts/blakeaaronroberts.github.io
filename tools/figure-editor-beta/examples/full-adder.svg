@@ -1,6 +1,65 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="23.03866cm" height="11.20002cm" viewBox="-21.03866 -14.20013 46.07732 22.40003">
   <title>Full adder from gates (sample)</title>
+  <metadata>{
+  "schema": "circuit/0.2",
+  "id": "full_adder_gates",
+  "title": "Full adder from gates (sample)",
+  "grid_cm": 0.25,
+  "elements": [
+    { "id": "xor1", "type": "xor_gate", "at": [0, 24] },
+    { "id": "and1", "type": "and_gate", "at": [0, 12] },
+    { "id": "and2", "type": "and_gate", "at": [0, 0] },
+    { "id": "and3", "type": "and_gate", "at": [0, -12] },
+    { "id": "xor2", "type": "xor_gate", "at": [20, 22] },
+    { "id": "or1", "type": "or_gate", "at": [20, 6] },
+    { "id": "or2", "type": "or_gate", "at": [36, -2] }
+  ],
+  "ports": [
+    { "id": "A", "dir": "in", "at": [-40, 13] },
+    { "id": "B", "dir": "in", "at": [-40, 7] },
+    { "id": "Cin", "dir": "in", "at": [-40, -1] },
+    { "id": "S", "dir": "out", "at": [48, 22] },
+    { "id": "Cout", "dir": "out", "at": [48, -2] }
+  ],
+  "nets": {
+    "A": ["A", "and1.A", "and3.A", "xor1.A"],
+    "B": ["B", "and1.B", "and2.A", "xor1.B"],
+    "Cin": ["Cin", "and2.B", "and3.B", "xor2.B"],
+    "Cout": ["Cout", "or2.Y"],
+    "S": ["S", "xor2.Y"],
+    "n1": ["and1.Y", "or1.A"],
+    "n2": ["and2.Y", "or1.B"],
+    "n3": ["and3.Y", "or2.B"],
+    "n4": ["or1.Y", "or2.A"],
+    "n5": ["xor1.Y", "xor2.A"]
+  },
+  "wires": [
+    { "id": "w1", "from": "xor1.A", "to": "and3.A", "via": [[-30, 25], [-30, -11]] },
+    { "id": "w2", "from": "xor1.B", "to": "and2.A", "via": [[-26, 23], [-26, 1]] },
+    { "id": "w3", "from": "xor2.B", "to": "and3.B", "via": [[-22, 21], [-22, -13]] },
+    { "id": "w4", "from": "A", "to": "j1" },
+    { "id": "w5", "from": "j1", "to": "and1.A" },
+    { "id": "w6", "from": "Cin", "to": "j2" },
+    { "id": "w7", "from": "j2", "to": "and2.B" },
+    { "id": "w8", "from": "B", "to": "j3" },
+    { "id": "w9", "from": "j4", "to": "and1.B" },
+    { "id": "w10", "from": "xor1.Y", "to": "xor2.A" },
+    { "id": "w11", "from": "xor2.Y", "to": "S" },
+    { "id": "w12", "from": "and1.Y", "to": "or1.A" },
+    { "id": "w13", "from": "and2.Y", "to": "or1.B" },
+    { "id": "w14", "from": "or1.Y", "to": "or2.A" },
+    { "id": "w15", "from": "and3.Y", "to": "or2.B" },
+    { "id": "w16", "from": "or2.Y", "to": "Cout" }
+  ],
+  "junctions": [
+    { "id": "j1", "on": "w1", "at": [-30, 13] },
+    { "id": "j2", "on": "w3", "at": [-22, -1] },
+    { "id": "j3", "on": "w2", "at": [-26, 7] },
+    { "id": "j4", "on": "w2", "at": [-26, 11] }
+  ]
+}
+</metadata>
   <g fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" stroke-linejoin="round">
     <path d="M -2.5 -12.5 L -15 -12.5 L -15 5.5 L -2 5.5"/>
     <path d="M -2.5 -11.5 L -13 -11.5 L -13 -0.5 L -2 -0.5"/>

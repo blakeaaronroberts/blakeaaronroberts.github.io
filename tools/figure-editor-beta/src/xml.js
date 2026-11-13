@@ -1,7 +1,7 @@
 // A small XML reader and writer for the symbol pack's SVGs. No DOM, so the core
 // (and the export) runs in tests exactly as in the browser. It handles what the
 // toolbox exporter writes: elements, attributes, comments, the XML declaration.
-// Text content is refused except in <title> and <desc> (and in whatever `textTags` adds): the pack carries text as outlined paths.
+// Text content is refused except in <title>, <desc> and <metadata> (the exported circuit) (and in whatever `textTags` adds): the pack carries text as outlined paths.
 
 const ENT = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
 const decode = (s) => s.replace(/&(amp|lt|gt|quot|apos);/g, (_, e) => ENT[e]);
@@ -18,7 +18,7 @@ export function parseXml(text, textTags = []) {
     const chunk = text.slice(i, lt < 0 ? text.length : lt);
     if (chunk.trim()) {
       const open = stack[stack.length - 1];
-      if (open.tag !== "title" && open.tag !== "desc" && !textTags.includes(open.tag)) fail(`unexpected text "${chunk.trim().slice(0, 20)}"`);
+      if (open.tag !== "title" && open.tag !== "desc" && open.tag !== "metadata" && !textTags.includes(open.tag)) fail(`unexpected text "${chunk.trim().slice(0, 20)}"`);
       open.children.push({ tag: "#text", text: decode(chunk), attrs: [], children: [] });
     }
     if (lt < 0) break;

@@ -607,3 +607,74 @@ scenarios.levels = async (ctx) => {
   }
   return res;
 };
+
+/** F12: Open an exported SVG (the circuit comes back), Open some other SVG (a locked, sanitised backdrop), and a bad one. */
+scenarios.import = async (ctx) => {
+  const res = [];
+  const tmp = await Deno.makeTempDir({ prefix: "fe-import-" });
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    const status = () => page.eval(`({ text: document.querySelector(".fe-status").textContent, error: document.querySelector(".fe-status").hasAttribute("data-error") })`);
+    const openFile = async (name, text) => {
+      const path = `${tmp}/${name}`;
+      await Deno.writeTextFile(path, text);
+      await page.setFile(".fe-file", path);
+      await page.sleep(1200);
+    };
+    await page.goto(`${ctx.url}?open=examples/cla-chevron.json`);
+    await page.waitFor(ready);
+    await page.sleep(2500);
+    const original = await page.eval(`window.figureEditor.save()`);
+    const svgText = await page.eval(`window.figureEditor.exportSvg()`);
+    res.push([svgText.includes("<metadata>") && !/<text|href=|script/.test(svgText), "the exported SVG carries its circuit in <metadata> and still has no text, links or scripts"]);
+
+    // 1. Our own export: New, then Open the SVG; the same figure comes back.
+    await page.eval(`document.querySelector('[data-cmd="new"]').click()`);
+    await page.sleep(300);
+    res.push([await page.eval(`window.figureEditor.doc.elements.length === 0`), "New clears the canvas"]);
+    await openFile("cla.svg", svgText);
+    res.push([(await page.eval(`window.figureEditor.save()`)) === original, "Open on our own SVG restores the identical circuit (byte for byte)"]);
+    res.push([/from the circuit inside cla\.svg/.test((await status()).text), `the status line says where it came from: "${(await status()).text.slice(0, 60)}"`]);
+
+    // 2. Another SVG becomes a locked backdrop. It holds a script, a handler and an external reference.
+    const other = `<svg xmlns="http://www.w3.org/2000/svg" width="12cm" height="6cm" viewBox="0 0 120 60" onload="window.__pwned = 1">
+      <script>window.__pwned = 2</script><image href="http://127.0.0.1:1/x.png" width="10" height="10"/>
+      <rect x="2" y="2" width="116" height="56" fill="none" stroke="#c00" stroke-width="2" onclick="window.__pwned = 3"/><circle cx="60" cy="30" r="20" fill="#06c"/></svg>`;
+    await openFile("trace.svg", other);
+    const bd = await page.eval(`(() => { const i = document.querySelector(".fe-backdrop"); return { vis: i.getAttribute("visibility"), href: (i.getAttribute("href") || "").slice(0, 40), w: +i.getAttribute("width"), op: i.getAttribute("opacity"), pwned: window.__pwned ?? null, events: i.getAttribute("pointer-events") }; })()`);
+    res.push([bd.vis === "visible" && bd.href.startsWith("data:image/svg+xml"), `another SVG shows as a backdrop (${bd.href})`]);
+    res.push([Math.abs(bd.w - 24) < 0.01, `its natural size is read in modules: 12 cm is ${bd.w} modules`]);
+    res.push([bd.pwned === null && bd.events === "none", "no script ran, and the backdrop takes no pointer events (locked)"]);
+    const decoded = await page.eval(`decodeURIComponent(document.querySelector(".fe-backdrop").getAttribute("href").split(",").slice(1).join(","))`);
+    res.push([!/script|onclick|onload|http:/.test(decoded.replace("http://www.w3.org/2000/svg", "")) && /<circle/.test(decoded), "the stored image has no script, handler or external reference, and keeps the drawing"]);
+    res.push([(await page.eval(`window.figureEditor.save()`)) === original, "the backdrop is not part of the saved circuit"]);
+    res.push([!(await page.eval(`window.figureEditor.exportSvg()`)).includes("circle cx"), "and not part of the SVG export"]);
+
+    // Opacity and scale from the panel.
+    await page.eval(`(() => { for (const [n, v] of [["fe-bd-opacity", "20"], ["fe-bd-scale", "50"]]) { const i = document.querySelector('[name="' + n + '"]'); i.value = v; i.dispatchEvent(new Event("change", { bubbles: true })); } })()`);
+    await page.sleep(300);
+    const after = await page.eval(`(() => { const i = document.querySelector(".fe-backdrop"); return { op: i.getAttribute("opacity"), w: +i.getAttribute("width") }; })()`);
+    res.push([after.op === "0.2" && Math.abs(after.w - 12) < 0.01, `opacity 20% and scale 50% apply (opacity ${after.op}, width ${after.w} modules)`]);
+    await page.eval(`(() => { const i = document.querySelector('[name="fe-bd-opacity"]'); i.value = "35"; i.dispatchEvent(new Event("change", { bubbles: true })); })()`);
+    await page.sleep(300);
+    await page.shot(`${ctx.out}/beta-backdrop.png`);
+    // Clicking over the backdrop where there is no figure selects nothing.
+    const sel0 = await page.eval(`document.querySelector(".fe-props").textContent`);
+    await page.click(700, 200);
+    await page.sleep(200);
+    res.push([(await page.eval(`document.querySelector(".fe-props").textContent`)) === sel0, "clicking on the backdrop selects nothing"]);
+    await page.eval(`document.querySelector('[data-cmd="backdropremove"]').click()`);
+    await page.sleep(200);
+    res.push([(await page.eval(`document.querySelector(".fe-backdrop").getAttribute("visibility")`)) === "hidden", "Remove backdrop takes it away"]);
+
+    // 3. Files that cannot be opened say why and leave the figure alone.
+    await openFile("empty.svg", "<svg xmlns='http://www.w3.org/2000/svg'><rect/></svg>");
+    let s = await status();
+    res.push([s.error && /no size/.test(s.text) && (await page.eval(`window.figureEditor.save()`)) === original, `an SVG with no size is refused: "${s.text.slice(0, 70)}"`]);
+    await openFile("notsvg.svg", "<html><body>hi</body></html>");
+    s = await status();
+    res.push([s.error && /not an SVG/.test(s.text), `a non-SVG is refused: "${s.text.slice(0, 60)}"`]);
+    res.push([page.errors.length === 0, `no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); try { await Deno.remove(tmp, { recursive: true }); } catch { /* temp */ } }
+  return res;
+};

@@ -502,8 +502,8 @@ used). Nothing in `manimations` or `circuit-model`.
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| F12.1 | Embed the circuit in exported SVGs; import restores it (round-trip test) | Steward, approved by Blake 2026-11-13 | Open | |
-| F12.2 | Backdrop import with sanitising and opacity | Steward, approved by Blake 2026-11-13 | Open | |
+| F12.1 | Embed the circuit in exported SVGs; import restores it (round-trip test) | Steward, approved by Blake 2026-11-13 | Done | Branch beta-f12, beta page only. Every SVG export now carries the figure's exact circuit/0.2 text, XML-escaped, in a <metadata> element (still no text elements, fonts, links, ids or scripts). Open accepts .json and .svg: an SVG with a circuit inside restores it byte for byte (round-trip tests on all three samples; browser check: export, New, Open the file, identical). New src/svgimport.js (DOM-free). |
+| F12.2 | Backdrop import with sanitising and opacity | Steward, approved by Blake 2026-11-13 | Done | Branch beta-f12. Any other SVG becomes a locked backdrop behind the grid. It is rewritten from an allow-list (scripts, event handlers, style elements, images, foreignObject, filters, animation, DOCTYPE and entities, every non-local href and url(), prefixed editor attributes: all removed; unrelated wrappers such as <a> are unwrapped) and then shown through an <image>, where a browser runs nothing and loads nothing. Natural size is read in modules from width and height or the viewBox; opacity, scale and position are in a Backdrop panel; Remove backdrop. It takes no pointer events, is never saved, autosaved or exported, and is lost on reload (say if it should persist). 5 MB limit. Embedded raster images inside the SVG are dropped. Browser check: check.js import (a hostile SVG shows no script run, a bad file is refused with its reason, the figure unchanged). |
 
 ---
 
@@ -606,6 +606,8 @@ approves them.
 ## Notes for the Scribe
 
 (Builders: add a dated line here when a doc no longer matches the code.)
+
+- 2026-11-13 (F5, F12, beta editor): `tools/figure-editor-beta/README.md` does not describe the block element and its 21 presets, wire arrows and bus marks, element level, SVG import (the circuit inside exported SVGs; backdrop), or the commands `quarto run tools/figure-editor-beta/scripts/tex-needed.js` and `.../test/browser/check.js [dark] [wires] [saves] [blocks] [marks] [levels] [import]`. Exported SVGs now hold a `<metadata>` element with the circuit text. The KEYS list in `src/app.js` has the new keys.
 
 - 2026-11-13 (F2, branch `figure-editor`): new page `tools/figure-editor/` and commands
   `quarto run tools/figure-editor/scripts/copy-symbol-pack.js`, `.../test/run.js` and

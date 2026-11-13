@@ -17,6 +17,7 @@ import { nearestOnPolyline, route } from "./router.js";
 import { createView, thumbnail, blockThumbnail } from "./view.js";
 import { BLOCK, formatPins, handlesOf, parsePins, SHAPES, geometryOf } from "./block.js";
 import { PRESETS, presetById } from "./presets.js";
+import { circuitFromSvg, sanitizeSvg, MAX_SVG_BYTES } from "./svgimport.js";
 import { orient } from "./geometry.js";
 
 const AUTOSAVE = "figure-editor-beta/autosave";
@@ -131,7 +132,7 @@ export async function mount(root, options = {}) {
         ${btn("new", "New")}${btn("open", "Open…")}${btn("save", "Save", "Control+S")}${btn("export", "Export SVG")}${btn("png", "Copy as PNG")}
       </div>
       <div class="fe-group fe-group-end"><span class="fe-badge label-mono">BETA, may break</span><a class="fe-badge-link label-mono" href="../figure-editor/">Stable editor</a>${btn("help", "?", "?", ' aria-label="Keys"')}</div>
-      <input type="file" class="fe-file" accept=".json,application/json" hidden>
+      <input type="file" class="fe-file" accept=".json,.svg,application/json,image/svg+xml" hidden>
       <input type="file" class="fe-theme-file" accept=".json,application/json" hidden>
     </div>
     <details class="fe-palette fe-pane" open>
@@ -167,6 +168,16 @@ export async function mount(root, options = {}) {
         <label class="form-label">Canvas <select class="form-select form-select-sm" name="fe-canvas"><option value="auto">Auto (follows system)</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
         <p class="fe-theme-note"></p>
         <div class="fe-theme-buttons" role="group" aria-label="Theme">${btn("theme", "Private theme…")}${btn("themereset", "Default theme")}</div>
+      </details>
+      <details class="fe-pane fe-backdrop-pane" name="fe-doc">
+        <summary class="label-mono">Backdrop</summary>
+        <p class="fe-hint fe-backdrop-note">Open an SVG that this editor did not make to trace over it. It sits behind the grid, locked, and is never saved or exported.</p>
+        <div class="fe-backdrop-controls" hidden>
+          <label class="form-label">Opacity (%) <input class="form-control form-control-sm" type="number" name="fe-bd-opacity" min="0" max="100" step="5"></label>
+          <label class="form-label">Scale (%) <input class="form-control form-control-sm" type="number" name="fe-bd-scale" min="5" max="2000" step="5"></label>
+          <label class="form-label">Shift right, up (grid steps) <span class="fe-pair"><input class="form-control form-control-sm" type="number" name="fe-bd-x" step="1"><input class="form-control form-control-sm" type="number" name="fe-bd-y" step="1"></span></label>
+          <div class="fe-theme-buttons">${btn("backdropremove", "Remove backdrop")}</div>
+        </div>
       </details>
       <details class="fe-pane fe-warnings" open>
         <summary class="label-mono">Warnings</summary>
@@ -823,12 +834,44 @@ export async function mount(root, options = {}) {
   exportDarkInput.addEventListener("change", () => { opt.exportDark = exportDarkInput.checked; saveOptions(); status(opt.exportDark ? "SVG and PNG exports will use the dark theme." : "SVG and PNG exports will use the default light theme."); });
   tagsInput.checked = !!opt.levelTags;
   tagsInput.addEventListener("change", () => { opt.levelTags = tagsInput.checked; saveOptions(); render(); queueTypeset(); });
+  // ---- a backdrop to trace over (F12.2): never part of the figure, never saved or exported ----------------------
+  let backdrop = null;                     // {href, width, height (modules at 100%), cx, cy (modules), scale, opacity}
+  const bdOpacity = $('[name="fe-bd-opacity"]'), bdScale = $('[name="fe-bd-scale"]'), bdX = $('[name="fe-bd-x"]'), bdY = $('[name="fe-bd-y"]');
+  function applyBackdrop() {
+    if (!backdrop) { view.setBackdrop(null); $(".fe-backdrop-controls").hidden = true; return; }
+    const w = backdrop.width * backdrop.scale, h = backdrop.height * backdrop.scale;
+    view.setBackdrop({ href: backdrop.href, x: backdrop.cx - w / 2, y: backdrop.cy - h / 2, width: w, height: h, opacity: backdrop.opacity });
+    $(".fe-backdrop-controls").hidden = false;
+    bdOpacity.value = String(Math.round(backdrop.opacity * 100)); bdScale.value = String(Math.round(backdrop.scale * 100));
+    bdX.value = String(Math.round(backdrop.cx * 2)); bdY.value = String(Math.round(-backdrop.cy * 2));
+  }
+  function importBackdrop(text, name) {
+    const r = sanitizeSvg(text);
+    backdrop = { href: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(r.svg)}`, width: r.width, height: r.height, cx: view.cam.cx, cy: view.cam.cy, scale: 1, opacity: 0.5 };
+    applyBackdrop();
+    $(".fe-backdrop-pane").open = true;
+    status(`${name} is not one of this editor's exports, so it is a locked backdrop to trace over (scripts and external references removed). Opacity, scale and position are in the Backdrop panel; it is never saved or exported.`);
+  }
+  commands.backdropremove = () => { backdrop = null; applyBackdrop(); status("Backdrop removed."); };
+  bdOpacity.addEventListener("change", () => { if (backdrop && bdOpacity.value !== "") backdrop.opacity = Math.min(1, Math.max(0, +bdOpacity.value / 100)); applyBackdrop(); });
+  bdScale.addEventListener("change", () => { if (backdrop && +bdScale.value >= 5) backdrop.scale = Math.min(20, +bdScale.value / 100); applyBackdrop(); });
+  for (const input of [bdX, bdY]) input.addEventListener("change", () => { if (backdrop) { backdrop.cx = (+bdX.value || 0) / 2; backdrop.cy = -(+bdY.value || 0) / 2; } applyBackdrop(); });
+
   fileInput.addEventListener("change", async () => {
     const f = fileInput.files[0];
     fileInput.value = "";
     if (!f) return;
-    if (f.size > 5e6) { status(`Could not open ${f.name}: it is ${(f.size / 1e6).toFixed(1)} MB, far too large for a circuit file. The figure on the canvas is unchanged.`, true); return; }
-    try { load(await f.text()); } catch (e) { status(`Could not open ${f.name}: ${e.message}. The figure on the canvas is unchanged.`, true); }
+    const isSvg = /\.svg$/i.test(f.name) || f.type === "image/svg+xml";
+    const limit = isSvg ? MAX_SVG_BYTES : 5e6;
+    if (f.size > limit) { status(`Could not open ${f.name}: it is ${(f.size / 1e6).toFixed(1)} MB, over the ${limit / 1e6} MB limit. The figure on the canvas is unchanged.`, true); return; }
+    try {
+      const text = await f.text();
+      if (isSvg || /^\s*<(\?xml|svg)/.test(text)) {
+        const circuit = circuitFromSvg(text);
+        if (circuit) { load(circuit); status(`Opened ${doc.id} from the circuit inside ${f.name}.`); }
+        else importBackdrop(text, f.name);
+      } else load(text);
+    } catch (e) { status(`Could not open ${f.name}: ${e.message}. The figure on the canvas is unchanged.`, true); }
   });
   themeInput.addEventListener("change", async () => {
     const f = themeInput.files[0];

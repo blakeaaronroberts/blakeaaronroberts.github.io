@@ -131,3 +131,7 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 
 /* ---- block presets: a second palette group ---- */
 .fe-palette-head { margin: .25rem .75rem .25rem; font-size: .8rem; font-weight: 600; color: var(--role-muted, inherit); }
+
+/* ---- backdrop panel: the two shift fields sit side by side ---- */
+.fe-pair { display: flex; gap: .35rem; }
+.fe-pair input { min-width: 0; }
