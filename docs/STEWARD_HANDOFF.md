@@ -71,7 +71,7 @@ F4 come after. Each deploy to `main` happens when Blake says "deploy".
 | F3 | Figure editor v1 finish: labels in STIX Two, wire level colours, PNG copy, private theme, shortcuts, draft toggle | Open | 2026-11-12 |
 | F2.3 | Figure editor polish and unlisted go-live: site look, structured side panel, no scroll bars, half-module grid (adjustable), then publish at an unlisted URL | Open | 2026-11-13 |
 | F4 | Figure editor options before launch: grid, whole-figure line weight (thin, regular, bold) and a dark theme, saved with the figure | Open | 2026-11-13 |
-| F2.4 | Figure editor: dark canvas (interim, editor-side) | Open | 2026-11-13 |
+| F2.4 | Figure editor: dark canvas (interim, editor-side) | Done | 2026-11-13 |
 | F5 | Figure editor: configurable block (rect, chevron, triangle, circle) with presets, wire arrows, bus marks, level-coloured elements | Open | 2026-11-13 |
 | T1 | Timing diagram tool: a WaveDrom page in the lecture look, adjustable size, SVG export | Open | 2026-11-13 |
 
@@ -321,8 +321,8 @@ stays light. Blake wants the whole editor dark (2026-11-13).
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| F2.4.1 | Canvas option, dark roles, render mapping, export checkbox | Steward, approved by Blake 2026-11-13 | Open | |
-| F2.4.2 | Screenshots in dark and light, colour list with contrast ratios | Steward, approved by Blake 2026-11-13 | Open | |
+| F2.4.1 | Canvas option, dark roles, render mapping, export checkbox | Steward, approved by Blake 2026-11-13 | Done | On the BETA copy only (tools/figure-editor-beta/, branch beta-f2-4, 09dc98d); the stable editor tools/figure-editor/ is untouched. The beta started as a copy of the stable editor, whose Canvas option (Auto follows the site toggle, Light, Dark), --fig-dark-* roles, render mapping and "Export in dark theme" box already existed, so no mapping code changed. Beta changes: its own browser-storage keys, a Beta badge, and the browser check below. NOTE: F6 and F7 are not written in this file; I took them from Blake's message (F6 = wire editing, F7 = save and reload) and say so in their notes. |
+| F2.4.2 | Screenshots in dark and light, colour list with contrast ratios | Steward, approved by Blake 2026-11-13 | Done | Check: `quarto run tools/figure-editor-beta/test/browser/check.js dark toggle colours` (headless Chrome, 1366x768, after one render). It screenshots the page and counts pure-black pixels (all channels 8 or less) on the canvas and in the palette, with the sample and with all 21 elements: 0 in dark, 2129 in light (so the detector does see black where it belongs). It also flips the site toggle after load, both ways, and measures every scene stroke against the canvas: minimum 6.66:1 for the sample, 15.57:1 for all elements. Dark colours (canvas #141312, derived from the site background #1c1b19; ratio against the canvas): ink and low #EBEBEB 15.57; high #FE7000 6.66; unknown #CC79A7 6.06; floating, accent and debug #56B4E9 8.04; flow #009E73 5.42; highlight #E69F00 8.24; grid #434341 1.87 (dots, decorative). All meet 4.5:1 for ink and 3:1 for level colours. 
 
 **Scope limits.** No pack, toolbox or circuit-model changes. Record the
 interim in `DECISIONS.md`.
