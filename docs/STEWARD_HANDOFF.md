@@ -221,8 +221,8 @@ They build on the `figure-editor` branch, after F3.
   junction dots take their widths from that pack's `theme.json`.
 - **Theme.** `default` (Okabe-Ito on light) and `dark`. Each symbol colour is
   marked with a `data-role` attribute; the editor recolours by role from the
-  chosen theme (`theme.json`, or `theme-dark.json` beside it). The dark theme
-  waits for Blake to approve the VISION.md line the Steward is drafting.
+  chosen theme (`theme.json`, or `theme-dark.json` beside it). The VISION.md line for
+  the dark theme was approved by Blake on 2026-11-13.
 - The figure's weight and theme are saved in the figure's optional `style`
   block (batch C4 in `circuit-model`), so a reload looks the same. Private
   themes are never named in a saved figure.
@@ -235,7 +235,7 @@ They build on the `figure-editor` branch, after F3.
 |---|---|---|---|---|
 | F4.1 | Grid option: show or hide, snap on or off, as a view setting kept in the browser. Exports never contain the grid | Steward, approved by Blake 2026-11-13 | Open | |
 | F4.2 | Weights: extend the copy script to pin all three packs from the tag, with a manifest and hashes for each; a weight selector that loads the matching pack. Check that every element has the same pin positions in all three packs, and stop if not | Steward, approved by Blake 2026-11-13 | Open | |
-| F4.3 | Theme: recolour symbols by `data-role` from the chosen theme; theme selector; canvas background; wire level colours in each theme; the export uses the chosen weight and theme. No hard-coded colour in the editor | Steward, approved by Blake 2026-11-13 | Waiting | Dark theme waits for Blake's approval of the VISION.md line. Weights (F4.2) don't wait |
+| F4.3 | Theme: recolour symbols by `data-role` from the chosen theme; theme selector; canvas background; wire level colours in each theme; the export uses the chosen weight and theme. No hard-coded colour in the editor | Steward, approved by Blake 2026-11-13 | Open | VISION.md line approved by Blake 2026-11-13 |
 | F4.4 | Save and load the `style` block (weight and theme); validate against `circuit.schema.json`; load figures without one as regular and default | Steward, approved by Blake 2026-11-13 | Open | |
 | F4.5 | Tests and checks: Deno tests for the style round trip, recolouring and pack switching; a sample figure exported at thin, regular and bold and in dark; the 4x zoom check on a joint, a corner and a four-way junction at every weight and in dark; privacy scan | Steward, approved by Blake 2026-11-13 | Open | |
 
