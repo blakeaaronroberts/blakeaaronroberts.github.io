@@ -2,12 +2,34 @@
 <script defer src="https://unpkg.com/digitaljs@0.14.2/dist/main.js"></script>
 <script>
   // Usage: <div class="digitaljs-paper" data-circuit="circuit.json"></div>
+
+  // Accessibility (VISION.md §7): DigitalJS shows 1-bit state by colour only, so a status line
+  // under each circuit spells out every input and output value ("A = 0 · B = 1 · Y = 0").
+  // It is visible and announced to screen readers (aria-live). DigitalJS itself is unchanged.
+  function addStatusLine(circuit, el) {
+    const line = document.createElement("p");
+    line.className = "digitaljs-status label-mono";
+    line.setAttribute("aria-live", "polite");
+    el.after(line);
+    const value = (cell, dir) => Object.values(cell.get(dir) || {}).map(v => v.toBin()).join(",") || "x";
+    const name = cell => cell.get("label") || cell.id;
+    const update = () => {
+      const ins = circuit.getInputCells().map(c => `${name(c)} = ${value(c, "outputSignals")}`);
+      const outs = circuit.getOutputCells().map(c => `${name(c)} = ${value(c, "inputSignals")}`);
+      const text = [...ins, ...outs].join(" · ");
+      if (line.textContent !== text) line.textContent = text;
+    };
+    circuit.on("postUpdateGates", update);
+    update();
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll(".digitaljs-paper[data-circuit]").forEach(async function (el) {
       try {
         const json = await (await fetch(el.dataset.circuit)).json();
         const circuit = new digitaljs.Circuit(json);
         circuit.displayOn($(el));
+        addStatusLine(circuit, el);
         circuit.start();
       } catch (err) {
         el.textContent = "Could not load circuit: " + err;

@@ -31,7 +31,7 @@ would clutter the main column.
 
 Reference it as @fig-kmap. Labels follow IEEE style, set site-wide in `_quarto.yml` (`crossref`).
 
-![Figure caption.](kmap.svg){#fig-kmap fig-alt="Describe the figure."}
+![Figure caption.](kmap.svg){#fig-kmap fig-alt="Four-variable Karnaugh map with rows AB and columns CD in Gray-code order (00, 01, 11, 10). Minterms 0, 1, 2, 5, 8, 9 and 10 hold 1; the other cells hold 0. Three groups are circled: B′C′ (minterms 0, 1, 8 and 9, wrapping from the top row to the bottom row), B′D′ (the four corners: 0, 2, 8 and 10) and A′C′D (1 and 5). Beside the map: F = Σm(0,1,2,5,8,9,10) = B′C′ + B′D′ + A′C′D."}
 
 ### Table
 
@@ -50,7 +50,7 @@ Diagrams are figures too; wrap them in a `#fig-` div to number and caption them 
 
 ::: {#fig-timing}
 ```{=html}
-<div class="wavedrom-wrap">
+<div class="wavedrom-wrap" role="img" aria-label="Timing diagram of signals CLK, D, Q and Q-bar over seven rising clock edges. D goes high before the second edge, low before the fourth, pulses high briefly between the fourth and fifth edges, goes high before the sixth and low before the seventh. Q is unknown until the first edge, then takes D's value at each rising edge: 0, 1, 1, 0, 0, 1, 0, so the brief pulse never reaches Q. Q-bar is always the opposite of Q.">
 <script type="WaveDrom">
 { signal: [
   { name: "CLK", wave: "lP......", period: 2 },
@@ -71,7 +71,7 @@ Positive-edge-triggered D flip-flop. Q takes the value of D at each rising CLK e
 Circuit JSON lives next to this file (`circuit.json`). Click the inputs to toggle them (@fig-circuit).
 
 ::: {#fig-circuit}
-::: {.digitaljs-paper data-circuit="circuit.json"}
+::: {.digitaljs-paper data-circuit="circuit.json" role="group" aria-label="Interactive circuit: input buttons A and B feed a two-input AND gate whose output drives lamp Y. Clicking a button toggles that input."}
 :::
 
 Interactive circuit caption.

@@ -73,7 +73,7 @@ import {palette, plotStyle} from "../../assets/js/figtools.js"
   });
   const Enyq = P10 * (640e6 / 10e6) * Td * 1e12;
   const totals = d3.rollups(rows, v => d3.sum(v, d => d.pJ), d => d.p).map(([p, pJ]) => ({p, pJ}));
-  return Plot.plot({
+  return Plot.plot({ariaLabel: "Stacked bar chart of estimated energy per scan for 32, 24, 16 and 8 cosets. Sampling energy is 128, 96, 64 and 32 pJ; inference energy is 27.8 pJ in every case; totals are 155.8, 123.8, 91.8 and 59.8 pJ. A dashed line at 160 pJ marks Nyquist-rate sampling alone, above every bar.",
     width: 640, height: 320, style: plotStyle, marginRight: 150,
     x: {label: "Cosets (p)", domain: ["32", "24", "16", "8"]}, y: {label: "Energy per scan (pJ)", grid: true, domain: [0, 180]},
     color: {domain: ["Sampling (E_resp)", "Inference (E_rec)"], range: [palette.accent, palette.high], legend: true},
@@ -97,7 +97,7 @@ import {palette, plotStyle} from "../../assets/js/figtools.js"
     {sys: "QAIC", uJ: 0.26}, {sys: "CSNN", uJ: 27.9e-6}
   ].map(d => ({...d, pJ: d.uJ * 1e6}));                     // plot in pJ so ticks read as energies
   const energy = pJ => pJ >= 1e6 ? `${+(pJ / 1e6).toPrecision(3)} µJ` : pJ >= 1e3 ? `${+(pJ / 1e3).toPrecision(3)} nJ` : `${+pJ.toPrecision(3)} pJ`;
-  return Plot.plot({
+  return Plot.plot({ariaLabel: "Dot plot on a log energy scale at sparsity K = 3: TS-QAIC 1.51 µJ, MWC 790 nJ, DRF2IC 340 nJ, QAIC 260 nJ and CSNN 27.9 pJ, about 9,300 times lower than QAIC, the lowest of the others.",
     width: 640, height: 230, style: plotStyle, marginLeft: 70, marginRight: 70,
     x: {type: "log", label: "Inference / DSP energy (log scale)", domain: [10, 4e6], grid: true,
         ticks: [10, 100, 1e3, 1e4, 1e5, 1e6], tickFormat: energy},

@@ -73,7 +73,7 @@ den = polyMul(polyMul([1, -0.744], [1, -1.652, 0.8898]), [1, -1.537, 0.6723])
 {
   const z = roots(num), p = roots(den);
   const circle = linspace(0, 2 * Math.PI, 361).map(t => ({x: Math.cos(t), y: Math.sin(t)}));
-  return Plot.plot({
+  return Plot.plot({ariaLabel: "Pole-zero plot in the z-plane with the unit circle dashed. Five zeros lie on the unit circle: conjugate pairs at angles corresponding to 1.576 MHz and 2.259 MHz, and one at z = −1 (6 MHz). Five poles lie inside it: one real pole at z = 0.744 and conjugate pairs at radius 0.820 and 0.943.",
     width: 460, height: 420, style: plotStyle, grid: true,
     x: {domain: [-1.5, 1.5], label: "Real part"}, y: {domain: [-1.25, 1.25], label: "Imaginary part"},
     marks: [
@@ -91,7 +91,7 @@ den = polyMul(polyMul([1, -0.744], [1, -1.652, 0.8898]), [1, -1.537, 0.6723])
 //| fig-cap: "Magnitude response of the cascade from 0 to 6 MHz (fs = 12 MHz), evaluated on the unit circle from (1)–(3). Shaded regions are excluded by the specification: below −0.25 dB in the passband, above −50 dB in the stopband."
 {
   const pts = linspace(1, 6e6, 1500).map(f => freqz(num, den, f, fs)).map(d => ({f: d.f / 1e6, dB: Math.max(d.dB, -100)}));
-  return Plot.plot({
+  return Plot.plot({ariaLabel: "Magnitude response from 0 to 6 MHz. The gain stays between −0.03 and −0.13 dB up to 0.9 MHz, falls steeply with notches near 1.58 and 2.26 MHz, and stays at or below −52 dB from 1.8 to 6 MHz, clear of both shaded specification regions.",
     width: 640, height: 320, style: plotStyle, grid: true,
     x: {label: "Frequency (MHz)", domain: [0, 6]}, y: {label: "Magnitude (dB)", domain: [-100, 5]},
     marks: [
@@ -109,7 +109,7 @@ den = polyMul(polyMul([1, -0.744], [1, -1.652, 0.8898]), [1, -1.537, 0.6723])
 //| fig-cap: "Passband detail, 0–0.9 MHz. Computed from the published coefficients; the reported Cadence simulation shows ripple under 0.16 dB."
 {
   const pts = linspace(1, 0.9e6, 600).map(f => freqz(num, den, f, fs)).map(d => ({f: d.f / 1e6, dB: d.dB}));
-  return Plot.plot({
+  return Plot.plot({ariaLabel: "Passband magnitude from 0 to 0.9 MHz on a −0.3 to 0.05 dB scale. The response stays between −0.03 and −0.13 dB, above the dashed −0.25 dB ripple limit.",
     width: 640, height: 260, style: plotStyle, grid: true,
     x: {label: "Frequency (MHz)"}, y: {label: "Magnitude (dB)", domain: [-0.3, 0.05]},
     marks: [
@@ -126,7 +126,7 @@ den = polyMul(polyMul([1, -0.744], [1, -1.652, 0.8898]), [1, -1.537, 0.6723])
 //| fig-cap: "Step response of the cascade at fs = 12 MHz, from the difference equation of (1)–(3)."
 {
   const y = stepResponse(num, den, 72).map((v, n) => ({t: n / fs * 1e6, v}));
-  return Plot.plot({
+  return Plot.plot({ariaLabel: "Step response sampled at 12 MHz over about 6 µs. The output rises from 0, overshoots to a peak of 1.17 at about 1.08 µs, and settles at 0.99, staying within 2% after about 3.3 µs.",
     width: 640, height: 260, style: plotStyle, grid: true,
     x: {label: "Time (µs)"}, y: {label: "Amplitude", domain: [0, 1.25]},
     marks: [

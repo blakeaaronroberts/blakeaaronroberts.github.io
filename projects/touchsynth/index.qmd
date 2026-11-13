@@ -58,7 +58,7 @@ The Power Supply unit works by taking in AC power from a prefabricated wall wart
   const meas = [{note: "C1", midi: 24, hz: 32.67}, {note: "C2", midi: 36, hz: 65.40}, {note: "C3", midi: 48, hz: 131.6},
                 {note: "C4", midi: 60, hz: 262.5}, {note: "C5", midi: 72, hz: 523.6}]
     .map(d => ({...d, target: midiToHz(d.midi), cents: centsError(d.hz, midiToHz(d.midi))}));
-  return Plot.plot({
+  return Plot.plot({ariaLabel: "Lollipop chart of pitch error in cents, on a ±15 cent scale: C1 −1.8 (32.67 Hz), C2 −0.2 (65.40 Hz), C3 +10.4 (131.6 Hz), C4 +5.8 (262.5 Hz), C5 +1.2 (523.6 Hz). All are well inside the ±165 cent requirement.",
     width: 640, height: 260, style: plotStyle,
     x: {label: null, domain: meas.map(d => d.note)}, y: {label: "Error (cents)", domain: [-15, 15], grid: true},
     marks: [
