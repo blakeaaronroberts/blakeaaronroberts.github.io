@@ -1,0 +1,16 @@
+---
+title: "Timing diagram"
+page-layout: full
+css: timing.css
+include-in-header:
+  - ../../_includes/wavedrom.html
+---
+
+```{=html}
+<div id="td-app" class="td-app"></div>
+<noscript><p>The timing diagram tool needs JavaScript.</p></noscript>
+<script type="module">
+  import { mount } from "./src/app.js";
+  window.timingDiagram = mount(document.getElementById("td-app"));
+</script>
+```
