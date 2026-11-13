@@ -1,0 +1,47 @@
+{
+  "pack": "symbols/0.1",
+  "type": "and_gate",
+  "description": "2-input AND gate",
+  "status": "approved",
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "and_gate.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-2.2, -1.20019, 4.9, 2.40009]
+  },
+  "bbox": {
+    "min": [-4.0, -2.0],
+    "max": [5.0, 2.0]
+  },
+  "pins": {
+    "A": {
+      "tip": [-4, 1],
+      "direction": "left",
+      "lead": {
+        "from": [-2.0, 1.0],
+        "length": 2.0
+      }
+    },
+    "B": {
+      "tip": [-4, -1],
+      "direction": "left",
+      "lead": {
+        "from": [-2.0, -1.0],
+        "length": 2.0
+      }
+    },
+    "Y": {
+      "tip": [5, 0],
+      "direction": "right",
+      "lead": {
+        "from": [2.923, 0.0],
+        "length": 2.077
+      }
+    }
+  },
+  "label": null,
+  "parameters": []
+}

@@ -1,0 +1,133 @@
+{
+  "pack": "symbols/0.1",
+  "module_version": "0.1.0",
+  "theme": "theme.json",
+  "elements": [
+    {
+      "type": "and_gate",
+      "status": "approved",
+      "json": "and_gate.json",
+      "svg": "and_gate.svg"
+    },
+    {
+      "type": "resistor",
+      "status": "approved",
+      "json": "resistor.json",
+      "svg": "resistor.svg"
+    },
+    {
+      "type": "or_gate",
+      "status": "approved",
+      "json": "or_gate.json",
+      "svg": "or_gate.svg"
+    },
+    {
+      "type": "not_gate",
+      "status": "approved",
+      "json": "not_gate.json",
+      "svg": "not_gate.svg"
+    },
+    {
+      "type": "nand_gate",
+      "status": "approved",
+      "json": "nand_gate.json",
+      "svg": "nand_gate.svg"
+    },
+    {
+      "type": "nor_gate",
+      "status": "approved",
+      "json": "nor_gate.json",
+      "svg": "nor_gate.svg"
+    },
+    {
+      "type": "xor_gate",
+      "status": "approved",
+      "json": "xor_gate.json",
+      "svg": "xor_gate.svg"
+    },
+    {
+      "type": "d_flipflop",
+      "status": "approved",
+      "json": "d_flipflop.json",
+      "svg": "d_flipflop.svg"
+    },
+    {
+      "type": "d_latch",
+      "status": "approved",
+      "json": "d_latch.json",
+      "svg": "d_latch.svg"
+    },
+    {
+      "type": "mux2",
+      "status": "approved",
+      "json": "mux2.json",
+      "svg": "mux2.svg"
+    },
+    {
+      "type": "decoder2to4",
+      "status": "approved",
+      "json": "decoder2to4.json",
+      "svg": "decoder2to4.svg"
+    },
+    {
+      "type": "full_adder",
+      "status": "approved",
+      "json": "full_adder.json",
+      "svg": "full_adder.svg"
+    },
+    {
+      "type": "capacitor",
+      "status": "approved",
+      "json": "capacitor.json",
+      "svg": "capacitor.svg"
+    },
+    {
+      "type": "inductor",
+      "status": "approved",
+      "json": "inductor.json",
+      "svg": "inductor.svg"
+    },
+    {
+      "type": "voltage_source",
+      "status": "approved",
+      "json": "voltage_source.json",
+      "svg": "voltage_source.svg"
+    },
+    {
+      "type": "switch",
+      "status": "approved",
+      "json": "switch.json",
+      "svg": "switch.svg"
+    },
+    {
+      "type": "ground",
+      "status": "approved",
+      "json": "ground.json",
+      "svg": "ground.svg"
+    },
+    {
+      "type": "diode",
+      "status": "approved",
+      "json": "diode.json",
+      "svg": "diode.svg"
+    },
+    {
+      "type": "npn_bjt",
+      "status": "approved",
+      "json": "npn_bjt.json",
+      "svg": "npn_bjt.svg"
+    },
+    {
+      "type": "nmos",
+      "status": "approved",
+      "json": "nmos.json",
+      "svg": "nmos.svg"
+    },
+    {
+      "type": "vdd",
+      "status": "approved",
+      "json": "vdd.json",
+      "svg": "vdd.svg"
+    }
+  ]
+}

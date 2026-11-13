@@ -1,0 +1,71 @@
+{
+  "pack": "symbols/0.1",
+  "type": "decoder2to4",
+  "description": "2-to-4 decoder (inputs A1, A0; outputs Y0..Y3)",
+  "status": "approved",
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "decoder2to4.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-2.7, -2.98363, 5.4, 5.18371]
+  },
+  "bbox": {
+    "min": [-5.0, -4.0],
+    "max": [5.0, 5.567]
+  },
+  "pins": {
+    "A1": {
+      "tip": [-5, 2],
+      "direction": "left",
+      "lead": {
+        "from": [-3.0, 2.0],
+        "length": 2.0
+      }
+    },
+    "A0": {
+      "tip": [-5, -2],
+      "direction": "left",
+      "lead": {
+        "from": [-3.0, -2.0],
+        "length": 2.0
+      }
+    },
+    "Y0": {
+      "tip": [5, 3],
+      "direction": "right",
+      "lead": {
+        "from": [3.0, 3.0],
+        "length": 2.0
+      }
+    },
+    "Y1": {
+      "tip": [5, 1],
+      "direction": "right",
+      "lead": {
+        "from": [3.0, 1.0],
+        "length": 2.0
+      }
+    },
+    "Y2": {
+      "tip": [5, -1],
+      "direction": "right",
+      "lead": {
+        "from": [3.0, -1.0],
+        "length": 2.0
+      }
+    },
+    "Y3": {
+      "tip": [5, -3],
+      "direction": "right",
+      "lead": {
+        "from": [3.0, -3.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": null,
+  "parameters": []
+}

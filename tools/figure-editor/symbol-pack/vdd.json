@@ -1,0 +1,34 @@
+{
+  "pack": "symbols/0.1",
+  "type": "vdd",
+  "description": "Supply rail (a bar with the supply's name above it); the wire leaves downward",
+  "status": "approved",
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "vdd.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-1.20042, -0.2, 2.40035, 0.9]
+  },
+  "bbox": {
+    "min": [-2.001, -1.0],
+    "max": [2.0, 0.0]
+  },
+  "pins": {
+    "1": {
+      "tip": [0, -1],
+      "direction": "down",
+      "lead": {
+        "from": [0.0, 0.0],
+        "length": 1.0
+      }
+    }
+  },
+  "label": {
+    "anchor": [0.0, 0.0],
+    "direction": "up"
+  },
+  "parameters": []
+}

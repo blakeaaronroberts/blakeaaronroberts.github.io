@@ -1,0 +1,55 @@
+{
+  "pack": "symbols/0.1",
+  "type": "d_flipflop",
+  "description": "Positive-edge D flip-flop (clock wedge at the bottom)",
+  "status": "approved",
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "d_flipflop.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-2.2, -1.69993, 4.4, 4.39993]
+  },
+  "bbox": {
+    "min": [-4.0, -5.0],
+    "max": [4.0, 3.0]
+  },
+  "pins": {
+    "D": {
+      "tip": [-4, 2],
+      "direction": "left",
+      "lead": {
+        "from": [-2.0, 2.0],
+        "length": 2.0
+      }
+    },
+    "CLK": {
+      "tip": [0, -5],
+      "direction": "down",
+      "lead": {
+        "from": [0.0, -3.0],
+        "length": 2.0
+      }
+    },
+    "Q": {
+      "tip": [4, 2],
+      "direction": "right",
+      "lead": {
+        "from": [2.0, 2.0],
+        "length": 2.0
+      }
+    },
+    "Qn": {
+      "tip": [4, 0],
+      "direction": "right",
+      "lead": {
+        "from": [2.0, 0.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": null,
+  "parameters": []
+}

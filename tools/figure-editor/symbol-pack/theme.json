@@ -1,0 +1,51 @@
+{
+  "pack": "symbols/0.1",
+  "theme": "default",
+  "colors": {
+    "black": "#000000",
+    "white": "#FFFFFF",
+    "vermillion": "#D55E00",
+    "orange": "#E69F00",
+    "sky_blue": "#56B4E9",
+    "bluish_green": "#009E73",
+    "blue": "#0072B2",
+    "pale_blue": "#D4E6F3"
+  },
+  "roles": {
+    "ink": "#000000",
+    "low": "#000000",
+    "high": "#D55E00",
+    "flow": "#009E73",
+    "accent": "#0072B2",
+    "highlight": "#E69F00",
+    "background": "#FFFFFF",
+    "debug": "#56B4E9",
+    "debug_bad": "#D55E00",
+    "grid": "#D4E6F3"
+  },
+  "line": {
+    "width_pt": 1.1,
+    "width_cm": 0.03866,
+    "width_module": 0.07732,
+    "join": "round",
+    "cap": "butt"
+  },
+  "junction": {
+    "diameter_pt": 4.5,
+    "radius_cm": 0.07908,
+    "radius_module": 0.15816,
+    "min_wires": 4
+  },
+  "geometry": {
+    "grid_cm": 0.25,
+    "module_cm": 0.5,
+    "grid_steps_per_module": 2,
+    "min_lead_cm": 0.5,
+    "label_gap_cm": 0.07
+  },
+  "fonts": {
+    "text": "STIXTwoText",
+    "math": "STIXTwoMath-Regular.otf",
+    "mono": "FiraMono"
+  }
+}

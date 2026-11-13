@@ -1,0 +1,42 @@
+{
+  "pack": "symbols/0.1",
+  "type": "voltage_source",
+  "description": "Independent voltage source, vertical with + on top; optional label to the right",
+  "status": "approved",
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "voltage_source.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-0.94985, -2.2, 1.8997, 3.9]
+  },
+  "bbox": {
+    "min": [-1.5, -3.0],
+    "max": [1.5, 4.0]
+  },
+  "pins": {
+    "+": {
+      "tip": [0, 4],
+      "direction": "up",
+      "lead": {
+        "from": [0.0, 2.0],
+        "length": 2.0
+      }
+    },
+    "-": {
+      "tip": [0, -3],
+      "direction": "down",
+      "lead": {
+        "from": [0.0, -1.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": {
+    "anchor": [1.5, 0.5],
+    "direction": "right"
+  },
+  "parameters": []
+}

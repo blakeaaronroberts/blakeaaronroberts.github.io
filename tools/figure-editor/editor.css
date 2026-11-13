@@ -1,0 +1,48 @@
+/* Figure editor page. No colours here: the page chrome uses the site's Bootstrap
+   variables, the canvas plate uses the published figure roles (--fig-*), and the
+   drawing itself takes every colour from the symbol pack's theme.json. */
+
+.fe { display: flex; flex-direction: column; gap: .5rem; }
+.fe-toolbar { display: flex; flex-wrap: wrap; gap: .4rem; }
+
+.fe-main {
+  display: grid;
+  grid-template-columns: 10.5rem minmax(0, 1fr) 15rem;
+  gap: .5rem;
+  height: min(72vh, 52rem);
+}
+
+.fe-palette { overflow-y: auto; border: 1px solid var(--bs-border-color); border-radius: var(--bs-border-radius); }
+.fe-palette ul { list-style: none; margin: 0; padding: .25rem; display: grid; gap: .25rem; }
+.fe-part {
+  width: 100%; display: flex; align-items: center; gap: .4rem;
+  padding: .2rem .35rem; border: 1px solid transparent; border-radius: var(--bs-border-radius-sm);
+  background: none; color: inherit; font-size: .8rem; text-align: left;
+}
+.fe-part:hover { border-color: var(--bs-border-color); }
+.fe-thumb {
+  flex: none; width: 3.2rem; height: 2rem;
+  background: var(--fig-background); border: 1px solid var(--fig-rule); border-radius: 2px;
+}
+
+.fe-stage { min-width: 0; border: 1px solid var(--fig-rule); border-radius: var(--bs-border-radius); overflow: hidden; }
+.fe-canvas { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; background: var(--fig-background); }
+.fe-canvas[data-tool="wire"], .fe-canvas[data-tool="place"] { cursor: crosshair; }
+
+.fe-side { overflow-y: auto; font-size: .85rem; display: flex; flex-direction: column; gap: .5rem; }
+.fe-side .form-label { display: block; margin: 0; }
+.fe-props dl { margin: 0; }
+.fe-props dt { font-weight: 600; margin-top: .35rem; }
+.fe-props dd { margin: 0; }
+.fe-warnings ul { margin: 0; padding-left: 1.1rem; color: var(--bs-warning-text-emphasis, inherit); }
+
+.fe-status { min-height: 1.5em; margin: 0; font-size: .85rem; }
+
+/* Visible focus everywhere, including the canvas. */
+.fe :focus-visible { outline: 2px solid var(--fig-accent); outline-offset: 2px; }
+.fe-canvas:focus-visible { outline-offset: -2px; }
+
+@media (max-width: 900px) {
+  .fe-main { grid-template-columns: 1fr; grid-template-rows: auto 60vh auto; height: auto; }
+  .fe-palette ul { grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); }
+}

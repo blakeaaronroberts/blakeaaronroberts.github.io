@@ -1,0 +1,42 @@
+{
+  "pack": "symbols/0.1",
+  "type": "capacitor",
+  "description": "Capacitor, horizontal, optional label above",
+  "status": "approved",
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "capacitor.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-1.2, -0.95033, 2.9, 1.90067]
+  },
+  "bbox": {
+    "min": [-2.0, -1.501],
+    "max": [3.0, 1.501]
+  },
+  "pins": {
+    "1": {
+      "tip": [-2, 0],
+      "direction": "left",
+      "lead": {
+        "from": [0.0, 0.0],
+        "length": 2.0
+      }
+    },
+    "2": {
+      "tip": [3, 0],
+      "direction": "right",
+      "lead": {
+        "from": [1.0, 0.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": {
+    "anchor": [0.5, 1.5],
+    "direction": "up"
+  },
+  "parameters": []
+}

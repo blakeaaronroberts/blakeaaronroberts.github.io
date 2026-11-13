@@ -1,0 +1,63 @@
+{
+  "pack": "symbols/0.1",
+  "type": "full_adder",
+  "description": "1-bit full adder block (A, B, Cin in; S, Cout out)",
+  "status": "approved",
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "full_adder.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-2.7, -2.48461, 5.4, 4.18469]
+  },
+  "bbox": {
+    "min": [-5.0, -3.0],
+    "max": [5.0, 4.569]
+  },
+  "pins": {
+    "A": {
+      "tip": [-5, 2],
+      "direction": "left",
+      "lead": {
+        "from": [-3.0, 2.0],
+        "length": 2.0
+      }
+    },
+    "B": {
+      "tip": [-5, 0],
+      "direction": "left",
+      "lead": {
+        "from": [-3.0, 0.0],
+        "length": 2.0
+      }
+    },
+    "Cin": {
+      "tip": [-5, -2],
+      "direction": "left",
+      "lead": {
+        "from": [-3.0, -2.0],
+        "length": 2.0
+      }
+    },
+    "S": {
+      "tip": [5, 2],
+      "direction": "right",
+      "lead": {
+        "from": [3.0, 2.0],
+        "length": 2.0
+      }
+    },
+    "Cout": {
+      "tip": [5, -2],
+      "direction": "right",
+      "lead": {
+        "from": [3.0, -2.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": null,
+  "parameters": []
+}

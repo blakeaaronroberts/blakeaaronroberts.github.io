@@ -1,0 +1,42 @@
+{
+  "pack": "symbols/0.1",
+  "type": "resistor",
+  "description": "Resistor (US zig-zag), horizontal, optional label above",
+  "status": "approved",
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "resistor.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-2.2, -0.38423, 4.4, 0.76816]
+  },
+  "bbox": {
+    "min": [-4.0, -0.368],
+    "max": [4.0, 0.368]
+  },
+  "pins": {
+    "1": {
+      "tip": [-4, 0],
+      "direction": "left",
+      "lead": {
+        "from": [-2.077, 0.0],
+        "length": 1.923
+      }
+    },
+    "2": {
+      "tip": [4, 0],
+      "direction": "right",
+      "lead": {
+        "from": [2.078, 0.0],
+        "length": 1.922
+      }
+    }
+  },
+  "label": {
+    "anchor": [0.0, 0.368],
+    "direction": "up"
+  },
+  "parameters": []
+}

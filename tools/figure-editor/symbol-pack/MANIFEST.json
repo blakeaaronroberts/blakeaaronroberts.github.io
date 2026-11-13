@@ -1,0 +1,231 @@
+{
+  "note": "Written by tools/figure-editor/scripts/copy-symbol-pack.js. Do not edit this folder by hand.",
+  "source": "circuit-model",
+  "path": "symbols/",
+  "ref": "symbols-v0.1.0",
+  "tag": "symbols-v0.1.0",
+  "commit": "0cf7f80c59016776997c5b7769a6b6cd98ee8a47",
+  "pack": "symbols/0.1",
+  "files": [
+    {
+      "name": "and_gate.json",
+      "bytes": 854,
+      "sha256": "9f04ca60223fe95a8f559ee37c137ce03643091007193c5143aef92ac8626ceb"
+    },
+    {
+      "name": "and_gate.svg",
+      "bytes": 1156,
+      "sha256": "e794a10e1270ae674d2456bcf6bad2c2c85608850eafe7594767350e689dd037"
+    },
+    {
+      "name": "capacitor.json",
+      "bytes": 787,
+      "sha256": "55760a4499fd8f2a3208f71b9909e7ee595ef2b0bdbd9796c64d6222bd91ad91"
+    },
+    {
+      "name": "capacitor.svg",
+      "bytes": 883,
+      "sha256": "3c7bfe8b3c17a67e431f55c048ec8f5a127561fdc8077dae0e711fa62127fe76"
+    },
+    {
+      "name": "d_flipflop.json",
+      "bytes": 1033,
+      "sha256": "65f66eadfa1b72756bb6a5e9befe42553830447fbcb23c2cbd927f846df91af0"
+    },
+    {
+      "name": "d_flipflop.svg",
+      "bytes": 4772,
+      "sha256": "920db22d0c8fb59d334551e0c863ad07088091c49c4c133912939c1238deda06"
+    },
+    {
+      "name": "d_latch.json",
+      "bytes": 1024,
+      "sha256": "4b41d59f379564ac11812b0790659edef8cff3b68d5d97253dc9f472143fb633"
+    },
+    {
+      "name": "d_latch.svg",
+      "bytes": 7120,
+      "sha256": "9649777dc2ebb727460c0420d326734dac1b9b7c331c56608f202171e746bb92"
+    },
+    {
+      "name": "decoder2to4.json",
+      "bytes": 1321,
+      "sha256": "6f468cd0df3eb9ad8ccc51c41e68bf547ce442be8d55bb8c380f657c41acac70"
+    },
+    {
+      "name": "decoder2to4.svg",
+      "bytes": 16432,
+      "sha256": "d65cf397e3b146bd79e21b40912566ebcd9acb114a8821a8bccf15d16092bc13"
+    },
+    {
+      "name": "diode.json",
+      "bytes": 800,
+      "sha256": "9ad11e5f76f9f14ef23534a12971d3a2760b349d69965aeb52cb83db72498127"
+    },
+    {
+      "name": "diode.svg",
+      "bytes": 1148,
+      "sha256": "901e34d600a9a5c7bc55a9bc5bb63ccc7b81f519abdf6e70a1da800533143347"
+    },
+    {
+      "name": "full_adder.json",
+      "bytes": 1180,
+      "sha256": "d9e670dd0c144571c419f5ecc0f3dfa5327b311a7a6e05fef5dc843fc194f2ba"
+    },
+    {
+      "name": "full_adder.svg",
+      "bytes": 18330,
+      "sha256": "2293e1972a1f3f6e0d38aab8d8a3360e79faebb9f2d1f293c533025cf68250ce"
+    },
+    {
+      "name": "ground.json",
+      "bytes": 584,
+      "sha256": "a018be07d5a51d7768a197818fc11c983df60d4072f89fc679a79b2716677198"
+    },
+    {
+      "name": "ground.svg",
+      "bytes": 759,
+      "sha256": "71cf1ac352ab338fadb5866c7971c28b71bc9ccacc67b6818fd5949c4ac84e53"
+    },
+    {
+      "name": "index.json",
+      "bytes": 2724,
+      "sha256": "73ad14a28a37db6f7edc8d7acd9962fce1036fe40cb574d8cd07abeb32c91e22"
+    },
+    {
+      "name": "inductor.json",
+      "bytes": 797,
+      "sha256": "303e7dc79b9437592569262f756bf40591d337f8b39dd859f4cc2c8900ecc2fa"
+    },
+    {
+      "name": "inductor.svg",
+      "bytes": 1281,
+      "sha256": "8ea190a6e0a4d35937273965ccdcb7646530e30727d5dd7f56e2ef00d344d6f2"
+    },
+    {
+      "name": "mux2.json",
+      "bytes": 1020,
+      "sha256": "5d8afe745272c01fa9d0db00aae65228ef6319a47abbb7f7482ecda42e4386f0"
+    },
+    {
+      "name": "mux2.svg",
+      "bytes": 3705,
+      "sha256": "f4edbe3d2d136b5701abbfe4fa9ae01bf59dd420f7621802e436a8d95d33f34a"
+    },
+    {
+      "name": "nand_gate.json",
+      "bytes": 857,
+      "sha256": "fac3d059e95d9a797e35644f12d89a9a455ecd405f423b7c6132e90f418bc9a2"
+    },
+    {
+      "name": "nand_gate.svg",
+      "bytes": 1716,
+      "sha256": "dd1228406964f9df043719264dc31a7d9b6cfed667684535334815d1f8f92e3d"
+    },
+    {
+      "name": "nmos.json",
+      "bytes": 873,
+      "sha256": "786f90eef43a972c46d0ef012af8b648b91b7360081e79805d301b97ee71caa8"
+    },
+    {
+      "name": "nmos.svg",
+      "bytes": 2219,
+      "sha256": "da1eb16c5fb7ced1279258213809c04e3997846276dfc43274b444e1224bff90"
+    },
+    {
+      "name": "nor_gate.json",
+      "bytes": 854,
+      "sha256": "613dbae54562fdc2b11ad06faf0c35d44f6e1f48b32f7a7e50a6768538e9a6d4"
+    },
+    {
+      "name": "nor_gate.svg",
+      "bytes": 1793,
+      "sha256": "c3915b7a8111a7a314d653df4e125ced8fca973c0f6d997a7518251c3f24f656"
+    },
+    {
+      "name": "not_gate.json",
+      "bytes": 711,
+      "sha256": "93c823092c6381e27a9d881459aa4be69029d7f8c5e9a595d775a69cef7ef7ee"
+    },
+    {
+      "name": "not_gate.svg",
+      "bytes": 1456,
+      "sha256": "079e5db4f766e9bd0dc37860b70b9f12fb661e5f00e271518c15be83550b5e3d"
+    },
+    {
+      "name": "npn_bjt.json",
+      "bytes": 878,
+      "sha256": "a21e75838ef2d7f9ab57fb08d0d333150160b0c35cb7b35ae4bc5f3e09fd4644"
+    },
+    {
+      "name": "npn_bjt.svg",
+      "bytes": 2485,
+      "sha256": "38fb9bbb6a6b7629067974a1cc7838bc829d4d13b2ddab08be718833ca521401"
+    },
+    {
+      "name": "or_gate.json",
+      "bytes": 851,
+      "sha256": "557e7ca51314e3d9cc8e5fe78de4500f8ef42decbe3f95152a97b70fe7208da8"
+    },
+    {
+      "name": "or_gate.svg",
+      "bytes": 1229,
+      "sha256": "23b7145619525fdfd9c8111752584acbca619fd5f9f9668cf97b4e0e5673ba8e"
+    },
+    {
+      "name": "resistor.json",
+      "bytes": 808,
+      "sha256": "4dc3f287a7b0a738000047d6f264c26924d8fc37c3df7f6a46f5776fed993dfc"
+    },
+    {
+      "name": "resistor.svg",
+      "bytes": 1199,
+      "sha256": "6d3c94721e00ed705f60994c56fbaf7e84cecdde183d09bda355ba8a3fd4e373"
+    },
+    {
+      "name": "switch.json",
+      "bytes": 802,
+      "sha256": "3534a932c4b8bf991efde1afd749d4dad15f7a86608770d617257d2bf6f5c3f8"
+    },
+    {
+      "name": "switch.svg",
+      "bytes": 2736,
+      "sha256": "2132ccc915d0f72d174b0c0b5dc003cb5f2289dec8b1eee4f2d5d18527f31829"
+    },
+    {
+      "name": "theme.json",
+      "bytes": 1046,
+      "sha256": "9ca577dc5e01aacbf6270ffcc209525f4f59f8ee51e0faf4a64e2768cb70115c"
+    },
+    {
+      "name": "vdd.json",
+      "bytes": 666,
+      "sha256": "e02931d21e556aa6b8f1d88c56a70115d3a3c745e0a130c13e19613f8997577d"
+    },
+    {
+      "name": "vdd.svg",
+      "bytes": 704,
+      "sha256": "685e8567b97b76ca449c7d110ff28b64ec41e7d965fee94f4246b7b20c703d07"
+    },
+    {
+      "name": "voltage_source.json",
+      "bytes": 829,
+      "sha256": "26ed48440388ed065539cd46b895132d391b3c8adf8e0993186c78be64289276"
+    },
+    {
+      "name": "voltage_source.svg",
+      "bytes": 3156,
+      "sha256": "6bb07406c3c97a287891b66dcac38a9bec70ae9fbdf0ae1cee02c2aa3616de88"
+    },
+    {
+      "name": "xor_gate.json",
+      "bytes": 854,
+      "sha256": "edf2031f56e1cd23465c87525fe063fe28e5c213d63375072f77e873a955ce11"
+    },
+    {
+      "name": "xor_gate.svg",
+      "bytes": 1538,
+      "sha256": "7b420f2b7ed313b771c8a7ed21bad6ef188cfb3c8075e01124a8bff9caebb017"
+    }
+  ]
+}

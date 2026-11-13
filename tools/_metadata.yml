@@ -1,0 +1,4 @@
+# Applies to every page under tools/
+toc: false
+number-sections: false
+include-in-header: ../_includes/noindex.html   # pre-launch: reachable by URL, kept out of search (remove at launch)

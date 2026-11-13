@@ -1,0 +1,42 @@
+{
+  "pack": "symbols/0.1",
+  "type": "inductor",
+  "description": "Inductor (US bumps), horizontal, optional label above",
+  "status": "approved",
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "inductor.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-2.2, -0.54423, 4.4, 0.77504]
+  },
+  "bbox": {
+    "min": [-4.0, -0.062],
+    "max": [4.0, 0.688]
+  },
+  "pins": {
+    "1": {
+      "tip": [-4, 0],
+      "direction": "left",
+      "lead": {
+        "from": [-2.0, 0.0],
+        "length": 2.0
+      }
+    },
+    "2": {
+      "tip": [4, 0],
+      "direction": "right",
+      "lead": {
+        "from": [2.0, 0.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": {
+    "anchor": [0.0, 0.75],
+    "direction": "up"
+  },
+  "parameters": []
+}
