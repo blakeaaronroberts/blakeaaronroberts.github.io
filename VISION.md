@@ -70,8 +70,13 @@ Use these to judge every idea.
 - **Static hosting.** The site is GitHub Pages. Tools run in the browser
   (JavaScript, WebAssembly) or serve prebuilt outputs. Anything that needs a
   server is a separate service, with the trade-off written down.
-- **Licence: not yet chosen.** Do not add LICENSE files, licence headers or
-  licence badges until Blake decides.
+- **Licence: working assumption, not final** (Blake, 2026-11-12). Plan as if
+  code is Apache-2.0 and docs, figures, schema files and symbol packs are
+  CC BY 4.0, but keep the choice open: it may change (for example under the
+  terms of university funding), so don't make decisions that depend on it.
+  Do not add LICENSE files, licence headers or licence badges until Blake
+  makes it final; a licence grant can't be withdrawn from work already
+  released under it.
 - **Approval.** Blake signs off on anything students or the public see,
   except READMEs, which the Scribe approves (section 8). Agents mark
   something approved only when Blake directly tells them to (see section 7).
@@ -134,6 +139,14 @@ public site with a polished set of explorations and the first web tools.
 
 Immediate targets, in order:
 
+0. **This week, ahead of everything else (Blake, 2026-11-12): the figure
+   editor.** A page on the site where Blake assembles lecture-slide figures
+   from the toolbox's elements (drag, rotate, wires that stay anchored to
+   pins as parts move) and exports SVG. It replaces Inkscape for him. To feed
+   it, the toolbox gains every circuit element in chapters 1 to 5 of Harris
+   and Harris, drawn in this project's own style (never copying the book's
+   figures), and exports them as a symbol pack. Everything else waits until
+   it ships; nothing is dropped.
 1. **First flagship: the 4-bit ripple-carry adder**, shown on one public page
    as a static figure, an animation of the carry rippling against a timing
    diagram, and a browser interactive where the reader flips input bits and
@@ -296,7 +309,7 @@ lecture video pipeline, gate delays imported from real parts' datasheets). 4 Ado
 
 ## 9. Open decisions (do not assume an answer)
 
-- Software licence.
+- Software licence (a working assumption is in section 3).
 - The suite's real name.
 
 Settled: the circuit schema, element models, simulator and symbol packs live
@@ -305,6 +318,10 @@ non-circuit figures such as timing diagrams and plots (2026-11-12). The
 WaveDrom and DigitalJS embeds stay on the site as an interim (2026-11-12).
 
 ## 10. Change log
+
+- 2026-11-12 (late night): Figure editor is this week's priority (section 6,
+  target 0). Licence working assumption, not final: Apache-2.0 for code,
+  CC BY 4.0 for content (section 3).
 
 - 2026-11-12 (night): Circuit-schema proposal approved. New planned public
   repo `circuit-model` (section 5); four-valued logic simulation (section 4);
