@@ -1,6 +1,6 @@
 // The timing-diagram page: WaveDrom source in, lecture-skin preview out, SVG export.
-import { parseSource, signalNames, tidy, SAMPLE } from "./wave.js";
-import { nodesOf, starterLines, unknownNames } from "./nodes.js";
+import { parseSource, signalNames, tidy, SAMPLE, stepColumn } from "./wave.js";
+import { nodesOf, starterLines, unknownNames, framesIn } from "./nodes.js";
 
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -26,6 +26,7 @@ export function mount(root) {
         <label>Width <input type="number" min="100" max="4000" step="10" data-size="w"> px</label>
         <label>Height <input type="number" min="40" max="4000" step="10" data-size="h"> px</label>
         <button type="button" data-do="natural">Natural size</button>
+        <span class="td-frames" hidden><label>Frame <select data-do="frame"></select></label> <button type="button" data-do="frames-export">Export frames</button></span>
       </div>
       <div class="td-view"><div id="WaveDrom_Display_0"></div></div>
       <div class="td-nodes" hidden><h2 class="td-nodes-title"></h2><div class="td-chips"></div><button type="button" data-do="add-all" class="td-chip">Add starter lines for all</button><div class="td-flag" role="status"></div></div>
@@ -60,6 +61,7 @@ export function mount(root) {
       if (!custom) { wIn.value = natural.w; hIn.value = natural.h; }
       applySize();
       last = r.value;
+      stepMarker();
       say(`${signalNames(r.value).length} signals.`);
     } catch (e) { say(`Could not draw the diagram: ${e.message}`, true); }
   };
@@ -75,6 +77,15 @@ export function mount(root) {
     if (act === "export") exportSvg();
   });
 
+  function svgText() {
+    const clone = svgEl().cloneNode(true);
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+    return `<?xml version="1.0" encoding="UTF-8"?>
+${new XMLSerializer().serializeToString(clone)}
+`;
+  }
+
   function exportSvg() {
     const s = svgEl(); if (!s) return say("Nothing to export yet.", true);
     const clone = s.cloneNode(true);
@@ -89,6 +100,48 @@ export function mount(root) {
     say("Exported timing-diagram.svg (live text, not outlined; width and height as shown).");
   }
 
+
+  // ---- frames from the editor: the step marker, and one diagram per frame (T2.3) ----
+  let frameNames = [], frame = -1;
+  const frameSel = $("[data-do=frame]"), frameWrap = $(".td-frames");
+  const stepMarker = () => {
+    const s = svgEl(); s?.querySelector(".td-marker")?.remove();
+    if (!s || frame < 0 || frame >= frameNames.length) return;
+    const first = s.querySelector("g[id^=wavelane_draw_] > use"), waves = s.querySelector("g[id^=waves_]");
+    if (!first || !waves) return;
+    const x0 = Number(/translate\(\s*([-\d.]+)/.exec(first.getAttribute("transform") ?? "")?.[1] ?? 0);
+    const col = stepColumn(frame, x0, Number(last?.config?.hscale) || 1), b = waves.getBBox();
+    const ns = "http://www.w3.org/2000/svg", g = document.createElementNS(ns, "g"), r = document.createElementNS(ns, "rect");
+    g.setAttribute("class", "td-marker");
+    const colour = getComputedStyle(document.documentElement).getPropertyValue("--fig-accent").trim() || "#0072B2";
+    for (const [k, v] of Object.entries({ x: col.x, y: b.y, width: col.width, height: b.height, rx: 6, ry: 6, fill: colour, "fill-opacity": 0.18, stroke: colour, "stroke-width": 1.2 })) r.setAttribute(k, v);
+    g.append(r);
+    waves.after(g);
+  };
+  const setFrames = (names) => {
+    frameNames = names; frame = names.length ? 0 : -1;
+    frameWrap.hidden = !names.length;
+    frameSel.replaceChildren(...names.map((n, i) => { const o = document.createElement("option"); o.value = String(i); o.textContent = `${String(i + 1).padStart(2, "0")} ${n}`; return o; }));
+    stepMarker();
+  };
+  frameSel.addEventListener("change", () => { frame = Number(frameSel.value); stepMarker(); });
+  const saveSvg = (xml, name) => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml" })); a.download = name;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  root.addEventListener("click", async (e) => {
+    if (!e.target.closest("[data-do=frames-export]") || !frameNames.length) return;
+    const keep = frame;
+    for (let i = 0; i < frameNames.length; i++) {
+      frame = i; stepMarker();
+      saveSvg(svgText(), `timing-diagram-${String(i + 1).padStart(2, "0")}.svg`);
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    frame = keep; frameSel.value = String(keep); stepMarker();
+    say(`Exported ${frameNames.length} diagrams, each with its step marked (timing-diagram-01 to ${String(frameNames.length).padStart(2, "0")}).`);
+  });
 
   // ---- nodes of a circuit: from the beta editor's autosave (if any) or an opened .json ----
   let nodes = [];
@@ -124,10 +177,11 @@ export function mount(root) {
     const f = e.target.files[0]; e.target.value = "";
     if (!f) return;
     if (f.size > 5e6) return say("That file is too large to be a circuit.", true);
-    setNodes(nodesOf(await f.text()), f.name);
+    const text = await f.text();
+    setNodes(nodesOf(text), f.name); setFrames(framesIn(text));
   });
   const fromEditor = store.get(EDITOR_KEY);
-  if (fromEditor) { const res = nodesOf(fromEditor); if (res.ok) setNodes(res, "the editor's circuit"); }
+  if (fromEditor) { const res = nodesOf(fromEditor); if (res.ok) { setNodes(res, "the editor's circuit"); setFrames(framesIn(fromEditor)); } }
   render();
   return { render, get source() { return src.value; }, set source(v) { src.value = v; render(); }, get last() { return last; } };
 }
