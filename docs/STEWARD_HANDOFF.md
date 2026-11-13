@@ -187,8 +187,8 @@ Keyboard-usable; visible focus.
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
 | F1.1 | Plan mode: write `proposals/figure-editor.md` (two pages at most): data model (schema v0.2 in memory), how wires anchor and rubber-band, junction rules, undo design, the symbol-pack loading, label typesetting path, export path, file layout, and a test plan. List open questions for Blake | Steward, approved by Blake 2026-11-12 | Done | `6e55c94` on branch `figure-editor-plan` (not merged): proposal approved with Blake's answers in section 10; DECISIONS.md entry |
-| F2.1 | Build the core as the approved plan says: canvas with zoom and pan; palette; place, move, rotate, mirror, delete; anchored orthogonal wires with T-junctions and automatic four-way dots; select, box select, copy and paste; undo and redo; save, load and autosave; SVG export | Steward, approved by Blake 2026-11-12 | Open | |
-| F2.2 | Tests: geometry and wiring rules under `node --test` (no extra dependency), and one headless-browser screenshot of a sample figure | Steward, approved by Blake 2026-11-12 | Open | |
+| F2.1 | Build the core as the approved plan says: canvas with zoom and pan; palette; place, move, rotate, mirror, delete; anchored orthogonal wires with T-junctions and automatic four-way dots; select, box select, copy and paste; undo and redo; save, load and autosave; SVG export | Steward, approved by Blake 2026-11-12 | Done | `d8d3513` on branch `figure-editor` (not merged). Pack copied from circuit-model tag `symbols-v0.1.0` (`0cf7f80`) with MANIFEST.json; mirror disabled for every element (no `mirrorable` flag in the pack yet); build choices in DECISIONS.md |
+| F2.2 | Tests: geometry and wiring rules under `node --test` (no extra dependency), and one headless-browser screenshot of a sample figure | Steward, approved by Blake 2026-11-12 | Done | `1af8f4e` on branch `figure-editor`. Per proposal 10.7, 35 tests run under Quarto's Deno (`quarto run tools/figure-editor/test/run.js`), not `node --test`; all pass. Sample: full adder from gates (two four-way dots, two T-junctions); export checked at 4x, no external references |
 | F3.1 | Labels via MathJax STIX2 (outlined in exports); wire level colours; copy as PNG; real-size and scale options; private theme from a local file; draft toggle; a "?" panel listing the keys | Steward, approved by Blake 2026-11-12 | Open | |
 
 **Mandatory.** Draw only from the symbol pack. Exported SVG opens cleanly
@@ -206,3 +206,8 @@ F3, the same with labels and colours.
 ## Notes for the Scribe
 
 (Builders: add a dated line here when a doc no longer matches the code.)
+
+- 2026-11-13 (F2, branch `figure-editor`): new page `tools/figure-editor/` and commands
+  `quarto run tools/figure-editor/scripts/copy-symbol-pack.js`, `.../test/run.js` and
+  `.../scripts/build-sample.js`. Only a stub `tools/figure-editor/README.md` exists. The
+  copy script is `.js`, not the `.mjs` the proposal names (`quarto run` refuses `.mjs`).
