@@ -72,9 +72,9 @@ Use these to judge every idea.
   server is a separate service, with the trade-off written down.
 - **Licence: not yet chosen.** Do not add LICENSE files, licence headers or
   licence badges until Blake decides.
-- **Approval.** Blake signs off on anything students or the public see.
-  Agents mark something approved only when Blake directly tells them to
-  (see section 7).
+- **Approval.** Blake signs off on anything students or the public see,
+  except READMEs, which the Scribe approves (section 8). Agents mark
+  something approved only when Blake directly tells them to (see section 7).
 
 ## 4. Architecture
 
