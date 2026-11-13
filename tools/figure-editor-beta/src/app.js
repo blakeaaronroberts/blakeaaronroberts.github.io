@@ -9,7 +9,7 @@
 import { LEVELS, loadPack, parsePrivateTheme } from "./pack.js";
 import * as D from "./doc.js";
 import { History } from "./history.js";
-import { exportSize, exportSvg, labelBoxes } from "./export.js";
+import { drawing, exportSize, exportSvg, labelBoxes } from "./export.js";
 import { hitTest, inBox } from "./hit.js";
 import { packLabelPt, texNeeded } from "./labels.js";
 import { typesetAll } from "./mathjax.js";
@@ -213,7 +213,12 @@ export async function mount(root, options = {}) {
   const saveOptions = () => store.set(OPTIONS, JSON.stringify(opt));
   const drawOpts = () => ({ typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags, scale: opt.scale });
 
-  const status = (msg) => { statusEl.textContent = msg; };
+  /** The status line. An error is bold and announced at once, and stays until the next message. */
+  const status = (msg, error = false) => {
+    statusEl.textContent = msg;
+    statusEl.toggleAttribute("data-error", error);
+    statusEl.setAttribute("role", error ? "alert" : "status");
+  };
 
   // ---- the private theme (kept in this browser only) ----------------------------------------
   let privateRoles = null;                             // a loaded private theme's roles, or null
@@ -434,12 +439,23 @@ export async function mount(root, options = {}) {
 
   // ---- editing ---------------------------------------------------------------------------
   let unsaved = false;   // edits not yet written to a .json file; autosave stays in this browser only
+  let autosavePending = false, autosaveWarned = false;
+  /** Write the autosave now if an edit is waiting. Storage may be missing, blocked or full: say so once, and carry on. */
+  function flushAutosave() {
+    clearTimeout(autosaveTimer);
+    if (!autosavePending) return;
+    autosavePending = false;
+    let ok = false;
+    try { ok = store.set(AUTOSAVE, D.serialize(doc, pack)); } catch { ok = false; }
+    if (!ok && !autosaveWarned) { autosaveWarned = true; status("Autosave is off: this browser will not store the figure. Use Save to keep it.", true); }
+  }
   function changed(msg) {
     unsaved = true;
     render();
     if (msg) status(msg);
+    autosavePending = true;
     clearTimeout(autosaveTimer);
-    autosaveTimer = setTimeout(() => store.set(AUTOSAVE, D.serialize(doc, pack)), 800);
+    autosaveTimer = setTimeout(flushAutosave, 800);
     queueTypeset();
   }
 
@@ -707,6 +723,7 @@ export async function mount(root, options = {}) {
   /** Open a saved file. With `record`, it is an undo step; on start-up it is not. */
   function load(text, record = true) {
     const { doc: next, nets } = D.parse(text);
+    try { drawing(next, pack, { typeset }); D.lint(next, pack); } catch (e) { throw new Error(`the figure could not be drawn (${e.message})`); }   // a dry run: nothing changes if it fails
     loadWarnings = D.netsMatch(nets, D.deriveNets(next, pack)) ? [] :
       ["The file's nets did not match its drawing. Saving writes the nets the drawing makes."];
     if (record) commit(next, `Opened ${next.id}.`);
@@ -754,7 +771,8 @@ export async function mount(root, options = {}) {
     const f = fileInput.files[0];
     fileInput.value = "";
     if (!f) return;
-    try { load(await f.text()); } catch (e) { status(`Could not open ${f.name}: ${e.message}`); }
+    if (f.size > 5e6) { status(`Could not open ${f.name}: it is ${(f.size / 1e6).toFixed(1)} MB, far too large for a circuit file. The figure on the canvas is unchanged.`, true); return; }
+    try { load(await f.text()); } catch (e) { status(`Could not open ${f.name}: ${e.message}. The figure on the canvas is unchanged.`, true); }
   });
   themeInput.addEventListener("change", async () => {
     const f = themeInput.files[0];
@@ -947,6 +965,8 @@ export async function mount(root, options = {}) {
   });
 
   window.addEventListener("beforeunload", (e) => { if (unsaved) { e.preventDefault(); e.returnValue = ""; } });
+  window.addEventListener("pagehide", flushAutosave);                                   // an edit made in the last 0.8 s still reaches the autosave
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushAutosave(); });
 
   // ---- start ----------------------------------------------------------------------------------
   view.setGrid(opt.grid);
@@ -967,7 +987,7 @@ export async function mount(root, options = {}) {
   }
   const saved = !opened && store.get(AUTOSAVE);
   if (saved) {
-    try { load(saved, false); status("Restored the autosaved figure."); } catch { /* an unreadable autosave is ignored */ }
+    try { load(saved, false); status("Restored the autosaved figure."); } catch (e) { status(`The autosaved figure could not be read (${e.message}). It is left alone until your next edit replaces it.`, true); }
   }
   if (!opened && !saved) status("Pick an element on the left to place it, or press W to draw a wire. Press ? for the keys. Autosave stays in this browser; use Save to take a figure to another computer.");
 

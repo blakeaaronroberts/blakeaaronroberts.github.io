@@ -75,7 +75,7 @@ happens when Blake says "deploy", or when his prompt authorises it.
 | F4 | Figure editor options before launch: grid, whole-figure line weight (thin, regular, bold) and a dark theme, saved with the figure | Open | 2026-11-13 |
 | F2.4 | Beta editor page, canvas that follows the site's light/dark setting, all-white-stroke dark mode | Done | 2026-11-13 |
 | F6 | Figure editor: drag a wire segment, click and delete a wire | Done | 2026-11-13 |
-| F7 | Figure editor: autosave and Save/Open of circuits | Open | 2026-11-13 |
+| F7 | Figure editor: autosave and Save/Open of circuits | Done | 2026-11-13 |
 | F5 | Figure editor: configurable block (rect, chevron, triangle, circle) with presets, wire arrows, bus marks, level-coloured elements | Open | 2026-11-13 |
 | T1 | Timing diagram tool: a WaveDrom page in the lecture look, adjustable size, SVG export | Open | 2026-11-13 |
 | F8 | Figure editor: box select, copy and paste, align and distribute, label editing, shortcuts | Open | 2026-11-13 |
@@ -388,8 +388,8 @@ version is built, and wants the whole editor dark in dark mode (2026-11-13).
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| F7.1 | Autosave and restore (guarded storage calls, works without storage) | Steward, approved by Blake 2026-11-13 | Open | |
-| F7.2 | Save and Open file, validation, tests | Steward, approved by Blake 2026-11-13 | Open | |
+| F7.1 | Autosave and restore (guarded storage calls, works without storage) | Steward, approved by Blake 2026-11-13 | Done | Branch beta-f7, beta page only. Autosave and restore already existed; added: a flush when the page is hidden or closed (an edit made under 0.8 s before a reload is kept); storage calls stay guarded, and if the browser blocks or fills storage the status line says once that autosave is off (bold, announced as an alert) and the editor carries on; an unreadable autosave is reported, not silently dropped. Browser checks: reload 1300 ms and 50 ms after an edit both restore it; with localStorage throwing, the editor still starts, edits and saves, with no editor errors. 
+| F7.2 | Save and Open file, validation, tests | Steward, approved by Blake 2026-11-13 | Done | Save downloads <figure id>.json in circuit/0.2 (canonical text, byte-identical to what the editor holds); Open reads it back. Open now does a dry run (parse, then draw and lint) before touching the canvas, refuses files over 5 MB, and any refusal is a bold alert naming the problem and saying the figure on the canvas is unchanged. Checked with 7 bad files (not JSON, empty, a list, old schema, wrong grid, off-grid point, duplicate id): each refused with its reason, canvas unchanged. Round trip in the browser: drag a wire, Save, New, Open gives the identical figure. The downloaded bytes were caught at the link, because headless Chrome will not say where it saves. A file with an element type the pack lacks still opens, with a warning in the Warnings panel and that element not drawn (as before; say if it should be refused instead). 97 Deno tests pass. Command: quarto run tools/figure-editor-beta/test/browser/check.js saves. 
 
 ---
 

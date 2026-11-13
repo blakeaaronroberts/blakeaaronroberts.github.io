@@ -228,3 +228,113 @@ scenarios.wires = async (ctx) => {
   } finally { await page.close(); }
   return res;
 };
+
+/** Autosave and restore, Save and Open a file, bad files, and a browser with no storage. */
+scenarios.saves = async (ctx) => {
+  const res = [];
+  const tmp = await Deno.makeTempDir({ prefix: "fe-files-" });
+  const grid = (page) => ({
+    px: (gx, gy) => page.eval(`(() => { const s = document.querySelector("svg.fe-canvas"), p = s.createSVGPoint(); p.x = ${gx} / 2; p.y = -${gy} / 2; const q = p.matrixTransform(s.getScreenCTM()); return [q.x, q.y]; })()`),
+    perStep: () => page.eval(`document.querySelector("svg.fe-canvas").getScreenCTM().a / 2`),
+    via: (id) => page.eval(`JSON.stringify(window.figureEditor.doc.wires.find((w) => w.id === ${JSON.stringify(id)}).via)`),
+    clickCmd: async (cmd) => { const [x, y] = await page.eval(`(() => { const r = document.querySelector('[data-cmd="${cmd}"]').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; })()`); await page.click(x, y); },
+    status: () => page.eval(`({ text: document.querySelector(".fe-status").textContent, error: document.querySelector(".fe-status").hasAttribute("data-error"), role: document.querySelector(".fe-status").getAttribute("role") })`),
+    saved: () => page.eval(`window.figureEditor.save()`),
+  });
+  const MOVED = JSON.stringify([[-20, 21], [-20, -13]]);
+  const editorErrors = (page) => page.errors.filter((e) => /src\/(app|doc|view)\.js/.test(e));
+  const dragW3 = async (page, g) => { const mid = await g.px(-22, 4); await page.drag(mid, [mid[0] + 2 * (await g.perStep()), mid[1]]); await page.sleep(200); };
+
+  // A: Save writes a file; New clears; Open brings the same figure back.
+  {
+    const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+    try {
+      const g = grid(page);
+      // Headless Chrome will not say where it saved a download, so catch the editor's download at the link instead: its name and its exact bytes.
+      await page.beforeLoad(`window.__downloads = []; const click = HTMLAnchorElement.prototype.click;
+        HTMLAnchorElement.prototype.click = function () { if (!this.download) return click.apply(this, arguments);
+          const name = this.download; fetch(this.href).then((r) => r.text()).then((text) => window.__downloads.push({ name, text })); };`);
+      await page.goto(ctx.url + "?open=examples/full-adder.json");
+      await page.waitFor(ready); await page.sleep(1000);
+      await dragW3(page, g);
+      res.push([(await g.via("w3")) === MOVED, "A: the figure is edited (w3 dragged)"]);
+      const before = await g.saved();
+      await g.clickCmd("save");
+      await page.waitFor(`window.__downloads.length > 0`, 5000).catch(() => {});
+      const got = await page.eval(`window.__downloads[0] ?? null`);
+      res.push([got?.name === "full_adder_gates.json", `A: Save downloads a file named ${got?.name}`]);
+      res.push([got?.text === before, "A: the file is exactly the circuit/0.2 text the editor holds"]);
+      const file = `${tmp}/saved.json`; await Deno.writeTextFile(file, got?.text ?? "");
+      await g.clickCmd("new"); await page.sleep(400);
+      res.push([await page.eval(`window.figureEditor.doc.elements.length === 0`), "A: New clears the canvas"]);
+      await page.setFile(".fe-file", file); await page.sleep(800);
+      res.push([(await g.saved()) === before && (await g.via("w3")) === MOVED, "A: Open brings back the same figure, edit included"]);
+      res.push([editorErrors(page).length === 0, "A: no page errors"]);
+    } finally { await page.close(); }
+  }
+
+  // B: bad files are refused with a readable error, and the figure on the canvas is left alone.
+  {
+    const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+    try {
+      const g = grid(page);
+      await page.goto(ctx.url + "?open=examples/full-adder.json");
+      await page.waitFor(ready); await page.sleep(1000);
+      const before = await g.saved();
+      const bad = {
+        "not-json.json": ["this is not json", /not JSON/],
+        "empty.json": ["", /not JSON/],
+        "array.json": ["[1, 2, 3]", /not a circuit file/],
+        "old-schema.json": [JSON.stringify({ schema: "circuit/0.1", id: "x", grid_cm: 0.25, elements: [] }), /schema is/],
+        "wrong-grid.json": [JSON.stringify({ schema: "circuit/0.2", id: "x", grid_cm: 0.5, elements: [] }), /grid_cm/],
+        "bad-point.json": [JSON.stringify({ schema: "circuit/0.2", id: "x", grid_cm: 0.25, elements: [{ id: "a1", type: "and_gate", at: [1.5, 2] }] }), /whole grid steps/],
+        "dup-id.json": [JSON.stringify({ schema: "circuit/0.2", id: "x", grid_cm: 0.25, elements: [{ id: "a1", type: "and_gate", at: [0, 0] }, { id: "a1", type: "and_gate", at: [8, 0] }] }), /used twice/],
+      };
+      for (const [name, [text, why]] of Object.entries(bad)) {
+        const path = `${tmp}/${name}`; await Deno.writeTextFile(path, text);
+        await page.setFile(".fe-file", path); await page.sleep(500);
+        const s = await g.status();
+        res.push([s.error && s.role === "alert" && /Could not open/.test(s.text) && why.test(s.text) && /unchanged/.test(s.text) && (await g.saved()) === before, `B: ${name} refused: "${s.text.slice(0, 90)}"`]);
+      }
+      await page.shot(`${ctx.out}/beta-bad-file.png`);
+      res.push([editorErrors(page).length === 0, "B: no page errors"]);
+    } finally { await page.close(); }
+  }
+
+  // C: autosave. An edit survives a reload, even one made less than a second before it.
+  for (const wait of [1300, 50]) {
+    const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+    try {
+      const g = grid(page);
+      await page.goto(ctx.url + "?open=examples/full-adder.json");
+      await page.waitFor(ready); await page.sleep(1000);
+      await dragW3(page, g);
+      await page.sleep(wait);
+      await page.goto(ctx.url);
+      await page.waitFor(ready); await page.sleep(1000);
+      const s = await g.status();
+      res.push([(await g.via("w3")) === MOVED && /Restored/.test(s.text), `C: reload ${wait} ms after an edit restores it ("${s.text.slice(0, 40)}")`]);
+      res.push([editorErrors(page).length === 0, `C (${wait} ms): no page errors`]);
+    } finally { await page.close(); }
+  }
+
+  // D: a browser that refuses storage. The editor still starts and edits, and says autosave is off.
+  {
+    const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+    try {
+      const g = grid(page);
+      await page.beforeLoad(`Object.defineProperty(window, "localStorage", { get() { throw new DOMException("denied", "SecurityError"); } });`);
+      await page.goto(ctx.url + "?open=examples/full-adder.json");
+      await page.waitFor(ready); await page.sleep(1000);
+      await dragW3(page, g);
+      res.push([(await g.via("w3")) === MOVED, "D: with storage blocked the editor still edits"]);
+      await page.sleep(1500);
+      const s = await g.status();
+      res.push([s.error && /Autosave is off/.test(s.text), `D: it says so once ("${s.text.slice(0, 60)}")`]);
+      await g.clickCmd("save"); await page.sleep(300);
+      res.push([editorErrors(page).length === 0, `D: no editor errors${editorErrors(page).length ? ": " + editorErrors(page)[0].slice(0, 120) : ""}`]);
+    } finally { await page.close(); }
+  }
+  try { await Deno.remove(tmp, { recursive: true }); } catch { /* left for the system to clear */ }
+  return res;
+};
