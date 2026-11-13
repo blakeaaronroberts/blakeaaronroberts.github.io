@@ -52,3 +52,6 @@ export const SAMPLE = `{
   ]
 }
 `;
+
+/** WaveDrom draws each wave character as two 20 px bricks, times `hscale`; the first brick sits at `x0`. Step i's column, as {x, width}. */
+export const stepColumn = (i, x0, hscale = 1) => ({ x: x0 + i * 40 * hscale, width: 40 * hscale });

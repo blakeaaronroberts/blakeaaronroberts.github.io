@@ -655,7 +655,7 @@ defaults. Exports use the figure's choice.
 |---|---|---|---|---|
 | T2.1 | Phase and step width controls | Steward, approved by Blake 2026-11-13 | Open | |
 | T2.2 | Edge and arrow UI with labels | Steward, approved by Blake 2026-11-13 | Open | |
-| T2.3 | Per-transition export of the diagram, then with schematic frames | Steward, approved by Blake 2026-11-13 | Open | Schematic frames exist in the editor (see F11.2, part 1-2 done). Timing tool reading frames and its per-frame export: not started. Rounded line ends and corners on the timing diagram (stroke-linecap/linejoin round, rule kept inside the exported SVG): done, tools/timing-diagram/src/app.js. |
+| T2.3 | Per-transition export of the diagram, then with schematic frames | Steward, approved by Blake 2026-11-13 | Open | Schematic frames exist in the editor (see F11.2). Timing tool now reads the frames from the editor autosave or an opened circuit .json (`groups.frames`), a Frame list marks that step (frame i = wave character i, so a frame is one step; hscale respected) with a rounded translucent band, and Export frames writes one SVG per frame with its marker (timing-diagram-01.svg, ...; SVG only, no PNG yet). Not done: T2.1, T2.2, the combined schematic-plus-diagram slide per frame (needs F9 layout). Rounded line ends and corners on the timing diagram (stroke-linecap/linejoin round, rule kept inside the exported SVG): done, tools/timing-diagram/src/app.js. |
 
 ---
 

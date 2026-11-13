@@ -28,3 +28,14 @@ Deno.test("starter lines and unknown names", () => {
   assertEquals(starterLines(n).map((l) => l.wave), ["0.1.0...", "p......."]);
   assertEquals(unknownNames(["A", "Z"], n), ["Z"]);
 });
+Deno.test("a step's column is 40 px wide at hscale 1 and follows hscale", async () => {
+  const { stepColumn } = await import("../src/wave.js");
+  assertEquals(stepColumn(2, 40), { x: 120, width: 40 });
+  assertEquals(stepColumn(1, 40, 2), { x: 120, width: 80 });
+});
+Deno.test("frame names come from the circuit's groups, capped and trimmed", async () => {
+  const { framesIn } = await import("../src/nodes.js");
+  assertEquals(framesIn(JSON.stringify({ groups: { frames: [{ name: " Reset ", levels: {} }, { levels: {} }] } })), ["Reset", "Frame 2"]);
+  assertEquals(framesIn("nope"), []);
+  assertEquals(framesIn("{}"), []);
+});

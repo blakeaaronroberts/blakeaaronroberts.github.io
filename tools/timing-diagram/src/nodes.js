@@ -25,3 +25,12 @@ export function unknownNames(names, nodes) {
   const known = new Set(nodes.map((n) => n.name));
   return names.filter((n) => !known.has(n));
 }
+
+/** The names of the level frames a circuit file carries (the beta editor keeps them in groups.frames). Data only; capped and trimmed. */
+export function framesIn(text) {
+  let doc;
+  try { doc = JSON.parse(String(text)); } catch { return []; }
+  const list = doc?.groups?.frames;
+  if (!Array.isArray(list)) return [];
+  return list.slice(0, 200).map((f, i) => (typeof f?.name === "string" && f.name.trim() ? f.name.trim().slice(0, 60) : `Frame ${i + 1}`));
+}
