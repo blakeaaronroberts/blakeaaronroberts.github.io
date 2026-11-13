@@ -146,7 +146,7 @@ Deno.test("the labelled sample exports with outlined labels only: no text, fonts
   const root = parseXml(svg);
   const tags = new Set(), names = new Set();
   walk(root, (n) => { tags.add(n.tag); n.attrs.forEach(([k]) => names.add(k)); });
-  assertEquals([...tags].filter((t) => t !== "#text").sort(), ["circle", "g", "path", "svg", "title"]);
+  assertEquals([...tags].filter((t) => t !== "#text").sort(), ["circle", "g", "metadata", "path", "svg", "title"]);   // <metadata> holds the circuit (F12)
   for (const bad of ["href", "xlink:href", "id", "class", "style", "font-family"]) assert(!names.has(bad), `has ${bad}`);
   assert(![...names].some((k) => k.startsWith("data-")), "data- attribute");
   assert(!/currentColor|<text|@import|url\(/.test(svg), "an unresolved colour, text or a reference");

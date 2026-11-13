@@ -10,7 +10,8 @@
 // colours resolved to attributes, and no fonts, links, ids, classes or CSS.
 
 import { boxOf, elementBox, elementSvgBox, fmt, fromSvg, MODULE_CM, svgTransform, toSvg } from "./geometry.js";
-import { allCorners } from "./doc.js";
+import { allCorners, serialize } from "./doc.js";
+import { metadataOf } from "./svgimport.js";
 import { BLOCK, blockNodes } from "./block.js";
 import { busMark, tagAnchor, withArrows } from "./marks.js";
 import { dots, joints } from "./junctions.js";
@@ -246,6 +247,7 @@ export function exportSvg(doc, pack, opts = {}) {
     `<?xml version="1.0" encoding="UTF-8"?>`,
     `<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="${fmt(w * MODULE_CM * scale)}cm" height="${fmt(h * MODULE_CM * scale)}cm" viewBox="${fmt(x0)} ${fmt(y0)} ${fmt(w)} ${fmt(h)}">`,
     `  <title>${esc(doc.title ?? doc.id)}</title>`,
+    metadataOf(serialize(doc, pack)),   // the circuit itself, so Open on this file brings the figure back editable
   ];
   if (d.wires.length) {
     out.push(`  <g fill="none" stroke="${ink}" stroke-width="${fmt(line.width_module)}" stroke-linecap="${line.cap}" stroke-linejoin="${line.join}">`);
