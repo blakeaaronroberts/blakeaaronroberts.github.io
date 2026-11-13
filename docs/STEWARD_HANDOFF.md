@@ -14,9 +14,12 @@ file.
 
 ## Current state
 
-Sync of 2026-11-12, 17:55 (Pacific). Facts only; work lives in the batches below.
+Sync of 2026-11-12, 21:20 (Pacific). Facts only; work lives in the batches below.
 
 **Changed since the last sync**
+- Since 21:00: Blake approved the circuit-schema proposal as a whole and
+  the VISION.md updates for it (sections 4, 5, 6, 7 and 9); his global git
+  email is now his GitHub noreply address.
 - S3 done (`ffcb352`): alt text on all 12 figures, exposed in the
   accessibility tree. DigitalJS shows state by colour only, so a visible,
   live status line reports the input and output values (Blake's choice).
@@ -30,7 +33,7 @@ Sync of 2026-11-12, 17:55 (Pacific). Facts only; work lives in the batches below
   the shared circuit model is planned but not yet created.
 
 **Waiting**
-- Site builder: no open batch.
+- Site builder: S4 (commit identity check).
 - Scribe: Blake's reviews in the review queue.
 
 ## How builders use this file
@@ -53,6 +56,7 @@ Sync of 2026-11-12, 17:55 (Pacific). Facts only; work lives in the batches below
 | S1 | Make this queue visible to every builder, stop handoff edits from redeploying the site, and clear out the stale `gh-pages` branch | Done | 2026-11-12 |
 | S2 | Give the Scribe a `docs/` section on the site whose drafts stay hidden until Blake approves them | Done | 2026-11-12 |
 | S3 | Accessibility pass: real alt text on every figure, and no logic state shown by colour alone | Done | 2026-11-12 |
+| S4 | Make sure this repo's commits use Blake's GitHub noreply address, not a university or work email | Open | 2026-11-12 |
 
 ---
 
@@ -111,6 +115,22 @@ site is small.
 | 1 | Alt text on every figure; check DigitalJS shows values, not colour alone | Scribe item H-S002 | Done | `ffcb352`. Alt text on all 12 figures, exposed in the accessibility tree. OJS cells ignore `fig-alt`, so plots use Observable Plot's `ariaLabel`. DigitalJS shows 1-bit state by colour only, so (Blake's choice) `_includes/digitaljs.html` adds a visible, aria-live status line of input and output values; DigitalJS unchanged. |
 
 **Review stop:** as in H-S002.
+
+---
+
+### S4: commit identity
+
+**Why now.** Blake set his global git email to his GitHub noreply address
+(2026-11-12). A repo-level setting would override it, and no new commit
+should carry a university or work address (VISION.md section 3).
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| 1 | Run `git config --local user.email` in this repo. If it prints anything, run `git config --local --unset user.email`, then confirm `git config user.email` prints the noreply address | Steward, approved by Blake 2026-11-12 | Open | |
+
+**Scope limits:** git configuration only. Don't rewrite history.
+
+**Review stop:** report what step 1 printed before and after, then wait.
 
 ---
 

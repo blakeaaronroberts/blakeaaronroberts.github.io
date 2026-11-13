@@ -102,8 +102,10 @@ The core model is renderer-independent. It must not import Manim.
   pack, so web output matches the LaTeX and animation output exactly.
 - **Two consumers.** Python (Manim animations, LaTeX export) and JavaScript
   (web tools). Both read the same schema and the same symbol pack.
-- **Simulation** produces signals over time from the schema (logic
-  evaluation first; SPICE and HDL simulation later). Renderers consume those
+- **Simulation** produces signals over time from the schema. First, logic
+  evaluation with four values (0, 1, X unknown, Z floating), zero delay by
+  default and integer gate delays as an option; SPICE and HDL simulation
+  later. Renderers consume those
   signals; no renderer invents its own behaviour.
 
 Today the toolbox's `Circuit` is a Manim object that stores geometry only.
@@ -116,10 +118,10 @@ building on it.
 |---|---|---|
 | `blakeaaronroberts.github.io` | Quarto site: the suite's public home, explorations, web tools, docs, this file | Public |
 | `manimations` | The animation library and working folder for all animated work: circuit toolbox (CircuiTikZ symbols + Manim wires and motion), gallery, exports | Private for now |
+| `circuit-model` | The core model: circuit schema, element models, logic simulator and symbol packs, read by both Python and JavaScript (design: `manimations/proposals/circuit-schema.md`, approved 2026-11-12) | Public; planned, created when Blake asks, once he has chosen its licence |
 
-`manimations` is the name of the animation library, not of the suite. Where
-the circuit schema, symbol pack and browser-side code live is an open
-decision (section 9). Do not create new repositories without Blake's say-so.
+`manimations` is the name of the animation library, not of the suite. Do not
+create new repositories without Blake's say-so.
 
 ## 6. Current phase and goals
 
@@ -146,7 +148,7 @@ Immediate targets, in order:
 
 Later phases: 2 Interaction (more web tools, KiCad import, practice and
 autograding). 3 Hardware and breadth (remote FPGA lab, other course areas,
-lecture video pipeline). 4 Adoption. Do not start later-phase work early.
+lecture video pipeline, gate delays imported from real parts' datasheets). 4 Adoption. Do not start later-phase work early.
 
 ## 7. Shared conventions
 
@@ -154,7 +156,7 @@ lecture video pipeline). 4 Adoption. Do not start later-phase work early.
 - One settings file per repo is the only place colours, line weights, sizes,
   grid and fonts are defined. Everything else reads from it or is generated
   from it. No hard-coded colours or sizes anywhere.
-- Colours are referenced by role (ink, low, high, flow, accent, background),
+- Colours are referenced by role (ink, low, high, unknown, floating, flow, accent, background),
   never by hue or by brand. Only the style file maps roles to colours.
 - **Default theme:** the Okabe-Ito palette (`high` is vermillion, #D55E00)
   everywhere. Colour roles are shared by every medium; fonts are set per
@@ -296,13 +298,18 @@ lecture video pipeline). 4 Adoption. Do not start later-phase work early.
 
 - Software licence.
 - The suite's real name.
-- Where the circuit schema, symbol pack and browser code live: inside
-  `manimations`, in the site repo, or in a new repository.
-Settled: circuits always come from the toolbox; LaTeX figures are only for
+
+Settled: the circuit schema, element models, simulator and symbol packs live
+in a new public repository, `circuit-model` (2026-11-12). Circuits always come from the toolbox; LaTeX figures are only for
 non-circuit figures such as timing diagrams and plots (2026-11-12). The
 WaveDrom and DigitalJS embeds stay on the site as an interim (2026-11-12).
 
 ## 10. Change log
+
+- 2026-11-12 (night): Circuit-schema proposal approved. New planned public
+  repo `circuit-model` (section 5); four-valued logic simulation (section 4);
+  `unknown` and `floating` colour roles (section 7); datasheet delays are a
+  Phase 3 goal; the location question is settled (section 9).
 
 - 2026-11-12 (evening, closing): READMEs need no draft stage (the Scribe
   approves them); site drafts live in `docs/_drafts/`.
