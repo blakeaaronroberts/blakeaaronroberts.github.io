@@ -45,3 +45,10 @@ Deno.test("nets are named by the label on them, not their internal name", async 
     wires: [{ id: "w", from: "u.Y", to: [10, 4], via: [[6, 4]] }], labels: [{ text: "N1", at: [7, 5] }] };
   assertEquals(nodesOf(JSON.stringify(doc)).nodes.map((x) => x.name), ["CLK", "N1", "n3"]);
 });
+Deno.test("a wire's net label, or its bus label, names the signal", async () => {
+  const { nodesOf } = await import("../src/nodes.js");
+  const doc = { schema: "circuit/0.2", nets: { n1: ["u.Y", "v.A"], n2: ["v.Y", "w.A"], n3: ["w.Y"] },
+    wires: [{ id: "a", from: "u.Y", to: "v.A" }, { id: "b", from: "v.Y", to: "w.A", bus: "D[3:0]" }, { id: "c", from: "w.Y", to: [0, 0], bus: "4" }],
+    groups: { wire_labels: { a: "CLK" } } };
+  assertEquals(nodesOf(JSON.stringify(doc)).nodes.map((x) => x.name), ["CLK", "D[3:0]", "n3"]);
+});

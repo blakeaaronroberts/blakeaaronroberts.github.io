@@ -21,7 +21,7 @@ import { sections } from "./categories.js";
 import { circuitFromSvg, sanitizeSvg, MAX_SVG_BYTES } from "./svgimport.js";
 import { FORMATS, LAYOUTS, centreOn, cleanFrame, frameBox, overflow, sizeOf } from "./frame.js";
 import { orient } from "./geometry.js";
-import { applyFrame, captureFrame, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame } from "./levelframes.js";
+import { setWireLabels, wireLabelOf, applyFrame, captureFrame, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame } from "./levelframes.js";
 
 const AUTOSAVE = "figure-editor-beta/autosave";
 const SAVES = "figure-editor-beta/saves";               // the last 10 manual saves
@@ -458,9 +458,12 @@ export async function mount(root, options = {}) {
         const arrow = arrows.size === 1 ? [...arrows][0] : null;
         key += arrow === null ? "|mixed" : "";
         html += choice("Arrowheads", "wireArrow", [...(arrow === null ? [["", "mixed (pick one)", true]] : []), ["none", "none"], ["end", "at the end"], ["start", "at the start"], ["both", "at both ends"]]) +
-          field("Bus mark: a slash with this label (such as N or 4)", "wireBus") +
+          field("Net label: the wire's signal name in the timing diagram (such as CLK or N1)", "wireNet") +
+          field("Bus mark: a slash with this label (such as N or 4; a name such as D[3:0] also names the signal)", "wireBus") +
           `<p class="fe-hint">A wire starts where it was begun and ends where it was finished. An arrowhead's tip lands exactly on the pin, wire or point it points at.</p>`;
         values.wireArrow = arrow ?? "";
+        const nets = new Set(wires.map((w) => wireLabelOf(doc, w.id)));
+        values.wireNet = nets.size === 1 ? [...nets][0] : "";
         values.wireBus = buses.size === 1 ? [...buses][0] : "";
       }
       const name = LEVELS.find((l) => l.value === one);
@@ -516,6 +519,8 @@ export async function mount(root, options = {}) {
         const field = { labelText: "text", labelSide: "side" }[name];
         if (name === "labelText" && !v.trim()) { status("A label needs some text; delete it to remove it."); return; }
         commit(D.setLabel(doc, selection.labels[0], { [field]: v.trim() }), "Label changed.");
+      } else if (name === "wireNet") {
+        commit(setWireLabels(doc, selection.wires, v.trim()), v.trim() ? `Net label ${v.trim()} set.` : "Net label cleared.");
       } else if (name === "level") {
         setLevel(v === "" ? null : v);
       } else if (name === "wireArrow") {

@@ -11,6 +11,11 @@ export function nodesOf(text) {
   const clean = (t) => (typeof t === "string" && NAME.test(t.trim()) ? t.trim() : null);
   const labelFor = (key, refs) => {
     const members = new Set(refs);
+    for (const w of Array.isArray(doc.wires) ? doc.wires : []) {   // a wire's net label, then its bus label, name the net
+      if (![w?.from, w?.to].some((e) => typeof e === "string" && members.has(e))) continue;
+      const n = clean(doc.groups?.wire_labels?.[w.id]) ?? clean(w.bus);
+      if (n) return n;
+    }
     for (const p of doc.ports ?? []) if (members.has(p?.id) && clean(p.label)) return clean(p.label);   // a port's own label
     const pts = [];
     for (const w of Array.isArray(doc.wires) ? doc.wires : []) {
