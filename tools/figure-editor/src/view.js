@@ -4,7 +4,7 @@
 // Every colour and size comes from the active theme (the pack's theme.json, or a private
 // theme's roles over it); the editor sets none of its own.
 
-import { fmt, fromSvg, svgTransform, toSvg } from "./geometry.js";
+import { fmt, fromSvg, STEPS_PER_MODULE, svgTransform, toSvg } from "./geometry.js";
 import { drawing, pathData } from "./export.js";
 import { writeXml } from "./xml.js";
 
@@ -13,14 +13,16 @@ export const symbolId = (type) => `fe-sym-${type}`;
 const same = (a, b) => a.toUpperCase() === b.toUpperCase();
 
 export function createView(svg, basePack) {
-  // Palette previews reuse these <symbol>s (the pack's colours, as shipped).
-  const defs = basePack.types(true).map((type) => {
-    const inner = basePack.svgs.get(type).children.map((n) => writeXml(n)).join("");
+  // Palette previews reuse these <symbol>s. Colours baked into the pack's SVGs go through the active pack's mapping,
+  // so the palette matches the canvas (as shipped in light; dark roles in dark).
+  const recolourAttrs = (n, pack) => ({ ...n, attrs: (n.attrs ?? []).map(([k, v]) => [k, v.replace(/#[0-9A-Fa-f]{6}/g, (c) => pack.recolour(c))]), children: (n.children ?? []).map((c) => recolourAttrs(c, pack)) });
+  const symbolsFor = (pack) => basePack.types(true).map((type) => {
+    const inner = basePack.svgs.get(type).children.map((n) => writeXml(recolourAttrs(n, pack))).join("");
     return `<symbol id="${symbolId(type)}" overflow="visible">${inner}</symbol>`;
   }).join("");
   svg.innerHTML = `
-    <defs>
-      ${defs}
+      <defs class="fe-symbols">${symbolsFor(basePack)}</defs>
+      <defs>
       <pattern id="fe-grid" patternUnits="userSpaceOnUse" x="-0.5" y="-0.5" width="1" height="1">
         <circle class="fe-grid-dot" cx="0.5" cy="0.5"/>
       </pattern>
@@ -144,7 +146,18 @@ export function createView(svg, basePack) {
   }
 
   applyCamera();
-  return { render, toGrid, zoomAt, panBy, fit, applyCamera, cam };
+  /** Dot spacing, in grid steps (1 = half a module, 2 = a module). Dots sit on multiples of it. */
+  function setGrid(steps) {
+    const w = steps / STEPS_PER_MODULE, pat = svg.querySelector("#fe-grid");
+    pat.setAttribute("width", w); pat.setAttribute("height", w);
+    pat.setAttribute("x", -w / 2); pat.setAttribute("y", -w / 2);
+    gridDot.setAttribute("cx", w / 2); gridDot.setAttribute("cy", w / 2);
+  }
+
+  /** Redraw the palette's symbols with a pack's colour mapping (the light or dark canvas). */
+  const setSymbols = (pack) => { svg.querySelector(".fe-symbols").innerHTML = symbolsFor(pack); };
+
+  return { render, toGrid, zoomAt, panBy, fit, applyCamera, setGrid, setSymbols, cam };
 }
 
 /** A small preview of one pack element for the palette (uses the canvas's <symbol>). */

@@ -141,3 +141,21 @@ under Workflow → "Render and validation cadence":
 
 **Reason.** Blake's instruction. The full light/dark comparison was asked for only for the
 MathJax 4 font switch, and should not become the default check for every update.
+
+## 2026-11-13: Dark canvas for the figure editor (interim)
+
+**Decision.** The figure editor has a canvas theme option (Auto, Light, Dark; Auto follows the system and is
+the default) and an "Export in dark theme" checkbox (off by default). In dark, the editor draws with dark
+values of every drawing role, found by role name in `--fig-dark-<role>` CSS properties. Hues are set in
+`themes/okabe-ito/figures.scss` (`$fig-dark-*`); the background and grid are derived in `custom.scss` from the
+site's dark background token (a shade darker, using Sass's own `darken` and `mix`), because `figures.scss`
+loads before the site theme and cannot see that token. The editor maps the symbol pack's baked black to ink and
+white to background at render time with the existing theme mechanism (`withTheme`); the pack is not edited.
+Okabe-Ito hues are kept except that blue becomes sky blue (the light blue is only about 3.5:1 on dark) and
+vermillion is lightened 8%. Exports stay on the light theme unless the checkbox is on.
+
+**Interim.** These dark values are a stand-in until the toolbox's dark theme (`theme-dark.json`) lands in the
+symbol pack. Then the editor reads the pack's dark roles and this `--fig-dark-*` set is deleted.
+
+**Reason.** Blake's instruction (2026-11-13): in dark mode the whole editor should look dark, with colours
+chosen to complement the site theme and stay accessible. Palette thumbnails keep the pack's colours as shipped.

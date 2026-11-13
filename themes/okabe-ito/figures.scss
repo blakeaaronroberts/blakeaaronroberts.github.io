@@ -26,3 +26,19 @@ $fig-flow:       $oi-bluish-green !default;
 $fig-highlight:  $oi-orange !default;
 $fig-font-text:  "STIX Two Text", "Times New Roman", serif !default;
 $fig-font-mono:  "Fira Mono", ui-monospace, Consolas, monospace !default;
+
+// DARK VARIANTS of the drawing roles (INTERIM: replaced by the toolbox's theme-dark.json when it lands; see DECISIONS.md).
+// Used only by the figure editor's dark canvas, read through the --fig-dark-<role> properties custom.scss publishes.
+// Okabe-Ito hues are kept where they read well on dark; blue is lightened to sky blue and vermillion a little.
+// The dark background, grid and rule depend on the site's dark background, so custom.scss derives them.
+$oi-reddish-purple: #CC79A7 !default;
+$fig-dark-ink:       mix($oi-white, $oi-black, 92%) !default;   // light lines
+$fig-dark-low:       $fig-dark-ink !default;
+$fig-dark-high:      lighten($oi-vermillion, 8%) !default;
+$fig-dark-unknown:   $oi-reddish-purple !default;
+$fig-dark-floating:  $oi-sky-blue !default;                      // the light blue (#0072B2) is only about 3.5:1 on dark
+$fig-dark-flow:      $oi-bluish-green !default;
+$fig-dark-accent:    $oi-sky-blue !default;                      // selection, rubber band
+$fig-dark-highlight: $oi-orange !default;
+$fig-dark-debug:     $oi-sky-blue !default;
+$fig-dark-debug-bad: $fig-dark-high !default;

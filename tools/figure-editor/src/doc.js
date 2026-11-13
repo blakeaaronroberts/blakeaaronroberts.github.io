@@ -492,7 +492,6 @@ export function lint(doc, pack) {
   for (const el of els) {
     if (!pack.def(el.type)) out.push(`${el.id}: "${el.type}" is not in the symbol pack, so it is not drawn`);
     else if (el.mirror && !pack.mirrorable(el.type)) out.push(`${el.id}: mirrored, but the pack does not mark ${el.type} mirrorable (its text would print backwards)`);
-    else if (el.label && !pack.def(el.type).label) out.push(`${el.id}: has a label, but the pack gives ${el.type} no label position, so it is not drawn`);
   }
   for (const w of doc.wires) {
     if (w.level && !pack.levelColour(w.level)) out.push(`${w.id}: level ${w.level} has no colour in this theme, so it is drawn in the default colour`);

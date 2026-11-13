@@ -28,7 +28,6 @@ const store = {
 
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const snapStep = (p) => [Math.round(p[0]) || 0, Math.round(p[1]) || 0];
-const snapModule = (p) => [2 * Math.round(p[0] / 2) || 0, 2 * Math.round(p[1] / 2) || 0];   // parts sit on whole modules
 const count = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const same = (a, b) => a && b && a[0] === b[0] && a[1] === b[1];
 const none = () => ({ elements: [], wires: [], ports: [], labels: [] });
@@ -46,7 +45,7 @@ export const KEYS = [
   ["Ctrl+Z, Ctrl+Y", "Undo, redo (Ctrl+Shift+Z also redoes)"],
   ["Ctrl+C, Ctrl+V, Ctrl+A", "Copy, paste, select all"],
   ["Ctrl+S", "Save the figure as a .json file"],
-  ["Arrow keys", "Move the selection (a module for parts, a grid step for wires and labels); pan when nothing is selected"],
+  ["Arrow keys", "Move the selection (a grid step for parts, as the Grid control sets it; half a module for wires and labels); pan when nothing is selected"],
   ["Shift+click", "Add to or remove from the selection; while placing, keep placing"],
   ["Drag on empty canvas", "Box select"],
   ["Mouse wheel, + and −", "Zoom"],
@@ -56,10 +55,35 @@ export const KEYS = [
   ["?", "Show or hide this list"],
 ];
 
-const BUTTON = "btn btn-sm btn-outline-secondary";
-const btn = (cmd, label, keys = "", extra = "") =>
-  `<button type="button" class="${BUTTON}" data-cmd="${cmd}"${keys ? ` aria-keyshortcuts="${keys}" title="${label} (${keys})"` : ""}${extra}>${label}</button>`;
-
+const BUTTON = "btn btn-sm fe-btn";
+// Toolbar icons: 16-unit line drawings in currentColor, so the site's roles colour them.
+const ICONS = {
+  select: '<path d="M3 2l9 5-4 1.5L6.5 13z"/>',
+  wire: '<path d="M2 12h5V5h7"/><circle cx="2" cy="12" r="1"/><circle cx="14" cy="5" r="1"/>',
+  port: '<path d="M2 3h8l4 5-4 5H2z"/>',
+  label: '<path d="M3 3h10M8 3v10"/>',
+  rotate: '<path d="M13 8a5 5 0 1 1-1.5-3.5M13 2v3h-3"/>',
+  mirror: '<path d="M8 2v12" stroke-dasharray="2 2"/><path d="M6 4L2 12h4zM10 4l4 8h-4z"/>',
+  delete: '<path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 9h5.6l.7-9"/>',
+  undo: '<path d="M5 3L2 6l3 3"/><path d="M2 6h7a4 4 0 0 1 0 8H6"/>',
+  redo: '<path d="M11 3l3 3-3 3"/><path d="M14 6H7a4 4 0 0 0 0 8h3"/>',
+  copy: '<rect x="5" y="5" width="8" height="9"/><path d="M3 11V2h8"/>',
+  paste: '<path d="M5 3H3v11h10V3h-2"/><rect x="5" y="2" width="6" height="3"/>',
+  zoomout: '<circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14M5 7h4"/>',
+  zoomin: '<circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14M5 7h4M7 5v4"/>',
+  fit: '<path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/>',
+  new: '<path d="M4 2h5l3 3v9H4zM9 2v3h3"/>',
+  open: '<path d="M2 4h4l1.5 2H14v7H2z"/>',
+  save: '<path d="M8 2v8M5 7l3 3 3-3M3 13h10"/>',
+  export: '<path d="M3 5v8h10V5M8 11V2M5 5l3-3 3 3"/>',
+  png: '<rect x="2" y="3" width="12" height="10"/><circle cx="6" cy="7" r="1"/><path d="M2 12l4-3 3 2 2-2 3 3"/>',
+};
+/** A button for a command: an icon (named for assistive tech and in its tooltip) or, with no icon, its text. */
+const btn = (cmd, label, keys = "", extra = "", title = label) => {
+  const art = ICONS[cmd] ? `<svg class="fe-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">${ICONS[cmd]}</svg>` : label;
+  const name = ICONS[cmd] ? ` aria-label="${label}"` : "";
+  return `<button type="button" class="${BUTTON}" data-cmd="${cmd}"${name} title="${title}${keys ? ` (${keys})` : ""}"${keys ? ` aria-keyshortcuts="${keys}"` : ""}${extra}>${art}</button>`;
+};
 export async function mount(root, options = {}) {
   const base = new URL(options.pack ?? "./symbol-pack/", document.baseURI);
   root.innerHTML = `<p class="fe-status" role="status">Loading the symbol pack…</p>`;
@@ -79,54 +103,67 @@ export async function mount(root, options = {}) {
   root.innerHTML = `
   <div class="fe">
     <div class="fe-toolbar" role="toolbar" aria-label="Figure editor">
-      <div class="btn-group" role="group" aria-label="Tool">
+      <div class="fe-group" role="group" aria-label="Tool">
         ${btn("select", "Select", "Escape", ' aria-pressed="true"')}${btn("wire", "Wire", "W", ' aria-pressed="false"')}${btn("port", "Port", "P", ' aria-pressed="false"')}${btn("label", "Label", "T", ' aria-pressed="false"')}
       </div>
-      <div class="btn-group" role="group" aria-label="Edit">
+      <div class="fe-group" role="group" aria-label="Edit">
         ${btn("rotate", "Rotate", "R")}${btn("mirror", "Mirror", "M")}${btn("delete", "Delete", "Delete")}
       </div>
-      <div class="btn-group" role="group" aria-label="History">
+      <div class="fe-group" role="group" aria-label="History">
         ${btn("undo", "Undo", "Control+Z")}${btn("redo", "Redo", "Control+Y")}
       </div>
-      <div class="btn-group" role="group" aria-label="Clipboard">
+      <div class="fe-group" role="group" aria-label="Clipboard">
         ${btn("copy", "Copy", "Control+C")}${btn("paste", "Paste", "Control+V")}
       </div>
-      <div class="btn-group" role="group" aria-label="View">
+      <div class="fe-group" role="group" aria-label="View">
         ${btn("zoomout", "Zoom out", "-")}${btn("zoomin", "Zoom in", "+")}${btn("fit", "Fit", "F")}
       </div>
-      <div class="btn-group" role="group" aria-label="File">
+      <div class="fe-group" role="group" aria-label="Part grid: snap step for parts">
+        <span class="fe-grouplabel label-mono" aria-hidden="true">Grid</span>${btn("gridhalf", "½", "", ' aria-pressed="true"', "Snap parts to half a module")}${btn("gridfull", "1", "", ' aria-pressed="false"', "Snap parts to a whole module")}
+      </div>
+      <div class="fe-group" role="group" aria-label="File">
         ${btn("new", "New")}${btn("open", "Open…")}${btn("save", "Save", "Control+S")}${btn("export", "Export SVG")}${btn("png", "Copy as PNG")}
       </div>
-      ${btn("help", "?", "?", ' aria-label="Keys"')}
+      <div class="fe-group fe-group-end">${btn("help", "?", "?", ' aria-label="Keys"')}</div>
       <input type="file" class="fe-file" accept=".json,application/json" hidden>
       <input type="file" class="fe-theme-file" accept=".json,application/json" hidden>
     </div>
-    <div class="fe-main">
-      <nav class="fe-palette" aria-label="Elements">
-        <label class="fe-drafts"><input type="checkbox" name="fe-drafts"> Show drafts</label>
-        <ul></ul>
-      </nav>
-      <div class="fe-stage">
-        <svg class="fe-canvas" tabindex="0" role="application" aria-label="Figure canvas" xmlns="http://www.w3.org/2000/svg"></svg>
-      </div>
-      <div class="fe-side" role="region" aria-label="Figure properties">
+    <details class="fe-palette fe-pane" open>
+      <summary class="label-mono">Elements</summary>
+      <label class="fe-drafts"><input type="checkbox" name="fe-drafts"> Show drafts</label>
+      <nav aria-label="Elements"><ul></ul></nav>
+    </details>
+    <div class="fe-stage">
+      <svg class="fe-canvas" tabindex="0" role="application" aria-label="Figure canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div class="fe-side" role="region" aria-label="Figure properties">
+      <details class="fe-pane" open>
+        <summary class="label-mono">Selection</summary>
+        <section class="fe-props" aria-label="Selection"></section>
+      </details>
+      <details class="fe-pane" name="fe-doc" open>
+        <summary class="label-mono">Figure</summary>
         <label class="form-label">Figure id <input class="form-control form-control-sm" name="fe-id" spellcheck="false"></label>
         <label class="form-label">Title <input class="form-control form-control-sm" name="fe-title"></label>
-        <section class="fe-props" aria-label="Selection"></section>
-        <fieldset class="fe-export">
-          <legend>Export</legend>
-          <label class="form-label">Scale (%) <input class="form-control form-control-sm" type="number" name="fe-scale" min="10" max="1000" step="5"></label>
-          <label class="form-label">Label size (pt) <input class="form-control form-control-sm" type="number" name="fe-labelpt" min="4" max="48" step="0.5"></label>
-          <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-tags"> <span class="form-check-label">Level tags (0, 1, X, Z) by each wire</span></label>
-          <p class="fe-size" aria-live="polite"></p>
-        </fieldset>
-        <fieldset class="fe-theme">
-          <legend>Theme</legend>
-          <p class="fe-theme-note"></p>
-          <div class="btn-group" role="group" aria-label="Theme">${btn("theme", "Private theme…")}${btn("themereset", "Default theme")}</div>
-        </fieldset>
-        <section class="fe-warnings" aria-label="Warnings"><ul></ul></section>
-      </div>
+      </details>
+      <details class="fe-pane fe-export" name="fe-doc">
+        <summary class="label-mono">Export</summary>
+        <label class="form-label">Scale (%) <input class="form-control form-control-sm" type="number" name="fe-scale" min="10" max="1000" step="5"></label>
+        <label class="form-label">Label size (pt) <input class="form-control form-control-sm" type="number" name="fe-labelpt" min="4" max="48" step="0.5"></label>
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-tags"> <span class="form-check-label">Level tags (0, 1, X, Z) by each wire</span></label>
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-exportdark"> <span class="form-check-label">Export in dark theme</span></label>
+        <p class="fe-size" aria-live="polite"></p>
+      </details>
+      <details class="fe-pane fe-theme" name="fe-doc">
+        <summary class="label-mono">Theme</summary>
+        <label class="form-label">Canvas <select class="form-select form-select-sm" name="fe-canvas"><option value="auto">Auto (follows system)</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+        <p class="fe-theme-note"></p>
+        <div class="fe-theme-buttons" role="group" aria-label="Theme">${btn("theme", "Private theme…")}${btn("themereset", "Default theme")}</div>
+      </details>
+      <details class="fe-pane fe-warnings" open>
+        <summary class="label-mono">Warnings</summary>
+        <ul></ul>
+      </details>
     </div>
     <p class="fe-status" role="status" aria-live="polite"></p>
     <dialog class="fe-help" aria-labelledby="fe-help-title">
@@ -139,8 +176,12 @@ export async function mount(root, options = {}) {
   const $ = (s) => root.querySelector(s);
   const svg = $(".fe-canvas"), statusEl = $(".fe-status"), fileInput = $(".fe-file"), themeInput = $(".fe-theme-file");
   const idInput = $('[name="fe-id"]'), titleInput = $('[name="fe-title"]'), propsEl = $(".fe-props"), helpEl = $(".fe-help");
-  const scaleInput = $('[name="fe-scale"]'), ptInput = $('[name="fe-labelpt"]'), tagsInput = $('[name="fe-tags"]'), draftsInput = $('[name="fe-drafts"]');
+  const scaleInput = $('[name="fe-scale"]'), ptInput = $('[name="fe-labelpt"]'), tagsInput = $('[name="fe-tags"]'), draftsInput = $('[name="fe-drafts"]'), canvasInput = $('[name="fe-canvas"]'), exportDarkInput = $('[name="fe-exportdark"]');
   const view = createView(svg, loaded);
+  // The editor fills the window below the site header; measure the header so the two never overlap.
+  const header = document.querySelector("#quarto-header");
+  const fit = () => root.style.setProperty("--fe-top", `${header ? Math.round(header.getBoundingClientRect().bottom) : 0}px`);
+  fit(); window.addEventListener("resize", fit);
 
   // ---- state ---------------------------------------------------------------------------
   let doc = D.newDoc();
@@ -160,20 +201,58 @@ export async function mount(root, options = {}) {
   let autosaveTimer = null;
   const typeset = new Map();         // TeX to parseTypeset's result (every label drawn is typeset once)
 
-  const opt = { scale: 1, labelPt: null, levelTags: false, drafts: false, ...(() => { try { return JSON.parse(store.get(OPTIONS) ?? "{}"); } catch { return {}; } })() };
+  const opt = { scale: 1, labelPt: null, levelTags: false, drafts: false, grid: 1, canvas: "auto", exportDark: false, ...(() => { try { return JSON.parse(store.get(OPTIONS) ?? "{}"); } catch { return {}; } })() };
+  if (opt.grid !== 2) opt.grid = 1;   // snap for parts, in grid steps: 1 is half a module (default), 2 is a whole module
+  if (!["auto", "light", "dark"].includes(opt.canvas)) opt.canvas = "auto";
+  opt.exportDark = opt.exportDark === true;
+  /** Snap a point (grid steps) to the part grid. Wires, ports and labels always snap to one step (half a module). */
+  function snapPart(p) { const g = opt.grid; return [g * Math.round(p[0] / g) || 0, g * Math.round(p[1] / g) || 0]; }
   const saveOptions = () => store.set(OPTIONS, JSON.stringify(opt));
   const drawOpts = () => ({ typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags, scale: opt.scale });
 
   const status = (msg) => { statusEl.textContent = msg; };
 
   // ---- the private theme (kept in this browser only) ----------------------------------------
+  let privateRoles = null;                             // a loaded private theme's roles, or null
+
+  /**
+   * The dark roles: every role the pack's theme has, read from the site's --fig-dark-<role> properties by
+   * name (the editor holds no colour of its own). A role the page does not publish keeps the pack's colour.
+   */
+  function darkRoles() {
+    const style = getComputedStyle(root), ctx = document.createElement("canvas").getContext("2d"), out = {};
+    for (const name of Object.keys(loaded.baseTheme.roles)) {
+      const raw = style.getPropertyValue(`--fig-dark-${name}`).trim();
+      if (!raw) continue;
+      if (!CSS.supports("color", raw)) continue;
+      ctx.fillStyle = raw;                                  // the canvas parses any CSS colour and reads it back as #rrggbb
+      if (/^#[0-9a-f]{6}$/i.test(ctx.fillStyle)) out[name] = ctx.fillStyle.toUpperCase();
+    }
+    return out;
+  }
+  /** The pack drawn for the light or dark canvas. A private theme, if loaded, overrides the dark roles. */
+  function packFor(dark) {
+    const roles = { ...(dark ? darkRoles() : {}), ...(privateRoles ?? {}) };
+    return Object.keys(roles).length ? loaded.withTheme(roles) : loaded;
+  }
+  const systemDark = matchMedia("(prefers-color-scheme: dark)");
+  const canvasIsDark = () => opt.canvas === "dark" || (opt.canvas === "auto" && systemDark.matches);
+  /** Rebuild the drawing pack for the canvas theme in force, and tell the CSS which plate to show. */
+  function applyCanvas() {
+    const dark = canvasIsDark();
+    pack = packFor(dark);
+    root.dataset.canvas = dark ? "dark" : "light";
+    view.setSymbols(pack);
+  }
   function applyTheme(text, announce) {
-    const roles = parsePrivateTheme(text);
-    pack = loaded.withTheme(roles);
+    privateRoles = parsePrivateTheme(text);
+    applyCanvas();
     if (announce) store.set(THEME, text);
   }
   const savedTheme = store.get(THEME);
-  if (savedTheme) { try { applyTheme(savedTheme, false); } catch { store.remove(THEME); } }
+  if (savedTheme) { try { applyTheme(savedTheme, false); } catch { privateRoles = null; store.remove(THEME); } }
+  applyCanvas();
+  systemDark.addEventListener("change", () => { if (opt.canvas === "auto") { applyCanvas(); render(); } });
 
   // ---- typesetting (MathJax, once per distinct label) -------------------------------------------
   let typesetBusy = false, typesetAgain = false;
@@ -217,6 +296,8 @@ export async function mount(root, options = {}) {
     set("undo", history.canUndo);
     set("redo", history.canRedo);
     for (const t of ["select", "wire", "port", "label"]) root.querySelector(`[data-cmd="${t}"]`).setAttribute("aria-pressed", String(tool === t));
+    root.querySelector(`[data-cmd="gridhalf"]`).setAttribute("aria-pressed", String(opt.grid === 1));
+    root.querySelector(`[data-cmd="gridfull"]`).setAttribute("aria-pressed", String(opt.grid === 2));
     svg.dataset.tool = tool;
     if (document.activeElement !== idInput) idInput.value = doc.id;
     if (document.activeElement !== titleInput) titleInput.value = doc.title ?? "";
@@ -229,9 +310,9 @@ export async function mount(root, options = {}) {
       const { widthCm, heightCm } = exportSize(lastDrawing, opt.scale);
       $(".fe-size").textContent = lastDrawing.box ? `File size: ${widthCm.toFixed(2)} × ${heightCm.toFixed(2)} cm${opt.scale === 1 ? " (real size)" : ""}` : "Nothing to export yet.";
     }
-    $(".fe-theme-note").textContent = pack.isPrivate
+    $(".fe-theme-note").textContent = privateRoles
       ? "Private theme loaded. It is kept in this browser only and is never saved in a figure or sent anywhere."
-      : `Default theme (${loaded.theme.theme}), from the symbol pack.`;
+      : `Default theme (${loaded.theme.theme}) from the symbol pack${root.dataset.canvas === "dark" ? ", with the dark canvas mapping" : ""}.`;
   }
 
   // ---- the properties panel ---------------------------------------------------------------
@@ -252,7 +333,7 @@ export async function mount(root, options = {}) {
       const def = el && pack.def(el.type);
       key = `el:${el?.id}`;
       html = `<dl><dt>Element</dt><dd data-text="elDesc"></dd><dt>Position</dt><dd data-text="elPos"></dd><dt>Rotation</dt><dd data-text="elRot"></dd><dt>Mirror</dt><dd data-text="elMirror"></dd></dl>` +
-        (def?.label ? field("Label (TeX, such as $R_1$)", "elLabel") : `<p class="fe-hint">The symbol pack gives this element no label position.</p>`);
+        field("Label (TeX, such as $R_1$)", "elLabel");
       if (el) {
         text.elDesc = `${el.id}: ${el.type}. ${def?.description ?? ""}`; text.elPos = `[${el.at.join(", ")}] grid steps`; text.elRot = `${el.rotation ?? 0}°`;
         text.elMirror = pack.mirrorable(el.type) ? (el.mirror ? "on" : "off") : "not available: the symbol pack does not mark this element mirrorable";
@@ -384,10 +465,16 @@ export async function mount(root, options = {}) {
     commit(D.setLevel(doc, selection.wires, level), level ? `Level ${level} (${name}) set on ${count(selection.wires.length, "wire")}.` : "Level cleared.");
   }
 
+  function setGrid(g) {
+    opt.grid = g; saveOptions(); view.setGrid(g);
+    ghost = null; updateUI();
+    status(g === 1 ? "Parts snap to half a module." : "Parts snap to a whole module.");
+  }
+
   function startPlacing(type, viaKeyboard) {
     if (viaKeyboard) {
       // No pointer: place at the middle of the view and select it, so arrow keys can move it.
-      const c = view.cam, at = snapModule([c.cx * 2, -c.cy * 2]);
+      const c = view.cam, at = snapPart([c.cx * 2, -c.cy * 2]);
       const r = D.addElement(doc, pack, type, at);
       commit(r.doc, `Placed ${r.id}. Arrow keys move it; R rotates.`);
       selection = { ...none(), elements: [r.id] };
@@ -397,7 +484,7 @@ export async function mount(root, options = {}) {
     }
     setTool("place");
     placing = { type, rotation: 0 };
-    if (pointer) ghost = { type, at: snapModule(pointer), rotation: 0 };
+    if (pointer) ghost = { type, at: snapPart(pointer), rotation: 0 };
     status(`Placing ${type}: click to place (Shift keeps placing), R rotates, Esc cancels.`);
     render();
   }
@@ -530,6 +617,8 @@ export async function mount(root, options = {}) {
       selection = { elements: doc.elements.map((e) => e.id), wires: doc.wires.map((w) => w.id), ports: doc.ports.map((p) => p.id), labels: doc.labels.map((_, i) => i) };
       render();
     },
+    gridhalf: () => setGrid(1),
+    gridfull: () => setGrid(2),
     zoomin: () => view.zoomAt(1 / 1.25),
     zoomout: () => view.zoomAt(1.25),
     fit: () => view.fit(lastDrawing?.box ?? null),
@@ -564,7 +653,7 @@ export async function mount(root, options = {}) {
     theme: () => themeInput.click(),
     themereset() {
       store.remove(THEME);
-      pack = loaded;
+      privateRoles = null; applyCanvas();
       render();
       status("Back to the pack's default theme.");
     },
@@ -573,7 +662,7 @@ export async function mount(root, options = {}) {
   /** The SVG as the export option settings say; labels are typeset first. Throws if one cannot be drawn. */
   async function svgNow() {
     await typesetAll(texNeeded(doc, pack, { levelTags: opt.levelTags }), typeset);
-    return exportSvg(doc, pack, drawOpts());
+    return exportSvg(doc, packFor(opt.exportDark), drawOpts());   // light by default; dark only if asked
   }
 
   const DPI = 300, MAX_PIXELS = 16000;
@@ -643,6 +732,10 @@ export async function mount(root, options = {}) {
     ptInput.value = String(opt.labelPt ?? packLabelPt(pack));
     render();
   });
+  canvasInput.value = opt.canvas;
+  canvasInput.addEventListener("change", () => { opt.canvas = canvasInput.value; saveOptions(); applyCanvas(); render(); status(`Canvas: ${canvasInput.selectedOptions[0].text}.`); });
+  exportDarkInput.checked = opt.exportDark;
+  exportDarkInput.addEventListener("change", () => { opt.exportDark = exportDarkInput.checked; saveOptions(); status(opt.exportDark ? "SVG and PNG exports will use the dark theme." : "SVG and PNG exports will use the default light theme."); });
   tagsInput.checked = !!opt.levelTags;
   tagsInput.addEventListener("change", () => { opt.levelTags = tagsInput.checked; saveOptions(); render(); queueTypeset(); });
   fileInput.addEventListener("change", async () => {
@@ -683,7 +776,7 @@ export async function mount(root, options = {}) {
     }
     if (e.button !== 0) return;
     if (tool === "place" && placing) {
-      const r = D.addElement(doc, pack, placing.type, snapModule(p), placing.rotation);
+      const r = D.addElement(doc, pack, placing.type, snapPart(p), placing.rotation);
       commit(r.doc, `Placed ${r.id}.`);
       selection = { ...none(), elements: [r.id] };
       if (!e.shiftKey) setTool("select"); else render();
@@ -718,7 +811,7 @@ export async function mount(root, options = {}) {
     if (drag?.kind === "pan") { view.panBy(e.clientX - drag.x, e.clientY - drag.y); drag.x = e.clientX; drag.y = e.clientY; return; }
     if (drag?.kind === "move") {
       const raw = [p[0] - drag.start[0], p[1] - drag.start[1]];
-      const delta = drag.sel.elements.length ? snapModule(raw) : snapStep(raw);
+      const delta = drag.sel.elements.length ? snapPart(raw) : snapStep(raw);
       if (!same(delta, drag.delta)) {
         drag.delta = delta;
         doc = same(delta, [0, 0]) ? drag.base : D.moveSelection(drag.base, pack, drag.sel, delta);
@@ -731,7 +824,7 @@ export async function mount(root, options = {}) {
       render();
       return;
     }
-    if (tool === "place" && placing) { ghost = { type: placing.type, at: snapModule(p), rotation: placing.rotation }; render(); return; }
+    if (tool === "place" && placing) { ghost = { type: placing.type, at: snapPart(p), rotation: placing.rotation }; render(); return; }
     if (tool === "wire") {
       if (wiring) updateRubber(p);
       else { const t = wireTarget(p); const h = t.kind !== "point" ? t.at : null; if (!same(h, hover)) { hover = h; render(); } }
@@ -804,7 +897,7 @@ export async function mount(root, options = {}) {
       e.preventDefault();
       const [dx, dy] = arrows[e.key];
       if (total(selection)) {
-        const step = selection.elements.length ? 2 : 1;          // a module for parts; a grid step for wires and labels alone
+        const step = selection.elements.length ? opt.grid : 1;   // parts move by the part grid; wires and labels alone by one step
         commit(D.moveSelection(doc, pack, selection, [dx * step, dy * step]), "Moved.");
       } else view.panBy(-dx * 40, dy * 40);
     }
@@ -813,6 +906,7 @@ export async function mount(root, options = {}) {
   window.addEventListener("beforeunload", (e) => { if (unsaved) { e.preventDefault(); e.returnValue = ""; } });
 
   // ---- start ----------------------------------------------------------------------------------
+  view.setGrid(opt.grid);
   renderPalette();
   render();
   view.fit(null);

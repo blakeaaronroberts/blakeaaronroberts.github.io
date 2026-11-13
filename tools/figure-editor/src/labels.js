@@ -120,10 +120,21 @@ const scaleText = (v) => String(Math.round(v * 1e7) / 1e7);
 // ---- every label a document has -------------------------------------------------------
 
 /**
+ * Where an element's own label goes: the pack's anchor if it gives one, else the middle of the top edge of the
+ * element's bounding box with the label above (the convention the pack's own anchors follow), so every element can carry a label.
+ */
+export function labelSpec(def) {
+  if (def?.label) return def.label;
+  if (!def?.bbox) return null;
+  const { min, max } = def.bbox;
+  return { anchor: [(min[0] + max[0]) / 2, max[1]], direction: "up" };
+}
+
+/**
  * The labels of a document: {key, kind, text, tex, at, dir, error}. `at` is in grid steps and may be
  * fractional (an element label's anchor); `dir` is a y-up grid vector or null. kind is "element" (its
- * own label, at the pack's anchor), "port" or "label" (free text). An element's label is skipped if the
- * pack gives that element no label anchor. `error` is set (and `tex` null) if the text cannot be converted.
+ * own label, at the pack's anchor), "port" or "label" (free text). An element with no pack anchor uses labelSpec's fallback. If the
+ * element has no bounding box it is skipped. `error` is set (and `tex` null) if the text cannot be converted.
  */
 export function labelItems(doc, pack) {
   const out = [];
@@ -133,9 +144,10 @@ export function labelItems(doc, pack) {
   const side = (s) => (s ? DIRECTIONS[s] ?? null : null);
   for (const el of doc.elements) {
     const def = pack.def(el.type);
-    if (!el.label || !def?.label) continue;
-    add({ key: `element:${el.id}`, kind: "element", id: el.id, text: el.label, at: place(el, def.label.anchor),
-      dir: orient(DIRECTIONS[def.label.direction], el.rotation ?? 0, el.mirror ?? false) });
+    const spec = labelSpec(def);
+    if (!el.label || !spec) continue;
+    add({ key: `element:${el.id}`, kind: "element", id: el.id, text: el.label, at: place(el, spec.anchor),
+      dir: orient(DIRECTIONS[spec.direction], el.rotation ?? 0, el.mirror ?? false) });
   }
   for (const p of doc.ports) if (p.label) add({ key: `port:${p.id}`, kind: "port", id: p.id, text: p.label, at: p.at, dir: side(p.side) });
   doc.labels.forEach((l, index) => add({ key: `label:${index}`, kind: "label", index, text: l.text, at: l.at, dir: side(l.side) }));

@@ -82,3 +82,16 @@ Deno.test("a private theme recolours the drawing and the pack's own symbols, and
   assert(!svg.includes("#000000"));
   assert(exportSvg(doc, pack).includes("#000000"));                       // the default theme is still black
 });
+
+Deno.test("a dark mapping turns the pack's baked black into ink and white into background, with no external references", () => {
+  const dark = pack.withTheme({ ink: "#E6E6E6", low: "#E6E6E6", background: "#131211", high: "#FF8A3D" });
+  let doc = addElement(newDoc(), pack, "and_gate", [0, 0]).doc;
+  doc = addWire(doc, pack, P([6, 0]), P([14, 0])).doc;
+  doc = { ...doc, wires: doc.wires.map((w) => ({ ...w, level: "1" })) };
+  const light = exportSvg(doc, pack, {}), svg = exportSvg(doc, dark, {});
+  assert(/#000000/i.test(light), "the light export keeps the pack's black");
+  assert(!/#000000|#FFFFFF/i.test(svg), "the dark export has no baked black or white left");
+  assert(/#E6E6E6/i.test(svg) && /#FF8A3D/i.test(svg), "ink and the dark high colour are used");
+  assert(!/<text|font-family|href=|url\(/.test(svg), "no text, fonts or references");
+  assertEquals(pack.role("ink"), "#000000");                                   // the loaded pack is untouched
+});
