@@ -87,7 +87,7 @@ export function drawing(doc, pack, opts = {}) {
     if (!ts.ok) { problems.push(`${describe}: ${ts.error}`); return; }
     const dir = item.dir ? [item.dir[0], -item.dir[1]] : null;
     const placed = placeLabel(ts, ref, toSvg(item.at), dir, em, gap);
-    const colour = item.kind === "block" ? (bodyColour.get(item.id) ?? ink) : ink;   // a block's middle text is part of its body
+    const colour = ink;   // F15: level colour is for the body only; a block's title text keeps the ink role like element names
     labels.push({ key: item.key, kind: item.kind, id: item.id, index: item.index, transform: placed.transform, box: placed.box, nodes: colourNodes(ts.nodes, colour) });
   };
   for (const item of labelItems(doc, pack, corners)) put(item, `label ${JSON.stringify(item.text)}`);
