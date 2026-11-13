@@ -17,6 +17,7 @@ import { nearestOnPolyline, route } from "./router.js";
 import { createView, thumbnail, blockThumbnail } from "./view.js";
 import { BLOCK, formatPins, handlesOf, parsePins, SHAPES, geometryOf } from "./block.js";
 import { PRESETS, presetById } from "./presets.js";
+import { sections } from "./categories.js";
 import { circuitFromSvg, sanitizeSvg, MAX_SVG_BYTES } from "./svgimport.js";
 import { FORMATS, LAYOUTS, centreOn, cleanFrame, frameBox, overflow } from "./frame.js";
 import { orient } from "./geometry.js";
@@ -139,9 +140,7 @@ export async function mount(root, options = {}) {
     <details class="fe-palette fe-pane" open>
       <summary class="label-mono">Elements</summary>
       <label class="fe-drafts"><input type="checkbox" name="fe-drafts"> Show drafts</label>
-      <nav aria-label="Elements"><ul class="fe-parts"></ul></nav>
-      <h3 class="fe-palette-head label-mono">Blocks</h3>
-      <nav aria-label="Blocks"><ul class="fe-blocks"></ul></nav>
+      <div class="fe-cats"></div>
     </details>
     <div class="fe-stage">
       <svg class="fe-canvas" tabindex="0" role="application" aria-label="Figure canvas" xmlns="http://www.w3.org/2000/svg"></svg>
@@ -325,11 +324,19 @@ export async function mount(root, options = {}) {
   }
 
   function renderPalette() {
-    $(".fe-palette .fe-parts").innerHTML = pack.types(opt.drafts).map((t) =>
-      `<li><button type="button" class="fe-part" data-type="${esc(t)}" title="${esc(pack.def(t).description)}">${thumbnail(pack, t)}<span>${esc(t)}</span></button></li>`).join("");
-    $(".fe-palette .fe-blocks").innerHTML = PRESETS.map((p) =>
-      `<li><button type="button" class="fe-part" data-preset="${esc(p.id)}" title="${esc(p.name)}: a block with these pins; size, shape, pins and labels can all be changed">${blockThumbnail(pack, p.params)}<span>${esc(p.name)}</span></button></li>`).join("");
+    const tile = (t) => `<li><button type="button" class="fe-part" data-type="${esc(t)}" title="${esc(pack.def(t).description)}">${thumbnail(pack, t)}<span>${esc(t)}</span></button></li>`;
+    const preset = (p) => `<li><button type="button" class="fe-part" data-preset="${esc(p.id)}" title="${esc(p.name)}: a block with these pins; size, shape, pins and labels can all be changed">${blockThumbnail(pack, p.params)}<span>${esc(p.name)}</span></button></li>`;
+    $(".fe-palette .fe-cats").innerHTML = sections(pack.types(opt.drafts)).map((s) => {
+      const open = opt.cats?.[s.id] ?? s.open;
+      const items = s.presets ? PRESETS.map(preset) : s.types.map(tile);
+      return `<details class="fe-cat" data-cat="${esc(s.id)}"${open ? " open" : ""}><summary class="fe-cat-head label-mono">${esc(s.title)} <span class="fe-count">${items.length}</span></summary><nav aria-label="${esc(s.title)}"><ul class="${s.presets ? "fe-blocks" : "fe-parts"}">${items.join("")}</ul></nav></details>`;
+    }).join("");
   }
+  // which sections are open is a per-viewer convenience, kept with the other options
+  root.querySelector(".fe-palette").addEventListener("toggle", (e) => {
+    const id = e.target.dataset?.cat;
+    if (id) { opt.cats = { ...opt.cats, [id]: e.target.open }; saveOptions(); }
+  }, true);
 
   function updateUI() {
     const has = total(selection) > 0;

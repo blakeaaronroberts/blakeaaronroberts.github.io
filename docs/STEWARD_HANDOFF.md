@@ -85,7 +85,7 @@ Blake's prompt.
 | F13 | Figure editor: KiCad import | Open | 2026-11-13 |
 | F14 | Promote the beta editor to stable | In progress | 2026-11-13 |
 | F15 | Editor: level colour fixes (titles, blocks in the Elements pane, global) | Done | 2026-11-13 |
-| F16 | Editor: Elements pane grouped into collapsible categories | Open | 2026-11-13 |
+| F16 | Editor: Elements pane grouped into collapsible categories | Done | 2026-11-13 |
 | F17 | Editor: configurable level colours | Open | 2026-11-13 |
 | T2 | Timing tool: transition timing, arrows between transitions, per-transition exports | Open | 2026-11-13 |
 
@@ -621,7 +621,7 @@ are open. Categories come from one data file so new elements need no code.
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| F16.1 | Category data file, collapsible sections, search still works | Steward, approved by Blake 2026-11-13 | Open | |
+| F16.1 | Category data file, collapsible sections, search still works | Steward, approved by Blake 2026-11-13 | Done | New src/categories.js (the one data file; unlisted types go under Other); collapsible sections with counts; open state kept in the options. Beta only. The pane has no search box today, so there was none to keep working. 157 tests; browser checks blocks, marks, levels, import, dark, saves pass (test helper now opens a section before clicking in it). |
 
 ---
 
