@@ -723,3 +723,35 @@ scenarios.frame = async (ctx) => {
   }
   return res;
 };
+
+/** F11.2: capture two frames, select one, export all on one slide (the file is intercepted, not downloaded). */
+scenarios.frames = async (ctx) => {
+  const res = [];
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(ctx.url + "?open=examples/full-adder-levels.json");
+    await page.waitFor(ready);
+    await page.sleep(1500);
+    const out = await page.eval(String.raw`(async () => {
+      const blobs = [];
+      const orig = URL.createObjectURL;
+      URL.createObjectURL = (b) => { blobs.push(b); return orig(b); };
+      const click = (c) => document.querySelector('[data-cmd="' + c + '"]').click();
+      const pane = document.querySelector(".fe-frames-pane"); pane.open = true;
+      click("framecapture"); click("framecapture");
+      const items = () => document.querySelectorAll(".fe-frame-item").length;
+      const n = items();
+      document.querySelector('[data-frame="0"]').click();
+      click("framesslide");
+      await new Promise((r) => setTimeout(r, 2500));
+      const types = blobs.map((b) => b.type), svg = await blobs.find((b) => b.type.includes("svg"))?.text();
+      return { n, types, svg: svg ? { cm: /width="([\d.]+)cm" height="([\d.]+)cm"/.exec(svg)?.slice(1), text: /<text/.test(svg), groups: (svg.match(/scale\(/g) ?? []).length } : null };
+    })()`);
+    await page.shot(`${ctx.out}/beta-frames.png`);
+    res.push([out.n === 2, `frames: two captured frames listed (${out.n})`]);
+    res.push([out.svg && out.svg.cm[0] === "33.867" && out.svg.cm[1] === "19.05" && !out.svg.text && out.svg.groups >= 2, `frames: one-slide export is slide size, with no <text> (${JSON.stringify(out.svg)})`]);
+    res.push([out.types.some((t) => t.includes("png")), `frames: the PNG was made (${out.types.join(", ")})`]);
+    res.push([page.errors.length === 0, `frames: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};

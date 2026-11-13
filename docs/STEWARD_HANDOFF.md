@@ -559,7 +559,7 @@ directly).
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
 | F11.1 | Animated SVG | Steward, approved by Blake 2026-11-13 | Open | |
-| F11.2 | Per-transition SVG and PNG sequence | Steward, approved by Blake 2026-11-13 | Open | |
+| F11.2 | Per-transition SVG and PNG sequence | Steward, approved by Blake 2026-11-13 | Interim, no simulator | Beta editor only. Frames panel: Capture frame, select (shows its levels), rename, reorder, update, delete; Export frames (one SVG + PNG per frame, 01, 02..., schematic alone or slide frame) and Export all on one slide (grid of small figures, names as outlined paths, slide size). **Frames are stored in the figure's `groups` map under `"frames"`** (the only free-form map the editor round-trips); NOT in a schema field: Blake or circuit-model should confirm `groups` accepts that shape. Tests: test/levelframes.test.js, browser scenario `frames`. |
 | F11.3 | APNG | Steward, approved by Blake 2026-11-13 | Open | |
 
 ---
@@ -655,7 +655,7 @@ defaults. Exports use the figure's choice.
 |---|---|---|---|---|
 | T2.1 | Phase and step width controls | Steward, approved by Blake 2026-11-13 | Open | |
 | T2.2 | Edge and arrow UI with labels | Steward, approved by Blake 2026-11-13 | Open | |
-| T2.3 | Per-transition export of the diagram, then with schematic frames | Steward, approved by Blake 2026-11-13 | Open | |
+| T2.3 | Per-transition export of the diagram, then with schematic frames | Steward, approved by Blake 2026-11-13 | Open | Schematic frames exist in the editor (see F11.2, part 1-2 done). Timing tool reading frames and its per-frame export: not started. |
 
 ---
 
