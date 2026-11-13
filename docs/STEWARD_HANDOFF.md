@@ -84,6 +84,10 @@ Blake's prompt.
 | F11 | Figure editor: animated SVG, animated PNG and per-transition exports | Open | 2026-11-13 |
 | F13 | Figure editor: KiCad import | Open | 2026-11-13 |
 | F14 | Promote the beta editor to stable | In progress | 2026-11-13 |
+| F15 | Editor: level colour fixes (titles, blocks in the Elements pane, global) | Open | 2026-11-13 |
+| F16 | Editor: Elements pane grouped into collapsible categories | Open | 2026-11-13 |
+| F17 | Editor: configurable level colours | Open | 2026-11-13 |
+| T2 | Timing tool: transition timing, arrows between transitions, per-transition exports | Open | 2026-11-13 |
 
 ---
 
@@ -572,16 +576,86 @@ the pinned importer in the browser and opens the result; report unknown parts
 
 ---
 
-### F14: promote the beta
+### F14: snapshot the beta to stable
 
-**Blake's decisions (2026-11-13).** Only when Blake says "promote": the beta
-replaces the stable editor at `tools/figure-editor/`, the duplicate code and the
-banner are removed, saved figures and autosave keep working, and the beta URL
-redirects to the stable one.
+**Blake's decisions (2026-11-13, revised).** Blake wants a safe copy of the
+working beta. Copy the beta over `tools/figure-editor/` as a frozen stable
+release and **keep the beta page** for further development (no redirect, no
+removal of the duplicate yet). First tag the current stable state
+`editor-stable-before-snapshot` so it can be restored. The stable page keeps the
+stable-page look without the beta banner, and its saved figures and autosave
+keys stay separate from the beta's.
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| F14.1 | Promote, remove the duplicate, redirect, tests | Steward, approved by Blake 2026-11-13 | In progress | 2026-11-13 revised (Blake): tag editor-stable-before-snapshot set; beta copied over tools/figure-editor/ as frozen stable, no banner, own autosave keys (figure-editor/...); beta page kept; 155 tests and browser checks pass. |
+| F14.1 | Tag, copy beta to stable without the banner, separate autosave keys, tests, deploy | Steward, approved by Blake 2026-11-13 | Done | Tag editor-stable-before-snapshot set; beta copied over tools/figure-editor/ as frozen stable, no banner, own keys (figure-editor/...); beta page kept; 155 tests and browser checks pass. |
+
+---
+---|---|---|---|
+| F14.1 | Promote, remove the duplicate, redirect, tests | Steward, approved by Blake 2026-11-13 | Open | |
+
+---
+
+### F15: level colour fixes
+
+**Blake's decisions (2026-11-13).** Level colour applies to an element's or
+block's body only. Block titles and labels keep the ink role, as element names
+do. Blocks and their presets appear in the Elements pane like every other
+element, and the level controls and colours apply globally (every element,
+block and wire, light and dark, export and save).
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F15.1 | Titles and labels excluded from level colour, for blocks and elements | Steward, approved by Blake 2026-11-13 | Open | |
+| F15.2 | Blocks and presets listed in the Elements pane; level control works on any selection | Steward, approved by Blake 2026-11-13 | Open | |
+| F15.3 | Tests and a screenshot | Steward, approved by Blake 2026-11-13 | Open | |
+
+---
+
+### F16: Elements pane categories
+
+**Blake's decisions (2026-11-13).** Group the Elements pane into collapsible
+sections (for example Logic gates, Sequential, Arithmetic, Passive and
+semiconductor, Blocks, Sources and ground), each with a count; remember which
+are open. Categories come from one data file so new elements need no code.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F16.1 | Category data file, collapsible sections, search still works | Steward, approved by Blake 2026-11-13 | Open | |
+
+---
+
+### F17: configurable level colours
+
+**Blake's decisions (2026-11-13).** In the THEME section the user can choose the
+colour for each level role (0, 1, X, Z) for light and for dark. The defaults stay
+in the theme files; a choice is saved in the figure's `style` block as a role
+override, never as a hard-coded colour in code. Warn when a pair has poor
+contrast or is hard to tell apart for colour-blind viewers. A reset restores the
+defaults. Exports use the figure's choice.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F17.1 | Role override UI, saved in the figure, contrast warning, reset, export uses it | Steward, approved by Blake 2026-11-13 | Open | |
+
+---
+
+### T2: timing tool, timing and arrows
+
+**Blake's decisions (2026-11-13).**
+- Adjust timing of transitions: a per-signal phase and a diagram-wide step width
+  (WaveDrom `phase` and `hscale`), and per-step spacing by editing the wave.
+- Arrows from one transition to another: a small UI that adds WaveDrom edge
+  markers (`node` letters and `edge` strings) between chosen steps, with a label.
+- Export a figure per transition: one SVG and one PNG per step, numbered, each
+  with the diagram's step marker, and, once frames exist, the schematic at that
+  step.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| T2.1 | Phase and step width controls | Steward, approved by Blake 2026-11-13 | Open | |
+| T2.2 | Edge and arrow UI with labels | Steward, approved by Blake 2026-11-13 | Open | |
+| T2.3 | Per-transition export of the diagram, then with schematic frames | Steward, approved by Blake 2026-11-13 | Open | |
 
 ---
 
