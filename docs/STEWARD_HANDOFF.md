@@ -84,7 +84,7 @@ Blake's prompt.
 | F11 | Figure editor: animated SVG, animated PNG and per-transition exports | Open | 2026-11-13 |
 | F13 | Figure editor: KiCad import | Open | 2026-11-13 |
 | F14 | Promote the beta editor to stable | In progress | 2026-11-13 |
-| F15 | Editor: level colour fixes (titles, blocks in the Elements pane, global) | Open | 2026-11-13 |
+| F15 | Editor: level colour fixes (titles, blocks in the Elements pane, global) | Done | 2026-11-13 |
 | F16 | Editor: Elements pane grouped into collapsible categories | Open | 2026-11-13 |
 | F17 | Editor: configurable level colours | Open | 2026-11-13 |
 | T2 | Timing tool: transition timing, arrows between transitions, per-transition exports | Open | 2026-11-13 |
@@ -606,9 +606,9 @@ block and wire, light and dark, export and save).
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| F15.1 | Titles and labels excluded from level colour, for blocks and elements | Steward, approved by Blake 2026-11-13 | Open | |
-| F15.2 | Blocks and presets listed in the Elements pane; level control works on any selection | Steward, approved by Blake 2026-11-13 | Open | |
-| F15.3 | Tests and a screenshot | Steward, approved by Blake 2026-11-13 | Open | |
+| F15.1 | Titles and labels excluded from level colour, for blocks and elements | Steward, approved by Blake 2026-11-13 | Done | Block middle text now ink (export.js, shared by canvas); pack elements already kept ink labels. Beta only. |
+| F15.2 | Blocks and presets listed in the Elements pane; level control works on any selection | Steward, approved by Blake 2026-11-13 | Done | Checked first: the Elements pane already lists blocks and all presets under a Blocks heading; level control already works on any selection (elements, blocks, wires, light and dark, export, save). No change needed. |
+| F15.3 | Tests and a screenshot | Steward, approved by Blake 2026-11-13 | Done | 155 tests (block-text test now expects ink); browser checks levels and blocks pass; screenshot checked. |
 
 ---
 

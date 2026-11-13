@@ -34,13 +34,13 @@ Deno.test("a block's body is drawn in its level's colour, and its leads keep the
   assertEquals(s.find(([n]) => n === "B")[1], roles.ink);              // a lead with no wire
 });
 
-Deno.test("a block's middle text takes the level colour; its pin labels and its own label stay ink", () => {
+Deno.test("a block's middle text, pin labels and own label stay ink; only the body takes the level colour (F15)", () => {
   const doc = scene("1");
   doc.elements[0].params.pins.left[0] = { name: "A", label: "$A$" };
   const labels = drawing(doc, pack, { typeset: new Map([...typeset, ["\\text{FA}", typeset.get("X")]]) }).labels;
   const colourOf = (l) => { let c = null; const v = (n) => { for (const [k, x] of n.attrs) if (k === "fill" || k === "stroke") c = x; n.children.forEach(v); }; l.nodes.forEach(v); return c; };
   const middle = labels.find((l) => l.key === "block:blk1"), pin = labels.find((l) => l.key === "pin:blk1.A");
-  assertEquals(colourOf(middle), roles.high);
+  assertEquals(colourOf(middle), roles.ink);
   assertEquals(colourOf(pin), roles.ink);
 });
 
