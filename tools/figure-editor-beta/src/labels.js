@@ -7,6 +7,7 @@
 // lacks; such a label is refused instead of being drawn with a font.
 
 import { DIRECTIONS, fmt, orient, place } from "./geometry.js";
+import { BLOCK, geometryOf } from "./block.js";
 import { attr, parseXml } from "./xml.js";
 
 /** Typeset once, to measure a capital letter: labels beside a wire are centred on this height, not on their own box. */
@@ -143,11 +144,20 @@ export function labelItems(doc, pack) {
   };
   const side = (s) => (s ? DIRECTIONS[s] ?? null : null);
   for (const el of doc.elements) {
-    const def = pack.def(el.type);
+    const def = pack.defFor(el);
     const spec = labelSpec(def);
-    if (!el.label || !spec) continue;
-    add({ key: `element:${el.id}`, kind: "element", id: el.id, text: el.label, at: place(el, spec.anchor),
-      dir: orient(DIRECTIONS[spec.direction], el.rotation ?? 0, el.mirror ?? false) });
+    const turn = (v) => orient(v, el.rotation ?? 0, el.mirror ?? false);
+    if (el.label && spec) {
+      add({ key: `element:${el.id}`, kind: "element", id: el.id, text: el.label, at: place(el, spec.anchor), dir: turn(DIRECTIONS[spec.direction]) });
+    }
+    // A block's own text is drawn upright whatever its rotation: the label in the middle, and each pin's label just inside the outline.
+    const g = el.type === BLOCK ? geometryOf(el.params) : null;
+    if (g) {
+      if (g.params.label) add({ key: `block:${el.id}`, kind: "block", id: el.id, text: g.params.label, at: place(el, g.centre), dir: null });
+      for (const [name, q] of Object.entries(g.pins)) {
+        if (q.label) add({ key: `pin:${el.id}.${name}`, kind: "pin", id: `${el.id}.${name}`, text: q.label, at: place(el, q.labelAt), dir: turn(q.labelDir) });
+      }
+    }
   }
   for (const p of doc.ports) if (p.label) add({ key: `port:${p.id}`, kind: "port", id: p.id, text: p.label, at: p.at, dir: side(p.side) });
   doc.labels.forEach((l, index) => add({ key: `label:${index}`, kind: "label", index, text: l.text, at: l.at, dir: side(l.side) }));

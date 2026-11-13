@@ -4,7 +4,8 @@
 // which is what makes snapshot undo (history.js) safe. Wire corners, junction
 // counts, joints and nets are derived, never stored (proposal section 1).
 
-import { elementBox, pinOf } from "./geometry.js";
+import { elementBox, orient, pinOf } from "./geometry.js";
+import { BLOCK, canonicalParams, geometryOf, minSize, normalizeBlock } from "./block.js";
 import { directionProblems, onPolyline, onSegment, route, snapOntoPolyline } from "./router.js";
 
 export const SCHEMA = "circuit/0.2";
@@ -27,7 +28,7 @@ const PREFIX = {
   and_gate: "and", or_gate: "or", not_gate: "not", nand_gate: "nand", nor_gate: "nor", xor_gate: "xor",
   d_flipflop: "dff", d_latch: "latch", mux2: "mux", decoder2to4: "dec", full_adder: "fa",
   resistor: "R", capacitor: "C", inductor: "L", voltage_source: "V", switch: "SW", ground: "gnd",
-  diode: "D", npn_bjt: "Q", nmos: "M", vdd: "vdd",
+  diode: "D", npn_bjt: "Q", nmos: "M", vdd: "vdd", block: "blk",
 };
 export const prefixFor = (type) => PREFIX[type] ?? type.replace(/[^A-Za-z0-9_]/g, "_");
 
@@ -54,7 +55,7 @@ export function endpoint(doc, pack, end) {
   const dot = end.indexOf(".");
   if (dot > 0) {
     const el = doc.elements.find((e) => e.id === end.slice(0, dot));
-    const def = el && pack.def(el.type);
+    const def = el && pack.defFor(el);
     const pin = def && pinOf(el, def, end.slice(dot + 1));
     return pin ? { ...pin, kind: "pin", el: el.id, pin: end.slice(dot + 1) } : null;
   }
@@ -106,14 +107,73 @@ function freeEndsAt(doc, ref, at) {
 
 // ---- edits (each returns a new document) ---------------------------------------------
 
-export function addElement(doc, pack, type, at, rotation = 0) {
-  if (!pack.def(type)) throw new Error(`no element "${type}" in the symbol pack`);
+export function addElement(doc, pack, type, at, rotation = 0, params = null) {
+  if (type === BLOCK) { if (!params) throw new Error("a block needs params: { shape, w, h }"); }
+  else if (!pack.def(type)) throw new Error(`no element "${type}" in the symbol pack`);
   doc = clone(doc);
   const id = nextId(doc, prefixFor(type));
   const el = { id, type, at: [...at] };
   if (rotation) el.rotation = rotation;
+  if (type === BLOCK) el.params = canonicalParams(params);   // throws, readably, on a bad shape, size or pin
   doc.elements.push(el);
   return { doc, id };
+}
+
+// ---- blocks (F5) ---------------------------------------------------------------------------
+
+const pinNames = (params) => Object.fromEntries(["left", "right", "top", "bottom"].map((s) => [s, (params.pins?.[s] ?? []).map((p) => (typeof p === "string" ? p : p.name))]));
+
+/**
+ * Change a block's params: `patch` holds any of shape, w, h, label, pins (a whole `pins` object). The size is raised to
+ * what the pin rule needs, about the block's centre. A pin that is gone leaves its wires with a free end where it was;
+ * if a side kept its pin count, a changed name is a rename and the wires follow it. Returns a new document.
+ */
+export function setBlockParams(doc, pack, id, patch) {
+  const before = doc;
+  doc = clone(doc);
+  const el = doc.elements.find((e) => e.id === id);
+  if (!el || el.type !== BLOCK) throw new Error(`${id} is not a block`);
+  const old = el.params;
+  const next = canonicalParams({ ...old, ...patch });
+  const was = pinNames(old), now = pinNames(next);
+  const rename = new Map();
+  for (const side of Object.keys(was)) {
+    if (was[side].length !== now[side].length) continue;
+    was[side].forEach((n, i) => { if (n !== now[side][i]) rename.set(n, now[side][i]); });
+  }
+  const gone = new Set(Object.values(was).flat().filter((n) => !Object.values(now).flat().includes(n) && !rename.has(n)));
+  for (const w of doc.wires) {
+    for (const side of ["from", "to"]) {
+      const end = w[side];
+      if (isPoint(end) || !end.startsWith(`${id}.`)) continue;
+      const pin = end.slice(id.length + 1);
+      if (rename.has(pin)) w[side] = `${id}.${rename.get(pin)}`;
+      else if (gone.has(pin)) w[side] = [...endpoint(before, pack, end).at];
+    }
+  }
+  el.params = next;
+  return normalize(doc, pack);
+}
+
+/**
+ * Drag a block's edge or corner. `handle` is one of n, s, e, w, ne, nw, se, sw in the block's own frame; `dw` and `dh`
+ * are the growth in whole modules (negative shrinks), width and height, as the dragged edge moves. The opposite edge stays
+ * where it is (the block's centre moves half as far), the size is never below the pin rule's minimum, and wires on its
+ * pins follow. Returns a new document.
+ */
+export function resizeBlock(doc, pack, id, handle, dw, dh) {
+  const el = doc.elements.find((e) => e.id === id);
+  if (!el || el.type !== BLOCK) throw new Error(`${id} is not a block`);
+  if (!Number.isInteger(dw) || !Number.isInteger(dh)) throw new Error("a block changes size in whole modules");
+  const p = normalizeBlock(el.params), min = minSize(p.pins);
+  const x = handle.includes("e") ? 1 : handle.includes("w") ? -1 : 0, y = handle.includes("n") ? 1 : handle.includes("s") ? -1 : 0;
+  const w = x ? Math.max(min.w, p.w + dw) : p.w, h = y ? Math.max(min.h, p.h + dh) : p.h;
+  const shift = orient([x * (w - p.w), y * (h - p.h)], el.rotation ?? 0, el.mirror ?? false);   // a module of growth moves the centre one step
+  const out = clone(doc);
+  const e = out.elements.find((q) => q.id === id);
+  e.params = canonicalParams({ ...el.params, w, h });
+  e.at = [e.at[0] + shift[0], e.at[1] + shift[1]];
+  return normalize(out, pack);
 }
 
 /**
@@ -313,6 +373,7 @@ export function pasteFragment(doc, pack, frag, d) {
 
 const SIDES = ["left", "right", "up", "down"];
 export const LEVEL_VALUES = ["0", "1", "X", "Z"];
+export const ARROWS = ["none", "start", "end", "both"];
 
 const sideName = (v) => (Math.abs(v[0]) >= Math.abs(v[1]) ? (v[0] > 0 ? "right" : "left") : (v[1] > 0 ? "up" : "down"));
 
@@ -322,7 +383,7 @@ const sideName = (v) => (Math.abs(v[0]) >= Math.abs(v[1]) ? (v[0] > 0 ? "right" 
  */
 export function exitSide(doc, pack, at) {
   for (const el of doc.elements) {
-    const def = pack.def(el.type);
+    const def = pack.defFor(el);
     if (!def) continue;
     for (const name of Object.keys(def.pins)) {
       const p = pinOf(el, def, name);
@@ -441,7 +502,7 @@ export function deriveNets(doc, pack) {
 
   const members = new Set();
   for (const el of doc.elements) {
-    const def = pack.def(el.type);
+    const def = pack.defFor(el);
     for (const name of Object.keys(def?.pins ?? {})) {
       const ref = `${el.id}.${name}`;
       members.add(ref);
@@ -490,7 +551,9 @@ export function lint(doc, pack) {
   const out = [];
   const els = doc.elements;
   for (const el of els) {
-    if (!pack.def(el.type)) out.push(`${el.id}: "${el.type}" is not in the symbol pack, so it is not drawn`);
+    if (el.type === BLOCK) {
+      try { normalizeBlock(el.params); } catch (e) { out.push(`${el.id}: ${e.message}, so it is not drawn`); }
+    } else if (!pack.defFor(el)) out.push(`${el.id}: "${el.type}" is not in the symbol pack, so it is not drawn`);
     else if (el.mirror && !pack.mirrorable(el.type)) out.push(`${el.id}: mirrored, but the pack does not mark ${el.type} mirrorable (its text would print backwards)`);
   }
   for (const w of doc.wires) {
@@ -500,7 +563,7 @@ export function lint(doc, pack) {
     const c = route(a, b, w.via ?? [], w.first ?? null);
     for (const msg of directionProblems(c, a, b)) out.push(`${w.id} ${msg}`);
     for (const el of els) {
-      const def = pack.def(el.type);
+      const def = pack.defFor(el);
       if (!def) continue;
       const { min, max } = elementBox(el, def);
       for (let i = 0; i + 1 < c.length; i++) {
@@ -520,9 +583,9 @@ export function lint(doc, pack) {
 
 const ORDER = {
   top: ["schema", "id", "title", "grid_cm", "elements", "ports", "nets", "wires", "junctions", "groups", "labels"],
-  element: ["id", "type", "at", "rotation", "mirror", "label", "params"],
+  element: ["id", "type", "at", "rotation", "mirror", "label", "level", "params"],
   port: ["id", "dir", "at", "label", "side"],
-  wire: ["id", "from", "to", "via", "first", "level"],
+  wire: ["id", "from", "to", "via", "first", "arrow", "bus", "level"],
   junction: ["id", "on", "at"],
   label: ["text", "at", "side"],
 };
@@ -552,9 +615,16 @@ export function serialize(doc, pack) {
     const o = ordered(e, ORDER.element);
     if (!o.rotation) delete o.rotation;
     if (!o.mirror) delete o.mirror;
+    if (e.type === BLOCK && o.params) { try { o.params = canonicalParams(o.params); } catch { /* lint says why; saved as it is */ } }
     return inline(o);
   };
-  const wire = (w) => { const o = ordered(w, ORDER.wire); if (!o.via?.length) delete o.via; return inline(o); };
+  const wire = (w) => {
+    const o = ordered(w, ORDER.wire);
+    if (!o.via?.length) delete o.via;
+    if (o.arrow === "none") delete o.arrow;
+    if (!o.bus) delete o.bus;
+    return inline(o);
+  };
   const nets = deriveNets(doc, pack);
   const parts = {
     schema: JSON.stringify(doc.schema),
@@ -606,6 +676,9 @@ export function parse(text) {
     point(e.at, w);
     if (e.rotation !== undefined && ![0, 90, 180, 270].includes(e.rotation)) fail(`${w}: rotation must be 0, 90, 180 or 270`);
     if (e.mirror !== undefined && typeof e.mirror !== "boolean") fail(`${w}: mirror must be true or false`);
+    if (e.level !== undefined && !LEVEL_VALUES.includes(e.level)) fail(`${w}: level must be "0", "1", "X" or "Z" (as a string)`);
+    if (e.type === BLOCK) { try { normalizeBlock(e.params); } catch (err) { fail(`${w}: ${err.message}`); } }
+    else if (e.params !== undefined && (typeof e.params !== "object" || Array.isArray(e.params))) fail(`${w}: params must be an object`);
   });
   doc.ports.forEach((p, i) => {
     const w = `ports[${i}]`;
@@ -619,6 +692,8 @@ export function parse(text) {
     (x.via ?? []).forEach((p, k) => point(p, `${w}.via[${k}]`));
     if (x.first !== undefined && !["h", "v"].includes(x.first)) fail(`${w}: first must be "h" or "v"`);
     if (x.level !== undefined && !LEVEL_VALUES.includes(x.level)) fail(`${w}: level must be "0", "1", "X" or "Z" (as a string)`);
+    if (x.arrow !== undefined && !ARROWS.includes(x.arrow)) fail(`${w}: arrow must be "none", "start", "end" or "both"`);
+    if (x.bus !== undefined && typeof x.bus !== "string") fail(`${w}: bus must be text, such as "N" or "4"`);
   });
   doc.junctions.forEach((j, i) => {
     const w = `junctions[${i}]`;
@@ -686,4 +761,10 @@ export function moveWireSegment(doc, pack, wireId, index, d) {
     if (j.at[along] >= lo && j.at[along] <= hi) j.at = add(j.at, s);
   }
   return normalize(doc, pack);
+}
+
+/** An element's own point (grid steps) in the document frame: its origin plus the point turned by its rotation and mirror. */
+export function placeAt(el, p) {
+  const [x, y] = orient(p, el.rotation ?? 0, el.mirror ?? false);
+  return [el.at[0] + x, el.at[1] + y];
 }

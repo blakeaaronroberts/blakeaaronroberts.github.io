@@ -338,3 +338,110 @@ scenarios.saves = async (ctx) => {
   try { await Deno.remove(tmp, { recursive: true }); } catch { /* left for the system to clear */ }
   return res;
 };
+
+/** Every block preset on the canvas in light and dark, then place, resize, edit and save a block with the pointer and the panel. */
+const ALL_PRESETS = `(async () => {
+  const { PRESETS } = await import("./src/presets.js");
+  const els = PRESETS.map((p, i) => ({ id: "b" + (i + 1), type: "block", at: [(i % 5) * 24 - 48, 30 - Math.floor(i / 5) * 22], label: i % 4 === 0 ? "$N_" + i + "$" : undefined, params: p.params }));
+  window.figureEditor.load(JSON.stringify({ schema: "circuit/0.2", id: "all_blocks", grid_cm: 0.25, elements: els, nets: {} }));
+  return els.length;
+})()`;
+
+scenarios.blocks = async (ctx) => {
+  const res = [];
+  for (const scheme of ["light", "dark"]) {
+    const page = await ctx.launch({ scheme, port: nextPort++ });
+    try {
+      await page.goto(ctx.url);
+      await page.waitFor(ready);
+      const n = await page.eval(ALL_PRESETS);
+      await page.sleep(3500);   // MathJax loads from the CDN on first use
+      await page.shot(`${ctx.out}/beta-blocks-${scheme}.png`);
+      const scene = await page.eval(SCENE), px = await page.eval(PIXELS(await page.shotData()));
+      const warn = await page.eval(`[...document.querySelectorAll(".fe-warnings li")].map((li) => li.textContent)`);
+      const nodes = await page.eval(`document.querySelectorAll(".fe-scene [data-el]").length`);
+      const labels = await page.eval(`document.querySelectorAll(".fe-scene [data-label]").length`);
+      const thumbs = await page.eval(`document.querySelectorAll(".fe-blocks .fe-thumb").length`);
+      res.push([nodes === n && n >= 19, `${scheme}: ${nodes} of ${n} block presets drawn`]);
+      res.push([labels > 40, `${scheme}: ${labels} label groups drawn (centre and pin text)`]);
+      res.push([thumbs === n, `${scheme}: ${thumbs} palette thumbnails for the presets`]);
+      res.push([warn.length === 0, `${scheme}: no warnings (${warn.slice(0, 2).join("; ")})`]);
+      if (scheme === "dark") {
+        res.push([scene.canvas === "dark" && scene.strokes >= n, `dark: ${scene.strokes} strokes measured on a dark canvas`]);
+        res.push([scene.black.length === 0, `dark: zero black strokes (found ${scene.black.length}: ${scene.black.slice(0, 3).join(", ")})`]);
+        res.push([scene.low.length === 0, `dark: every stroke has 3:1 contrast (min ${Number(scene.minStroke).toFixed(2)})`]);
+        res.push([px.canvas.black === 0, `dark: zero pure-black pixels on the canvas, labels included (${px.canvas.black})`]);
+        res.push([px.palette.black === 0, `dark: zero pure-black pixels in the palette, block thumbnails included (${px.palette.black})`]);
+      } else {
+        res.push([scene.black.length > 20 && px.canvas.black > 0, `light: detector sanity, ${scene.black.length} black strokes in the scene, ${px.canvas.black} black pixels`]);
+      }
+      res.push([page.errors.length === 0, `${scheme}: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+    } finally { await page.close(); }
+  }
+
+  // Place, resize, edit and save one block, with real pointer events.
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(ctx.url);
+    await page.waitFor(ready);
+    await page.sleep(500);
+    const px = (gx, gy) => page.eval(`(() => { const s = document.querySelector("svg.fe-canvas"), p = s.createSVGPoint(); p.x = ${gx} / 2; p.y = -${gy} / 2; const q = p.matrixTransform(s.getScreenCTM()); return [q.x, q.y]; })()`);
+    const perStep = await page.eval(`document.querySelector("svg.fe-canvas").getScreenCTM().a / 2`);
+    const block = () => page.eval(`JSON.stringify(window.figureEditor.doc.elements[0])`).then((t) => JSON.parse(t));
+    const centre = (sel) => page.eval(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); e.scrollIntoView({ block: "center" }); const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; })()`);
+    const setField = (name, value) => page.eval(`(() => { const i = document.querySelector('[data-field="${name}"]'); i.value = ${JSON.stringify(value)}; i.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
+
+    const btn = await centre('[data-preset="generic"]');
+    await page.click(btn[0], btn[1]);
+    const at = await px(0, 0);
+    await page.mouse("mouseMoved", at[0], at[1], { buttons: 0 });
+    await page.click(at[0], at[1]);
+    await page.sleep(300);
+    let el = await block();
+    res.push([el?.type === "block" && el.id === "blk1" && el.params.w === 4 && el.params.h === 4, `placed a generic block from the palette (${JSON.stringify(el)})`]);
+    const handles = await page.eval(`document.querySelectorAll(".fe-overlay [data-handle]").length`);
+    res.push([handles === 8, `a selected block shows ${handles} resize handles`]);
+
+    // Drag the east handle two modules (four steps) to the right.
+    const east = await px(el.at[0] + el.params.w, el.at[1]);
+    await page.drag(east, [east[0] + 4 * perStep, east[1]]);
+    await page.sleep(300);
+    el = await block();
+    res.push([el.params.w === 6 && el.at[0] === 2, `dragging the east handle two modules widens the block to ${el.params.w} and keeps its west edge (centre x ${el.at[0]})`]);
+    await page.key("z", "KeyZ", 90, 2);
+    await page.sleep(200);
+    el = await block();
+    res.push([el.params.w === 4 && el.at[0] === 0, "one Ctrl+Z undoes the whole resize"]);
+    await page.key("y", "KeyY", 89, 2);
+    await page.sleep(200);
+
+    // The panel: shape, size and pins.
+    await setField("blkShape", "chevron");
+    await setField("blkLeft", "A, B: $B_1$, C");
+    await setField("blkTop", "T1, T2, T3, T4, T5, T6, T7");
+    await page.sleep(300);
+    el = await block();
+    res.push([el.params.shape === "chevron" && el.params.pins.left.length === 3, `the panel changes shape and pins (${el.params.shape}, left ${JSON.stringify(el.params.pins.left)})`]);
+    res.push([el.params.w >= 8, `seven top pins raise the width to ${el.params.w} modules (pin rule)`]);
+    const status = await page.eval(`document.querySelector(".fe-status").textContent`);
+    res.push([/raised/.test(status), `the status line says so: "${status.slice(0, 70)}"`]);
+    await setField("blkLeft", "A, B: $B_1$, C, ???");
+    await page.sleep(200);
+    res.push([(await block()).params.pins.left.length === 3, "a bad pin name is refused and the block is unchanged"]);
+    await page.shot(`${ctx.out}/beta-block-edited.png`);
+
+    // Save and open again: the same figure, byte for byte.
+    const saved = await page.eval(`window.figureEditor.save()`);
+    await page.eval(`window.figureEditor.load(${JSON.stringify(saved)})`);
+    await page.sleep(300);
+    res.push([(await page.eval(`window.figureEditor.save()`)) === saved, "save, open, save gives the same text"]);
+    // And through autosave: a reload brings the block back.
+    await page.sleep(1200);
+    await page.goto(ctx.url);
+    await page.waitFor(ready);
+    await page.sleep(800);
+    res.push([(await page.eval(`window.figureEditor.save()`)) === saved, "a reload restores the block from the autosave"]);
+    res.push([page.errors.length === 0, `no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};

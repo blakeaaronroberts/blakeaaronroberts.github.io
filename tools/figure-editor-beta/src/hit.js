@@ -17,7 +17,7 @@ const within = (p, { min, max }) => p[0] >= min[0] && p[0] <= max[0] && p[1] >= 
 export function hitTest(doc, pack, p, corners = allCorners(doc, pack), boxes = []) {
   const hits = [];
   for (const el of [...doc.elements].reverse()) {
-    const def = pack.def(el.type);
+    const def = pack.defFor(el);
     if (!def) continue;
     for (const name of Object.keys(def.pins)) {
       const { at } = pinOf(el, def, name);
@@ -41,7 +41,7 @@ export function hitTest(doc, pack, p, corners = allCorners(doc, pack), boxes = [
   }
   const bodies = [];
   for (const el of [...doc.elements].reverse()) {
-    const def = pack.def(el.type);
+    const def = pack.defFor(el);
     if (!def) continue;
     if (within(p, elementBox(el, def))) bodies.push({ kind: "element", id: el.id });
   }
@@ -52,7 +52,7 @@ export function hitTest(doc, pack, p, corners = allCorners(doc, pack), boxes = [
 export function inBox(doc, pack, box, corners = allCorners(doc, pack)) {
   const inside = (pt) => within(pt, box);
   const elements = doc.elements.filter((el) => {
-    const def = pack.def(el.type);
+    const def = pack.defFor(el);
     if (!def) return false;
     const b = elementBox(el, def);
     return inside(b.min) && inside(b.max);
