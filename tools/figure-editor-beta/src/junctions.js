@@ -35,9 +35,10 @@ const unit = (v) => { const n = Math.hypot(v[0], v[1]); return [v[0] / n, v[1] /
 export function lineEnds(doc, pack, corners) {
   const ends = [];
   for (const el of doc.elements) {
-    const def = pack.def(el.type);
+    const def = pack.defFor(el);
     if (!def) continue;
     for (const name of Object.keys(def.pins)) {
+      if (def.pins[name].lead?.length === 0) continue;       // a block pin on its outline has no lead: the wire's end butts the outline
       const { at, dir } = pinOf(el, def, name);
       ends.push({ at, into: [-dir[0], -dir[1]], owner: `${el.id}.${name}` });
     }

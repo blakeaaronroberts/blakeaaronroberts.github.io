@@ -11,6 +11,7 @@
 
 import { boxOf, elementSvgBox, fmt, fromSvg, MODULE_CM, svgTransform, toSvg } from "./geometry.js";
 import { allCorners } from "./doc.js";
+import { BLOCK, blockNodes } from "./block.js";
 import { dots, joints } from "./junctions.js";
 import { colourNodes, emModules, labelItems, levelTagTex, packLabelPt, placeLabel, REFERENCE_TEX } from "./labels.js";
 import { attr, walk, writeXml } from "./xml.js";
@@ -42,10 +43,12 @@ export function drawing(doc, pack, opts = {}) {
     for (const end of [w.from, w.to]) if (typeof end === "string" && end.includes(".") && !leadColour.has(end)) leadColour.set(end, c);
   }
 
-  const elements = doc.elements.filter((el) => pack.def(el.type)).map((el) => {
+  const elements = doc.elements.filter((el) => pack.defFor(el)).map((el) => {
+    const def = pack.defFor(el);
     const byPin = {};
-    for (const pin of Object.keys(pack.def(el.type).pins)) if (leadColour.has(`${el.id}.${pin}`)) byPin[pin] = leadColour.get(`${el.id}.${pin}`);
-    return { el, transform: svgTransform(el), box: elementSvgBox(el, pack.def(el.type)), nodes: withLeadColours(standaloneSymbol(pack, el.type), byPin) };
+    for (const pin of Object.keys(def.pins)) if (leadColour.has(`${el.id}.${pin}`)) byPin[pin] = leadColour.get(`${el.id}.${pin}`);
+    const nodes = el.type === BLOCK ? blockNodes(el.params, pack, { leads: byPin }) : withLeadColours(standaloneSymbol(pack, el.type), byPin);
+    return { el, transform: svgTransform(el), box: elementSvgBox(el, def), nodes };
   });
   const wires = [...corners].map(([id, c]) => ({ id, points: c.map(toSvg), level: levelOf.get(id) ?? null, colour: wireColour(id) }));
 

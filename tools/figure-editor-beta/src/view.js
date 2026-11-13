@@ -7,6 +7,8 @@
 import { fmt, fromSvg, STEPS_PER_MODULE, svgTransform, toSvg } from "./geometry.js";
 import { drawing, hex, pathData } from "./export.js";
 import { writeXml } from "./xml.js";
+import { BLOCK, blockDef, blockNodes, handlesOf } from "./block.js";
+import { place } from "./geometry.js";
 
 const NS = "http://www.w3.org/2000/svg";
 export const symbolId = (type) => `fe-sym-${type}`;
@@ -130,9 +132,21 @@ export function createView(svg, basePack) {
       const l = state.doc.labels[i];
       if (l && !d.labels.some((x) => x.key === `label:${i}`)) { const [x, y] = toSvg(l.at); o.push(`<circle ${accent} cx="${fmt(x)}" cy="${fmt(y)}" r="${fmt(junction.radius_module * 1.8)}"/>`); }
     }
+    // A single selected block shows its eight resize handles (drag one to change the size in whole modules).
+    if (sel.elements.length === 1 && total(sel) === 1) {
+      const el = state.doc.elements.find((e) => e.id === sel.elements[0]);
+      if (el?.type === BLOCK) {
+        const s = junction.radius_module * 1.6;
+        for (const h of handlesOf(el.params)) {
+          const [x, y] = toSvg(place(el, h.at));
+          o.push(`<rect data-handle="${h.id}" fill="${roles.background}" ${accent} x="${fmt(x - s)}" y="${fmt(y - s)}" width="${fmt(2 * s)}" height="${fmt(2 * s)}"/>`);
+        }
+      }
+    }
     if (state.ghost) {
       const el = state.ghost;
-      o.push(`<g opacity="0.55"><use href="#${symbolId(el.type)}" transform="${svgTransform(el)}"/></g>`);
+      if (el.type === BLOCK) o.push(`<g opacity="0.55" transform="${svgTransform(el)}">${blockNodes(el.params, pack).map((n) => writeXml(n)).join("")}</g>`);
+      else o.push(`<g opacity="0.55"><use href="#${symbolId(el.type)}" transform="${svgTransform(el)}"/></g>`);
     }
     if (state.rubber && state.rubber.length > 1) {
       o.push(`<path stroke="${roles.accent}" stroke-width="${fmt(lw)}" ${dash} d="${pathData(state.rubber.map(toSvg))}"/>`);
@@ -162,6 +176,15 @@ export function createView(svg, basePack) {
   const setSymbols = (pack) => { svg.querySelector(".fe-symbols").innerHTML = symbolsFor(pack); };
 
   return { render, toGrid, zoomAt, panBy, fit, applyCamera, setGrid, setSymbols, cam };
+}
+
+const total = (s) => s.elements.length + s.wires.length + s.ports.length + s.labels.length;
+
+/** A small preview of a block preset for the palette: its outline and pins, drawn in the active theme (no text). */
+export function blockThumbnail(pack, params) {
+  const def = blockDef(params);
+  if (!def) return "";
+  return `<svg xmlns="${NS}" class="fe-thumb" viewBox="${def.svg.viewBox.join(" ")}" aria-hidden="true" focusable="false">${blockNodes(params, pack).map((n) => writeXml(n)).join("")}</svg>`;
 }
 
 /** A small preview of one pack element for the palette (uses the canvas's <symbol>). */

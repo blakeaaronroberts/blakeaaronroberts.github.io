@@ -128,3 +128,6 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 
 /* ---- errors in the status line ---- */
 .fe-status[data-error] { color: var(--role-ink); font-weight: 700; }
+
+/* ---- block presets: a second palette group ---- */
+.fe-palette-head { margin: .25rem .75rem .25rem; font-size: .8rem; font-weight: 600; color: var(--role-muted, inherit); }

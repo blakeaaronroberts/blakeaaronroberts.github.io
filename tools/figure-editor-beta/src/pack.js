@@ -4,6 +4,7 @@
 
 import { MODULE_CM, STEPS_PER_MODULE } from "./geometry.js";
 import { attr, parseXml } from "./xml.js";
+import { BLOCK, blockDef } from "./block.js";
 
 /** The four logic levels a wire can be drawn at, and the theme role that colours each. */
 export const LEVELS = [
@@ -51,8 +52,10 @@ function makePack(p) {
     /** Element types in pack order; approved only unless drafts are asked for. */
     types: (drafts = false) => p.index.elements.filter((e) => drafts || e.status === "approved").map((e) => e.type),
     def: (type) => p.defs.get(type),
-    /** Only elements whose pack JSON says "mirrorable": true can be mirrored (proposal 10.3). */
-    mirrorable: (type) => p.defs.get(type)?.mirrorable === true,
+    /** The definition of a placed element: the pack's, or for the built-in block the one its params make (null if they are invalid). */
+    defFor: (el) => (el.type === BLOCK ? blockDef(el.params) : p.defs.get(el.type)),
+    /** Only elements whose pack JSON says "mirrorable": true can be mirrored (proposal 10.3). The built-in block always can. */
+    mirrorable: (type) => type === BLOCK || p.defs.get(type)?.mirrorable === true,
     /** A theme role's colour, or null if the theme has no such role. */
     role: (name) => p.theme.roles?.[name] ?? null,
     /** The colour of a wire level ("0", "1", "X", "Z"), or null if the theme lacks its role (the level is then unavailable). */
