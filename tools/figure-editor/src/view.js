@@ -5,7 +5,7 @@
 // theme's roles over it); the editor sets none of its own.
 
 import { fmt, fromSvg, STEPS_PER_MODULE, svgTransform, toSvg } from "./geometry.js";
-import { drawing, pathData } from "./export.js";
+import { drawing, hex, pathData } from "./export.js";
 import { writeXml } from "./xml.js";
 
 const NS = "http://www.w3.org/2000/svg";
@@ -15,7 +15,7 @@ const same = (a, b) => a.toUpperCase() === b.toUpperCase();
 export function createView(svg, basePack) {
   // Palette previews reuse these <symbol>s. Colours baked into the pack's SVGs go through the active pack's mapping,
   // so the palette matches the canvas (as shipped in light; dark roles in dark).
-  const recolourAttrs = (n, pack) => ({ ...n, attrs: (n.attrs ?? []).map(([k, v]) => [k, v.replace(/#[0-9A-Fa-f]{6}/g, (c) => pack.recolour(c))]), children: (n.children ?? []).map((c) => recolourAttrs(c, pack)) });
+  const recolourAttrs = (n, pack) => ({ ...n, attrs: (n.attrs ?? []).map(([k, v]) => [k, v.replace(/#[0-9A-Fa-f]{6}|rgb\([^)]*\)/g, (c) => pack.recolour(hex(c)))]), children: (n.children ?? []).map((c) => recolourAttrs(c, pack)) });
   const symbolsFor = (pack) => basePack.types(true).map((type) => {
     const inner = basePack.svgs.get(type).children.map((n) => writeXml(recolourAttrs(n, pack))).join("");
     return `<symbol id="${symbolId(type)}" overflow="visible">${inner}</symbol>`;

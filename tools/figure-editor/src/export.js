@@ -117,7 +117,7 @@ export const pathData = (points) => points.map(([x, y], i) => `${i ? "L" : "M"} 
 
 const DROP = new Set(["class", "id", "overflow", "version", "xmlns", "xmlns:xlink"]);
 
-function hex(colour) {
+export function hex(colour) {
   const m = /^rgb\(\s*([\d.]+)(%?)\s*,\s*([\d.]+)(%?)\s*,\s*([\d.]+)(%?)\s*\)$/.exec(colour.trim());
   if (!m) return colour.trim();
   const ch = (v, pct) => Math.round(pct ? (+v * 255) / 100 : +v).toString(16).padStart(2, "0").toUpperCase();

@@ -235,8 +235,14 @@ export async function mount(root, options = {}) {
     const roles = { ...(dark ? darkRoles() : {}), ...(privateRoles ?? {}) };
     return Object.keys(roles).length ? loaded.withTheme(roles) : loaded;
   }
-  const systemDark = matchMedia("(prefers-color-scheme: dark)");
-  const canvasIsDark = () => opt.canvas === "dark" || (opt.canvas === "auto" && systemDark.matches);
+  /** Is the site showing its dark look? Read from the site's own role (the toggle swaps stylesheets), not the OS setting, which the toggle can override. */
+  function siteIsDark() {
+    const ctx = document.createElement("canvas").getContext("2d");
+    ctx.fillStyle = getComputedStyle(root).getPropertyValue("--role-background").trim();
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(ctx.fillStyle.slice(i, i + 2), 16));
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
+  }
+  const canvasIsDark = () => opt.canvas === "dark" || (opt.canvas === "auto" && siteIsDark());
   /** Rebuild the drawing pack for the canvas theme in force, and tell the CSS which plate to show. */
   function applyCanvas() {
     const dark = canvasIsDark();
@@ -252,7 +258,10 @@ export async function mount(root, options = {}) {
   const savedTheme = store.get(THEME);
   if (savedTheme) { try { applyTheme(savedTheme, false); } catch { privateRoles = null; store.remove(THEME); } }
   applyCanvas();
-  systemDark.addEventListener("change", () => { if (opt.canvas === "auto") { applyCanvas(); render(); } });
+  // The site's toggle and the OS setting both swap its stylesheets; follow them when the canvas is on Auto.
+  let swapTimer = null;
+  new MutationObserver(() => { clearTimeout(swapTimer); swapTimer = setTimeout(() => { if (opt.canvas === "auto") { applyCanvas(); render(); renderPalette(); } }, 60); })
+    .observe(document.head, { subtree: true, attributes: true, attributeFilter: ["rel", "disabled", "href", "media"] });
 
   // ---- typesetting (MathJax, once per distinct label) -------------------------------------------
   let typesetBusy = false, typesetAgain = false;
