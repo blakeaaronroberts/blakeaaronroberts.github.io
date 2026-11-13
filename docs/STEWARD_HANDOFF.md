@@ -71,6 +71,7 @@ F4 come after. Each deploy to `main` happens when Blake says "deploy".
 | F3 | Figure editor v1 finish: labels in STIX Two, wire level colours, PNG copy, private theme, shortcuts, draft toggle | Open | 2026-11-12 |
 | F2.3 | Figure editor polish and unlisted go-live: site look, structured side panel, no scroll bars, half-module grid (adjustable), then publish at an unlisted URL | Open | 2026-11-13 |
 | F4 | Figure editor options before launch: grid, whole-figure line weight (thin, regular, bold) and a dark theme, saved with the figure | Open | 2026-11-13 |
+| F2.4 | Figure editor: dark canvas (interim, editor-side) | Open | 2026-11-13 |
 | F5 | Figure editor: configurable block (rect, chevron, triangle, circle) with presets, wire arrows, bus marks, level-coloured elements | Open | 2026-11-13 |
 | T1 | Timing diagram tool: a WaveDrom page in the lecture look, adjustable size, SVG export | Open | 2026-11-13 |
 
@@ -296,6 +297,37 @@ references, fonts or CSS variables. Keep the F2 and F3 tests passing.
 **Review stop.** Show Blake the sample at all three weights and in dark, plus
 a screenshot with the grid on and off, then wait. Going live (merging into
 `main`) is Blake's separate decision.
+
+---
+
+### F2.4: dark canvas (interim)
+
+**Why now.** In dark mode the editor's panes follow the system but the canvas
+stays light. Blake wants the whole editor dark (2026-11-13).
+
+**Blake's decisions (2026-11-13).**
+- A Canvas option (Auto, the default, Light, Dark) in the THEME section.
+- Every light-mode colour role gets a dark equivalent that complements the
+  site theme, stays colour-blind distinguishable and accessible (at least
+  4.5:1 for ink and 3:1 for level colours). The canvas is a darker shade of
+  the site's dark background, derived from its token. The builder chooses the
+  values and reports them with their contrast ratios.
+- Dark values live in `themes/okabe-ito/figures.scss` as `--fig-dark-*`
+  properties. At render time only, the pack's baked black strokes map to ink
+  and white fills to background; the pack is not edited. Interim until the
+  toolbox dark theme (`theme-dark.json`, E0.3 and C4) lands.
+- Exports stay on the default light theme unless "Export in dark theme" is
+  on (off by default).
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F2.4.1 | Canvas option, dark roles, render mapping, export checkbox | Steward, approved by Blake 2026-11-13 | Open | |
+| F2.4.2 | Screenshots in dark and light, colour list with contrast ratios | Steward, approved by Blake 2026-11-13 | Open | |
+
+**Scope limits.** No pack, toolbox or circuit-model changes. Record the
+interim in `DECISIONS.md`.
+
+**Review stop.** Show Blake the screenshots and colour list, then wait.
 
 ---
 
