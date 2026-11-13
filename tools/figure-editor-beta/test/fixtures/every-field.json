@@ -1,0 +1,27 @@
+{
+  "schema": "circuit/0.2",
+  "id": "every_field",
+  "title": "Every field",
+  "grid_cm": 0.25,
+  "elements": [
+    { "id": "g1", "type": "and_gate", "at": [0, 0], "rotation": 90, "label": "$G_1$", "params": { "delay": { "Y": 2 } } },
+    { "id": "g2", "type": "not_gate", "at": [12, 0], "rotation": 0, "mirror": true }
+  ],
+  "ports": [
+    { "id": "A", "dir": "in", "at": [-1, -12], "label": "$A$", "side": "down" },
+    { "id": "B", "dir": "in", "at": [1, -12] }
+  ],
+  "nets": {
+    "wrong": ["A", "B"]
+  },
+  "wires": [
+    { "id": "w1", "from": "A", "to": "g1.A", "first": "v" },
+    { "id": "w2", "from": "g1.Y", "to": [8, 8], "via": [[0, 8]], "level": "X" }
+  ],
+  "groups": {
+    "bus": ["A", "B"]
+  },
+  "labels": [
+    { "text": "A note", "at": [0, 10], "side": "up" }
+  ]
+}

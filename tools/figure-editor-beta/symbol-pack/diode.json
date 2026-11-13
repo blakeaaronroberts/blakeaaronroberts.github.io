@@ -1,0 +1,43 @@
+{
+  "pack": "symbols/0.1",
+  "type": "diode",
+  "description": "Diode (open triangle): anode A, cathode K; optional label above",
+  "status": "approved",
+  "mirrorable": true,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "diode.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-1.7, -0.82509, 3.4, 1.65017]
+  },
+  "bbox": {
+    "min": [-3.0, -1.25],
+    "max": [3.0, 1.25]
+  },
+  "pins": {
+    "A": {
+      "tip": [-3, 0],
+      "direction": "left",
+      "lead": {
+        "from": [-1.0, 0.0],
+        "length": 2.0
+      }
+    },
+    "K": {
+      "tip": [3, 0],
+      "direction": "right",
+      "lead": {
+        "from": [1.0, 0.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": {
+    "anchor": [-0.0, 1.25],
+    "direction": "up"
+  },
+  "parameters": []
+}

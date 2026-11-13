@@ -1,0 +1,43 @@
+{
+  "pack": "symbols/0.1",
+  "type": "switch",
+  "description": "Switch (normally open, with closing arrow), optional label above",
+  "status": "approved",
+  "mirrorable": true,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "switch.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-2.2, -1.36644, 4.4, 1.66638]
+  },
+  "bbox": {
+    "min": [-4.0, -0.2],
+    "max": [4.0, 2.333]
+  },
+  "pins": {
+    "1": {
+      "tip": [-4, 0],
+      "direction": "left",
+      "lead": {
+        "from": [-2.0, 0.0],
+        "length": 2.0
+      }
+    },
+    "2": {
+      "tip": [4, 0],
+      "direction": "right",
+      "lead": {
+        "from": [2.0, 0.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": {
+    "anchor": [-0.0, 2.5],
+    "direction": "up"
+  },
+  "parameters": []
+}
