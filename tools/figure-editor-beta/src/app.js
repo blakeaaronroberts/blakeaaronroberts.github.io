@@ -124,7 +124,7 @@ export async function mount(root, options = {}) {
       <div class="fe-group" role="group" aria-label="File">
         ${btn("new", "New")}${btn("open", "Open…")}${btn("save", "Save", "Control+S")}${btn("export", "Export SVG")}${btn("png", "Copy as PNG")}
       </div>
-      <div class="fe-group fe-group-end"><span class="fe-badge label-mono" title="This is the beta copy of the editor; the stable one is at tools/figure-editor/">Beta</span>${btn("help", "?", "?", ' aria-label="Keys"')}</div>
+      <div class="fe-group fe-group-end"><span class="fe-badge label-mono">BETA, may break</span><a class="fe-badge-link label-mono" href="../figure-editor/">Stable editor</a>${btn("help", "?", "?", ' aria-label="Keys"')}</div>
       <input type="file" class="fe-file" accept=".json,application/json" hidden>
       <input type="file" class="fe-theme-file" accept=".json,application/json" hidden>
     </div>

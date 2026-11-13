@@ -53,12 +53,14 @@ Sync of 2026-11-12, 21:20 (Pacific). Facts only; work lives in the batches below
 
 ## Batches
 
-**Order of work (Blake, 2026-11-13).** Today's goal is the most usable editor
-for lecturing chapter 5: **F2.3** (polish and unlisted go-live), then **F3
-labels and wire levels only**, then **F5** (configurable block, arrows, bus
-marks, level-coloured elements), then **T1** (timing diagram tool). The rest
-of F3 (PNG copy, scale options, private theme, draft switch, keys panel) and
-F4 come after. Each deploy to `main` happens when Blake says "deploy".
+**Order of work (Blake, 2026-11-13, revised).** All of this work goes on the
+BETA page `tools/figure-editor-beta/`, a copy of the editor; the stable
+`tools/figure-editor/` is never touched until Blake promotes the beta.
+Session 1: **F2.4** (beta copy, dark canvas), **F6** (wires), **F7** (save and
+load). Session 2: **F5** (chapter 5 blocks). **F8** (editing tools) waits.
+Wires come before F5 because arrows and bus marks are wire properties. Bend
+handles, end reconnect and SVG import are next week. Each deploy to `main`
+happens when Blake says "deploy", or when his prompt authorises it.
 
 | Batch | Intent | Status | Approved by Blake |
 |---|---|---|---|
@@ -71,9 +73,12 @@ F4 come after. Each deploy to `main` happens when Blake says "deploy".
 | F3 | Figure editor v1 finish: labels in STIX Two, wire level colours, PNG copy, private theme, shortcuts, draft toggle | Open | 2026-11-12 |
 | F2.3 | Figure editor polish and unlisted go-live: site look, structured side panel, no scroll bars, half-module grid (adjustable), then publish at an unlisted URL | Open | 2026-11-13 |
 | F4 | Figure editor options before launch: grid, whole-figure line weight (thin, regular, bold) and a dark theme, saved with the figure | Open | 2026-11-13 |
-| F2.4 | Figure editor: dark canvas (interim, editor-side) | Done | 2026-11-13 |
+| F2.4 | Beta editor page, canvas that follows the site's light/dark setting, all-white-stroke dark mode | Done | 2026-11-13 |
+| F6 | Figure editor: drag a wire segment, click and delete a wire | Open | 2026-11-13 |
+| F7 | Figure editor: autosave and Save/Open of circuits | Open | 2026-11-13 |
 | F5 | Figure editor: configurable block (rect, chevron, triangle, circle) with presets, wire arrows, bus marks, level-coloured elements | Open | 2026-11-13 |
 | T1 | Timing diagram tool: a WaveDrom page in the lecture look, adjustable size, SVG export | Open | 2026-11-13 |
+| F8 | Figure editor: box select, copy and paste, align and distribute, label editing, shortcuts | Open | 2026-11-13 |
 
 ---
 
@@ -300,34 +305,109 @@ a screenshot with the grid on and off, then wait. Going live (merging into
 
 ---
 
-### F2.4: dark canvas (interim)
+### F2.4: beta page and dark canvas
 
-**Why now.** In dark mode the editor's panes follow the system but the canvas
-stays light. Blake wants the whole editor dark (2026-11-13).
+**Why now.** Blake wants to keep using the stable editor while the next
+version is built, and wants the whole editor dark in dark mode (2026-11-13).
 
 **Blake's decisions (2026-11-13).**
-- A Canvas option (Auto, the default, Light, Dark) in the THEME section.
-- Every light-mode colour role gets a dark equivalent that complements the
-  site theme, stays colour-blind distinguishable and accessible (at least
-  4.5:1 for ink and 3:1 for level colours). The canvas is a darker shade of
-  the site's dark background, derived from its token. The builder chooses the
-  values and reports them with their contrast ratios.
-- Dark values live in `themes/okabe-ito/figures.scss` as `--fig-dark-*`
-  properties. At render time only, the pack's baked black strokes map to ink
-  and white fills to background; the pack is not edited. Interim until the
-  toolbox dark theme (`theme-dark.json`, E0.3 and C4) lands.
+- **Beta page.** `tools/figure-editor-beta/` is a full copy of
+  `tools/figure-editor/` with its own app code and styles. It may share the
+  symbol pack and the theme read-only. Unlisted, `noindex`, no link from
+  anywhere, with a small "BETA, may break" banner linking to the stable
+  editor. Nothing under `tools/figure-editor/` changes; any change outside
+  the beta folder (theme variables) is additive, and the stable page's files
+  stay byte-identical. Record the duplication in `DECISIONS.md` as temporary.
+- **Mode source.** The canvas and the editor follow the **site's** current
+  light/dark setting, not the system directly. The site follows the system
+  first, then the navbar button; the editor reads whatever the site sets
+  (find how the site applies it) and updates live when the button is
+  clicked. A Canvas option (Auto, the default, Light, Dark) in THEME
+  overrides it.
+- **Dark palette.** Every light-mode role gets a dark equivalent chosen by
+  the builder: complements the site theme, accessible (4.5:1 ink, 3:1 level
+  colours), colour-blind distinguishable. The canvas is a darker shade of the
+  site's dark background, derived from its token. Values live in
+  `themes/okabe-ito/figures.scss` as `--fig-dark-*` (additive). Report the
+  values and ratios.
+- **All strokes light.** In dark mode every stroke is the light ink: element
+  bodies AND legs (leads), dots, and symbol outlines. Elements must not show
+  black bodies with white legs. Map the pack's baked colours at render time
+  (black strokes in attributes and in inline `style` to ink, white fills to
+  background); do not edit the pack. A required check: after loading the
+  full adder sample in dark, no black stroke remains in the canvas DOM
+  (count them and report the number, which must be 0).
 - Exports stay on the default light theme unless "Export in dark theme" is
   on (off by default).
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| F2.4.1 | Canvas option, dark roles, render mapping, export checkbox | Steward, approved by Blake 2026-11-13 | Done | On the BETA copy only (tools/figure-editor-beta/, branch beta-f2-4, 09dc98d); the stable editor tools/figure-editor/ is untouched. The beta started as a copy of the stable editor, whose Canvas option (Auto follows the site toggle, Light, Dark), --fig-dark-* roles, render mapping and "Export in dark theme" box already existed, so no mapping code changed. Beta changes: its own browser-storage keys, a Beta badge, and the browser check below. NOTE: F6 and F7 are not written in this file; I took them from Blake's message (F6 = wire editing, F7 = save and reload) and say so in their notes. |
-| F2.4.2 | Screenshots in dark and light, colour list with contrast ratios | Steward, approved by Blake 2026-11-13 | Done | Check: `quarto run tools/figure-editor-beta/test/browser/check.js dark toggle colours` (headless Chrome, 1366x768, after one render). It screenshots the page and counts pure-black pixels (all channels 8 or less) on the canvas and in the palette, with the sample and with all 21 elements: 0 in dark, 2129 in light (so the detector does see black where it belongs). It also flips the site toggle after load, both ways, and measures every scene stroke against the canvas: minimum 6.66:1 for the sample, 15.57:1 for all elements. Dark colours (canvas #141312, derived from the site background #1c1b19; ratio against the canvas): ink and low #EBEBEB 15.57; high #FE7000 6.66; unknown #CC79A7 6.06; floating, accent and debug #56B4E9 8.04; flow #009E73 5.42; highlight #E69F00 8.24; grid #434341 1.87 (dots, decorative). All meet 4.5:1 for ink and 3:1 for level colours. 
+| F2.4.1 | Beta page and banner; stable page untouched | Steward, approved by Blake 2026-11-13 | Done | Branch beta-f2-4. tools/figure-editor-beta/ is a full copy of the editor (own src, styles, symbol-pack copy, tests); unlisted, noindex through tools/_metadata.yml, no link from anywhere. Banner "BETA, may break" with a link to ../figure-editor/. Own browser-storage keys (figure-editor-beta/...), so autosave and saves never mix with the stable editor. tools/figure-editor/ is byte-identical to main (git diff empty). Duplication is temporary; Blake said to change only this file under docs, so the DECISIONS.md entry the batch asks for is NOT written: Scribe or Steward, please add "beta editor is a temporary full copy, remove when promoted". 
+| F2.4.2 | Follow the site's mode, live; Canvas option | Steward, approved by Blake 2026-11-13 | Done | The beta reads the site mode from the site's own --role-background (the toggle swaps the stylesheets), so it follows the OS first and the navbar button after, live. Browser check "toggle": starts light, clicks the site toggle, canvas and palette turn dark with no reload, and back. Canvas option (Auto, Light, Dark) kept from the stable editor. Batch asked for no new code here: the logic was already in the copied app.js. 
+| F2.4.3 | Dark palette, all-light strokes, zero-black check, export checkbox | Steward, approved by Blake 2026-11-13 | Done | Zero-black check, headless Chrome, sample full adder and all 21 elements, in dark: black strokes in the canvas DOM 0 (of 46 and 98 stroked shapes); pure-black pixels on the canvas 0, in the palette 0; in light the same detector finds 2129, so it works. The previous attempt showed black bodies with white legs; that does not reproduce here, and the check would catch it. Dark values (canvas #141312 from site background #1c1b19; ratio vs canvas): ink and low #EBEBEB 15.57; high #FE7000 6.66; unknown #CC79A7 6.06; floating, accent, debug #56B4E9 8.04; flow #009E73 5.42; highlight #E69F00 8.24; grid #434341 1.87 (decorative). Command: quarto run tools/figure-editor-beta/test/browser/check.js dark toggle colours. Export in dark theme checkbox kept, off by default. 85 Deno tests pass. 
 
-**Scope limits.** No pack, toolbox or circuit-model changes. Record the
-interim in `DECISIONS.md`.
+**Scope limits.** No pack, toolbox or circuit-model changes.
 
-**Review stop.** Show Blake the screenshots and colour list, then wait.
+**Review stop.** Deploy the beta when checks pass, report, and continue.
+
+---
+
+### F6: wires
+
+**Why now.** Blake wants wires he can move and remove (2026-11-13).
+
+**Blake's decisions (2026-11-13).**
+- **Drag a segment.** Grab a wire run and slide it sideways; the neighbouring
+  segments stretch to follow, and the ends stay anchored to their pins or
+  junctions. Segments stay orthogonal, snap to the grid, and one drag is one
+  undo step.
+- **Select and delete.** Clicking a wire selects it (visible highlight); the
+  Delete or Backspace key removes it; undo restores it. Junction dots follow
+  the four-wire rule after any edit.
+- Next week, not today: bend handles, reconnecting a wire end, wires with
+  free ends.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F6.1 | Wire hit-testing and selection | Steward, approved by Blake 2026-11-13 | Open | |
+| F6.2 | Segment drag with anchored ends and snapping | Steward, approved by Blake 2026-11-13 | Open | |
+| F6.3 | Delete, undo and redo, junction rule, tests | Steward, approved by Blake 2026-11-13 | Open | |
+
+---
+
+### F7: save and load
+
+**Why now.** Blake wants circuits he can reload later (2026-11-13).
+
+**Blake's decisions (2026-11-13).**
+- **Autosave** the current figure in the browser, restored on reload.
+- **Save and Open** a `.json` file in the circuit schema (`circuit/0.2`)
+  that Blake can keep anywhere. Open validates the file and reports a
+  readable error for a bad one, without losing the current figure.
+- SVG import is next week.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F7.1 | Autosave and restore (guarded storage calls, works without storage) | Steward, approved by Blake 2026-11-13 | Open | |
+| F7.2 | Save and Open file, validation, tests | Steward, approved by Blake 2026-11-13 | Open | |
+
+---
+
+### F8: editing tools
+
+**Why now.** Faster figure building (Blake, 2026-11-13). Waits until F5 ships.
+
+**Blake's decisions.** Box select; copy, paste and duplicate; align and
+distribute; in-place label editing (including LaTeX); keyboard shortcuts
+(Delete, rotate, undo, copy and paste, arrow-key nudge) with a cheat sheet.
+If budget runs out, drop in this order: align, label editing, the rest.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F8.1 | Box select and move | Steward, approved by Blake 2026-11-13 | Open | |
+| F8.2 | Copy, paste, duplicate and shortcuts | Steward, approved by Blake 2026-11-13 | Open | |
+| F8.3 | Label editing in place | Steward, approved by Blake 2026-11-13 | Open | |
+| F8.4 | Align and distribute | Steward, approved by Blake 2026-11-13 | Open | |
 
 ---
 
@@ -338,7 +418,7 @@ editor covers adders, subtractors, comparators, shifters, rotators,
 multipliers, ALUs, register files and the basic control-system blocks without
 waiting for new toolbox symbols (Blake, 2026-11-13).
 
-**Prerequisites.** F3 labels are done and `circuit-model` has batch C5.
+**Prerequisites.** F3 labels are done, `circuit-model` has batch C5 (done), and F6 wires are in place. The work is done on the BETA page `tools/figure-editor-beta/` (see F2.4).
 
 **Blake's decisions (2026-11-13).**
 - **Block.** The editor draws the `block` primitive from its `params`, as C5
