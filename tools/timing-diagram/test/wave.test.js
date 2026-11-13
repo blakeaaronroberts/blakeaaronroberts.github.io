@@ -39,3 +39,9 @@ Deno.test("frame names come from the circuit's groups, capped and trimmed", asyn
   assertEquals(framesIn("nope"), []);
   assertEquals(framesIn("{}"), []);
 });
+Deno.test("nets are named by the label on them, not their internal name", async () => {
+  const { nodesOf } = await import("../src/nodes.js");
+  const doc = { schema: "circuit/0.2", ports: [{ id: "p1", label: "CLK", at: [0, 0] }], nets: { n1: ["p1", "u.A"], n2: ["u.Y", "v.A"], n3: ["v.Y"] },
+    wires: [{ id: "w", from: "u.Y", to: [10, 4], via: [[6, 4]] }], labels: [{ text: "N1", at: [7, 5] }] };
+  assertEquals(nodesOf(JSON.stringify(doc)).nodes.map((x) => x.name), ["CLK", "N1", "n3"]);
+});
