@@ -109,7 +109,7 @@ site is small.
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| 1 | Alt text on every figure; check DigitalJS shows values, not colour alone | Scribe item H-S002 | In progress | Alt text on all 12 figures, exposed in the accessibility tree. OJS cells ignore `fig-alt`, so plots use Observable Plot's `ariaLabel`. DigitalJS shows 1-bit state by colour only, so (Blake's choice) `_includes/digitaljs.html` adds a visible, aria-live status line of input and output values; DigitalJS unchanged. |
+| 1 | Alt text on every figure; check DigitalJS shows values, not colour alone | Scribe item H-S002 | Done | `ffcb352`. Alt text on all 12 figures, exposed in the accessibility tree. OJS cells ignore `fig-alt`, so plots use Observable Plot's `ariaLabel`. DigitalJS shows 1-bit state by colour only, so (Blake's choice) `_includes/digitaljs.html` adds a visible, aria-live status line of input and output values; DigitalJS unchanged. |
 
 **Review stop:** as in H-S002.
 
