@@ -207,7 +207,8 @@ lecture video pipeline). 4 Adoption. Do not start later-phase work early.
   "obviously" or "trivially".
 
 ### Approval gates
-- Every element, figure, tool and page starts as a draft.
+- Every element, figure, tool and page starts as a draft (READMEs excepted,
+  section 8).
 - Only Blake decides what is approved. An agent writes "approved" in a
   registry or front matter only when Blake directly tells it to in the
   conversation, for the specific items he names. Never on the agent's own
@@ -264,7 +265,9 @@ lecture video pipeline). 4 Adoption. Do not start later-phase work early.
     owns the rest of the docs.
   - The Scribe may commit documentation straight to `main`. Commits that
     change only the handoff and to-do files do not redeploy the site. Public
-    pages it writes stay drafts until Blake approves them.
+    pages it writes stay drafts until Blake approves them; on the site, drafts
+    live in `docs/_drafts/`, which is never rendered. READMEs are the one
+    exception: the Scribe approves them itself (Blake, 2026-11-12).
   - It tracks its open work in `docs/SCRIBE_TODO.md` in each repo. The Steward
     mirrors those rows into Blake's tracker and never edits the file.
 - **Sync.** Blake keeps every agent current by typing `sync`.
@@ -300,6 +303,9 @@ non-circuit figures such as timing diagrams and plots (2026-11-12). The
 WaveDrom and DigitalJS embeds stay on the site as an interim (2026-11-12).
 
 ## 10. Change log
+
+- 2026-11-12 (evening, closing): READMEs need no draft stage (the Scribe
+  approves them); site drafts live in `docs/_drafts/`.
 
 - 2026-11-12 (evening, final): `sync` protocol (section 8): Blake types
   `sync`, the Steward refreshes a Current state block in each handoff file,

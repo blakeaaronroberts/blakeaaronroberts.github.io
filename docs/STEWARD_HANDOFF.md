@@ -26,11 +26,13 @@ Sync of 2026-11-12, 16:05 (Pacific). Facts only; work lives in the batches below
 - Earlier today: tools are free and open-source or our own (VISION.md
   section 3); builder work goes only through this queue; the `sync`
   protocol (section 8). The university IP check is no longer planned.
+- VISION.md: READMEs need no draft stage; site drafts live in `docs/_drafts/`.
 
 **Waiting**
 - Site builder: S3 (accessibility), when Blake starts it.
 - Scribe: Blake's review of its style guide, templates and overviews.
-- The private toolbox repo: one batch done, three queued.
+- The private toolbox repo: one batch done, four queued.
+
 
 ## How builders use this file
 
