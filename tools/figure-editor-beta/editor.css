@@ -125,3 +125,6 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 /* ---- wires: the cursor shows which way a run slides ---- */
 .fe-canvas[data-hit="wire-h"] { cursor: ns-resize; }
 .fe-canvas[data-hit="wire-v"] { cursor: ew-resize; }
+
+/* ---- errors in the status line ---- */
+.fe-status[data-error] { color: var(--role-ink); font-weight: 700; }

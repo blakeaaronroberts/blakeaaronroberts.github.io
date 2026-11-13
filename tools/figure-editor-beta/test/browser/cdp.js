@@ -41,15 +41,16 @@ export async function launch({ port = 9333, width = 1366, height = 768, scheme =
   const pending = new Map(), listeners = [];
   ws.onmessage = (m) => {
     const msg = JSON.parse(m.data);
-    if (msg.id && pending.has(msg.id)) { const p = pending.get(msg.id); pending.delete(msg.id); msg.error ? p.rej(new Error(msg.error.message)) : p.res(msg.result); }
+    if (msg.id && pending.has(msg.id)) { const p = pending.get(msg.id); pending.delete(msg.id); msg.error ? p.rej(new Error(`${p.method}: ${msg.error.message}`)) : p.res(msg.result); }
     else for (const l of listeners) l(msg);
   };
-  const send = (method, params = {}) => new Promise((res, rej) => { const n = ++id; pending.set(n, { res, rej }); ws.send(JSON.stringify({ id: n, method, params })); });
+  const send = (method, params = {}) => new Promise((res, rej) => { const n = ++id; pending.set(n, { res, rej, method }); ws.send(JSON.stringify({ id: n, method, params })); });
   await send("Page.enable"); await send("Runtime.enable");
   await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
   await send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: scheme }] });
   const errors = [];
   listeners.push((msg) => {
+    if (msg.method === "Page.javascriptDialogOpening") send("Page.handleJavaScriptDialog", { accept: true }).catch(() => {});   // the editor warns before leaving with unsaved work
     if (msg.method === "Runtime.exceptionThrown") errors.push(msg.params.exceptionDetails.exception?.description ?? msg.params.exceptionDetails.text);
     if (msg.method === "Runtime.consoleAPICalled" && msg.params.type === "error") errors.push(msg.params.args.map((a) => a.value ?? a.description).join(" "));
   });
@@ -84,6 +85,15 @@ export async function launch({ port = 9333, width = 1366, height = 768, scheme =
     async key(key, code = key, vk = 0, modifiers = 0) {
       await send("Input.dispatchKeyEvent", { type: "keyDown", key, code, windowsVirtualKeyCode: vk, modifiers });
       await send("Input.dispatchKeyEvent", { type: "keyUp", key, code, windowsVirtualKeyCode: vk, modifiers });
+    },
+    async beforeLoad(source) { await send("Page.addScriptToEvaluateOnNewDocument", { source }); },
+    async downloadsTo(dir) {
+      try { await send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: dir }); } catch { await send("Page.setDownloadBehavior", { behavior: "allow", downloadPath: dir }); }
+    },
+    async setFile(selector, path) {
+      const { root } = await send("DOM.getDocument", { depth: 0 });
+      const { nodeId } = await send("DOM.querySelector", { nodeId: root.nodeId, selector });
+      await send("DOM.setFileInputFiles", { files: [path], nodeId });
     },
     async shotData() { return (await send("Page.captureScreenshot", { format: "png" })).data; },
     async shot(path) {

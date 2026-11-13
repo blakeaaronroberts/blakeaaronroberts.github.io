@@ -585,7 +585,7 @@ export function parse(text) {
   const id = (v, where) => (typeof v === "string" && ID.test(v)) ? v : fail(`${where}: bad id ${JSON.stringify(v)}`);
   const end = (v, where) => Array.isArray(v) ? point(v, where) : (typeof v === "string" && REF.test(v)) ? v : fail(`${where}: bad end ${JSON.stringify(v)}`);
 
-  if (!raw || typeof raw !== "object") fail("not a circuit file");
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("not a circuit file: expected one JSON object with a \"schema\" field");
   if (raw.schema !== SCHEMA) fail(`schema is ${JSON.stringify(raw.schema)}; this editor reads "${SCHEMA}"`);
   if (raw.grid_cm !== 0.25) fail(`grid_cm is ${raw.grid_cm}; expected 0.25`);
   only(raw, ORDER.top, "file");
