@@ -112,6 +112,10 @@ export function createView(svg, basePack) {
     for (const w of d.wires) {
       if (sel.wires.includes(w.id)) o.push(`<path stroke="${roles.accent}" stroke-opacity="0.45" stroke-width="${fmt(lw * 4)}" stroke-linejoin="round" stroke-linecap="round" d="${pathData(w.points)}"/>`);
     }
+    if (state.hoverWire && !sel.wires.includes(state.hoverWire)) {
+      const w = d.wires.find((x) => x.id === state.hoverWire);
+      if (w) o.push(`<path stroke="${roles.accent}" stroke-opacity="0.22" stroke-width="${fmt(lw * 4)}" stroke-linejoin="round" stroke-linecap="round" d="${pathData(w.points)}"/>`);
+    }
     // Ports have no symbol of their own: the editor marks them (never exported) so they can be found and selected.
     for (const p of state.doc.ports) {
       const [x, y] = toSvg(p.at);

@@ -13,7 +13,7 @@ import { exportSize, exportSvg, labelBoxes } from "./export.js";
 import { hitTest, inBox } from "./hit.js";
 import { packLabelPt, texNeeded } from "./labels.js";
 import { typesetAll } from "./mathjax.js";
-import { route } from "./router.js";
+import { nearestOnPolyline, route } from "./router.js";
 import { createView, thumbnail } from "./view.js";
 
 const AUTOSAVE = "figure-editor-beta/autosave";
@@ -46,6 +46,8 @@ export const KEYS = [
   ["Ctrl+C, Ctrl+V, Ctrl+A", "Copy, paste, select all"],
   ["Ctrl+S", "Save the figure as a .json file"],
   ["Arrow keys", "Move the selection (a grid step for parts, as the Grid control sets it; half a module for wires and labels); pan when nothing is selected"],
+  ["Click a wire", "Select it (it is highlighted); Delete or Backspace removes it, Ctrl+Z brings it back"],
+  ["Drag a wire", "Slide the run under the pointer sideways: the next runs stretch, the ends stay on their pins, one step at a time. One drag is one undo step"],
   ["Shift+click", "Add to or remove from the selection; while placing, keep placing"],
   ["Drag on empty canvas", "Box select"],
   ["Mouse wheel, + and −", "Zoom"],
@@ -194,6 +196,7 @@ export async function mount(root, options = {}) {
   let drag = null;
   let pointer = null;                // last pointer position, grid steps
   let hover = null, ghost = null, rubber = null, boxSel = null;
+  let hoverWire = null;              // the wire under the pointer in Select, for a hover highlight and the resize cursor
   let clipboard = null, pasteCount = 0;
   let loadWarnings = [];
   let spaceHeld = false;
@@ -280,7 +283,7 @@ export async function mount(root, options = {}) {
   // ---- rendering -------------------------------------------------------------------------
   function render() {
     lastDrawing = view.render({
-      doc, pack, selection, ghost, rubber, hover, box: boxSel,
+      doc, pack, selection, ghost, rubber, hover, hoverWire, box: boxSel,
       typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags,
     });
     if (lastDrawing.pending.length) queueTypeset();
@@ -805,7 +808,12 @@ export async function mount(root, options = {}) {
       } else if (!isSel) {
         selection = { ...none(), [list]: [k] };
       }
-      drag = { kind: "move", start: p, base: doc, sel: structuredClone(selection), delta: [0, 0] };
+      const c = target.kind === "wire" && !e.shiftKey && total(selection) === 1 ? D.allCorners(doc, pack).get(k) : null;
+      if (c) {   // a lone wire: dragging slides the run under the pointer sideways
+        const index = nearestOnPolyline(p, c).segment;
+        drag = { kind: "segment", id: k, index, horizontal: c[index][1] === c[index + 1][1], start: p, base: doc, d: 0 };
+        status(`Wire ${k} selected. Drag it sideways to move this run; Delete removes the wire.`);
+      } else drag = { kind: "move", start: p, base: doc, sel: structuredClone(selection), delta: [0, 0] };
     } else {
       if (!e.shiftKey) selection = none();
       drag = { kind: "box", start: p, add: e.shiftKey ? structuredClone(selection) : null };
@@ -818,6 +826,15 @@ export async function mount(root, options = {}) {
     const p = view.toGrid(e);
     pointer = p;
     if (drag?.kind === "pan") { view.panBy(e.clientX - drag.x, e.clientY - drag.y); drag.x = e.clientX; drag.y = e.clientY; return; }
+    if (drag?.kind === "segment") {
+      const d = Math.round(drag.horizontal ? p[1] - drag.start[1] : p[0] - drag.start[0]);   // whole grid steps (half a module)
+      if (d !== drag.d) {
+        drag.d = d;
+        try { doc = d === 0 ? drag.base : D.moveWireSegment(drag.base, pack, drag.id, drag.index, d); } catch (err) { doc = drag.base; status(`${err.message}.`); }
+        render();
+      }
+      return;
+    }
     if (drag?.kind === "move") {
       const raw = [p[0] - drag.start[0], p[1] - drag.start[1]];
       const delta = drag.sel.elements.length ? snapPart(raw) : snapStep(raw);
@@ -833,6 +850,7 @@ export async function mount(root, options = {}) {
       render();
       return;
     }
+    if (tool === "select" && !drag) updateHoverWire(p);
     if (tool === "place" && placing) { ghost = { type: placing.type, at: snapPart(p), rotation: placing.rotation }; render(); return; }
     if (tool === "wire") {
       if (wiring) updateRubber(p);
@@ -840,8 +858,23 @@ export async function mount(root, options = {}) {
     }
   });
 
+  /** Highlight the wire a click would pick, and show which way its run slides (the cursor). */
+  function updateHoverWire(p) {
+    const t = targets(p).find((h) => ["port", "wire", "label", "element"].includes(h.kind));
+    const id = t?.kind === "wire" ? t.id : null;
+    const c = id ? D.allCorners(doc, pack).get(id) : null;
+    const i = c ? nearestOnPolyline(p, c).segment : 0;
+    const dir = c ? (c[i][1] === c[i + 1][1] ? "wire-h" : "wire-v") : "";
+    if (id === hoverWire && (svg.dataset.hit ?? "") === dir) return;
+    hoverWire = id;
+    if (dir) svg.dataset.hit = dir; else delete svg.dataset.hit;
+    render();
+  }
+
   const endDrag = () => {
-    if (drag?.kind === "move" && !same(drag.delta, [0, 0])) {
+    if (drag?.kind === "segment") {
+      if (doc !== drag.base) { history.record(drag.base); changed("Moved a wire run."); }   // the whole drag is one undo step
+    } else if (drag?.kind === "move" && !same(drag.delta, [0, 0])) {
       history.record(drag.base);   // the whole drag is one undo step
       changed("Moved.");
     } else if (drag?.kind === "box" && boxSel) {
@@ -857,6 +890,7 @@ export async function mount(root, options = {}) {
   };
   svg.addEventListener("pointerup", endDrag);
   svg.addEventListener("pointercancel", endDrag);
+  svg.addEventListener("pointerleave", () => { if (hoverWire && !drag) { hoverWire = null; delete svg.dataset.hit; render(); } });
   svg.addEventListener("dblclick", (e) => e.preventDefault());
   svg.addEventListener("wheel", (e) => { e.preventDefault(); view.zoomAt(e.deltaY > 0 ? 1.15 : 1 / 1.15, e); }, { passive: false });
   svg.addEventListener("contextmenu", (e) => { if (wiring) { e.preventDefault(); wiring = null; rubber = null; render(); } });

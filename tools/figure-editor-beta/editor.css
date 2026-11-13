@@ -121,3 +121,7 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 .fe-badge { margin-right: .5rem; padding: 0 .4rem; border: 1px solid var(--role-accent); color: var(--role-accent); font-size: .7rem; line-height: 1.4rem; }
 .fe-badge-link { margin-right: .75rem; font-size: .7rem; color: var(--role-muted); text-decoration: underline; text-underline-offset: 2px; }
 .fe-badge-link:hover { color: var(--role-accent); }
+
+/* ---- wires: the cursor shows which way a run slides ---- */
+.fe-canvas[data-hit="wire-h"] { cursor: ns-resize; }
+.fe-canvas[data-hit="wire-v"] { cursor: ew-resize; }

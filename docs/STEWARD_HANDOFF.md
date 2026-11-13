@@ -74,7 +74,7 @@ happens when Blake says "deploy", or when his prompt authorises it.
 | F2.3 | Figure editor polish and unlisted go-live: site look, structured side panel, no scroll bars, half-module grid (adjustable), then publish at an unlisted URL | Open | 2026-11-13 |
 | F4 | Figure editor options before launch: grid, whole-figure line weight (thin, regular, bold) and a dark theme, saved with the figure | Open | 2026-11-13 |
 | F2.4 | Beta editor page, canvas that follows the site's light/dark setting, all-white-stroke dark mode | Done | 2026-11-13 |
-| F6 | Figure editor: drag a wire segment, click and delete a wire | Open | 2026-11-13 |
+| F6 | Figure editor: drag a wire segment, click and delete a wire | Done | 2026-11-13 |
 | F7 | Figure editor: autosave and Save/Open of circuits | Open | 2026-11-13 |
 | F5 | Figure editor: configurable block (rect, chevron, triangle, circle) with presets, wire arrows, bus marks, level-coloured elements | Open | 2026-11-13 |
 | T1 | Timing diagram tool: a WaveDrom page in the lecture look, adjustable size, SVG export | Open | 2026-11-13 |
@@ -369,9 +369,9 @@ version is built, and wants the whole editor dark in dark mode (2026-11-13).
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| F6.1 | Wire hit-testing and selection | Steward, approved by Blake 2026-11-13 | Open | |
-| F6.2 | Segment drag with anchored ends and snapping | Steward, approved by Blake 2026-11-13 | Open | |
-| F6.3 | Delete, undo and redo, junction rule, tests | Steward, approved by Blake 2026-11-13 | Open | |
+| F6.1 | Wire hit-testing and selection | Steward, approved by Blake 2026-11-13 | Done | Branch beta-f6, beta page only. The hit-test already picked wires (0.7 grid steps); new: a hover highlight and a resize cursor (left-right on a vertical run, up-down on a horizontal one), and the selection band and panel naming the wire. Browser check: hover, click, band count 1, panel names w3. 
+| F6.2 | Segment drag with anchored ends and snapping | Steward, approved by Blake 2026-11-13 | Done | New moveWireSegment() in src/doc.js. The run slides sideways in whole grid steps (half a module); neighbouring runs stretch; ends stay on their pins, ports and junctions; an end on an anchor keeps a one-step stub so the wire leaves it the same way; a free end moves with the run. A run too short for its stubs is refused with a message. Junctions on the moving part go with it and wires on them follow. Corners are saved in via, so the file format is unchanged. One drag is one undo step (live preview from the pre-drag document, one history record on release). A multi-selection drag still moves everything as before. 
+| F6.3 | Delete, undo and redo, junction rule, tests | Steward, approved by Blake 2026-11-13 | Done | Delete and Backspace remove the selected wire, Ctrl+Z restores it exactly (browser check on the full-adder sample: 16 to 15 to 16 wires, 4 junctions kept, restored wire identical). Dots are derived from the drawing, so the four-wire rule holds after any edit (unit test: a T has no dot, a fourth wire makes one, it moves with the run, deleting the fourth removes it). 9 new Deno tests, 94 pass. Browser check: quarto run tools/figure-editor-beta/test/browser/check.js wires. 
 
 ---
 

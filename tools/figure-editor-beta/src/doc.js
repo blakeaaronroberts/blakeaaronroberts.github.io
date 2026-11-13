@@ -5,7 +5,7 @@
 // counts, joints and nets are derived, never stored (proposal section 1).
 
 import { elementBox, pinOf } from "./geometry.js";
-import { directionProblems, onPolyline, route, snapOntoPolyline } from "./router.js";
+import { directionProblems, onPolyline, onSegment, route, snapOntoPolyline } from "./router.js";
 
 export const SCHEMA = "circuit/0.2";
 const ID = /^[A-Za-z][A-Za-z0-9_]*$/;
@@ -633,4 +633,57 @@ export function parse(text) {
 export function netsMatch(a, b) {
   const canon = (n) => JSON.stringify(Object.values(n).map((r) => [...r].sort()).sort());
   return canon(a) === canon(b);
+}
+
+// ---- dragging a wire segment (F6) ------------------------------------------------------
+
+/**
+ * Slide one run of a wire sideways by `d` grid steps (positive d is up for a horizontal run, right for a vertical one).
+ * The neighbouring runs stretch to follow; the wire's ends stay where they are. An end on a pin, port or junction keeps
+ * a one-step stub along the run, so the wire still leaves its anchor the same way, and the jog comes after the stub.
+ * A free end simply moves with the run. Junctions sitting on the moving part of the run go with it, and the wires that
+ * end on them follow. Returns a new document; throws if the run is too short to move (not enough room for the stubs).
+ * The corners are written to `via`, so the file format is unchanged.
+ */
+export function moveWireSegment(doc, pack, wireId, index, d) {
+  doc = clone(doc);
+  const w = doc.wires.find((x) => x.id === wireId);
+  const c = w && wireCorners(doc, pack, w);
+  if (!c) throw new Error(`no wire ${wireId}`);
+  if (!Number.isInteger(index) || index < 0 || index >= c.length - 1) throw new Error(`wire ${wireId} has no run ${index}`);
+  if (!Number.isInteger(d)) throw new Error("the shift must be a whole number of grid steps");
+  if (d === 0) return doc;
+  const A = c[index], B = c[index + 1], n = c.length;
+  const horizontal = A[1] === B[1];
+  const s = horizontal ? [0, d] : [d, 0];
+  const along = horizontal ? 0 : 1;
+  const sign = Math.sign(B[along] - A[along]);
+  const u = horizontal ? [sign, 0] : [0, sign];
+  const startStub = index === 0 && !isPoint(w.from), endStub = index === n - 2 && !isPoint(w.to);
+  const room = Math.abs(B[along] - A[along]) - (startStub ? 1 : 0) - (endStub ? 1 : 0);
+  if (room < 1) throw new Error("this run is too short to move");
+
+  const pts = [];
+  if (index > 0) pts.push(...c.slice(0, index), add(A, s));
+  else if (startStub) pts.push(A, add(A, u), add(add(A, u), s));
+  else pts.push(add(A, s));
+  if (index + 1 < n - 1) pts.push(add(B, s), ...c.slice(index + 2));
+  else if (endStub) pts.push(add(add(B, [-u[0], -u[1]]), s), add(B, [-u[0], -u[1]]), B);
+  else pts.push(add(B, s));
+
+  const clean = pts.filter((p, i) => i === 0 || !same(p, pts[i - 1]));
+  if (isPoint(w.from)) w.from = [...clean[0]];
+  if (isPoint(w.to)) w.to = [...clean[clean.length - 1]];
+  const via = clean.slice(1, -1);
+  if (via.length) w.via = via.map((p) => [...p]); else delete w.via;
+  delete w.first;
+
+  // The junctions on the part of the run that moved go with it (the stubs stay where they are).
+  const lo = Math.min(A[along], B[along]) + ((sign > 0 ? startStub : endStub) ? 1 : 0);
+  const hi = Math.max(A[along], B[along]) - ((sign > 0 ? endStub : startStub) ? 1 : 0);
+  for (const j of doc.junctions) {
+    if (j.on !== wireId || !onSegment(j.at, A, B)) continue;
+    if (j.at[along] >= lo && j.at[along] <= hi) j.at = add(j.at, s);
+  }
+  return normalize(doc, pack);
 }
