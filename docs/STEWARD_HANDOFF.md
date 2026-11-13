@@ -241,7 +241,7 @@ Keep the effort small: modern and consistent with the site, not elaborate.
 |---|---|---|---|---|
 | F2.3.1 | Look and layout: full-viewport shell, site roles, icon toolbar, status bar, structured side panel, no scroll bars | Steward, approved by Blake 2026-11-13 | Open | |
 | F2.3.2 | Grid: half-module default, adjustable. Stay on integer grid steps in the saved schema; if a position can't be stored that way, stop and ask | Steward, approved by Blake 2026-11-13 | Open | |
-| F2.3.3 | Go live: privacy scan, merge `figure-editor` into `main`, wait for the deploy, open the live URL and check it loads, draws a figure and exports | Steward, approved by Blake 2026-11-13 | Open | |
+| F2.3.3 | Go live: privacy scan, merge `figure-editor` into `main`, wait for the deploy, open the live URL and check it loads, draws a figure and exports | Steward, approved by Blake 2026-11-13 | Done | Deployed 2026-11-13 on Blake saying "deploy" (merge `9334f56`, push `94c2c97`), before F2.3.1 and F2.3.2, which stay Open. Privacy scan of the outgoing diff and the rendered editor files found nothing. Live URL https://blakeaaronroberts.github.io/tools/figure-editor/ : page, src, symbol pack and sample all return 200; robots noindex; no nav link. Drawing and export were checked in a headless screenshot of the local render, not on the live URL. |
 
 **Scope limits.** No new dependencies, no refactors, no F3 or F4 features.
 Read only what the work needs (`tools/figure-editor/`, the home page, the
