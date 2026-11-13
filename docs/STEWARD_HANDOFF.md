@@ -62,6 +62,7 @@ Sync of 2026-11-12, 21:20 (Pacific). Facts only; work lives in the batches below
 | F1 | Figure editor, plan: a short design for the first web tool, reviewed before any code | Open | 2026-11-12 |
 | F2 | Figure editor v1 core: place, move, rotate and mirror elements on the grid; wires that stay anchored to pins; save, load and SVG export | Open | 2026-11-12 |
 | F3 | Figure editor v1 finish: labels in STIX Two, wire level colours, PNG copy, private theme, shortcuts, draft toggle | Open | 2026-11-12 |
+| F2.3 | Figure editor polish and unlisted go-live: site look, structured side panel, no scroll bars, half-module grid (adjustable), then publish at an unlisted URL | Open | 2026-11-13 |
 | F4 | Figure editor options before launch: grid, whole-figure line weight (thin, regular, bold) and a dark theme, saved with the figure | Open | 2026-11-13 |
 
 ---
@@ -201,6 +202,44 @@ same publication-grade check the toolbox uses. Privacy scan before every push.
 against VISION.md first). After F2, show Blake the editor running with a
 sample figure built from today's 21 elements, plus an exported SVG. After
 F3, the same with labels and colours.
+
+---
+
+### F2.3: figure editor polish and unlisted go-live
+
+**Why now.** Blake needs the editor usable today, from any computer (2026-11-13).
+Keep the effort small: modern and consistent with the site, not elaborate.
+
+**Blake's decisions (2026-11-13).**
+- **Look.** Match the site, especially the home page: the site theme's roles
+  (never hard-coded colours), IBM Plex, the same cards, spacing and headings.
+  Calm and modern: icon toolbar, status bar, clear hover and focus states.
+  The chrome follows the site's light and dark toggle; the drawing canvas
+  always keeps the default theme on a light background.
+- **Side panel.** Structured like the home page: labelled sections (selection,
+  placement, label, wire level) with an empty state.
+- **No scroll bars anywhere**, on the page or in any panel, at 1366 x 768 and
+  up. What doesn't fit uses tabs, collapsible groups or paging. Nothing is
+  clipped.
+- **Grid.** Default snap is half a module, so gate legs that sit half a
+  module out line up with on-grid parts. Adjustable on the fly (1 module or
+  1/2 module; the grid dots follow). If the selector proves hard, ship the
+  half-module grid alone and say so.
+- **Go live, unlisted.** Publish at a URL with no navbar entry, `noindex`,
+  and not announced anywhere. Blake approves this page for that purpose only.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F2.3.1 | Look and layout: full-viewport shell, site roles, icon toolbar, status bar, structured side panel, no scroll bars | Steward, approved by Blake 2026-11-13 | Open | |
+| F2.3.2 | Grid: half-module default, adjustable. Stay on integer grid steps in the saved schema; if a position can't be stored that way, stop and ask | Steward, approved by Blake 2026-11-13 | Open | |
+| F2.3.3 | Go live: privacy scan, merge `figure-editor` into `main`, wait for the deploy, open the live URL and check it loads, draws a figure and exports | Steward, approved by Blake 2026-11-13 | Open | |
+
+**Scope limits.** No new dependencies, no refactors, no F3 or F4 features.
+Read only what the work needs (`tools/figure-editor/`, the home page, the
+theme roles). One render and one screenshot per size.
+
+**Review stop.** Report the live URL and screenshots at 1366 x 768 and
+1920 x 1080, then wait. Later deploys of F3 and F4 happen only when Blake says.
 
 ---
 
