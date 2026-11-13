@@ -76,7 +76,7 @@ Blake's prompt.
 | F6 | Figure editor: drag a wire segment, click and delete a wire | Done | 2026-11-13 |
 | F7 | Figure editor: autosave and Save/Open of circuits | Done | 2026-11-13 |
 | F5 | Figure editor: configurable block (rect, chevron, triangle, circle) with presets, wire arrows, bus marks, level-coloured elements | Open | 2026-11-13 |
-| T1 | Timing diagram tool: a WaveDrom page in the lecture look, adjustable size, SVG export | Open | 2026-11-13 |
+| T1 | Timing diagram tool: a WaveDrom page in the lecture look, adjustable size, SVG export | In progress | 2026-11-13 |
 | F8 | Figure editor: box select, copy and paste, align and distribute, label editing, shortcuts | Open | 2026-11-13 |
 | F12 | Figure editor: SVG import (own exports as circuits, other SVGs as a backdrop) | Open | 2026-11-13 |
 | F10 | Figure editor: slide frame for arranging the schematic and timing diagram | Open | 2026-11-13 |
@@ -484,9 +484,9 @@ the site.
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| T1.1 | The page: source, live preview, size controls, tidy button | Steward, approved by Blake 2026-11-13 | Open | |
+| T1.1 | The page: source, live preview, size controls, tidy button | Steward, approved by Blake 2026-11-13 | Done | Page tools/timing-diagram/ (unlisted, noindex): WaveDrom source, live preview in the lecture skin, width and height, Tidy. Source is read as data, never evaluated. |
 | T1.2 | Skin tuned to match an existing timing figure | Steward, approved by Blake 2026-11-13 | Open | |
-| T1.3 | SVG export, a sample diagram, privacy scan | Steward, approved by Blake 2026-11-13 | Open | |
+| T1.3 | SVG export, a sample diagram, privacy scan | Steward, approved by Blake 2026-11-13 | In progress | SVG export works (live text, not outlined). Nodes from the circuit and the editor button follow. |
 
 **Scope limits.** No new dependencies without asking (WaveDrom is already
 used). Nothing in `manimations` or `circuit-model`.
