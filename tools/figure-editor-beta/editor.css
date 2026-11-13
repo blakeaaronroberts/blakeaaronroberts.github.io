@@ -135,3 +135,9 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 /* ---- backdrop panel: the two shift fields sit side by side ---- */
 .fe-pair { display: flex; gap: .35rem; }
 .fe-pair input { min-width: 0; }
+
+/* ---- Elements pane sections (F16) ---- */
+.fe-cat > summary { margin: 0; padding: .35rem .75rem; font-size: .8rem; font-weight: 600; color: var(--role-muted, inherit); cursor: pointer; border-top: 1px solid var(--role-rule); }
+.fe-cat > summary:hover { color: var(--role-accent, inherit); }
+.fe-count { font-weight: 400; opacity: .7; }
+.fe-count::before { content: "("; } .fe-count::after { content: ")"; }
