@@ -71,3 +71,13 @@ Deno.test("all frames on one slide: slide-size SVG, every frame drawn once, no t
   assert(!/<text|<style|font/.test(svg));
   assert(svg !== exportSvg(doc, pack, { typeset: ts }));
 });
+
+Deno.test("a wire's net label is drawn as a label on the schematic", async () => {
+  const { setWireLabels } = await import("../src/levelframes.js");
+  const { labelItems } = await import("../src/labels.js");
+  const doc = base();
+  const id = doc.wires[0].id;
+  const items = labelItems(setWireLabels(doc, [id], "CLK"), pack).filter((i) => i.kind === "net");
+  assertEquals(items.map((i) => [i.id, i.text, i.error]), [[id, "CLK", null]]);
+  assertEquals(labelItems(doc, pack).filter((i) => i.kind === "net").length, 0);
+});

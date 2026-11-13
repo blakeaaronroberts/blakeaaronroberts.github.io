@@ -129,7 +129,7 @@ export const headPath = (h) => `M ${fmt(h.tip[0])} ${fmt(h.tip[1])} L ${fmt(h.a[
 
 /** Label and port boxes in grid steps (y up), for hit-testing and box selection. */
 export function labelBoxes(d) {
-  return d.labels.filter((l) => l.kind !== "tag").map((l) => {
+  return d.labels.filter((l) => l.kind !== "tag" && l.kind !== "net").map((l) => {
     const a = fromSvg(l.box.min), b = fromSvg(l.box.max);
     return { kind: l.kind, id: l.id, index: l.index, box: boxOf([a, b]) };
   });
