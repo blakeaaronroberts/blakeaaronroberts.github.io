@@ -117,6 +117,10 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 [data-canvas="dark"] .fe-stage, [data-canvas="dark"] .fe-canvas { background: var(--fig-dark-background); }
 [data-canvas="dark"] .fe-thumb { background: var(--fig-dark-background); border-color: var(--role-rule); }
 
+/* ---- beta marker ---- */
+.fe-badge { margin-right: .5rem; padding: 0 .4rem; border: 1px solid var(--role-accent); color: var(--role-accent); font-size: .7rem; line-height: 1.4rem; }
+.fe-badge-link { margin-right: .75rem; font-size: .7rem; color: var(--role-muted); text-decoration: underline; text-underline-offset: 2px; }
+.fe-badge-link:hover { color: var(--role-accent); }
 
 /* ---- wires: the cursor shows which way a run slides ---- */
 .fe-canvas[data-hit="wire-h"] { cursor: ns-resize; }
@@ -131,3 +135,13 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 /* ---- backdrop panel: the two shift fields sit side by side ---- */
 .fe-pair { display: flex; gap: .35rem; }
 .fe-pair input { min-width: 0; }
+
+/* ---- Elements pane sections (F16) ---- */
+.fe-cat > summary { margin: 0; padding: .35rem .75rem; font-size: .8rem; font-weight: 600; color: var(--role-muted, inherit); cursor: pointer; border-top: 1px solid var(--role-rule); }
+.fe-cat > summary:hover { color: var(--role-accent, inherit); }
+.fe-count { font-weight: 400; opacity: .7; }
+.fe-count::before { content: "("; } .fe-count::after { content: ")"; }
+
+.fe-frame-list { list-style: none; margin: .4rem 0; padding: 0; display: grid; gap: .2rem; max-height: 14rem; overflow: auto; }
+.fe-frame-item { width: 100%; text-align: left; padding: .2rem .5rem; border: 1px solid var(--role-rule, currentColor); background: transparent; color: inherit; font: inherit; border-radius: 4px; }
+.fe-frame-item.is-selected { background: var(--role-accent, #0072B2); color: var(--role-background, #fff); }
