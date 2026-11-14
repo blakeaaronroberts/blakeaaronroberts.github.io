@@ -17,6 +17,7 @@ export function mount(root) {
         <a class="td-back" href="../figure-editor-beta/">Back to editor</a>
         <button type="button" data-do="tidy">Tidy</button>
         <button type="button" data-do="export">Export SVG</button>
+        <button type="button" data-do="export-png">Export PNG (300 dpi)</button>
         <label class="td-file">Open circuit .json<input type="file" accept=".json,application/json" data-do="open"></label>
       </div>
       <textarea class="td-src" spellcheck="false" aria-label="WaveDrom source"></textarea>
@@ -89,6 +90,30 @@ ${new XMLSerializer().serializeToString(clone)}
   }
 
 
+  // PNG at 300 dpi: the SVG's px are 96 dpi, so every px becomes 300/96 pixels.
+  const DPI_SCALE = 300 / 96, MAX_PX = 16000;
+  async function pngBlob(xml) {
+    const s = svgEl(), w = Number(s.getAttribute("width")), h = Number(s.getAttribute("height"));
+    const k = Math.min(DPI_SCALE, MAX_PX / Math.max(w, h));
+    const img = new Image();
+    img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(xml)}`;
+    await img.decode();
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("could not make the PNG"))), "image/png"));
+  }
+  const savePng = async (name) => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(await pngBlob(svgText())); a.download = name;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  root.addEventListener("click", async (e) => {
+    if (!e.target.closest("[data-do=export-png]") || !svgEl()) return;
+    try { await savePng("timing-diagram.png"); say("Exported timing-diagram.png at 300 dpi."); } catch (err) { say(err.message, true); }
+  });
+
   // ---- frames from the editor: the step marker, and one diagram per frame (T2.3) ----
   let frameNames = [], frame = -1;
   const frameSel = $("[data-do=frame]"), frameWrap = $(".td-frames");
@@ -112,6 +137,7 @@ ${new XMLSerializer().serializeToString(clone)}
     for (let i = 0; i < frameNames.length; i++) {
       frame = i; stepMarker();
       saveSvg(svgText(), `timing-diagram-${String(i + 1).padStart(2, "0")}.svg`);
+      await savePng(`timing-diagram-${String(i + 1).padStart(2, "0")}.png`);
       await new Promise((r) => setTimeout(r, 200));
     }
     frame = keep; frameSel.value = String(keep); stepMarker();
@@ -130,7 +156,8 @@ ${new XMLSerializer().serializeToString(clone)}
     wIn.value = Math.round((cmW * 96) / 2.54 * 100) / 100; hIn.value = Math.round((cmH * 96) / 2.54 * 100) / 100;
     custom = true; render();
     saveSvg(svgText(), "timing-diagram-slide.svg");
-    say(`Exported timing-diagram-slide.svg at ${cmW.toFixed(2)} x ${cmH.toFixed(2)} cm: the timing part of the ${f.format ?? "16:9"} slide.`);
+    savePng("timing-diagram-slide.png");
+    say(`Exported timing-diagram-slide.svg and .png (300 dpi) at ${cmW.toFixed(2)} x ${cmH.toFixed(2)} cm: the timing part of the ${f.format ?? "16:9"} slide.`);
   });
 
   // ---- nodes of a circuit: from the beta editor's autosave (if any) or an opened .json ----
