@@ -81,3 +81,17 @@ Deno.test("a wire's net label is drawn as a label on the schematic", async () =>
   assertEquals(items.map((i) => [i.id, i.text, i.error]), [[id, "CLK", null]]);
   assertEquals(labelItems(doc, pack).filter((i) => i.kind === "net").length, 0);
 });
+
+Deno.test("net label side and spacing move the label; the default is above a horizontal wire", async () => {
+  const { setWireLabels, setWireLabelStyle } = await import("../src/levelframes.js");
+  const { labelItems } = await import("../src/labels.js");
+  let doc = base();
+  const id = doc.wires[0].id;
+  doc = setWireLabels(doc, [id], "CLK");
+  const at = (d) => labelItems(d, pack).find((i) => i.kind === "net");
+  const a = at(doc);
+  assertEquals(a.dir, [0, 1]);
+  const b = at(setWireLabelStyle(doc, [id], { side: "down", gap: 2 }));
+  assertEquals(b.dir, [0, -1]);
+  assertEquals(b.at[1], a.at[1] - 2);
+});
