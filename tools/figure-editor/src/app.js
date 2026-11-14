@@ -9,7 +9,7 @@
 import { LEVELS, loadPack, parsePrivateTheme } from "./pack.js";
 import * as D from "./doc.js";
 import { History } from "./history.js";
-import { drawing, exportSize, exportSvg, labelBoxes } from "./export.js";
+import { drawing, exportSize, exportSvg, exportGridSvg, labelBoxes, timingGroup } from "./export.js";
 import { hitTest, inBox } from "./hit.js";
 import { packLabelPt, texNeeded } from "./labels.js";
 import { typesetAll } from "./mathjax.js";
@@ -17,9 +17,11 @@ import { nearestOnPolyline, route } from "./router.js";
 import { createView, thumbnail, blockThumbnail } from "./view.js";
 import { BLOCK, formatPins, handlesOf, parsePins, SHAPES, geometryOf } from "./block.js";
 import { PRESETS, presetById } from "./presets.js";
+import { sections } from "./categories.js";
 import { circuitFromSvg, sanitizeSvg, MAX_SVG_BYTES } from "./svgimport.js";
-import { FORMATS, LAYOUTS, centreOn, cleanFrame, frameBox, overflow } from "./frame.js";
+import { FORMATS, LAYOUTS, centreOn, cleanFrame, frameBox, overflow, regions, sizeOf } from "./frame.js";
 import { orient } from "./geometry.js";
+import { framesFromSignals, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame } from "./levelframes.js";
 
 const AUTOSAVE = "figure-editor/autosave";
 const SAVES = "figure-editor/saves";               // the last 10 manual saves
@@ -132,16 +134,14 @@ export async function mount(root, options = {}) {
       <div class="fe-group" role="group" aria-label="File">
         ${btn("new", "New")}${btn("open", "Open…")}${btn("save", "Save", "Control+S")}${btn("export", "Export SVG")}${btn("png", "Copy as PNG")}
       </div>
-      <div class="fe-group fe-group-end">${btn("help", "?", "?", ' aria-label="Keys"')}</div>
+      <div class="fe-group fe-group-end"><a class="btn btn-sm fe-btn" aria-pressed="true" aria-current="page" href="./">Schematic editor</a><a class="btn btn-sm fe-btn" aria-pressed="false" href="../figure-editor-beta/">Beta</a>${btn("help", "?", "?", ' aria-label="Keys"')}</div>
       <input type="file" class="fe-file" accept=".json,.svg,application/json,image/svg+xml" hidden>
       <input type="file" class="fe-theme-file" accept=".json,application/json" hidden>
     </div>
     <details class="fe-palette fe-pane" open>
       <summary class="label-mono">Elements</summary>
       <label class="fe-drafts"><input type="checkbox" name="fe-drafts"> Show drafts</label>
-      <nav aria-label="Elements"><ul class="fe-parts"></ul></nav>
-      <h3 class="fe-palette-head label-mono">Blocks</h3>
-      <nav aria-label="Blocks"><ul class="fe-blocks"></ul></nav>
+      <div class="fe-cats"></div>
     </details>
     <div class="fe-stage">
       <svg class="fe-canvas" tabindex="0" role="application" aria-label="Figure canvas" xmlns="http://www.w3.org/2000/svg"></svg>
@@ -176,9 +176,19 @@ export async function mount(root, options = {}) {
         <label class="form-label">Slide <select class="form-select form-select-sm" name="fe-frame-format">${Object.entries(FORMATS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("")}</select></label>
         <label class="form-label">Layout <select class="form-select form-select-sm" name="fe-frame-layout">${Object.entries(LAYOUTS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("")}</select></label>
         <label class="form-label">Frame centre, right and up (grid steps) <span class="fe-pair"><input class="form-control form-control-sm" type="number" name="fe-frame-x" step="1"><input class="form-control form-control-sm" type="number" name="fe-frame-y" step="1"></span></label>
-        <div class="fe-theme-buttons" role="group" aria-label="Slide frame">${btn("framecentre", "Centre on the figure")}${btn("exportframe", "Frame as SVG")}${btn("pngframe", "Frame as PNG")}</div>
+        <div class="fe-theme-buttons" role="group" aria-label="Slide frame">${btn("framecentre", "Centre on the figure")}${btn("exportframe", "Frame as SVG")}${btn("pngframe", "Frame as PNG")}${btn("partsvg", "Schematic part as SVG")}${btn("partpng", "Schematic part as PNG")}</div>
         <p class="fe-hint">The frame exports at the slide's real size, exactly what lies inside it at 1:1 (times the Scale option). The Export SVG button writes the schematic alone. The timing diagram, and its own export, arrive with the scenario player. The frame is kept in this browser, not in the circuit file.</p>
         <p class="fe-frame-note" aria-live="polite"></p>
+      </details>
+      <details class="fe-pane fe-frames-pane" name="fe-doc">
+        <summary class="label-mono">Frames</summary>
+        <p class="fe-hint">A frame is a snapshot of the wire and element levels, one per transition. Set the levels, then Capture. Frames are saved in the figure file.</p>
+        <div class="fe-theme-buttons" role="group" aria-label="Frames">${btn("framesfromtiming", "Fill from timing diagram")}${btn("framecapture", "Capture frame")}${btn("framerecapture", "Update selected")}</div>
+        <ol class="fe-frame-list" aria-label="Frames"></ol>
+        <div class="fe-theme-buttons" role="group" aria-label="Edit the selected frame">${btn("framerename", "Rename")}${btn("frameup", "Move up")}${btn("framedown", "Move down")}${btn("framedelete", "Delete")}</div>
+        <label class="form-label">Export each frame as <select class="form-select form-select-sm" name="fe-frames-what"><option value="schematic">The schematic alone</option><option value="slide">The slide frame</option></select></label>
+        <div class="fe-theme-buttons" role="group" aria-label="Export frames">${btn("framesexport", "Export frames")}${btn("framesslide", "Export all on one slide")}</div>
+        <p class="fe-hint">Export frames writes one SVG and one PNG per frame, numbered 01, 02, … (your browser may ask to allow several downloads). The one-slide export lays every frame out as a grid of small figures, labelled with their names, at the slide's size.</p>
       </details>
       <details class="fe-pane fe-backdrop-pane" name="fe-doc">
         <summary class="label-mono">Backdrop</summary>
@@ -229,6 +239,8 @@ export async function mount(root, options = {}) {
   let loadWarnings = [];
   let spaceHeld = false;
   let lastDrawing = null;
+  let selectedFrame = -1;            // the frame chosen in the Frames list (level frames, F11.2)
+  const framesWhat = $('[name="fe-frames-what"]');
   let autosaveTimer = null;
   const typeset = new Map();         // TeX to parseTypeset's result (every label drawn is typeset once)
 
@@ -317,7 +329,7 @@ export async function mount(root, options = {}) {
   // ---- rendering -------------------------------------------------------------------------
   function render() {
     lastDrawing = view.render({
-      doc, pack, selection, ghost, rubber, hover, hoverWire, box: boxSel, frame: opt.frame,
+      doc, pack, selection, ghost, rubber, hover, hoverWire, box: boxSel, frame: opt.frame, timing: (() => { const t = opt.frame.show ? timingOpt(true) : null; return t ? timingGroup(t.sent, t.box) : null; })(),
       typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags,
     });
     if (lastDrawing.pending.length) queueTypeset();
@@ -325,11 +337,19 @@ export async function mount(root, options = {}) {
   }
 
   function renderPalette() {
-    $(".fe-palette .fe-parts").innerHTML = pack.types(opt.drafts).map((t) =>
-      `<li><button type="button" class="fe-part" data-type="${esc(t)}" title="${esc(pack.def(t).description)}">${thumbnail(pack, t)}<span>${esc(t)}</span></button></li>`).join("");
-    $(".fe-palette .fe-blocks").innerHTML = PRESETS.map((p) =>
-      `<li><button type="button" class="fe-part" data-preset="${esc(p.id)}" title="${esc(p.name)}: a block with these pins; size, shape, pins and labels can all be changed">${blockThumbnail(pack, p.params)}<span>${esc(p.name)}</span></button></li>`).join("");
+    const tile = (t) => `<li><button type="button" class="fe-part" data-type="${esc(t)}" title="${esc(pack.def(t).description)}">${thumbnail(pack, t)}<span>${esc(t)}</span></button></li>`;
+    const preset = (p) => `<li><button type="button" class="fe-part" data-preset="${esc(p.id)}" title="${esc(p.name)}: a block with these pins; size, shape, pins and labels can all be changed">${blockThumbnail(pack, p.params)}<span>${esc(p.name)}</span></button></li>`;
+    $(".fe-palette .fe-cats").innerHTML = sections(pack.types(opt.drafts)).map((s) => {
+      const open = opt.cats?.[s.id] ?? s.open;
+      const items = s.presets ? PRESETS.map(preset) : s.types.map(tile);
+      return `<details class="fe-cat" data-cat="${esc(s.id)}"${open ? " open" : ""}><summary class="fe-cat-head label-mono">${esc(s.title)} <span class="fe-count">${items.length}</span></summary><nav aria-label="${esc(s.title)}"><ul class="${s.presets ? "fe-blocks" : "fe-parts"}">${items.join("")}</ul></nav></details>`;
+    }).join("");
   }
+  // which sections are open is a per-viewer convenience, kept with the other options
+  root.querySelector(".fe-palette").addEventListener("toggle", (e) => {
+    const id = e.target.dataset?.cat;
+    if (id) { opt.cats = { ...opt.cats, [id]: e.target.open }; saveOptions(); }
+  }, true);
 
   function updateUI() {
     const has = total(selection) > 0;
@@ -356,7 +376,7 @@ export async function mount(root, options = {}) {
     $(".fe-warnings").hidden = !warnings.length;
     if (lastDrawing) {
       const { widthCm, heightCm } = exportSize(lastDrawing, opt.scale);
-      syncFrame();
+      syncFrame(); renderFrames();
       $(".fe-size").textContent = lastDrawing.box ? `File size: ${widthCm.toFixed(2)} × ${heightCm.toFixed(2)} cm${opt.scale === 1 ? " (real size)" : ""}` : "Nothing to export yet.";
     }
     $(".fe-theme-note").textContent = privateRoles
@@ -438,9 +458,17 @@ export async function mount(root, options = {}) {
         const arrow = arrows.size === 1 ? [...arrows][0] : null;
         key += arrow === null ? "|mixed" : "";
         html += choice("Arrowheads", "wireArrow", [...(arrow === null ? [["", "mixed (pick one)", true]] : []), ["none", "none"], ["end", "at the end"], ["start", "at the start"], ["both", "at both ends"]]) +
-          field("Bus mark: a slash with this label (such as N or 4)", "wireBus") +
+          field("Net label: the wire's signal name in the timing diagram (such as CLK or N1)", "wireNet") +
+          choice("Net label position", "wireNetSide", [["", "automatic (above or right)"], ["up", "above"], ["down", "below"], ["left", "left"], ["right", "right"]]) +
+          field("Net label spacing (extra grid steps away from the wire)", "wireNetGap") +
+          field("Bus mark: a slash with this label (such as N or 4; a name such as D[3:0] also names the signal)", "wireBus") +
           `<p class="fe-hint">A wire starts where it was begun and ends where it was finished. An arrowhead's tip lands exactly on the pin, wire or point it points at.</p>`;
         values.wireArrow = arrow ?? "";
+        const nets = new Set(wires.map((w) => wireLabelOf(doc, w.id)));
+        values.wireNet = nets.size === 1 ? [...nets][0] : "";
+        const sides = new Set(wires.map((w) => wireLabelStyleOf(doc, w.id).side ?? "")), gaps = new Set(wires.map((w) => wireLabelStyleOf(doc, w.id).gap ?? 0));
+        values.wireNetSide = sides.size === 1 ? [...sides][0] : "";
+        values.wireNetGap = gaps.size === 1 ? String([...gaps][0]) : "";
         values.wireBus = buses.size === 1 ? [...buses][0] : "";
       }
       const name = LEVELS.find((l) => l.value === one);
@@ -459,6 +487,12 @@ export async function mount(root, options = {}) {
       if (el !== document.activeElement && el.dataset.field in m.values) el.value = m.values[el.dataset.field];
     }
   }
+
+  // The net label shows as you type (the other fields wait for Enter or leaving the field).
+  propsEl.addEventListener("input", (e) => {
+    if (e.target.dataset?.field !== "wireNet" || !selection.wires.length) return;
+    commit(setWireLabels(doc, selection.wires, e.target.value.trim()), null);
+  });
 
   propsEl.addEventListener("change", (e) => {
     const name = e.target.dataset?.field;
@@ -496,6 +530,10 @@ export async function mount(root, options = {}) {
         const field = { labelText: "text", labelSide: "side" }[name];
         if (name === "labelText" && !v.trim()) { status("A label needs some text; delete it to remove it."); return; }
         commit(D.setLabel(doc, selection.labels[0], { [field]: v.trim() }), "Label changed.");
+      } else if (name === "wireNetSide" || name === "wireNetGap") {
+        commit(setWireLabelStyle(doc, selection.wires, name === "wireNetSide" ? { side: v } : { gap: v }), "Net label placement changed.");
+      } else if (name === "wireNet") {
+        commit(setWireLabels(doc, selection.wires, v.trim()), v.trim() ? `Net label ${v.trim()} set.` : "Net label cleared.");
       } else if (name === "level") {
         setLevel(v === "" ? null : v);
       } else if (name === "wireArrow") {
@@ -752,11 +790,67 @@ export async function mount(root, options = {}) {
         status(`Exported ${doc.id}-slide.png: the slide frame at 300 dpi.`);
       } catch (e) { status(e.message); }
     },
+    async partsvg() {
+      try { download(await partSvg(), `${doc.id}-schematic-part.svg`, "image/svg+xml"); status(`Exported ${doc.id}-schematic-part.svg: exactly the size of the schematic's part of the slide.`); } catch (e) { status(e.message, true); }
+    },
+    async partpng() {
+      try { download(await pngOf(await partSvg()), `${doc.id}-schematic-part.png`, "image/png"); status(`Exported ${doc.id}-schematic-part.png: exactly the size of the schematic's part of the slide.`); } catch (e) { status(e.message, true); }
+    },
     framecentre() {
       if (!lastDrawing?.box) { status("Nothing to centre on yet."); return; }
       opt.frame = centreOn(opt.frame, lastDrawing.box);
       saveOptions(); syncFrame(); render();
       status("The frame is centred on the figure.");
+    },
+    framesfromtiming() { populateFromTiming(); },
+    framecapture() {
+      commit(captureFrame(doc), null);
+      const frames = framesOf(doc);
+      selectedFrame = frames.length - 1;
+      status(`Captured "${frames[selectedFrame].name}" (frame ${selectedFrame + 1}) from the current levels.`);
+      renderFrames();
+    },
+    framerecapture() {
+      if (!frameSelected()) return;
+      commit(recaptureFrame(doc, selectedFrame), `Frame "${framesOf(doc)[selectedFrame].name}" now holds the current levels.`);
+    },
+    framerename() {
+      if (!frameSelected()) return;
+      const name = window.prompt("Name of this frame", framesOf(doc)[selectedFrame].name);
+      if (name && name.trim()) commit(renameFrame(doc, selectedFrame, name), `Renamed to "${name.trim()}".`);
+    },
+    frameup() { moveSelected(-1); },
+    framedown() { moveSelected(1); },
+    framedelete() {
+      if (!frameSelected()) return;
+      commit(removeFrame(doc, selectedFrame), "Frame deleted.");
+      selectedFrame = Math.min(selectedFrame, framesOf(doc).length - 1);
+      renderFrames();
+    },
+    async framesexport() {
+      const frames = framesOf(doc);
+      if (!frames.length) { status("There are no frames yet: set the levels and press Capture frame."); return; }
+      const framed = framesWhat.value === "slide";
+      try {
+        for (const [i, f] of frames.entries()) {
+          const at = applyFrame(doc, f), nn = numbered(i, frames.length), name = `${doc.id}-${nn}`;
+          const text = await svgNow(framed, at);
+          download(text, `${name}.svg`, "image/svg+xml");
+          download(await pngOf(text), `${name}.png`, "image/png");
+          await new Promise((r) => setTimeout(r, 200));   // so the browser takes every download
+        }
+        status(`Exported ${frames.length} frames as ${doc.id}-${numbered(0, frames.length)} to ${numbered(frames.length - 1, frames.length)}, each as SVG and PNG${framed ? ", at the slide frame" : ""}.`);
+      } catch (e) { status(e.message, true); }
+    },
+    async framesslide() {
+      const frames = framesOf(doc);
+      if (!frames.length) { status("There are no frames yet: set the levels and press Capture frame."); return; }
+      try {
+        const text = await slideNow(frames);
+        download(text, `${doc.id}-all-frames.svg`, "image/svg+xml");
+        download(await pngOf(text), `${doc.id}-all-frames.png`, "image/png");
+        status(`Exported ${doc.id}-all-frames: ${frames.length} frames on one slide, SVG and PNG.`);
+      } catch (e) { status(e.message, true); }
     },
     async png() {
       try {
@@ -780,17 +874,37 @@ export async function mount(root, options = {}) {
     },
   };
 
+  /** The diagram the timing tool sent, if any, and the timing part of the slide frame it goes in (only for a frame export with a timing layout). */
+  function timingOpt(framed) {
+    if (!framed || opt.frame.layout === "schematic") return null;
+    try { const sent = JSON.parse(store.get("timing-diagram/send") ?? "null"); return sent ? { sent, box: regions(opt.frame).timing } : null; } catch { return null; }
+  }
+
   /** The SVG as the export option settings say; labels are typeset first. Throws if one cannot be drawn. */
-  async function svgNow(framed = false) {
-    await typesetAll(texNeeded(doc, pack, { levelTags: opt.levelTags }), typeset);
-    return exportSvg(doc, packFor(opt.exportDark), { ...drawOpts(), frame: framed ? frameBox(opt.frame) : null });   // light by default; dark only if asked
+  async function svgNow(framed = false, at = doc) {
+    await typesetAll(texNeeded(at, pack, { levelTags: opt.levelTags }), typeset);
+    return exportSvg(at, packFor(opt.exportDark), { ...drawOpts(), frame: framed ? frameBox(opt.frame) : null, timing: timingOpt(framed) });   // light by default; dark only if asked
+  }
+
+  /** The schematic fitted into its part of the slide: a file exactly that size, the figure centred at real size (or shrunk to fit). */
+  async function partSvg() {
+    const pk = packFor(opt.exportDark);
+    await typesetAll(texNeeded(doc, pk, { levelTags: opt.levelTags }), typeset);
+    const d = drawing(doc, pk, drawOpts());
+    if (!d.box) throw new Error("Nothing to export yet.");
+    const reg = regions(opt.frame).schematic, rw = reg.max[0] - reg.min[0], rh = reg.max[1] - reg.min[1];
+    const k = Math.max(1, (d.box.max[0] - d.box.min[0]) / rw, (d.box.max[1] - d.box.min[1]) / rh);   // modules of figure per module of slide; never enlarged
+    const cx = (d.box.min[0] + d.box.max[0]) / 2, cy = (d.box.min[1] + d.box.max[1]) / 2;
+    const box = { min: [cx - (rw * k) / 2, cy - (rh * k) / 2], max: [cx + (rw * k) / 2, cy + (rh * k) / 2] };
+    return exportSvg(doc, pk, { ...drawOpts(), scale: 1 / k, frame: box });
   }
 
   const DPI = 300, MAX_PIXELS = 16000;
 
   /** The figure as a PNG at 300 dpi at its exported size (scale option included), on a transparent background. */
-  async function pngNow(framed = false) {
-    const text = await svgNow(framed);
+  async function pngNow(framed = false) { return pngOf(await svgNow(framed)); }
+
+  async function pngOf(text) {
     const cm = (name) => +new RegExp(`${name}="([\\d.]+)cm"`).exec(text)[1];
     let dpi = DPI;
     const longest = Math.max(cm("width"), cm("height"));
@@ -803,6 +917,52 @@ export async function mount(root, options = {}) {
     canvas.width = w; canvas.height = h;
     canvas.getContext("2d").drawImage(img, 0, 0, w, h);
     return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("could not make the PNG"))), "image/png"));
+  }
+
+
+  // ---- level frames (F11.2) ---------------------------------------------------------------------------
+  const frameSelected = () => { if (framesOf(doc)[selectedFrame]) return true; status("Select a frame in the list first."); return false; };
+  function moveSelected(by) {
+    if (!frameSelected()) return;
+    const n = framesOf(doc).length, j = selectedFrame + by;
+    if (j < 0 || j >= n) return;
+    commit(moveFrame(doc, selectedFrame, by), null);
+    selectedFrame = j;
+    renderFrames();
+  }
+  function renderFrames() {
+    const frames = framesOf(doc);
+    if (selectedFrame >= frames.length) selectedFrame = frames.length - 1;
+    const ol = $(".fe-frame-list");
+    ol.innerHTML = frames.length ? frames.map((f, i) => `<li><button type="button" class="fe-frame-item${i === selectedFrame ? " is-selected" : ""}" data-frame="${i}" aria-pressed="${i === selectedFrame}">${numbered(i, frames.length)} ${esc(f.name)}</button></li>`).join("") : `<li class="fe-hint">No frames yet.</li>`;
+  }
+  $(".fe-frame-list").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-frame]");
+    if (!b) return;
+    selectedFrame = +b.dataset.frame;
+    const f = framesOf(doc)[selectedFrame];
+    commit(applyFrame(doc, f), `Showing frame "${f.name}": its levels are on the canvas.`);
+    renderFrames();
+  });
+
+  // ---- frames from the timing diagram: one frame per step, levels from the signals that match wires, ports or elements ----
+  function populateFromTiming(auto = false) {
+    let sent = null;
+    try { sent = JSON.parse(store.get("timing-diagram/send") ?? "null"); } catch { sent = null; }
+    if (!sent?.signals?.length) { if (!auto) status("Nothing sent yet: in the timing tool, press Send to schematic."); return; }
+    const r = framesFromSignals(doc, D.deriveNets(doc, pack), sent.signals);
+    commit(r.doc, null);
+    selectedFrame = -1;
+    renderFrames();
+    status(`${r.steps} frames filled from the timing diagram. Drives: ${r.matched.join(", ") || "nothing"}.${r.unmatched.length ? ` No wire, port or element named: ${r.unmatched.join(", ")} (name a wire with its Net label).` : ""}`, !r.matched.length);
+  }
+  window.addEventListener("storage", (e) => { if (e.key === "timing-diagram/send") populateFromTiming(true); });
+
+  /** One slide with every frame as a small figure, labelled with its name. */
+  async function slideNow(frames) {
+    const pk = packFor(opt.exportDark), size = sizeOf(opt.frame);
+    await typesetAll([...texNeeded(doc, pk, { levelTags: opt.levelTags }), ...frames.map((f) => frameTex(f.name))], typeset);
+    return exportGridSvg(doc, pk, frames.map((f) => ({ name: f.name, doc: applyFrame(doc, f) })), size, drawOpts());
   }
 
   function download(content, name, type) {

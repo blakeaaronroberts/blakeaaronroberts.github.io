@@ -388,7 +388,7 @@ scenarios.blocks = async (ctx) => {
     const px = (gx, gy) => page.eval(`(() => { const s = document.querySelector("svg.fe-canvas"), p = s.createSVGPoint(); p.x = ${gx} / 2; p.y = -${gy} / 2; const q = p.matrixTransform(s.getScreenCTM()); return [q.x, q.y]; })()`);
     const perStep = await page.eval(`document.querySelector("svg.fe-canvas").getScreenCTM().a / 2`);
     const block = () => page.eval(`JSON.stringify(window.figureEditor.doc.elements[0])`).then((t) => JSON.parse(t));
-    const centre = (sel) => page.eval(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); e.scrollIntoView({ block: "center" }); const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; })()`);
+    const centre = (sel) => page.eval(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); e.closest("details.fe-cat")?.setAttribute("open", ""); e.scrollIntoView({ block: "center" }); const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; })()`);
     const setField = (name, value) => page.eval(`(() => { const i = document.querySelector('[data-field="${name}"]'); i.value = ${JSON.stringify(value)}; i.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
 
     const btn = await centre('[data-preset="generic"]');
@@ -721,5 +721,37 @@ scenarios.frame = async (ctx) => {
       res.push([page.errors.length === 0, `${scheme}: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
     } finally { await page.close(); }
   }
+  return res;
+};
+
+/** F11.2: capture two frames, select one, export all on one slide (the file is intercepted, not downloaded). */
+scenarios.frames = async (ctx) => {
+  const res = [];
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(ctx.url + "?open=examples/full-adder-levels.json");
+    await page.waitFor(ready);
+    await page.sleep(1500);
+    const out = await page.eval(String.raw`(async () => {
+      const blobs = [];
+      const orig = URL.createObjectURL;
+      URL.createObjectURL = (b) => { blobs.push(b); return orig(b); };
+      const click = (c) => document.querySelector('[data-cmd="' + c + '"]').click();
+      const pane = document.querySelector(".fe-frames-pane"); pane.open = true;
+      click("framecapture"); click("framecapture");
+      const items = () => document.querySelectorAll(".fe-frame-item").length;
+      const n = items();
+      document.querySelector('[data-frame="0"]').click();
+      click("framesslide");
+      await new Promise((r) => setTimeout(r, 2500));
+      const types = blobs.map((b) => b.type), svg = await blobs.find((b) => b.type.includes("svg"))?.text();
+      return { n, types, svg: svg ? { cm: /width="([\d.]+)cm" height="([\d.]+)cm"/.exec(svg)?.slice(1), text: /<text/.test(svg), groups: (svg.match(/scale\(/g) ?? []).length } : null };
+    })()`);
+    await page.shot(`${ctx.out}/beta-frames.png`);
+    res.push([out.n === 2, `frames: two captured frames listed (${out.n})`]);
+    res.push([out.svg && out.svg.cm[0] === "33.867" && out.svg.cm[1] === "19.05" && !out.svg.text && out.svg.groups >= 2, `frames: one-slide export is slide size, with no <text> (${JSON.stringify(out.svg)})`]);
+    res.push([out.types.some((t) => t.includes("png")), `frames: the PNG was made (${out.types.join(", ")})`]);
+    res.push([page.errors.length === 0, `frames: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
   return res;
 };

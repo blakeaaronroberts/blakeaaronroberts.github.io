@@ -9,7 +9,7 @@
     chrome --headless=new --dump-dom --virtual-time-budget=20000 capture-mathjax.html
 
   Keep LIST in step with the sample figures (examples/*.js), the block presets (src/presets.js) and the tests.
-  `quarto run tools/figure-editor-beta/scripts/tex-needed.js` prints it: everything already in mathjax.json plus what
+  `quarto run tools/figure-editor/scripts/tex-needed.js` prints it: everything already in mathjax.json plus what
   the figures and presets need. Copy its output over LIST, run Chrome as above, and replace mathjax.json with the result.
 -->
 <script>window.MathJax = { startup: { typeset: false }, svg: { fontCache: "none", linebreaks: { inline: false } } };</script>

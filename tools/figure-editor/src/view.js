@@ -123,6 +123,7 @@ export function createView(svg, basePack) {
     if (state.frame?.show) {
       const rg = regions(state.frame);
       if (rg.timing) o.push(`<rect fill="${roles.accent}" fill-opacity="0.08" stroke="none" x="${fmt(rg.timing.min[0])}" y="${fmt(rg.timing.min[1])}" width="${fmt(rg.timing.max[0] - rg.timing.min[0])}" height="${fmt(rg.timing.max[1] - rg.timing.min[1])}"/>`);
+      if (rg.timing && state.timing) o.push(state.timing);   // the diagram sent from the timing tool
       o.push(rect(frameBox(state.frame), `stroke-opacity="0.8" stroke-width="${fmt(lw * 2)}" stroke-dasharray="${fmt(lw * 8)} ${fmt(lw * 4)}"`));
       if (rg.timing) o.push(`<path stroke="${roles.accent}" stroke-opacity="0.8" stroke-width="${fmt(lw)}" stroke-dasharray="${fmt(lw * 4)} ${fmt(lw * 3)}" d="M ${fmt(rg.timing.min[0])} ${fmt(rg.timing.min[1])} L ${fmt(rg.timing.min[0] === rg.schematic.min[0] ? rg.timing.max[0] : rg.timing.min[0])} ${fmt(rg.timing.min[0] === rg.schematic.min[0] ? rg.timing.min[1] : rg.timing.max[1])}"/>`);
     }
