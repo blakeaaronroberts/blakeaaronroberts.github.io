@@ -19,7 +19,7 @@ import { BLOCK, formatPins, handlesOf, parsePins, SHAPES, geometryOf } from "./b
 import { PRESETS, presetById } from "./presets.js";
 import { sections } from "./categories.js";
 import { circuitFromSvg, sanitizeSvg, MAX_SVG_BYTES } from "./svgimport.js";
-import { FORMATS, LAYOUTS, centreOn, cleanFrame, frameBox, overflow, sizeOf } from "./frame.js";
+import { FORMATS, LAYOUTS, centreOn, cleanFrame, frameBox, overflow, regions, sizeOf } from "./frame.js";
 import { orient } from "./geometry.js";
 import { setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame } from "./levelframes.js";
 
@@ -176,7 +176,7 @@ export async function mount(root, options = {}) {
         <label class="form-label">Slide <select class="form-select form-select-sm" name="fe-frame-format">${Object.entries(FORMATS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("")}</select></label>
         <label class="form-label">Layout <select class="form-select form-select-sm" name="fe-frame-layout">${Object.entries(LAYOUTS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("")}</select></label>
         <label class="form-label">Frame centre, right and up (grid steps) <span class="fe-pair"><input class="form-control form-control-sm" type="number" name="fe-frame-x" step="1"><input class="form-control form-control-sm" type="number" name="fe-frame-y" step="1"></span></label>
-        <div class="fe-theme-buttons" role="group" aria-label="Slide frame">${btn("framecentre", "Centre on the figure")}${btn("exportframe", "Frame as SVG")}${btn("pngframe", "Frame as PNG")}</div>
+        <div class="fe-theme-buttons" role="group" aria-label="Slide frame">${btn("framecentre", "Centre on the figure")}${btn("exportframe", "Frame as SVG")}${btn("pngframe", "Frame as PNG")}${btn("partsvg", "Schematic part as SVG")}${btn("partpng", "Schematic part as PNG")}</div>
         <p class="fe-hint">The frame exports at the slide's real size, exactly what lies inside it at 1:1 (times the Scale option). The Export SVG button writes the schematic alone. The timing diagram, and its own export, arrive with the scenario player. The frame is kept in this browser, not in the circuit file.</p>
         <p class="fe-frame-note" aria-live="polite"></p>
       </details>
@@ -790,6 +790,12 @@ export async function mount(root, options = {}) {
         status(`Exported ${doc.id}-slide.png: the slide frame at 300 dpi.`);
       } catch (e) { status(e.message); }
     },
+    async partsvg() {
+      try { download(await partSvg(), `${doc.id}-schematic-part.svg`, "image/svg+xml"); status(`Exported ${doc.id}-schematic-part.svg: exactly the size of the schematic's part of the slide.`); } catch (e) { status(e.message, true); }
+    },
+    async partpng() {
+      try { download(await pngOf(await partSvg()), `${doc.id}-schematic-part.png`, "image/png"); status(`Exported ${doc.id}-schematic-part.png: exactly the size of the schematic's part of the slide.`); } catch (e) { status(e.message, true); }
+    },
     framecentre() {
       if (!lastDrawing?.box) { status("Nothing to centre on yet."); return; }
       opt.frame = centreOn(opt.frame, lastDrawing.box);
@@ -871,6 +877,19 @@ export async function mount(root, options = {}) {
   async function svgNow(framed = false, at = doc) {
     await typesetAll(texNeeded(at, pack, { levelTags: opt.levelTags }), typeset);
     return exportSvg(at, packFor(opt.exportDark), { ...drawOpts(), frame: framed ? frameBox(opt.frame) : null });   // light by default; dark only if asked
+  }
+
+  /** The schematic fitted into its part of the slide: a file exactly that size, the figure centred at real size (or shrunk to fit). */
+  async function partSvg() {
+    const pk = packFor(opt.exportDark);
+    await typesetAll(texNeeded(doc, pk, { levelTags: opt.levelTags }), typeset);
+    const d = drawing(doc, pk, drawOpts());
+    if (!d.box) throw new Error("Nothing to export yet.");
+    const reg = regions(opt.frame).schematic, rw = reg.max[0] - reg.min[0], rh = reg.max[1] - reg.min[1];
+    const k = Math.max(1, (d.box.max[0] - d.box.min[0]) / rw, (d.box.max[1] - d.box.min[1]) / rh);   // modules of figure per module of slide; never enlarged
+    const cx = (d.box.min[0] + d.box.max[0]) / 2, cy = (d.box.min[1] + d.box.max[1]) / 2;
+    const box = { min: [cx - (rw * k) / 2, cy - (rh * k) / 2], max: [cx + (rw * k) / 2, cy + (rh * k) / 2] };
+    return exportSvg(doc, pk, { ...drawOpts(), scale: 1 / k, frame: box });
   }
 
   const DPI = 300, MAX_PIXELS = 16000;
