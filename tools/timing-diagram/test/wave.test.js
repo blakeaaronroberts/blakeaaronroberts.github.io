@@ -62,3 +62,10 @@ Deno.test("our drawing is laid out from the size, not scaled to it: stroke width
   assert(drawTiming(v, { marker: 2 }).svg.includes('class="td-marker"'));
   assert(drawTiming(v, {}).svg.includes(">a</text>"));
 });
+Deno.test("a delay shifts a lane right by that many steps, fractions allowed, and the lane holds its first level before it", async () => {
+  const { drawTiming } = await import("../src/draw.js");
+  const v = (delay) => ({ signal: [{ name: "D", wave: "0.1.", delay }] });
+  const a = drawTiming(v(0), {}), b = drawTiming(v(0.5), {});
+  const nums = (s) => (/ d="(M [^"]*)"/.exec(s.svg)[1].match(/[0-9.]+/g) ?? []).map(Number);
+  assert(nums(a).join() !== nums(b).join() && nums(b)[0] === nums(a)[0], "the delayed lane differs but starts at the same x");
+});

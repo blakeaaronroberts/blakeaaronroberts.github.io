@@ -52,6 +52,10 @@ export function mount(root) {
           <p class="fe-hint">Send also fills the editor's frames from the steps.</p>
         </div>
       </details>
+      <details class="fe-pane" open>
+        <summary class="label-mono">Delay</summary>
+        <div class="td-pad td-delays"></div>
+      </details>
       <details class="fe-pane td-frames" open hidden>
         <summary class="label-mono">Frames</summary>
         <div class="td-pad"><label class="form-label">Frame <select class="form-select form-select-sm" data-do="frame"></select></label><div class="fe-theme-buttons"><button type="button" class="${B}" data-do="frames-export">Export frames</button></div></div>
@@ -79,6 +83,7 @@ export function mount(root) {
       const accent = getComputedStyle(document.documentElement).getPropertyValue("--fig-accent").trim() || "#0072B2";
       // The size is a layout input: steps and lanes are re-spaced to fit it, nothing is stretched.
       view.innerHTML = drawTiming(r.value, { width: Number(wIn.value) || natural.w, height: Number(hIn.value) || natural.h, accent, marker: frame >= 0 && frame < frameNames.length ? frame : null }).svg;
+      renderDelays();
       say(`${signalNames(r.value).length} signals.`);
     } catch (e) { say(`Could not draw the diagram: ${e.message}`, true); }
   };
@@ -140,6 +145,31 @@ ${new XMLSerializer().serializeToString(clone)}
   root.addEventListener("click", async (e) => {
     if (!e.target.closest("[data-do=export-png]") || !svgEl()) return;
     try { await savePng("timing-diagram.png"); say("Exported timing-diagram.png at 300 dpi."); } catch (err) { say(err.message, true); }
+  });
+
+  // ---- delay: a per-signal offset in steps (fine values allowed), kept in the source as "delay" ----
+  const delayBox = $(".td-delays");
+  let delayKey = "";
+  function renderDelays() {
+    const lanes = lanesOf(last).filter((l) => l.name), key = lanes.map((l) => l.name).join("\u0001");
+    if (key !== delayKey) {
+      delayKey = key;
+      delayBox.replaceChildren(...lanes.map((l) => {
+        const lab = document.createElement("label"); lab.className = "form-label"; lab.textContent = `${l.name} (steps) `;
+        const i = document.createElement("input"); i.type = "number"; i.step = "0.05"; i.className = "form-control form-control-sm"; i.dataset.delay = l.name;
+        lab.append(i); return lab;
+      }));
+      if (!lanes.length) delayBox.textContent = "No signals yet.";
+    }
+    for (const i of delayBox.querySelectorAll("input")) if (i !== document.activeElement) i.value = String(lanes.find((l) => l.name === i.dataset.delay)?.delay ?? 0);
+  }
+  delayBox.addEventListener("input", (e) => {
+    const name = e.target.dataset?.delay, r = parseSource(src.value);
+    if (!name || !r.ok) return;
+    const v = Number(e.target.value) || 0;
+    const walk = (x) => { if (Array.isArray(x)) x.forEach(walk); else if (x && x.name === name) { if (v) x.delay = v; else delete x.delay; } };
+    walk(r.value.signal);
+    src.value = tidy(r.value); store.set(KEY, src.value); render();
   });
 
   // ---- frames from the editor: the step marker, and one diagram per frame (T2.3) ----
