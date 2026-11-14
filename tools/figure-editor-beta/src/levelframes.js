@@ -96,3 +96,22 @@ export function setWireLabels(doc, ids, text) {
   if (Object.keys(groups).length) d.groups = groups; else delete d.groups;
   return d;
 }
+
+// Where a wire's net label sits: groups["wire_label_style"] = { wireId: { side, gap } }. side is up, down, left or right
+// (absent: above a horizontal run, right of a vertical one); gap is extra distance in grid steps along that side.
+export const SIDES = { up: [0, 1], down: [0, -1], left: [-1, 0], right: [1, 0] };
+export const wireLabelStyleOf = (doc, id) => doc.groups?.wire_label_style?.[id] ?? {};
+export function setWireLabelStyle(doc, ids, patch) {
+  const d = clone(doc), map = { ...(d.groups?.wire_label_style ?? {}) };
+  for (const id of ids) {
+    const s = { ...(map[id] ?? {}), ...patch };
+    if (!(s.side in SIDES)) delete s.side;
+    s.gap = Number.isFinite(+s.gap) ? Math.max(-10, Math.min(20, +s.gap)) : 0;
+    if (!s.gap) delete s.gap;
+    if (Object.keys(s).length) map[id] = s; else delete map[id];
+  }
+  const groups = { ...(d.groups ?? {}) };
+  if (Object.keys(map).length) groups.wire_label_style = map; else delete groups.wire_label_style;
+  if (Object.keys(groups).length) d.groups = groups; else delete d.groups;
+  return d;
+}
