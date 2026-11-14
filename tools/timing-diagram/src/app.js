@@ -1,6 +1,6 @@
 // The timing-diagram page: WaveDrom-format source in, our own vector drawing out (draw.js), SVG export.
 import { parseSource, signalNames, tidy, SAMPLE } from "./wave.js";
-import { drawTiming, naturalSize } from "./draw.js";
+import { drawTiming, naturalSize, lanesOf, stepsOf } from "./draw.js";
 import { nodesOf, starterLines, unknownNames, framesIn } from "./nodes.js";
 
 const store = {
@@ -146,12 +146,17 @@ ${new XMLSerializer().serializeToString(clone)}
     say(`Exported ${frameNames.length} diagrams, each with its step marked (timing-diagram-01 to ${String(frameNames.length).padStart(2, "0")}).`);
   });
 
+  /** Per-step levels of each named signal, for the editor's frames: 0 1 X Z, or null where there is no level (data boxes). */
+  const signalLevels = () => lanesOf(last).filter((l) => l.name).map((l) => ({
+    name: l.name,
+    levels: stepsOf(l.wave).flatMap((s) => Array(l.period).fill(({ 0: "0", l: "0", d: "0", n: "0", N: "0", 1: "1", h: "1", u: "1", p: "1", P: "1", x: "X", z: "Z" })[s.c] ?? null)),
+  }));
   // Send the diagram to the beta editor: it is kept in this browser and placed in the timing part of the slide frame on export.
   root.addEventListener("click", (e) => {
     if (!e.target.closest("[data-do=send]") || !svgEl()) return;
     const s = svgEl();
-    store.set("timing-diagram/send", JSON.stringify({ svg: new XMLSerializer().serializeToString(s), w: Number(s.getAttribute("width")), h: Number(s.getAttribute("height")) }));
-    say("Sent to the editor. Set its slide frame layout to 'Timing diagram below' or 'beside'; the slide-frame exports now include this diagram.");
+    store.set("timing-diagram/send", JSON.stringify({ svg: new XMLSerializer().serializeToString(s), w: Number(s.getAttribute("width")), h: Number(s.getAttribute("height")), signals: signalLevels(), at: Date.now() }));
+    say("Sent to the editor, and its frames are filled from the steps. Set its slide frame layout to 'Timing diagram below' or 'beside'; the slide-frame exports now include this diagram.");
   });
 
   // Fit to the timing part of the editor's slide frame (the editor keeps it in its options), then export there.

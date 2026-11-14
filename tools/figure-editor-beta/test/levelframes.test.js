@@ -115,3 +115,19 @@ Deno.test("a sent timing diagram is fitted into the timing part of the slide fra
   assert(g.includes("<path") && /translate\(/.test(g) && !g.includes("<svg"));
   assertEquals(timingGroup({ svg: "nope", w: 1, h: 1 }, { min: [0, 0], max: [1, 1] }), null);
 });
+
+Deno.test("frames fill from timing signals: a net label, a port and an element name each find their targets", async () => {
+  const { framesFromSignals, setWireLabels } = await import("../src/levelframes.js");
+  const { deriveNets } = await import("../src/doc.js");
+  let doc = base();
+  const w = doc.wires[0].id;
+  doc = setWireLabels(doc, [w], "CLK");
+  const port = doc.ports[0].id;
+  const r = framesFromSignals(doc, deriveNets(doc, pack), [{ name: "CLK", levels: ["0", "1", null] }, { name: port, levels: ["1", "1", "X"] }, { name: "nothing_here", levels: ["0"] }]);
+  assertEquals(r.steps, 3);
+  assertEquals(r.unmatched, ["nothing_here"]);
+  const f = framesOf(r.doc);
+  assertEquals(f.map((x) => x.name), ["Step 1", "Step 2", "Step 3"]);
+  assertEquals(f[1].levels[w], "1");
+  assert(Object.keys(f[2].levels).length > 0 && f[2].levels[w] === undefined || f[2].levels[w] === "X");
+});
