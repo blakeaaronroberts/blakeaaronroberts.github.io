@@ -24,23 +24,9 @@ export function mount(root) {
         <button type="button" class="${B}" data-do="export-png" title="PNG at 300 dpi">Export PNG</button>
         <label class="${B} td-file">Open circuit…<input type="file" accept=".json,application/json" data-do="open" hidden></label>
       </div>
-      <div class="fe-group fe-group-end"><span class="fe-badge label-mono">Timing diagram</span><a class="fe-badge-link label-mono" href="../figure-editor-beta/">Schematic editor</a><a class="fe-badge-link label-mono" href="../figure-editor/">Stable editor</a></div>
+      <div class="fe-group fe-group-end"><a class="btn btn-sm fe-btn" aria-pressed="false" href="../figure-editor-beta/">Schematic editor (beta)</a><a class="btn btn-sm fe-btn" aria-pressed="true" aria-current="page" href="./">Timing diagram</a><a class="btn btn-sm fe-btn" aria-pressed="false" href="../figure-editor/">Stable</a></div>
     </div>
     <div class="fe-palette">
-      <details class="fe-pane" open>
-        <summary class="label-mono">Source</summary>
-        <div class="td-pad">
-          <textarea class="td-src form-control" spellcheck="false" aria-label="WaveDrom source"></textarea>
-          <p class="fe-hint td-credit">Source format based on <a href="https://wavedrom.com">WaveDrom</a>. The drawing is this site's own code.</p>
-        </div>
-      </details>
-      <details class="fe-pane td-nodes" open hidden>
-        <summary class="label-mono td-nodes-title">Nodes</summary>
-        <div class="td-pad"><div class="td-chips"></div><button type="button" data-do="add-all" class="td-chip">Add starter lines for all</button><div class="td-flag" role="status"></div></div>
-      </details>
-    </div>
-    <main class="td-center"><div class="td-view"><div id="WaveDrom_Display_0"></div></div></main>
-    <div class="fe-side">
       <details class="fe-pane" open>
         <summary class="label-mono">Size</summary>
         <div class="td-pad">
@@ -49,6 +35,16 @@ export function mount(root) {
           <div class="fe-theme-buttons"><button type="button" class="${B}" data-do="natural">Natural size</button></div>
         </div>
       </details>
+      <details class="fe-pane td-nodes" open hidden>
+        <summary class="label-mono td-nodes-title">Nodes</summary>
+        <div class="td-pad"><div class="td-chips"></div><button type="button" data-do="add-all" class="td-chip">Add starter lines for all</button><div class="td-flag" role="status"></div></div>
+      </details>
+    </div>
+    <main class="td-center">
+      <textarea class="td-src form-control" spellcheck="false" aria-label="WaveDrom source"></textarea>
+      <div class="td-view"><div id="WaveDrom_Display_0"></div></div>
+    </main>
+    <div class="fe-side">
       <details class="fe-pane" open>
         <summary class="label-mono">Slide</summary>
         <div class="td-pad">
@@ -59,6 +55,10 @@ export function mount(root) {
       <details class="fe-pane td-frames" open hidden>
         <summary class="label-mono">Frames</summary>
         <div class="td-pad"><label class="form-label">Frame <select class="form-select form-select-sm" data-do="frame"></select></label><div class="fe-theme-buttons"><button type="button" class="${B}" data-do="frames-export">Export frames</button></div></div>
+      </details>
+      <details class="fe-pane" open>
+        <summary class="label-mono">About</summary>
+        <div class="td-pad"><p class="fe-hint td-credit">Source format based on <a href="https://wavedrom.com">WaveDrom</a>. The drawing is this site's own code.</p></div>
       </details>
     </div>
     <p class="fe-status td-status" role="status" aria-live="polite"></p>`;

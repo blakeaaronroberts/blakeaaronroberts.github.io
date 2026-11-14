@@ -1,11 +1,11 @@
-/* Timing diagram page: the schematic editor's shell (editor.css) with this tool's own panes. No colours or fonts are set here. */
+/* Timing diagram page: the schematic editor's shell (editor.css). Controls live in the side panes; the middle is the code and the diagram, filling the screen. No colours or fonts are set here. */
 .td-pad { display: grid; gap: .5rem; padding: 0 .75rem .75rem; }
-.fe .td-src { height: 24rem; width: 100%; min-height: 22rem; font-family: var(--bs-font-monospace); font-size: .8rem; line-height: 1.4; border-radius: 0; resize: vertical; background: var(--role-surface); color: inherit; border-color: var(--role-rule); }
-.td-center { grid-column: 2; min-height: 0; overflow: auto; padding: 1rem; background: var(--fig-background); }
-.td-view { display: inline-block; max-width: 100%; overflow: auto; border: 1px solid var(--role-rule); background: #fff; line-height: 0; }
+.td-center { grid-column: 2; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr); grid-template-columns: minmax(14rem, 2fr) 3fr; background: var(--fig-background); }
+.fe .td-src { height: 100%; width: 100%; resize: none; border: 0; border-right: 1px solid var(--role-rule); border-radius: 0; padding: .75rem; font-family: var(--bs-font-monospace); font-size: .8rem; line-height: 1.4; background: var(--role-surface); color: inherit; }
+.td-view { min-width: 0; min-height: 0; overflow: auto; padding: 1rem; background: #fff; line-height: 0; }
 .td-status[data-error] { font-weight: 700; }
 .td-chip { display: inline-block; margin: 0 .35rem .35rem 0; padding: 0 .45rem; border: 1px solid var(--role-rule); font: inherit; background: transparent; color: inherit; cursor: pointer; }
 .td-chip:hover { border-color: var(--role-accent); }
 .td-flag { font-weight: 700; }
 .fe .td-file { cursor: pointer; }
-@media (max-width: 800px) { .fe { grid-template-columns: 1fr; } .td-center, .fe-side, .fe-palette { grid-column: 1; } }
+@media (max-width: 800px) { .fe { grid-template-columns: 1fr; } .td-center, .fe-side, .fe-palette { grid-column: 1; } .td-center { grid-template-columns: 1fr; } }
