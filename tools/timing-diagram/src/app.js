@@ -27,6 +27,7 @@ export function mount(root) {
         <label>Width <input type="number" min="100" max="4000" step="10" data-size="w"> px</label>
         <label>Height <input type="number" min="40" max="4000" step="10" data-size="h"> px</label>
         <button type="button" data-do="natural">Natural size</button>
+        <button type="button" data-do="fit-slide" title="Size the diagram to the timing part of the editor's slide frame and export it">Fit to slide and export</button>
         <span class="td-frames" hidden><label>Frame <select data-do="frame"></select></label> <button type="button" data-do="frames-export">Export frames</button></span>
       </div>
       <div class="td-view"><div id="WaveDrom_Display_0"></div></div>
@@ -115,6 +116,21 @@ ${new XMLSerializer().serializeToString(clone)}
     }
     frame = keep; frameSel.value = String(keep); stepMarker();
     say(`Exported ${frameNames.length} diagrams, each with its step marked (timing-diagram-01 to ${String(frameNames.length).padStart(2, "0")}).`);
+  });
+
+  // Fit to the timing part of the editor's slide frame (the editor keeps it in its options), then export there.
+  // Slide sizes and splits are the editor's (tools/figure-editor-beta/src/frame.js): 16:9 33.867 x 19.05 cm, 4:3 25.4 x 19.05 cm; timing is the last 40% below, the last 45% beside.
+  root.addEventListener("click", (e) => {
+    if (!e.target.closest("[data-do=fit-slide]")) return;
+    let f = {};
+    try { f = JSON.parse(store.get("figure-editor-beta/options") ?? "{}").frame ?? {}; } catch { f = {}; }
+    const fw = f.format === "4:3" ? 25.4 : 33.867, fh = 19.05;
+    if (f.layout !== "below" && f.layout !== "beside") return say("Set the editor's slide frame layout to 'Timing diagram below' or 'beside' first (Slide frame pane), then come back.", true);
+    const cmW = f.layout === "below" ? fw : fw * 0.45, cmH = f.layout === "below" ? fh * 0.4 : fh;
+    wIn.value = Math.round((cmW * 96) / 2.54 * 100) / 100; hIn.value = Math.round((cmH * 96) / 2.54 * 100) / 100;
+    custom = true; render();
+    saveSvg(svgText(), "timing-diagram-slide.svg");
+    say(`Exported timing-diagram-slide.svg at ${cmW.toFixed(2)} x ${cmH.toFixed(2)} cm: the timing part of the ${f.format ?? "16:9"} slide.`);
   });
 
   // ---- nodes of a circuit: from the beta editor's autosave (if any) or an opened .json ----

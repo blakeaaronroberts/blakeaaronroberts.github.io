@@ -95,3 +95,16 @@ Deno.test("net label side and spacing move the label; the default is above a hor
   assertEquals(b.dir, [0, -1]);
   assertEquals(b.at[1], a.at[1] - 2);
 });
+
+Deno.test("the schematic part is exported at exactly its slide size", async () => {
+  const { regions, defaultFrame } = await import("../src/frame.js");
+  const { drawing } = await import("../src/export.js");
+  const f = { ...defaultFrame(), layout: "below" }, r = regions(f).schematic;
+  const doc = base(), d = drawing(doc, pack, { typeset });
+  const rw = r.max[0] - r.min[0], rh = r.max[1] - r.min[1];
+  const k = Math.max(1, (d.box.max[0] - d.box.min[0]) / rw, (d.box.max[1] - d.box.min[1]) / rh);
+  const cx = (d.box.min[0] + d.box.max[0]) / 2, cy = (d.box.min[1] + d.box.max[1]) / 2;
+  const svg = exportSvg(doc, pack, { typeset, scale: 1 / k, frame: { min: [cx - rw * k / 2, cy - rh * k / 2], max: [cx + rw * k / 2, cy + rh * k / 2] } });
+  const w = +/width="([\d.]+)cm"/.exec(svg)[1], h = +/height="([\d.]+)cm"/.exec(svg)[1];
+  assert(Math.abs(w - rw * 0.5) < 0.01 && Math.abs(h - rh * 0.5) < 0.01, `${w} x ${h}`);
+});
