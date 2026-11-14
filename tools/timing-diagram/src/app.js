@@ -11,31 +11,57 @@ const KEY = "timing-diagram/source";
 const EDITOR_KEY = "figure-editor-beta/autosave";   // read only; the beta editor writes it
 
 export function mount(root) {
+  root.classList.add("fe");   // the schematic editor's shell: toolbar, side panes, status bar (editor.css)
+  const header = document.querySelector("#quarto-header");
+  const fit = () => root.style.setProperty("--fe-top", `${header ? Math.round(header.getBoundingClientRect().bottom) : 0}px`);
+  fit(); window.addEventListener("resize", fit);
+  const B = "btn btn-sm fe-btn";
   root.innerHTML = `
-    <section class="td-pane">
-      <div class="td-bar">
-        <a class="td-back" href="../figure-editor-beta/">Back to editor</a>
-        <button type="button" data-do="tidy">Tidy</button>
-        <button type="button" data-do="export">Export SVG</button>
-        <button type="button" data-do="export-png">Export PNG (300 dpi)</button>
-        <label class="td-file">Open circuit .json<input type="file" accept=".json,application/json" data-do="open"></label>
+    <div class="fe-toolbar">
+      <div class="fe-group">
+        <button type="button" class="${B}" data-do="tidy">Tidy</button>
+        <button type="button" class="${B}" data-do="export">Export SVG</button>
+        <button type="button" class="${B}" data-do="export-png" title="PNG at 300 dpi">Export PNG</button>
+        <label class="${B} td-file">Open circuit…<input type="file" accept=".json,application/json" data-do="open" hidden></label>
       </div>
-      <textarea class="td-src" spellcheck="false" aria-label="WaveDrom source"></textarea>
-      <div class="td-status" role="status" aria-live="polite"></div>
-      <p class="td-credit">Source format based on <a href="https://wavedrom.com">WaveDrom</a>. The drawing is this site's own code.</p>
-    </section>
-    <section class="td-pane">
-      <div class="td-bar">
-        <label>Width <input type="number" min="100" max="4000" step="10" data-size="w"> px</label>
-        <label>Height <input type="number" min="40" max="4000" step="10" data-size="h"> px</label>
-        <button type="button" data-do="natural">Natural size</button>
-        <button type="button" data-do="fit-slide" title="Size the diagram to the timing part of the editor's slide frame and export it">Fit to slide</button>
-        <button type="button" data-do="send" title="Send this diagram to the beta editor's slide frame">Send to schematic</button>
-        <span class="td-frames" hidden><label>Frame <select data-do="frame"></select></label> <button type="button" data-do="frames-export">Export frames</button></span>
-      </div>
-      <div class="td-view"><div id="WaveDrom_Display_0"></div></div>
-      <div class="td-nodes" hidden><h2 class="td-nodes-title"></h2><div class="td-chips"></div><button type="button" data-do="add-all" class="td-chip">Add starter lines for all</button><div class="td-flag" role="status"></div></div>
-    </section>`;
+      <div class="fe-group fe-group-end"><span class="fe-badge label-mono">Timing diagram</span><a class="fe-badge-link label-mono" href="../figure-editor-beta/">Schematic editor</a><a class="fe-badge-link label-mono" href="../figure-editor/">Stable editor</a></div>
+    </div>
+    <div class="fe-palette">
+      <details class="fe-pane" open>
+        <summary class="label-mono">Source</summary>
+        <div class="td-pad">
+          <textarea class="td-src form-control" spellcheck="false" aria-label="WaveDrom source"></textarea>
+          <p class="fe-hint td-credit">Source format based on <a href="https://wavedrom.com">WaveDrom</a>. The drawing is this site's own code.</p>
+        </div>
+      </details>
+      <details class="fe-pane td-nodes" open hidden>
+        <summary class="label-mono td-nodes-title">Nodes</summary>
+        <div class="td-pad"><div class="td-chips"></div><button type="button" data-do="add-all" class="td-chip">Add starter lines for all</button><div class="td-flag" role="status"></div></div>
+      </details>
+    </div>
+    <main class="td-center"><div class="td-view"><div id="WaveDrom_Display_0"></div></div></main>
+    <div class="fe-side">
+      <details class="fe-pane" open>
+        <summary class="label-mono">Size</summary>
+        <div class="td-pad">
+          <label class="form-label">Width (px) <input class="form-control form-control-sm" type="number" min="100" max="4000" step="10" data-size="w"></label>
+          <label class="form-label">Height (px) <input class="form-control form-control-sm" type="number" min="40" max="4000" step="10" data-size="h"></label>
+          <div class="fe-theme-buttons"><button type="button" class="${B}" data-do="natural">Natural size</button></div>
+        </div>
+      </details>
+      <details class="fe-pane" open>
+        <summary class="label-mono">Slide</summary>
+        <div class="td-pad">
+          <div class="fe-theme-buttons"><button type="button" class="${B}" data-do="fit-slide" title="Size the diagram to the timing part of the editor's slide frame">Fit to slide</button><button type="button" class="${B}" data-do="send" title="Send this diagram to the schematic editor's slide frame">Send to schematic</button></div>
+          <p class="fe-hint">Send also fills the editor's frames from the steps.</p>
+        </div>
+      </details>
+      <details class="fe-pane td-frames" open hidden>
+        <summary class="label-mono">Frames</summary>
+        <div class="td-pad"><label class="form-label">Frame <select class="form-select form-select-sm" data-do="frame"></select></label><div class="fe-theme-buttons"><button type="button" class="${B}" data-do="frames-export">Export frames</button></div></div>
+      </details>
+    </div>
+    <p class="fe-status td-status" role="status" aria-live="polite"></p>`;
   const $ = (s) => root.querySelector(s);
   const src = $(".td-src"), status = $(".td-status"), view = $("#WaveDrom_Display_0");
   const wIn = $("[data-size=w]"), hIn = $("[data-size=h]");

@@ -38,7 +38,11 @@ website:
         text: About / CV
       - text: Tools
         menu:
-          - text: Figure editor
+          - text: Schematic editor (beta)
+            href: tools/figure-editor-beta/index.qmd
+          - text: Timing diagram
+            href: tools/timing-diagram/index.qmd
+          - text: Figure editor (stable)
             href: tools/figure-editor/index.qmd
     right:
       - icon: github
