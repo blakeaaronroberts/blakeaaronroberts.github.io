@@ -1,20 +1,11 @@
-.td-app { display: grid; grid-template-columns: minmax(18rem, 2fr) 3fr; gap: 1rem; padding: .5rem 1rem 1rem; }
-@media (max-width: 800px) { .td-app { grid-template-columns: 1fr; } }
-.td-pane { min-width: 0; }
-.td-bar { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; margin-bottom: .5rem; font-size: .85rem; }
-.td-bar label { display: inline-flex; gap: .35rem; align-items: center; }
-.td-bar input[type=number] { width: 5rem; }
-.td-bar button, .td-bar .td-file { font: inherit; padding: .15rem .6rem; border: 1px solid var(--role-rule, currentColor); background: var(--role-surface, transparent); color: inherit; cursor: pointer; }
-.td-bar button:hover, .td-bar .td-file:hover { border-color: var(--role-accent, currentColor); }
-.td-bar .td-file input { display: none; }
-.td-src { width: 100%; min-height: 22rem; font-family: "Fira Mono", monospace; font-size: .85rem; line-height: 1.4; padding: .5rem; box-sizing: border-box; border: 1px solid var(--role-rule, currentColor); background: var(--role-surface, transparent); color: inherit; resize: vertical; }
-.td-status { min-height: 1.4rem; margin: .4rem 0; font-size: .85rem; }
+/* Timing diagram page: the schematic editor's shell (editor.css) with this tool's own panes. No colours or fonts are set here. */
+.td-pad { display: grid; gap: .5rem; padding: 0 .75rem .75rem; }
+.fe .td-src { height: 24rem; width: 100%; min-height: 22rem; font-family: var(--bs-font-monospace); font-size: .8rem; line-height: 1.4; border-radius: 0; resize: vertical; background: var(--role-surface); color: inherit; border-color: var(--role-rule); }
+.td-center { grid-column: 2; min-height: 0; overflow: auto; padding: 1rem; background: var(--fig-background); }
+.td-view { display: inline-block; max-width: 100%; overflow: auto; border: 1px solid var(--role-rule); background: #fff; line-height: 0; }
 .td-status[data-error] { font-weight: 700; }
-.td-view { overflow: auto; border: 1px solid var(--role-rule, currentColor); padding: .5rem; background: #fff; }
-.td-nodes { margin-top: .75rem; font-size: .85rem; }
-.td-nodes h2 { font-size: .85rem; margin: 0 0 .35rem; text-transform: uppercase; border: 0; }
-.td-chip { display: inline-block; margin: 0 .35rem .35rem 0; padding: 0 .45rem; border: 1px solid var(--role-rule, currentColor); font: inherit; background: transparent; color: inherit; cursor: pointer; }
-.td-chip:hover { border-color: var(--role-accent, currentColor); }
-.td-flag { margin: .35rem 0; font-weight: 700; }
-.td-back { font-size: .85rem; text-decoration: underline; text-underline-offset: 2px; }
-.td-credit { margin: .2rem 0; font-size: .75rem; color: var(--role-muted, inherit); }
+.td-chip { display: inline-block; margin: 0 .35rem .35rem 0; padding: 0 .45rem; border: 1px solid var(--role-rule); font: inherit; background: transparent; color: inherit; cursor: pointer; }
+.td-chip:hover { border-color: var(--role-accent); }
+.td-flag { font-weight: 700; }
+.fe .td-file { cursor: pointer; }
+@media (max-width: 800px) { .fe { grid-template-columns: 1fr; } .td-center, .fe-side, .fe-palette { grid-column: 1; } }
