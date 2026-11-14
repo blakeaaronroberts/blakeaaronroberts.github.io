@@ -9,7 +9,7 @@
 import { LEVELS, loadPack, parsePrivateTheme } from "./pack.js";
 import * as D from "./doc.js";
 import { History } from "./history.js";
-import { drawing, exportSize, exportSvg, exportGridSvg, labelBoxes } from "./export.js";
+import { drawing, exportSize, exportSvg, exportGridSvg, labelBoxes, timingGroup } from "./export.js";
 import { hitTest, inBox } from "./hit.js";
 import { packLabelPt, texNeeded } from "./labels.js";
 import { typesetAll } from "./mathjax.js";
@@ -329,7 +329,7 @@ export async function mount(root, options = {}) {
   // ---- rendering -------------------------------------------------------------------------
   function render() {
     lastDrawing = view.render({
-      doc, pack, selection, ghost, rubber, hover, hoverWire, box: boxSel, frame: opt.frame,
+      doc, pack, selection, ghost, rubber, hover, hoverWire, box: boxSel, frame: opt.frame, timing: (() => { const t = opt.frame.show ? timingOpt(true) : null; return t ? timingGroup(t.sent, t.box) : null; })(),
       typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags,
     });
     if (lastDrawing.pending.length) queueTypeset();
