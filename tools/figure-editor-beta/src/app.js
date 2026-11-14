@@ -483,6 +483,12 @@ export async function mount(root, options = {}) {
     }
   }
 
+  // The net label shows as you type (the other fields wait for Enter or leaving the field).
+  propsEl.addEventListener("input", (e) => {
+    if (e.target.dataset?.field !== "wireNet" || !selection.wires.length) return;
+    commit(setWireLabels(doc, selection.wires, e.target.value.trim()), null);
+  });
+
   propsEl.addEventListener("change", (e) => {
     const name = e.target.dataset?.field;
     if (!name) return;
