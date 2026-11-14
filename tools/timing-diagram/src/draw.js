@@ -16,7 +16,7 @@ export function lanesOf(value) {
     if (Array.isArray(x)) x.forEach((y) => { if (typeof y !== "string") walk(y); });
     else if (x && typeof x === "object") {
       const data = Array.isArray(x.data) ? x.data.map(String) : typeof x.data === "string" ? x.data.split(/\s+/).filter(Boolean) : [];
-      out.push({ name: typeof x.name === "string" ? x.name : "", wave: typeof x.wave === "string" ? x.wave : "", data, phase: Number(x.phase) || 0, period: Math.max(1, Number(x.period) || 1) });
+      out.push({ name: typeof x.name === "string" ? x.name : "", wave: typeof x.wave === "string" ? x.wave : "", data, phase: Number(x.phase) || 0, delay: Number(x.delay) || 0, period: Math.max(1, Number(x.period) || 1) });
     }
   };
   walk(value?.signal ?? []);
@@ -57,14 +57,14 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
   const stepW = Math.max(4, (W - x0 - 10) / steps);
   const laneH = Math.max(12, (H - 10) / Math.max(1, lanes.length));
   const slope = Math.min(5, stepW * 0.15), lw = 1.6;
-  const stroke = `fill="none" stroke="${ink}" stroke-width="${lw}" stroke-linecap="round" stroke-linejoin="round"`;
+  const stroke = `clip-path="url(#plot)" fill="none" stroke="${ink}" stroke-width="${lw}" stroke-linecap="round" stroke-linejoin="round"`;
   const out = [];
   lanes.forEach((lane, li) => {
     const top = 5 + li * laneH, yh = top + laneH * 0.17, yl = top + laneH * 0.83, ym = (yh + yl) / 2;
     const yOf = { hi: yh, lo: yl, mid: ym };
     if (lane.name) out.push(`<text x="${n2(labelW)}" y="${n2(ym + FONT * 0.35)}" text-anchor="end" font-size="${FONT}" font-family="${FAMILY}" fill="${ink}">${esc(lane.name)}</text>`);
     const st = stepsOf(lane.wave), w = stepW * lane.period;
-    const xAt = (i) => x0 + (i - lane.phase) * w;
+    const xAt = (i) => x0 + (i - lane.phase + lane.delay) * w;   // delay (in steps, may be fractional) shifts the lane right
     const d = [];
     let level = null, run = null, di = 0, prevBox = false;
     const line = (x, y) => d.push(`${d.length ? "L" : "M"} ${n2(x)} ${n2(y)}`);
@@ -73,10 +73,14 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
       if (!run) return;
       const xl = Math.max(x0, xAt(run.from)), xr = xAt(run.to), hatch = run.c === "x";
       const pts = [[xl, ym], [xl + slope, yh], [xr - slope, yh], [xr, ym], [xr - slope, yl], [xl + slope, yl]];
-      out.push(`<path d="M ${pts.map((p) => `${n2(p[0])} ${n2(p[1])}`).join(" L ")} Z" fill="${hatch ? "url(#hatch)" : ink}" fill-opacity="${hatch ? 1 : 0.08}" stroke="${ink}" stroke-width="${lw}" stroke-linejoin="round"/>`);
+      out.push(`<path clip-path="url(#plot)" d="M ${pts.map((p) => `${n2(p[0])} ${n2(p[1])}`).join(" L ")} Z" fill="${hatch ? "url(#hatch)" : ink}" fill-opacity="${hatch ? 1 : 0.08}" stroke="${ink}" stroke-width="${lw}" stroke-linejoin="round"/>`);
       if (!hatch && run.label) out.push(`<text x="${n2((xl + xr) / 2)}" y="${n2(ym + FONT * 0.35)}" text-anchor="middle" font-size="${FONT}" font-family="${FAMILY}" fill="${ink}">${esc(run.label)}</text>`);
       run = null;
     };
+    if (lane.delay > 0 && st.length) {   // before a delayed lane changes, it holds its first level
+      const c0 = st[0].c, k0 = /^[pPnN]$/.test(c0) ? (c0 === "p" || c0 === "P" ? "lo" : "hi") : LEVEL[c0];
+      if (k0) { line(x0, yOf[k0]); level = k0; }
+    }
     for (let i = 0; i < st.length; i++) {
       const { c, isNew } = st[i], xl = xAt(i), xr = xAt(i + 1);
       if (xr <= x0) continue;
@@ -108,7 +112,7 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
     out.push(`<rect class="td-marker" x="${n2(x0 + marker * stepW)}" y="2" width="${n2(stepW)}" height="${n2(H - 4)}" rx="6" ry="6" fill="${accent}" fill-opacity="0.18" stroke="${accent}" stroke-width="1.2"/>`);
   }
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${n2(W)}" height="${n2(H)}" viewBox="0 0 ${n2(W)} ${n2(H)}">` +
-    `<defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${ink}" stroke-width="1"/></pattern></defs>` +
+    `<defs><clipPath id="plot"><rect x="${n2(x0 - 2)}" y="0" width="${n2(W - x0 - 8)}" height="${n2(H)}"/></clipPath><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${ink}" stroke-width="1"/></pattern></defs>` +
     out.join("") + `</svg>`;
   return { svg, natural: nat, geometry: { x0, stepW, laneH, steps } };
 }

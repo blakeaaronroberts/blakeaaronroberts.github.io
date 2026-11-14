@@ -764,7 +764,12 @@ export async function mount(root, options = {}) {
     gridfull: () => setGrid(2),
     zoomin: () => view.zoomAt(1 / 1.25),
     zoomout: () => view.zoomAt(1.25),
-    fit: () => view.fit(lastDrawing?.box ?? null),
+    fit() {   // with the slide frame showing, fit the frame and anything that sticks out of it
+      const b = lastDrawing?.box ?? null;
+      if (!opt.frame.show) return view.fit(b);
+      const f = frameBox(opt.frame);
+      view.fit(b ? { min: [Math.min(b.min[0], f.min[0]), Math.min(b.min[1], f.min[1])], max: [Math.max(b.max[0], f.max[0]), Math.max(b.max[1], f.max[1])] } : f);
+    },
     new() { commit(D.newDoc(), "New figure (Undo brings the old one back)."); selection = none(); loadWarnings = []; view.fit(null); render(); },
     open: () => fileInput.click(),
     save() {
