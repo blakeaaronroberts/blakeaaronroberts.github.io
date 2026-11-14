@@ -873,10 +873,16 @@ export async function mount(root, options = {}) {
     },
   };
 
+  /** The diagram the timing tool sent, if any, and the timing part of the slide frame it goes in (only for a frame export with a timing layout). */
+  function timingOpt(framed) {
+    if (!framed || opt.frame.layout === "schematic") return null;
+    try { const sent = JSON.parse(store.get("timing-diagram/send") ?? "null"); return sent ? { sent, box: regions(opt.frame).timing } : null; } catch { return null; }
+  }
+
   /** The SVG as the export option settings say; labels are typeset first. Throws if one cannot be drawn. */
   async function svgNow(framed = false, at = doc) {
     await typesetAll(texNeeded(at, pack, { levelTags: opt.levelTags }), typeset);
-    return exportSvg(at, packFor(opt.exportDark), { ...drawOpts(), frame: framed ? frameBox(opt.frame) : null });   // light by default; dark only if asked
+    return exportSvg(at, packFor(opt.exportDark), { ...drawOpts(), frame: framed ? frameBox(opt.frame) : null, timing: timingOpt(framed) });   // light by default; dark only if asked
   }
 
   /** The schematic fitted into its part of the slide: a file exactly that size, the figure centred at real size (or shrunk to fit). */
