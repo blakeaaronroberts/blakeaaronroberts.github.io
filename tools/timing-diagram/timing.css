@@ -17,3 +17,4 @@
 .td-chip:hover { border-color: var(--role-accent, currentColor); }
 .td-flag { margin: .35rem 0; font-weight: 700; }
 .td-back { font-size: .85rem; text-decoration: underline; text-underline-offset: 2px; }
+.td-credit { margin: .2rem 0; font-size: .75rem; color: var(--role-muted, inherit); }

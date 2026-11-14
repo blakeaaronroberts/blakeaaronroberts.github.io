@@ -282,6 +282,7 @@ export function exportSvg(doc, pack, opts = {}) {
     for (const n of l.nodes) out.push(writeXml(n, "    "));
     out.push("  </g>");
   }
+  if (opts.timing) { const g = timingGroup(opts.timing.sent, opts.timing.box); if (g) out.push(g); }
   out.push("</svg>", "");
   return out.join("\n");
 }
@@ -333,4 +334,14 @@ export function exportGridSvg(doc, pack, frames, slide, opts = {}) {
   });
   out.push("</svg>", "");
   return out.join("\n");
+}
+
+/** A timing diagram (the timing tool's SVG text, 96 dpi px) as a group fitted, centred, into `box` (modules, y down). Null if it is not an SVG. */
+export function timingGroup(sent, box) {
+  const m = /^\s*<svg[^>]*>([\s\S]*)<\/svg>\s*$/.exec(sent?.svg ?? "");
+  if (!m || !(sent.w > 0 && sent.h > 0)) return null;
+  const k = 2.54 / 96 / MODULE_CM;   // modules per px
+  const wM = sent.w * k, hM = sent.h * k, bw = box.max[0] - box.min[0], bh = box.max[1] - box.min[1];
+  const s = Math.min(bw / wM, bh / hM), x = box.min[0] + (bw - wM * s) / 2, y = box.min[1] + (bh - hM * s) / 2;
+  return `  <g transform="translate(${fmt(x)} ${fmt(y)}) scale(${fmt(s * k)})">${m[1]}</g>`;
 }

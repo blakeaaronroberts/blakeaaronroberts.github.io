@@ -108,3 +108,10 @@ Deno.test("the schematic part is exported at exactly its slide size", async () =
   const w = +/width="([\d.]+)cm"/.exec(svg)[1], h = +/height="([\d.]+)cm"/.exec(svg)[1];
   assert(Math.abs(w - rw * 0.5) < 0.01 && Math.abs(h - rh * 0.5) < 0.01, `${w} x ${h}`);
 });
+
+Deno.test("a sent timing diagram is fitted into the timing part of the slide frame", async () => {
+  const { timingGroup } = await import("../src/export.js");
+  const g = timingGroup({ svg: '<svg width="100" height="50"><path d="M0 0"/></svg>', w: 100, h: 50 }, { min: [0, 0], max: [40, 10] });
+  assert(g.includes("<path") && /translate\(/.test(g) && !g.includes("<svg"));
+  assertEquals(timingGroup({ svg: "nope", w: 1, h: 1 }, { min: [0, 0], max: [1, 1] }), null);
+});
