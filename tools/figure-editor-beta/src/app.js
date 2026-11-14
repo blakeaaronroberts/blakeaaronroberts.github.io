@@ -21,7 +21,7 @@ import { sections } from "./categories.js";
 import { circuitFromSvg, sanitizeSvg, MAX_SVG_BYTES } from "./svgimport.js";
 import { FORMATS, LAYOUTS, centreOn, cleanFrame, frameBox, overflow, regions, sizeOf } from "./frame.js";
 import { orient } from "./geometry.js";
-import { setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame } from "./levelframes.js";
+import { framesFromSignals, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame } from "./levelframes.js";
 
 const AUTOSAVE = "figure-editor-beta/autosave";
 const SAVES = "figure-editor-beta/saves";               // the last 10 manual saves
@@ -183,7 +183,7 @@ export async function mount(root, options = {}) {
       <details class="fe-pane fe-frames-pane" name="fe-doc">
         <summary class="label-mono">Frames</summary>
         <p class="fe-hint">A frame is a snapshot of the wire and element levels, one per transition. Set the levels, then Capture. Frames are saved in the figure file.</p>
-        <div class="fe-theme-buttons" role="group" aria-label="Frames">${btn("framecapture", "Capture frame")}${btn("framerecapture", "Update selected")}</div>
+        <div class="fe-theme-buttons" role="group" aria-label="Frames">${btn("framesfromtiming", "Fill from timing diagram")}${btn("framecapture", "Capture frame")}${btn("framerecapture", "Update selected")}</div>
         <ol class="fe-frame-list" aria-label="Frames"></ol>
         <div class="fe-theme-buttons" role="group" aria-label="Edit the selected frame">${btn("framerename", "Rename")}${btn("frameup", "Move up")}${btn("framedown", "Move down")}${btn("framedelete", "Delete")}</div>
         <label class="form-label">Export each frame as <select class="form-select form-select-sm" name="fe-frames-what"><option value="schematic">The schematic alone</option><option value="slide">The slide frame</option></select></label>
@@ -802,6 +802,7 @@ export async function mount(root, options = {}) {
       saveOptions(); syncFrame(); render();
       status("The frame is centred on the figure.");
     },
+    framesfromtiming() { populateFromTiming(); },
     framecapture() {
       commit(captureFrame(doc), null);
       const frames = framesOf(doc);
@@ -943,6 +944,19 @@ export async function mount(root, options = {}) {
     commit(applyFrame(doc, f), `Showing frame "${f.name}": its levels are on the canvas.`);
     renderFrames();
   });
+
+  // ---- frames from the timing diagram: one frame per step, levels from the signals that match wires, ports or elements ----
+  function populateFromTiming(auto = false) {
+    let sent = null;
+    try { sent = JSON.parse(store.get("timing-diagram/send") ?? "null"); } catch { sent = null; }
+    if (!sent?.signals?.length) { if (!auto) status("Nothing sent yet: in the timing tool, press Send to schematic."); return; }
+    const r = framesFromSignals(doc, D.deriveNets(doc, pack), sent.signals);
+    commit(r.doc, null);
+    selectedFrame = -1;
+    renderFrames();
+    status(`${r.steps} frames filled from the timing diagram. Drives: ${r.matched.join(", ") || "nothing"}.${r.unmatched.length ? ` No wire, port or element named: ${r.unmatched.join(", ")} (name a wire with its Net label).` : ""}`, !r.matched.length);
+  }
+  window.addEventListener("storage", (e) => { if (e.key === "timing-diagram/send") populateFromTiming(true); });
 
   /** One slide with every frame as a small figure, labelled with its name. */
   async function slideNow(frames) {
