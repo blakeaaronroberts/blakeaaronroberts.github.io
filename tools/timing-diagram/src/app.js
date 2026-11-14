@@ -1,5 +1,6 @@
-// The timing-diagram page: WaveDrom source in, lecture-skin preview out, SVG export.
-import { parseSource, signalNames, tidy, SAMPLE, stepColumn } from "./wave.js";
+// The timing-diagram page: WaveDrom-format source in, our own vector drawing out (draw.js), SVG export.
+import { parseSource, signalNames, tidy, SAMPLE } from "./wave.js";
+import { drawTiming, naturalSize } from "./draw.js";
 import { nodesOf, starterLines, unknownNames, framesIn } from "./nodes.js";
 
 const store = {
@@ -38,30 +39,16 @@ export function mount(root) {
 
   const say = (msg, error = false) => { status.textContent = msg; if (error) status.setAttribute("data-error", ""); else status.removeAttribute("data-error"); };
   const svgEl = () => view.querySelector("svg");
-  const applySize = () => {
-    const s = svgEl(); if (!s || !natural) return;
-    const w = Math.max(100, Number(wIn.value) || natural.w), h = Math.max(40, Number(hIn.value) || natural.h);
-    s.setAttribute("viewBox", `0 0 ${natural.w} ${natural.h}`);
-    s.setAttribute("preserveAspectRatio", "none");
-    s.setAttribute("width", w); s.setAttribute("height", h);
-  };
   const render = () => {
     const r = parseSource(src.value);
     if (!r.ok) { say(r.error, true); return; }
     try {
-      if (typeof WaveDrom === "undefined") throw new Error("WaveDrom did not load.");
-      view.innerHTML = "";
-      WaveDrom.RenderWaveForm(0, r.value, "WaveDrom_Display_");
-      const s = svgEl();
-      // Rounded line ends and corners on every stroked path (the skin has butt caps). The rule lives inside the SVG so the export keeps it.
-      const round = document.createElementNS("http://www.w3.org/2000/svg", "style");
-      round.textContent = "path[class]{stroke-linecap:round;stroke-linejoin:round}";
-      s.prepend(round);
-      natural = { w: Number(s.getAttribute("width")), h: Number(s.getAttribute("height")) };
-      if (!custom) { wIn.value = natural.w; hIn.value = natural.h; }
-      applySize();
       last = r.value;
-      stepMarker();
+      natural = naturalSize(r.value);
+      if (!custom) { wIn.value = natural.w; hIn.value = natural.h; }
+      const accent = getComputedStyle(document.documentElement).getPropertyValue("--fig-accent").trim() || "#0072B2";
+      // The size is a layout input: steps and lanes are re-spaced to fit it, nothing is stretched.
+      view.innerHTML = drawTiming(r.value, { width: Number(wIn.value) || natural.w, height: Number(hIn.value) || natural.h, accent, marker: frame >= 0 && frame < frameNames.length ? frame : null }).svg;
       say(`${signalNames(r.value).length} signals.`);
     } catch (e) { say(`Could not draw the diagram: ${e.message}`, true); }
   };
@@ -69,11 +56,11 @@ export function mount(root) {
   src.value = store.get(KEY) || SAMPLE;
   let timer = 0;
   src.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(() => { store.set(KEY, src.value); render(); }, 250); });
-  for (const i of [wIn, hIn]) i.addEventListener("input", () => { custom = true; applySize(); });
+  for (const i of [wIn, hIn]) i.addEventListener("input", () => { custom = true; render(); });
   root.addEventListener("click", (e) => {
     const act = e.target.closest("[data-do]")?.getAttribute("data-do");
     if (act === "tidy") { const r = parseSource(src.value); if (!r.ok) return say(r.error, true); src.value = tidy(r.value); store.set(KEY, src.value); render(); }
-    if (act === "natural" && natural) { custom = false; wIn.value = natural.w; hIn.value = natural.h; applySize(); }
+    if (act === "natural" && natural) { custom = false; wIn.value = natural.w; hIn.value = natural.h; render(); }
     if (act === "export") exportSvg();
   });
 
@@ -104,27 +91,14 @@ ${new XMLSerializer().serializeToString(clone)}
   // ---- frames from the editor: the step marker, and one diagram per frame (T2.3) ----
   let frameNames = [], frame = -1;
   const frameSel = $("[data-do=frame]"), frameWrap = $(".td-frames");
-  const stepMarker = () => {
-    const s = svgEl(); s?.querySelector(".td-marker")?.remove();
-    if (!s || frame < 0 || frame >= frameNames.length) return;
-    const first = s.querySelector("g[id^=wavelane_draw_] > use"), waves = s.querySelector("g[id^=waves_]");
-    if (!first || !waves) return;
-    const x0 = Number(/translate\(\s*([-\d.]+)/.exec(first.getAttribute("transform") ?? "")?.[1] ?? 0);
-    const col = stepColumn(frame, x0, Number(last?.config?.hscale) || 1), b = waves.getBBox();
-    const ns = "http://www.w3.org/2000/svg", g = document.createElementNS(ns, "g"), r = document.createElementNS(ns, "rect");
-    g.setAttribute("class", "td-marker");
-    const colour = getComputedStyle(document.documentElement).getPropertyValue("--fig-accent").trim() || "#0072B2";
-    for (const [k, v] of Object.entries({ x: col.x, y: b.y, width: col.width, height: b.height, rx: 6, ry: 6, fill: colour, "fill-opacity": 0.18, stroke: colour, "stroke-width": 1.2 })) r.setAttribute(k, v);
-    g.append(r);
-    waves.after(g);
-  };
+  const stepMarker = () => render();
   const setFrames = (names) => {
     frameNames = names; frame = names.length ? 0 : -1;
     frameWrap.hidden = !names.length;
     frameSel.replaceChildren(...names.map((n, i) => { const o = document.createElement("option"); o.value = String(i); o.textContent = `${String(i + 1).padStart(2, "0")} ${n}`; return o; }));
     stepMarker();
   };
-  frameSel.addEventListener("change", () => { frame = Number(frameSel.value); stepMarker(); });
+  frameSel.addEventListener("change", () => { frame = Number(frameSel.value); render(); });
   const saveSvg = (xml, name) => {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml" })); a.download = name;

@@ -52,3 +52,13 @@ Deno.test("a wire's net label, or its bus label, names the signal", async () => 
     groups: { wire_labels: { a: "CLK" } } };
   assertEquals(nodesOf(JSON.stringify(doc)).nodes.map((x) => x.name), ["CLK", "D[3:0]", "n3"]);
 });
+Deno.test("our drawing is laid out from the size, not scaled to it: stroke width stays, step width follows", async () => {
+  const { drawTiming } = await import("../src/draw.js");
+  const v = { signal: [{ name: "clk", wave: "p...." }, { name: "D", wave: "0.1=0", data: ["a"] }] };
+  const a = drawTiming(v, { width: 300, height: 100 }), b = drawTiming(v, { width: 600, height: 200 });
+  assert(b.geometry.stepW > a.geometry.stepW * 1.9 && b.geometry.laneH > a.geometry.laneH * 1.9);
+  assert(/stroke-width="1.6"/.test(a.svg) && /stroke-width="1.6"/.test(b.svg));
+  assert(!/preserveAspectRatio/.test(b.svg));
+  assert(drawTiming(v, { marker: 2 }).svg.includes('class="td-marker"'));
+  assert(drawTiming(v, {}).svg.includes(">a</text>"));
+});
