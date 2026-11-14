@@ -2,8 +2,6 @@
 title: "Timing diagram"
 page-layout: full
 css: timing.css
-include-in-header:
-  - ../../_includes/wavedrom.html
 ---
 
 ```{=html}
