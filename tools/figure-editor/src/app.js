@@ -252,6 +252,7 @@ export async function mount(root, options = {}) {
   let spaceHeld = false;
   let lastDrawing = null;
   let selectedFrame = -1;            // the frame chosen in the Frames list (level frames, F11.2)
+  let timingTool = null, timingTimer = 0;   // the docked Timing Diagram pane, mounted on first open (F18)
   const framesWhat = $('[name="fe-frames-what"]');
   let autosaveTimer = null;
   const typeset = new Map();         // TeX to parseTypeset's result (every label drawn is typeset once)
@@ -576,7 +577,15 @@ export async function mount(root, options = {}) {
     try { ok = store.set(AUTOSAVE, D.serialize(doc, pack)); } catch { ok = false; }
     if (!ok && !autosaveWarned) { autosaveWarned = true; status("Autosave is off: this browser will not store the figure. Use Save to keep it.", true); }
   }
+  /** The timing pane follows the circuit live: its node buttons and frames update shortly after each edit. */
+  function followTiming() {
+    if (!timingTool) return;
+    clearTimeout(timingTimer);
+    timingTimer = setTimeout(() => timingTool.setCircuit(D.serialize(doc, pack)), 250);
+  }
+
   function changed(msg) {
+    followTiming();
     unsaved = true;
     render();
     if (msg) status(msg);
@@ -1007,7 +1016,7 @@ export async function mount(root, options = {}) {
   // ---- the docked Timing Diagram pane (F18): the same module as the Timing Diagram page ----------------------------
   const tpEl = $(".fe-timing"), tpBody = $(".fe-timing-body"), tpToggle = $('[data-cmd="timingtoggle"]'), splitter = $(".fe-splitter");
   opt.timingPane = { open: opt.timingPane?.open === true, h: Number(opt.timingPane?.h) || 256 };
-  let timingTool = null;
+
   async function showTimingPane() {
     tpEl.dataset.open = String(opt.timingPane.open);
     tpEl.style.setProperty("--tp-h", `${opt.timingPane.h}px`);
