@@ -47,9 +47,9 @@ Sync of 2026-11-14, 19:30 (Pacific). Facts only; work lives in the batches below
 
 | Batch | Intent | Status | Approved by Blake |
 |---|---|---|---|
-| S4 | Make sure this repo's commits use Blake's GitHub noreply address, not a university or work email | Open | 2026-11-12 |
-| F2 | Figure editor v1 core: place, move, rotate and mirror elements on the grid; wires that stay anchored to pins; save, load and SVG export | Open | 2026-11-12 |
-| F3 | Figure editor v1 finish: labels in STIX Two, wire level colours, PNG copy, private theme, shortcuts, draft toggle | Open | 2026-11-12 |
+| S4 | Make sure this repo's commits use Blake's GitHub noreply address, not a university or work email | Done | 2026-11-12 |
+| F2 | Figure editor v1 core: place, move, rotate and mirror elements on the grid; wires that stay anchored to pins; save, load and SVG export | Done | 2026-11-12 |
+| F3 | Figure editor v1 finish: labels in STIX Two, wire level colours, PNG copy, private theme, shortcuts, draft toggle | Done | 2026-11-12 |
 | F4 | Figure editor options before launch: grid, whole-figure line weight (thin, regular, bold) and a dark theme, saved with the figure | Open | 2026-11-13 |
 | F8 | Figure editor: box select, copy and paste, align and distribute, label editing, shortcuts | Open | 2026-11-13 |
 | F10 | Figure editor: slide frame for arranging the schematic and timing diagram | Open | 2026-11-13 |
