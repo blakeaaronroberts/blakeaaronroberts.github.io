@@ -149,3 +149,14 @@ export function slideSvg(doc, pack, s, opts = {}) {
   out.push("</svg>", "");
   return out.join("\n");
 }
+
+/** A small picture of a layout for its button: the slide, its header and footer bands, and each region shaded by kind. */
+export function layoutThumb(id, s, roles) {
+  const { w, h } = slideSize(s.format), regions = withLayout(s, id).regions, a = contentArea(s);
+  const fill = { schematic: roles.ink, timing: roles.accent, text: roles.muted ?? roles.ink };
+  return `<svg viewBox="0 0 ${fmt(w)} ${fmt(h)}" aria-hidden="true" focusable="false">` +
+    `<rect width="${fmt(w)}" height="${fmt(h)}" fill="none" stroke="currentColor" stroke-width="0.8"/>` +
+    `<rect width="${fmt(w)}" height="${a.y}" fill="currentColor" fill-opacity="0.12"/>` +
+    regions.map((r) => `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${fill[r.kind]}" fill-opacity="${r.kind === "text" ? 0.15 : 0.35}"${r.kind === "text" ? ` stroke="${fill.text}" stroke-width="0.4" stroke-dasharray="1 0.8"` : ""}/>`).join("") +
+    `</svg>`;
+}

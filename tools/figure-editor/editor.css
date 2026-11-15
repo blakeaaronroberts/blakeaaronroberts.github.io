@@ -166,3 +166,14 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 .fe-stage.is-slide .fe-canvas { visibility: hidden; }
 .fe-slide-regions { list-style: none; margin: .4rem 0; padding: 0; display: grid; gap: .4rem; }
 .fe-region { display: grid; gap: .2rem; padding: .3rem; border: 1px solid var(--role-rule); }
+.fe-slidebar { position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: stretch; gap: .35rem; padding: .4rem .6rem; background: var(--role-surface); border-bottom: 1px solid var(--role-rule); }
+.fe-slidebar > .label-mono { align-self: center; margin-right: .2rem; }
+.fe-layout { display: grid; justify-items: center; gap: .15rem; width: 6.6rem; padding: .25rem; border: 1px solid var(--role-rule); background: var(--role-background); color: var(--role-ink); font-size: .65rem; line-height: 1.15; cursor: pointer; }
+.fe-layout svg { width: 100%; height: auto; display: block; color: var(--role-muted); }
+.fe-layout:hover { border-color: var(--role-accent); }
+.fe-layout[aria-pressed="true"] { border-color: var(--role-accent); box-shadow: inset 0 0 0 1px var(--role-accent); }
+.fe-slidebar-end { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+.fe-stage.is-slide .fe-slideview { top: var(--slidebar-h, 6.5rem); height: calc(100% - var(--slidebar-h, 6.5rem)); }
+.fe-toolbar { column-gap: .3rem; }
+.fe-group { padding-right: .3rem; }
+.fe .fe-toolbar .fe-btn { --bs-btn-padding-x: .35rem; }

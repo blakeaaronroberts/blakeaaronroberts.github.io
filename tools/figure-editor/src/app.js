@@ -21,7 +21,7 @@ import { PRESETS, presetById } from "./presets.js";
 import { sections } from "./categories.js";
 import { circuitFromSvg, sanitizeSvg, MAX_SVG_BYTES } from "./svgimport.js";
 import { FORMATS } from "./frame.js";
-import { contentArea, defaultSlide, KINDS, LAYOUTS as SLIDE_LAYOUTS, nudgeRegion, slideOf, slideSize, slideSvg, withLayout, withSlide } from "./slide.js";
+import { contentArea, defaultSlide, KINDS, layoutThumb, LAYOUTS as SLIDE_LAYOUTS, nudgeRegion, slideOf, slideSize, slideSvg, withLayout, withSlide } from "./slide.js";
 import { orient } from "./geometry.js";
 import { migrateBeta } from "./migrate.js";
 import { framesFromSignals, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame } from "./levelframes.js";
@@ -128,6 +128,7 @@ export async function mount(root, options = {}) {
       <div class="fe-group" role="group" aria-label="Clipboard">
         ${btn("copy", "Copy", "Control+C")}${btn("paste", "Paste", "Control+V")}
       </div>
+      <div class="fe-group" role="group" aria-label="Workspace: the canvas or the slide">${btn("viewcanvas", "Canvas", "", ' aria-pressed="true"', "Draw on the canvas")}${btn("viewslide", "Slide", "", ' aria-pressed="false"', "Lay out the slide: layouts, regions, export")}</div>
       <div class="fe-group" role="group" aria-label="View">
         ${btn("zoomout", "Zoom out", "-")}${btn("zoomin", "Zoom in", "+")}${btn("fit", "Fit", "F")}
       </div>
@@ -148,6 +149,7 @@ export async function mount(root, options = {}) {
     </details>
     <div class="fe-stage">
       <svg class="fe-canvas" tabindex="0" role="application" aria-label="Figure canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="fe-slidebar" hidden role="toolbar" aria-label="Slide layouts"></div>
       <svg class="fe-slideview" hidden role="img" aria-label="Slide view: drag a region to move it, drag its corner to resize it" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
     </div>
     <div class="fe-timing" data-open="false" role="region" aria-label="Timing Diagram">
@@ -808,6 +810,8 @@ export async function mount(root, options = {}) {
     async slidepng() {
       try { download(await pngOf(await slideNow()), `${doc.id}-slide.png`, "image/png"); status(`Exported ${doc.id}-slide.png at 300 dpi.`); } catch (e) { status(e.message, true); }
     },
+    viewcanvas() { opt.slideView = false; saveOptions(); syncSlide(); },
+    viewslide() { opt.slideView = true; saveOptions(); syncSlide(); status("The slide: pick a layout above, drag regions to move them, drag a corner to resize. Canvas goes back to drawing."); },
     addschematic: () => addRegion("schematic"),
     addtiming: () => addRegion("timing"),
     addtext: () => addRegion("text"),
@@ -1046,7 +1050,7 @@ export async function mount(root, options = {}) {
 
   // ---- the slide (F19) ----
   const slideEls = { show: $('[name="fe-slide-show"]'), format: $('[name="fe-slide-format"]'), header: $('[name="fe-slide-header"]'), footer: $('[name="fe-slide-footer"]'), layout: $('[name="fe-slide-layout"]') };
-  const regionsEl = $(".fe-slide-regions"), slideView = $(".fe-slideview");
+  const regionsEl = $(".fe-slide-regions"), slideView = $(".fe-slideview"), slideBar = $(".fe-slidebar");
   opt.slideView = opt.slideView === true;
   let slideDraft = null;      // the slide while a region is being dragged (committed on release)
   let regionsKey = "";
@@ -1075,6 +1079,8 @@ export async function mount(root, options = {}) {
     }
     $(".fe-stage").classList.toggle("is-slide", opt.slideView);
     slideView.toggleAttribute("hidden", !opt.slideView);   // an SVG element has no .hidden property
+    slideBar.hidden = !opt.slideView;
+    for (const [c, on] of [["viewcanvas", !opt.slideView], ["viewslide", opt.slideView]]) $(`[data-cmd="${c}"]`).setAttribute("aria-pressed", String(on));
     if (opt.slideView) renderSlideView();
   }
   /** The slide view: the slide as it will export (with the header, footer and text boxes shown), and each region's outline and resize handle. */
@@ -1091,6 +1097,8 @@ export async function mount(root, options = {}) {
       <text x="${r.x + 0.3}" y="${r.y + 0.3 + k}" font-size="${k}" font-family="var(--bs-font-monospace)" fill="${roles.accent}">${esc(r.label)}</text>
       <rect data-handle="1" x="${r.x + r.w - 1}" y="${r.y + r.h - 1}" width="1" height="1" fill="${roles.accent}" style="cursor:nwse-resize"/>
     </g>`).join("");
+    slideBar.innerHTML = `<span class="label-mono">Layout</span>${Object.entries(SLIDE_LAYOUTS).map(([k, v]) => `<button type="button" class="fe-layout" data-layout="${k}" aria-pressed="${s.layout === k}" title="${esc(v.name)}">${layoutThumb(k, s, roles)}<span>${esc(v.name)}</span></button>`).join("")}<span class="fe-slidebar-end">${btn("slidesvg", "Slide as SVG")}${btn("slidepng", "Slide as PNG")}</span>`;
+    $(".fe-stage").style.setProperty("--slidebar-h", `${slideBar.offsetHeight}px`);   // the slide sits below the layout strip
     slideView.setAttribute("viewBox", `-1 -1 ${w + 2} ${h + 2}`);
     slideView.innerHTML = `<rect x="0" y="0" width="${w}" height="${h}" fill="none" stroke="${roles.accent}" stroke-width="${lw * 1.5}"/>${body}${outlines}`;
   }
@@ -1115,6 +1123,7 @@ export async function mount(root, options = {}) {
     slideView.addEventListener("pointermove", move);
     slideView.addEventListener("pointerup", up, { once: true });
   });
+  slideBar.addEventListener("click", (e) => { const b = e.target.closest("[data-layout]"); if (b) setSlide(withLayout(currentSlide(), b.dataset.layout), `Layout: ${SLIDE_LAYOUTS[b.dataset.layout].name}.`); });
   slideEls.show.addEventListener("change", () => { opt.slideView = slideEls.show.checked; saveOptions(); syncSlide(); });
   slideEls.format.addEventListener("change", () => setSlide(withLayout({ ...currentSlide(), format: slideEls.format.value }, currentSlide().layout === "custom" ? "over" : currentSlide().layout), "Slide size changed; the layout was fitted again."));
   for (const k of ["header", "footer"]) slideEls[k].addEventListener("change", () => {
