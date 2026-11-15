@@ -12,7 +12,7 @@
 // - groups (an array whose first item is the group's name) and spacers ({});
 // - head and foot: text, tick (numbered step edges), tock (numbered step middles), every (number every Nth);
 // - edge: arrows between nodes, straight (-), curved (~) or square (-| |- -|-), with < and > heads and a label;
-// - config.hscale (step width in the natural size).
+// - config.hscale (step width in the natural size); our config.slant (how far an edge leans, in px; 0 is square, 5 is WaveDrom's).
 
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const n2 = (v) => String(Math.round(v * 100) / 100);
@@ -89,7 +89,8 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
   const headH = bandHeight(value?.head), footH = bandHeight(value?.foot);
   const top0 = 5 + headH;
   const laneH = Math.max(12, (H - 10 - headH - footH) / Math.max(1, lanes.length));
-  const slope = Math.min(5, stepW * 0.15), lw = 1.6;
+  const cfgSlant = value?.config?.slant, slant = cfgSlant === undefined ? 5 : Math.min(12, Math.max(0, Number(cfgSlant) || 0));   // config.slant: 0 is square edges, 5 is WaveDrom's look
+  const slope = Math.min(slant, stepW * 0.15), lw = 1.6;
   const stroke = `clip-path="url(#plot)" fill="none" stroke="${ink}" stroke-width="${lw}" stroke-linecap="round" stroke-linejoin="round"`;
   const out = [], nodes = new Map();
   const text = (x, y, s, anchor = "middle", size = FONT, extra = "") => `<text x="${n2(x)}" y="${n2(y)}" text-anchor="${anchor}" font-size="${size}" font-family="${FAMILY}" fill="${ink}"${extra}>${esc(s)}</text>`;

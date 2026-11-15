@@ -21,7 +21,7 @@ import { PRESETS, presetById } from "./presets.js";
 import { sections } from "./categories.js";
 import { circuitFromSvg, sanitizeSvg, MAX_SVG_BYTES } from "./svgimport.js";
 import { FORMATS } from "./frame.js";
-import { contentArea, defaultSlide, KINDS, layoutThumb, LAYOUTS as SLIDE_LAYOUTS, nudgeRegion, slideOf, slideSize, slideSvg, withLayout, withSlide } from "./slide.js";
+import { contentArea, defaultSlide, KINDS, layoutThumb, LAYOUTS as SLIDE_LAYOUTS, nudgeRegion, slideOf, slideSize, slideSvg, SPLITS, splitsOf, withLayout, withSlide, withSplit } from "./slide.js";
 import { orient } from "./geometry.js";
 import { migrateBeta } from "./migrate.js";
 import { framesFromSignals, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame } from "./levelframes.js";
@@ -187,6 +187,7 @@ export async function mount(root, options = {}) {
         <label class="form-label">Slide size <select class="form-select form-select-sm" name="fe-slide-format">${Object.entries(FORMATS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("")}</select></label>
         <label class="form-label">Header and footer heights (cm) <span class="fe-pair"><input class="form-control form-control-sm" type="number" name="fe-slide-header" min="0" max="8" step="0.25" aria-label="Header height (cm)"><input class="form-control form-control-sm" type="number" name="fe-slide-footer" min="0" max="5" step="0.25" aria-label="Footer height (cm)"></span></label>
         <label class="form-label">Layout <select class="form-select form-select-sm" name="fe-slide-layout"><option value="custom" disabled>Custom (regions moved by hand)</option>${Object.entries(SLIDE_LAYOUTS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("")}</select></label>
+        <fieldset class="fe-splits"><legend class="label-mono">Dividers</legend>${Object.entries(SPLITS).map(([k, v]) => `<label class="form-label" data-split="${k}">${v.name} (%) <input class="form-control form-control-sm" type="number" min="${v.min}" max="${v.max}" step="1" name="fe-split-${k}" title="${v.hint}"></label>`).join("")}<button type="button" class="${BUTTON}" data-cmd="splitsreset">Reset dividers to the layout's defaults</button></fieldset>
         <ul class="fe-slide-regions" aria-label="Regions"></ul>
         <div class="fe-theme-buttons" role="group" aria-label="Add a region">${btn("addschematic", "+ Schematic")}${btn("addtiming", "+ Timing")}${btn("addtext", "+ Text")}</div>
         <div class="fe-theme-buttons" role="group" aria-label="Export the slide">${btn("slidesvg", "Slide as SVG")}${btn("slidepng", "Slide as PNG")}</div>
@@ -812,6 +813,7 @@ export async function mount(root, options = {}) {
     },
     viewcanvas() { opt.slideView = false; saveOptions(); syncSlide(); },
     viewslide() { opt.slideView = true; saveOptions(); syncSlide(); status("The slide: pick a layout above, drag regions to move them, drag a corner to resize. Canvas goes back to drawing."); },
+    splitsreset() { const s = currentSlide(); if (s.layout in SLIDE_LAYOUTS) setSlide(withLayout(s, s.layout, { reset: true }), "Dividers back to the layout's defaults."); },
     addschematic: () => addRegion("schematic"),
     addtiming: () => addRegion("timing"),
     addtext: () => addRegion("text"),
@@ -1066,6 +1068,12 @@ export async function mount(root, options = {}) {
     const s = currentSlide(), frames = framesOf(doc);
     slideEls.show.checked = opt.slideView;
     slideEls.format.value = s.format; slideEls.layout.value = s.layout;
+    const sp = splitsOf(s);   // a divider is editable only when the layout uses it
+    for (const k of Object.keys(SPLITS)) {
+      const row = $(`[data-split="${k}"]`), inp = row.querySelector("input");
+      row.hidden = !(k in sp);
+      if (document.activeElement !== inp) inp.value = k in sp ? String(Math.round(sp[k])) : "";
+    }
     if (document.activeElement !== slideEls.header) slideEls.header.value = String(s.headerCm);
     if (document.activeElement !== slideEls.footer) slideEls.footer.value = String(s.footerCm);
     const key = JSON.stringify([s.regions.map((r) => [r.id, r.kind, r.label, r.frame]), frames.length]);
@@ -1124,14 +1132,19 @@ export async function mount(root, options = {}) {
     slideView.addEventListener("pointermove", move);
     slideView.addEventListener("pointerup", up, { once: true });
   });
-  slideBar.addEventListener("click", (e) => { const b = e.target.closest("[data-layout]"); if (b) setSlide(withLayout(currentSlide(), b.dataset.layout), `Layout: ${SLIDE_LAYOUTS[b.dataset.layout].name}.`); });
+  slideBar.addEventListener("click", (e) => { const b = e.target.closest("[data-layout]"); if (b) setSlide(withLayout(currentSlide(), b.dataset.layout, { reset: true }), `Layout: ${SLIDE_LAYOUTS[b.dataset.layout].name}.`); });
+  for (const k of Object.keys(SPLITS)) $(`[name="fe-split-${k}"]`).addEventListener("change", (e) => {
+    const s = currentSlide();
+    if (!(s.layout in SLIDE_LAYOUTS)) return status("Pick a layout first: dividers belong to a layout.");
+    setSlide(withSplit(s, k, Number(e.target.value)), `${SPLITS[k].name} set.`);
+  });
   slideEls.show.addEventListener("change", () => { opt.slideView = slideEls.show.checked; saveOptions(); syncSlide(); });
   slideEls.format.addEventListener("change", () => setSlide(withLayout({ ...currentSlide(), format: slideEls.format.value }, currentSlide().layout === "custom" ? "over" : currentSlide().layout), "Slide size changed; the layout was fitted again."));
   for (const k of ["header", "footer"]) slideEls[k].addEventListener("change", () => {
     const s = { ...currentSlide(), [`${k}Cm`]: Number(slideEls[k].value) || 0 };
     setSlide(s.layout === "custom" ? s : withLayout(s, s.layout), `${k === "header" ? "Header" : "Footer"} height changed.`);
   });
-  slideEls.layout.addEventListener("change", () => setSlide(withLayout(currentSlide(), slideEls.layout.value), `Layout: ${SLIDE_LAYOUTS[slideEls.layout.value].name}.`));
+  slideEls.layout.addEventListener("change", () => setSlide(withLayout(currentSlide(), slideEls.layout.value, { reset: true }), `Layout: ${SLIDE_LAYOUTS[slideEls.layout.value].name}.`));
   regionsEl.addEventListener("change", (e) => {
     const li = e.target.closest("[data-r]"), f = e.target.dataset.f;
     if (!li || !f) return;

@@ -4,7 +4,7 @@
 import { parseSource, tidy } from "./wave.js";
 import { drawTiming, naturalSize, lanesOf, stepsOf } from "./draw.js";
 import { nodesOf, unknownNames, framesIn } from "./nodes.js";
-import { addEdge, addSignal, addSpacer, cellsOf, dataAt, EDGE_OPS, edgesOf, empty, fromWaveDrom, isClock, LABEL, moveSignal, nextLetter, nextValue, nodeLetters, removeEdge, removeSignal, setBand, setCell, setClock, setDelay, setEdge, setHscale, setNode, setProp, setSteps, stepCount, toWaveDrom, WAVE } from "./model.js";
+import { addEdge, addSignal, addSpacer, cellsOf, dataAt, EDGE_OPS, edgesOf, empty, fromWaveDrom, isClock, LABEL, moveSignal, nextLetter, nextValue, nodeLetters, removeEdge, removeSignal, setBand, setCell, setClock, setDelay, setEdge, setHscale, setNode, setProp, setSlant, setSteps, slantOf, stepCount, toWaveDrom, WAVE } from "./model.js";
 import { dockShell, pageShell } from "./shell.js";
 
 const store = {
@@ -74,6 +74,8 @@ export function mount(root, { docked = false, onSend = null } = {}) {
       wIn.value = Math.round(Math.max(natural.w, room > 0 ? room : 0)); hIn.value = Math.round(natural.h * (room > natural.w ? Math.min(2, room / natural.w) : 1));
     }
     if (document.activeElement !== hsIn) hsIn.value = String(value.config?.hscale ?? 1);
+    if (document.activeElement !== slantIn) slantIn.value = String(slantOf(value));
+    for (const p of root.querySelectorAll("[data-slant]")) p.setAttribute("aria-pressed", String(Number(p.dataset.slant) === slantOf(value)));
     if (!docked) root.dataset.canvas = siteIsDark() ? "dark" : "light";   // standalone: follow the site's look, as the editor's canvas does
     // The size is a layout input: steps and lanes are re-spaced to fit it, nothing is stretched.
     view.innerHTML = value.signal.length ? drawNow(!!root.closest('[data-canvas="dark"]')) : `<p class="fe-hint td-emptynote">No signals yet: add a node in the Edit view.</p>`;
@@ -90,10 +92,27 @@ export function mount(root, { docked = false, onSend = null } = {}) {
 
   // ---- Edit: the brushes (what a click sets) ----
   const brushes = $(".td-brushes");
+  const showSub = (name) => {
+    for (const t of root.querySelectorAll("[data-sub-tab]")) t.setAttribute("aria-selected", String(t.dataset.subTab === name));
+    for (const p of root.querySelectorAll("[data-sub]")) p.hidden = p.dataset.sub !== name;
+  };
+  root.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-sub-tab]");
+    if (t) showSub(t.dataset.subTab);
+    if (e.target.closest("[data-do=place-nodes]")) { brush = "node"; renderBrushes(); showSub("signals"); say("Click a step on one signal, then a step on another: each gets a letter."); }
+    const p = e.target.closest("[data-slant]");
+    if (p) commit(setSlant(value, p.dataset.slant));
+  });
+  const BRUSH_GROUPS = [
+    ["Levels", ["0", "1", "x", "z"]], ["Sharp and weak", ["h", "l", "u", "d"]], ["Data", ["=", "3", "4", "5", "6", "7", "8", "9"]],
+    ["Clocks", ["p", "n", "P", "N"]], ["Marks", ["|", "."]],
+  ];
   function renderBrushes() {
-    const b = (v, label, title) => `<button type="button" class="td-brush v-${v === "=" ? "data" : v === "|" ? "gap" : v === "." ? "hold" : v}" data-brush="${esc(v)}" aria-pressed="${brush === v}" title="${esc(title)}">${esc(label)}</button>`;
-    brushes.innerHTML = `<span class="label-mono">Click sets</span>${b("cycle", "Cycle", "Each click steps through 0, 1, X, Z, data")}` +
-      WAVE.map(([v, t]) => b(v, LABEL[v] ?? v, t)).join("") + b("node", "• node", "Put an edge node (a letter) on a step, or take it off");
+    const title = Object.fromEntries(WAVE);
+    const b = (v, label, t) => `<button type="button" class="td-brush v-${v === "=" ? "data" : v === "|" ? "gap" : v === "." ? "hold" : v}" data-brush="${esc(v)}" aria-pressed="${brush === v}" title="${esc(t)}">${esc(label)}</button>`;
+    brushes.innerHTML = `<div class="td-bgroup"><span class="label-mono">Click does</span>${b("cycle", "Cycle", "Each click steps through 0, 1, X, Z, data")}</div>` +
+      BRUSH_GROUPS.map(([name, vs]) => `<div class="td-bgroup"><span class="label-mono">${name}</span>${vs.map((v) => b(v, LABEL[v] ?? v, title[v] ?? v)).join("")}</div>`).join("") +
+      `<div class="td-bgroup"><span class="label-mono">Arrows</span>${b("node", "• node", "Put a letter on a step so an arrow can join it to another")}</div>`;
   }
   brushes.addEventListener("click", (e) => { const t = e.target.closest("[data-brush]"); if (t) { brush = t.dataset.brush; renderBrushes(); } });
 
@@ -183,7 +202,7 @@ export function mount(root, { docked = false, onSend = null } = {}) {
   });
 
   // ---- head, foot and step width ----
-  const hsIn = $("[data-size=hscale]");
+  const hsIn = $("[data-size=hscale]"), slantIn = $("[data-look=slant]");
   function renderBands() {
     for (const i of root.querySelectorAll("[data-band]")) {
       if (i === document.activeElement) continue;
@@ -195,6 +214,7 @@ export function mount(root, { docked = false, onSend = null } = {}) {
     const i = e.target;
     if (i.dataset?.band) commit(setBand(value, i.dataset.band, { [i.dataset.key]: i.type === "checkbox" ? i.checked : i.value }));
     if (i === hsIn) commit(setHscale(value, i.value));
+    if (i === slantIn) commit(setSlant(value, i.value));
   });
 
   root.addEventListener("click", (e) => {

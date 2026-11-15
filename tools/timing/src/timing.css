@@ -89,3 +89,26 @@
 .td-band { border: 0; padding: 0; margin: 0 0 .5rem; display: grid; gap: .3rem; }
 .td-source { min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: .5rem; padding: .5rem .75rem; }
 .fe .td-srctext { height: 100%; min-height: 12rem; resize: none; border-radius: 0; font-family: var(--bs-font-monospace); font-size: .8rem; line-height: 1.4; background: var(--role-surface); color: inherit; border-color: var(--role-rule); }
+
+/* ---- the Edit view in four steps ---- */
+.td-subtabs { display: flex; gap: 0; border-bottom: 1px solid var(--role-rule); margin: -.5rem -.75rem .25rem; padding: 0 .75rem; position: sticky; top: -.5rem; background: var(--role-background); z-index: 1; }
+.td-subtabs button { padding: .45rem .8rem; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--role-muted); font: inherit; font-size: .8rem; cursor: pointer; }
+.td-subtabs button b { display: inline-grid; place-items: center; width: 1.2rem; height: 1.2rem; margin-right: .3rem; border: 1px solid currentColor; border-radius: 50%; font-size: .7rem; font-weight: 600; }
+.td-subtabs button:hover { color: var(--role-ink); }
+.td-subtabs button[aria-selected="true"] { color: var(--role-ink); border-bottom-color: var(--role-accent); }
+.td-subtabs button[aria-selected="true"] b { background: var(--role-accent); border-color: var(--role-accent); color: var(--role-background); }
+.td-sub { display: grid; gap: .6rem; align-content: start; }
+.td-sub[hidden] { display: none; }
+.td-help { margin: 0; color: var(--role-muted); font-size: .8rem; }
+.td-steps-help { margin: 0; padding-left: 1.2rem; font-size: .8rem; display: grid; gap: .2rem; }
+.td-bgroup { display: inline-flex; align-items: center; gap: 2px; margin: 0 .6rem .3rem 0; padding-right: .6rem; border-right: 1px solid var(--role-rule); }
+.td-bgroup:last-child { border-right: 0; }
+.td-bgroup .label-mono { margin-right: .3rem; font-size: .6rem; }
+.td-brushes { display: flex; flex-wrap: wrap; align-items: center; row-gap: .1rem; }
+.td-bands { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }
+.td-presets { display: flex; gap: .5rem; }
+.td-preset { display: grid; justify-items: center; gap: .2rem; width: 6.5rem; padding: .4rem; border: 1px solid var(--role-rule); background: var(--role-background); color: var(--role-ink); font-size: .75rem; cursor: pointer; }
+.td-preset svg { width: 100%; height: 1.6rem; }
+.td-preset:hover { border-color: var(--role-accent); }
+.td-preset[aria-pressed="true"] { border-color: var(--role-accent); box-shadow: inset 0 0 0 1px var(--role-accent); }
+.td-band .form-control { max-width: 12rem; }

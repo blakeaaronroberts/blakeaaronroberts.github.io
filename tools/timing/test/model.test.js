@@ -97,3 +97,17 @@ Deno.test("the drawing has every WaveDrom feature: colours, gaps, clock arrows, 
   assert((s.match(/ C /g) ?? []).length >= 1, "a curved edge");
   eq(parseEdge("a<->b  hold").label, "hold");
 });
+
+import { setSlant, slantOf } from "../src/model.js";
+Deno.test("edge slant: 0 gives square vertical edges, 5 (the default) the slanted WaveDrom look, both drawn", () => {
+  const v = { signal: [{ name: "D", wave: "0.1.0" }] };
+  assert(slantOf(v) === 5 && slantOf(setSlant(v, 0)) === 0 && setSlant(v, 5).config.slant === undefined);
+  const xs = (svg) => [...svg.matchAll(/ L ([\d.]+) /g)].map((m) => +m[1]);
+  const sq = drawTiming(setSlant(v, 0), {}).svg, sl = drawTiming(v, {}).svg;
+  assert(sq !== sl);
+  const pts = (svg) => / d="(M [^"]*)"/.exec(svg)[1].split(/ [ML] /).map((p) => p.replace(/^M /, "").split(" ").map(Number));
+  const vertical = (svg) => pts(svg).some((p, i, a) => i && p[0] === a[i - 1][0] && p[1] !== a[i - 1][1]);
+  assert(vertical(sq), "square: the edge is vertical");
+  assert(!vertical(sl), "slanted: the edge leans");
+  assert(xs(sq).length > 0);
+});

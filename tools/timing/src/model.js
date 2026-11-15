@@ -214,3 +214,12 @@ export function fromWaveDrom(v) {
   for (const x of lanes(v)) walk(x, []);
   return { ...clone(v), signal: flat };
 }
+
+/** How far an edge leans, in px: 0 draws square, vertical edges; 5 is WaveDrom's slanted look (the default). */
+export function setSlant(v, x) {
+  const d = clone(v), k = Math.round(Math.max(0, Math.min(12, Number(x) || 0)) * 10) / 10;
+  d.config = { ...(d.config ?? {}) };
+  if (x === "" || x === null || k === 5) delete d.config.slant; else d.config.slant = k;
+  return d;
+}
+export const slantOf = (v) => (v?.config?.slant === undefined ? 5 : Number(v.config.slant) || 0);

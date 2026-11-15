@@ -31,28 +31,59 @@ export function contentArea(s) {
 
 const R = (id, kind, x, y, w, h, extra = {}) => ({ id, kind, label: KINDS[kind], x, y, w, h, ...extra });
 
-/** Six layouts from common slide practice. Each fills the content area with a one-module gap. */
+/**
+ * Layouts from common slide practice. Each fills the content area with a one-module gap. The dividers are percentages that
+ * every layout gives a default (`defaults`) and the user can change (saved in the slide's `splits`):
+ * h is the height of the top part, v the width of the left part, c the height of a caption strip.
+ */
 export const LAYOUTS = {
-  over: { name: "Schematic over timing diagram", make: (a) => { const t = Math.round(a.h * 0.6); return [R("r1", "schematic", a.x, a.y, a.w, t - 1), R("r2", "timing", a.x, a.y + t, a.w, a.h - t)]; } },
-  side: { name: "Schematic and timing diagram side by side", make: (a) => { const l = Math.round(a.w * 0.55); return [R("r1", "schematic", a.x, a.y, l - 1, a.h), R("r2", "timing", a.x + l, a.y, a.w - l, a.h)]; } },
-  caption: { name: "Large schematic with a caption strip", make: (a) => { const c = Math.max(3, Math.round(a.h * 0.18)); return [R("r1", "schematic", a.x, a.y, a.w, a.h - c - 1), R("r2", "text", a.x, a.y + a.h - c, a.w, c, { label: "Caption" })]; } },
-  diagram: { name: "Timing diagram only", make: (a) => [R("r1", "timing", a.x, a.y, a.w, a.h)] },
+  over: { name: "Schematic over timing diagram", defaults: { h: 60 }, uses: ["h"], make: (a, p) => { const t = Math.round(a.h * p.h / 100); return [R("r1", "schematic", a.x, a.y, a.w, t - 1), R("r2", "timing", a.x, a.y + t, a.w, a.h - t)]; } },
+  side: { name: "Schematic and timing diagram side by side", defaults: { v: 55 }, uses: ["v"], make: (a, p) => { const l = Math.round(a.w * p.v / 100); return [R("r1", "schematic", a.x, a.y, l - 1, a.h), R("r2", "timing", a.x + l, a.y, a.w - l, a.h)]; } },
+  textover: {
+    name: "Text and schematic on top, timing diagram across the bottom", defaults: { h: 62, v: 40 }, uses: ["h", "v"],
+    make: (a, p) => { const t = Math.round(a.h * p.h / 100), l = Math.round(a.w * p.v / 100); return [R("r1", "text", a.x, a.y, l - 1, t - 1, { label: "Text" }), R("r2", "schematic", a.x + l, a.y, a.w - l, t - 1), R("r3", "timing", a.x, a.y + t, a.w, a.h - t)]; },
+  },
+  schemover: {
+    name: "Schematic and text on top, timing diagram across the bottom", defaults: { h: 62, v: 60 }, uses: ["h", "v"],
+    make: (a, p) => { const t = Math.round(a.h * p.h / 100), l = Math.round(a.w * p.v / 100); return [R("r1", "schematic", a.x, a.y, l - 1, t - 1), R("r2", "text", a.x + l, a.y, a.w - l, t - 1, { label: "Text" }), R("r3", "timing", a.x, a.y + t, a.w, a.h - t)]; },
+  },
+  caption: { name: "Large schematic with a caption strip", defaults: { c: 18 }, uses: ["c"], make: (a, p) => { const c = Math.max(3, Math.round(a.h * p.c / 100)); return [R("r1", "schematic", a.x, a.y, a.w, a.h - c - 1), R("r2", "text", a.x, a.y + a.h - c, a.w, c, { label: "Caption" })]; } },
+  diagram: { name: "Timing diagram only", defaults: {}, uses: [], make: (a) => [R("r1", "timing", a.x, a.y, a.w, a.h)] },
   grid: {
-    name: "Four frames, 2 by 2", make: (a) => {
+    name: "Four frames, 2 by 2", defaults: {}, uses: [], make: (a) => {
       const w = Math.floor((a.w - 1) / 2), h = Math.floor((a.h - 1) / 2);
       return [0, 1, 2, 3].map((i) => R(`r${i + 1}`, "schematic", a.x + (i % 2) * (w + 1), a.y + Math.floor(i / 2) * (h + 1), w, h, { label: `Frame ${i + 1}`, frame: i }));
     },
   },
-  textleft: { name: "Text left, figure right", make: (a) => { const l = Math.round(a.w * 0.4); return [R("r1", "text", a.x, a.y, l - 1, a.h, { label: "Text" }), R("r2", "schematic", a.x + l, a.y, a.w - l, a.h)]; } },
+  textleft: { name: "Text left, figure right", defaults: { v: 40 }, uses: ["v"], make: (a, p) => { const l = Math.round(a.w * p.v / 100); return [R("r1", "text", a.x, a.y, l - 1, a.h, { label: "Text" }), R("r2", "schematic", a.x + l, a.y, a.w - l, a.h)]; } },
 };
 
-export const defaultSlide = () => withLayout({ format: "16:9", headerCm: 3, footerCm: 1, layout: "over", regions: [] }, "over");
+/** What each divider is called, its allowed range (percent) and what it measures. */
+export const SPLITS = {
+  h: { name: "Top part height", min: 25, max: 80, hint: "% of the content height" },
+  v: { name: "Left part width", min: 20, max: 80, hint: "% of the content width" },
+  c: { name: "Caption strip height", min: 8, max: 40, hint: "% of the content height" },
+};
 
-/** The slide with a layout's regions (replacing the regions it had). */
-export function withLayout(s, layout) {
-  const L = LAYOUTS[layout] ?? LAYOUTS.over;
-  return { ...s, layout: layout in LAYOUTS ? layout : "over", regions: L.make(contentArea(s)) };
+export const defaultSlide = () => withLayout({ format: "16:9", headerCm: 3, footerCm: 1, layout: "over", splits: {}, regions: [] }, "over");
+
+/** The dividers a layout uses, as percentages: its defaults, overridden by the slide's own (kept inside their ranges). */
+export function splitsOf(s, layout = s.layout) {
+  const L = LAYOUTS[layout];
+  const out = { ...(L?.defaults ?? {}) };
+  for (const k of L?.uses ?? []) { const v = Number(s.splits?.[k]); if (Number.isFinite(v)) out[k] = Math.min(SPLITS[k].max, Math.max(SPLITS[k].min, v)); }
+  return out;
 }
+
+/** The slide with a layout's regions (replacing the regions it had). The slide's own dividers are kept; `reset` drops them for the layout's defaults. */
+export function withLayout(s, layout, { reset = false } = {}) {
+  const id = layout in LAYOUTS ? layout : "over", L = LAYOUTS[id];
+  const base = { ...s, layout: id, splits: reset ? {} : (s.splits ?? {}) };
+  return { ...base, regions: L.make(contentArea(base), splitsOf(base, id)) };
+}
+
+/** Change one divider (percent) and lay the layout out again. */
+export const withSplit = (s, key, value) => withLayout({ ...s, splits: { ...(s.splits ?? {}), [key]: value } }, s.layout in LAYOUTS ? s.layout : "over");
 
 const num = (v, lo, hi, d) => (Number.isFinite(+v) ? Math.min(hi, Math.max(lo, +v)) : d);
 
@@ -60,7 +91,8 @@ const num = (v, lo, hi, d) => (Number.isFinite(+v) ? Math.min(hi, Math.max(lo, +
 export function cleanSlide(raw) {
   const d = defaultSlide();
   if (!raw || typeof raw !== "object") return d;
-  const s = { format: raw.format in FORMATS ? raw.format : d.format, headerCm: num(raw.headerCm, 0, 8, d.headerCm), footerCm: num(raw.footerCm, 0, 5, d.footerCm), layout: raw.layout in LAYOUTS ? raw.layout : "custom" };
+  const s = { format: raw.format in FORMATS ? raw.format : d.format, headerCm: num(raw.headerCm, 0, 8, d.headerCm), footerCm: num(raw.footerCm, 0, 5, d.footerCm), layout: raw.layout in LAYOUTS ? raw.layout : "custom", splits: {} };
+  for (const k of Object.keys(SPLITS)) if (Number.isFinite(+raw.splits?.[k])) s.splits[k] = num(raw.splits[k], SPLITS[k].min, SPLITS[k].max, 0);
   const { w, h } = slideSize(s.format);
   const ids = new Set();
   s.regions = (Array.isArray(raw.regions) ? raw.regions : d.regions).filter((r) => r && r.kind in KINDS).slice(0, 12).map((r, i) => {

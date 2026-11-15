@@ -177,3 +177,5 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 .fe-toolbar { column-gap: .3rem; }
 .fe-group { padding-right: .3rem; }
 .fe .fe-toolbar .fe-btn { --bs-btn-padding-x: .35rem; }
+.fe-splits { border: 1px solid var(--role-rule); padding: .4rem .5rem; margin: .4rem 0; display: grid; gap: .3rem; }
+.fe-splits legend { float: none; width: auto; padding: 0 .3rem; margin: 0; font-size: .7rem; }
