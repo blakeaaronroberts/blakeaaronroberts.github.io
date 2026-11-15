@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="0.69999cm" height="0.95007cm" viewBox="-0.69999 -0.7 1.39998 1.90013" version="1.1">
+  <g class="body">
+    <g transform="matrix(0.07387996 0 0 0.07387996 -1.04687333 -0.03894915)">
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:round;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M -7.087247 0.00180759 L 7.085691 0.00180759 L 0.00126702 -14.175221 Z M -7.087247 0.00180759 " transform="matrix(0.955,0,0,-0.955,14.170665,0.52907)" />
+    </g>
+  </g>
+  <g class="leads">
+    <path class="lead" data-pin="1" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M 0 0 L 0 -0.5" />
+  </g>
+</svg>

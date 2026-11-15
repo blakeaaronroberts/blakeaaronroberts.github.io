@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="5.45cm" height="3.19983cm" viewBox="-5.7 -3.19991 10.9 6.39966" version="1.1">
+  <g class="body">
+    <g transform="matrix(0.0708577 0 0 0.0708577 -5.20632055 -3.11022952)">
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:round;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M -52.32994 42.51922 L -23.722659 42.51922 C 7.509178 43.397995 36.716693 27.070033 52.326727 0.00453272 C 36.720617 -27.060967 7.509178 -43.392853 -23.722659 -42.514077 L -61.31385 -42.518 C -48.928608 -15.817349 -48.928608 15.818568 -61.31385 42.51922 Z M -52.32994 42.51922 " transform="matrix(0.995704,0,0,-0.995704,71.304334,43.891232)" />
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:round;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M -64.036485 -42.518 C -51.651243 -15.817349 -51.651243 15.818568 -64.036485 42.51922 " transform="matrix(0.995704,0,0,-0.995704,71.304334,43.891232)" />
+    </g>
+  </g>
+  <g class="leads">
+    <path class="lead" data-pin="A" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -4.5 -2.5 L -5.5 -2.5" />
+    <path class="lead" data-pin="B" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -4.21729 -1.5 L -5.5 -1.5" />
+    <path class="lead" data-pin="C" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -4.05909 -0.5 L -5.5 -0.5" />
+    <path class="lead" data-pin="D" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -4.05909 0.5 L -5.5 0.5" />
+    <path class="lead" data-pin="E" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -4.21729 1.5 L -5.5 1.5" />
+    <path class="lead" data-pin="F" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -4.5 2.5 L -5.5 2.5" />
+    <path class="lead" data-pin="Y" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M 3.53837 0 L 5 0" />
+  </g>
+</svg>

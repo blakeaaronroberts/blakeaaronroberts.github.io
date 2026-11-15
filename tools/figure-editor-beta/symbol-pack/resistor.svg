@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="2.2cm" height="0.38408cm" viewBox="-2.2 -0.38423 4.4 0.76816" version="1.1">
+  <g class="body">
+    <g transform="matrix(0.07815066 0 0 0.07815066 -1.7006949 -0.2229678)">
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:round;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M -14.7199 0.000623813 L -12.72969 2.609529 L -9.83956 -2.608281 L -6.949429 2.609529 L -4.059298 -2.608281 L -1.169168 2.609529 L 1.716636 -2.608281 L 4.606767 2.609529 L 7.496897 -2.608281 L 10.387028 2.609529 L 13.277158 -2.608281 L 14.722223 0.000623813 " transform="matrix(0.902857,0,0,-0.902857,21.762623,2.852126)" />
+    </g>
+    <circle cx="-1.03855" cy="-0.00015" r="0.03866" fill="#000000" />
+    <circle cx="1.03885" cy="-0.00015" r="0.03866" fill="#000000" />
+  </g>
+  <g class="leads">
+    <path class="lead" data-pin="1" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -1.03855 0 L -2 0" />
+    <path class="lead" data-pin="2" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M 1.03885 0 L 2 0" />
+  </g>
+</svg>

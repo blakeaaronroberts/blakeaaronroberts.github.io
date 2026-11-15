@@ -1,0 +1,61 @@
+{
+  "schema": "circuit/0.2",
+  "id": "full_adder_levels",
+  "title": "Full adder from gates, with labels and levels (sample)",
+  "grid_cm": 0.25,
+  "elements": [
+    { "id": "xor1", "type": "xor_gate", "at": [0, 24] },
+    { "id": "and1", "type": "and_gate", "at": [0, 12] },
+    { "id": "and2", "type": "and_gate", "at": [0, 0] },
+    { "id": "and3", "type": "and_gate", "at": [0, -12] },
+    { "id": "xor2", "type": "xor_gate", "at": [20, 22] },
+    { "id": "or1", "type": "or_gate", "at": [20, 6] },
+    { "id": "or2", "type": "or_gate", "at": [36, -2] }
+  ],
+  "ports": [
+    { "id": "A", "dir": "in", "at": [-40, 13], "label": "$A$", "side": "left" },
+    { "id": "B", "dir": "in", "at": [-40, 7], "label": "$B$", "side": "left" },
+    { "id": "Cin", "dir": "in", "at": [-40, -1], "label": "$C_{\\mathrm{in}}$", "side": "left" },
+    { "id": "S", "dir": "out", "at": [48, 22], "label": "$S$", "side": "right" },
+    { "id": "Cout", "dir": "out", "at": [48, -2], "label": "$C_{\\mathrm{out}}$", "side": "right" }
+  ],
+  "nets": {
+    "A": ["A", "and1.A", "and3.A", "xor1.A"],
+    "B": ["B", "and1.B", "and2.A", "xor1.B"],
+    "Cin": ["Cin", "and2.B", "and3.B", "xor2.B"],
+    "Cout": ["Cout", "or2.Y"],
+    "S": ["S", "xor2.Y"],
+    "n1": ["and1.Y", "or1.A"],
+    "n2": ["and2.Y", "or1.B"],
+    "n3": ["and3.Y", "or2.B"],
+    "n4": ["or1.Y", "or2.A"],
+    "n5": ["xor1.Y", "xor2.A"]
+  },
+  "wires": [
+    { "id": "w1", "from": "xor1.A", "to": "and3.A", "via": [[-30, 25], [-30, -11]], "level": "1" },
+    { "id": "w2", "from": "xor1.B", "to": "and2.A", "via": [[-26, 23], [-26, 1]], "level": "0" },
+    { "id": "w3", "from": "xor2.B", "to": "and3.B", "via": [[-22, 21], [-22, -13]], "level": "1" },
+    { "id": "w4", "from": "A", "to": "j1", "level": "1" },
+    { "id": "w5", "from": "j1", "to": "and1.A", "level": "1" },
+    { "id": "w6", "from": "Cin", "to": "j2", "level": "1" },
+    { "id": "w7", "from": "j2", "to": "and2.B", "level": "1" },
+    { "id": "w8", "from": "B", "to": "j3", "level": "0" },
+    { "id": "w9", "from": "j4", "to": "and1.B", "level": "0" },
+    { "id": "w10", "from": "xor1.Y", "to": "xor2.A", "level": "1" },
+    { "id": "w11", "from": "xor2.Y", "to": "S", "level": "0" },
+    { "id": "w12", "from": "and1.Y", "to": "or1.A", "level": "0" },
+    { "id": "w13", "from": "and2.Y", "to": "or1.B", "level": "0" },
+    { "id": "w14", "from": "or1.Y", "to": "or2.A", "level": "0" },
+    { "id": "w15", "from": "and3.Y", "to": "or2.B", "level": "1" },
+    { "id": "w16", "from": "or2.Y", "to": "Cout", "level": "1" }
+  ],
+  "junctions": [
+    { "id": "j1", "on": "w1", "at": [-30, 13] },
+    { "id": "j2", "on": "w3", "at": [-22, -1] },
+    { "id": "j3", "on": "w2", "at": [-26, 7] },
+    { "id": "j4", "on": "w2", "at": [-26, 11] }
+  ],
+  "labels": [
+    { "text": "$A \\oplus B$", "at": [8, 24], "side": "up" }
+  ]
+}

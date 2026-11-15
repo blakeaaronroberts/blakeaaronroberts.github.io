@@ -405,3 +405,4 @@ approves them.
   The labelled sample is `examples/full-adder-levels.*`. Labels load MathJax 4.1.3 and its font
   data from jsDelivr on first use. A reference page for the key list (`KEYS` in `src/app.js`) and
   the private-theme file format is the Scribe's.
+- 2026-11-15 (Blake authorized Copilot): `tools/figure-editor-beta/` is now a copy of the current stable editor plus Shift-click straight wire legs, using draft `circuit/0.3`; ordinary clicks still route orthogonally. The stable editor stays orthogonal. Beta storage uses separate `figure-editor-beta/*` keys. Scribe: update the beta README/proposal. Blake explicitly authorized Copilot to make this change.

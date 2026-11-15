@@ -1,0 +1,85 @@
+{
+  "pack": "symbols/0.3",
+  "type": "decoder",
+  "variant": {},
+  "description": "k-to-2^k decoder (option k = 1 to 3 address bits): inputs A.., outputs Y0...; replaces decoder2to4",
+  "status": "draft",
+  "mirrorable": false,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "decoder.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-8.2, -2.98353, 16.4, 5.18354]
+  },
+  "bbox": {
+    "min": [-16.0, -4.0],
+    "max": [16.0, 5.567]
+  },
+  "pins": {
+    "A1": {
+      "tip": [-16, 2],
+      "direction": "left",
+      "lead": {
+        "from": [-14.0, 2.0],
+        "length": 2.0
+      }
+    },
+    "A0": {
+      "tip": [-16, -2],
+      "direction": "left",
+      "lead": {
+        "from": [-14.0, -2.0],
+        "length": 2.0
+      }
+    },
+    "Y0": {
+      "tip": [16, 3],
+      "direction": "right",
+      "lead": {
+        "from": [14.0, 3.0],
+        "length": 2.0
+      }
+    },
+    "Y1": {
+      "tip": [16, 1],
+      "direction": "right",
+      "lead": {
+        "from": [14.0, 1.0],
+        "length": 2.0
+      }
+    },
+    "Y2": {
+      "tip": [16, -1],
+      "direction": "right",
+      "lead": {
+        "from": [14.0, -1.0],
+        "length": 2.0
+      }
+    },
+    "Y3": {
+      "tip": [16, -3],
+      "direction": "right",
+      "lead": {
+        "from": [14.0, -3.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": null,
+  "parameters": [
+    {
+      "name": "k",
+      "default": 2,
+      "values": [1, 2, 3],
+      "files": {
+        "1": "decoder--k1",
+        "2": "decoder",
+        "3": "decoder--k3"
+      }
+    }
+  ],
+  "superseded_by": null
+}

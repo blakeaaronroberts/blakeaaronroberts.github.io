@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="5.7cm" height="3.19998cm" viewBox="-5.2 -3.19992 11.4 6.39995" version="1.1">
+  <g class="body">
+    <g transform="matrix(0.07064285 0 0 0.07064285 -4.70785413 -3.10054285)">
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:round;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M -52.331081 42.518434 L -23.725011 42.518434 C 7.509344 43.398441 36.71773 27.069436 52.327085 0.00435419 C 36.71773 -27.060727 7.509344 -43.389732 -23.7211 -42.517548 L -61.314967 -42.521459 C -48.92839 -15.816203 -48.92839 15.817089 -61.314967 42.518434 Z M -52.331081 42.518434 " transform="matrix(0.99875,0,0,-0.99875,68.824261,43.891067)" />
+      <path style=" stroke:none;fill-rule:nonzero;fill:rgb(100%,100%,100%);fill-opacity:1;" d="M 134.171875 43.890625 C 134.171875 40.277344 131.242188 37.351562 127.628906 37.351562 C 124.019531 37.351562 121.089844 40.277344 121.089844 43.890625 C 121.089844 47.503906 124.019531 50.429688 127.628906 50.429688 C 131.242188 50.429688 134.171875 47.503906 134.171875 43.890625 Z M 134.171875 43.890625 " />
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:miter;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M 65.429401 0.000443054 C 65.429401 3.618247 62.496046 6.54769 58.878243 6.54769 C 55.26435 6.54769 52.330996 3.618247 52.330996 0.000443054 C 52.330996 -3.61736 55.26435 -6.546804 58.878243 -6.546804 C 62.496046 -6.546804 65.429401 -3.61736 65.429401 0.000443054 Z M 65.429401 0.000443054 " transform="matrix(0.99875,0,0,-0.99875,68.824261,43.891067)" />
+    </g>
+  </g>
+  <g class="leads">
+    <path class="lead" data-pin="A" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -4 -2.5 L -5 -2.5" />
+    <path class="lead" data-pin="B" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -3.71729 -1.5 L -5 -1.5" />
+    <path class="lead" data-pin="C" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -3.55909 -0.5 L -5 -0.5" />
+    <path class="lead" data-pin="D" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -3.55909 0.5 L -5 0.5" />
+    <path class="lead" data-pin="E" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -3.71729 1.5 L -5 1.5" />
+    <path class="lead" data-pin="F" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -4 2.5 L -5 2.5" />
+    <path class="lead" data-pin="Y" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M 4.7704 0 L 6 0" />
+  </g>
+</svg>

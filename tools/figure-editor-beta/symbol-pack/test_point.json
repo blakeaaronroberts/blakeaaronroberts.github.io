@@ -1,0 +1,37 @@
+{
+  "pack": "symbols/0.3",
+  "type": "test_point",
+  "variant": {},
+  "description": "Test point: a small open circle on the end of a wire; optional label above",
+  "status": "draft",
+  "mirrorable": true,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "test_point.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-0.49995, -0.79995, 0.9999, 1.99995]
+  },
+  "bbox": {
+    "min": [-0.6, -2.0],
+    "max": [0.6, 1.2]
+  },
+  "pins": {
+    "P": {
+      "tip": [0, -2],
+      "direction": "down",
+      "lead": {
+        "from": [0.0, 0.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": {
+    "anchor": [0.0, 1.2],
+    "direction": "up"
+  },
+  "parameters": [],
+  "superseded_by": null
+}

@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="3.45cm" height="1.69994cm" viewBox="-3.2 -1.69996 6.9 3.39989" version="1.1">
+  <g class="body">
+    <g transform="matrix(0.07117437 0 0 0.07117437 -2.5343782 -1.53865371)">
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:round;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M -26.164108 21.261379 L 4.908007 21.261379 C 16.647237 21.261379 26.163935 11.740741 26.163935 0.00151105 C 26.163935 -11.74166 16.647237 -21.258357 4.908007 -21.258357 L -26.164108 -21.258357 Z M -26.164108 21.261379 " transform="matrix(0.991268,0,0,-0.991268,33.447352,21.618685)" />
+      <path style=" stroke:none;fill-rule:nonzero;fill:rgb(100%,100%,100%);fill-opacity:1;" d="M 65.875 21.617188 C 65.875 19.828125 64.421875 18.375 62.628906 18.375 C 60.835938 18.375 59.382812 19.828125 59.382812 21.617188 C 59.382812 23.410156 60.835938 24.863281 62.628906 24.863281 C 64.421875 24.863281 65.875 23.410156 65.875 21.617188 Z M 65.875 21.617188 " />
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:miter;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M 32.713314 0.00151105 C 32.713314 1.806334 31.247388 3.27226 29.438624 3.27226 C 27.629861 3.27226 26.163935 1.806334 26.163935 0.00151105 C 26.163935 -1.807253 27.629861 -3.273179 29.438624 -3.273179 C 31.247388 -3.273179 32.713314 -1.807253 32.713314 0.00151105 Z M 32.713314 0.00151105 " transform="matrix(0.991268,0,0,-0.991268,33.447352,21.618685)" />
+    </g>
+  </g>
+  <g class="leads">
+    <path class="lead" data-pin="A" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -2 -1 L -3 -1" />
+    <path class="lead" data-pin="B" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -2 0 L -3 0" />
+    <path class="lead" data-pin="C" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -2 1 L -3 1" />
+    <path class="lead" data-pin="Y" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M 2.15426 0 L 3.5 0" />
+  </g>
+</svg>

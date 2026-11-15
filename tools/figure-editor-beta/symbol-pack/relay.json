@@ -1,0 +1,66 @@
+{
+  "pack": "symbols/0.3",
+  "type": "relay",
+  "variant": {},
+  "description": "Relay: coil C1/C2 on the left, changeover contact COM, NO, NC on the right",
+  "status": "draft",
+  "mirrorable": false,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "relay.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-3.2, -2.61814, 6.4, 4.31799]
+  },
+  "bbox": {
+    "min": [-6.0, -3.0],
+    "max": [6.0, 4.836]
+  },
+  "pins": {
+    "C1": {
+      "tip": [-6, 1],
+      "direction": "left",
+      "lead": {
+        "from": [-4.0, 1.0],
+        "length": 2.0
+      }
+    },
+    "C2": {
+      "tip": [-6, -1],
+      "direction": "left",
+      "lead": {
+        "from": [-4.0, -1.0],
+        "length": 2.0
+      }
+    },
+    "NO": {
+      "tip": [6, 2],
+      "direction": "right",
+      "lead": {
+        "from": [4.0, 2.0],
+        "length": 2.0
+      }
+    },
+    "COM": {
+      "tip": [6, 0],
+      "direction": "right",
+      "lead": {
+        "from": [4.0, 0.0],
+        "length": 2.0
+      }
+    },
+    "NC": {
+      "tip": [6, -2],
+      "direction": "right",
+      "lead": {
+        "from": [4.0, -2.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": null,
+  "parameters": [],
+  "superseded_by": null
+}

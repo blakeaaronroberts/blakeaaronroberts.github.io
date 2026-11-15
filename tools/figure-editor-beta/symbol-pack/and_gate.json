@@ -1,0 +1,65 @@
+{
+  "pack": "symbols/0.3",
+  "type": "and_gate",
+  "variant": {},
+  "description": "AND gate with 2 to 8 inputs (option n, default 2); inputs A, B, C..., output Y",
+  "status": "approved",
+  "mirrorable": true,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "and_gate.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-2.2, -1.20019, 4.9, 2.40009]
+  },
+  "bbox": {
+    "min": [-4.0, -2.0],
+    "max": [5.0, 2.0]
+  },
+  "pins": {
+    "A": {
+      "tip": [-4, 1],
+      "direction": "left",
+      "lead": {
+        "from": [-2.0, 1.0],
+        "length": 2.0
+      }
+    },
+    "B": {
+      "tip": [-4, -1],
+      "direction": "left",
+      "lead": {
+        "from": [-2.0, -1.0],
+        "length": 2.0
+      }
+    },
+    "Y": {
+      "tip": [5, 0],
+      "direction": "right",
+      "lead": {
+        "from": [2.923, 0.0],
+        "length": 2.077
+      }
+    }
+  },
+  "label": null,
+  "parameters": [
+    {
+      "name": "n",
+      "default": 2,
+      "values": [2, 3, 4, 5, 6, 7, 8],
+      "files": {
+        "2": "and_gate",
+        "3": "and_gate--n3",
+        "4": "and_gate--n4",
+        "5": "and_gate--n5",
+        "6": "and_gate--n6",
+        "7": "and_gate--n7",
+        "8": "and_gate--n8"
+      }
+    }
+  ],
+  "superseded_by": null
+}
