@@ -159,3 +159,10 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 .fe-timing-head { display: flex; align-items: center; gap: .25rem; padding: 0 .5rem; background: var(--role-surface); }
 .fe-timing-body { min-height: 0; overflow: hidden; }
 
+
+/* ---- the slide view (F19): the slide as it exports, regions dragged on the module grid ---- */
+.fe-slideview { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; user-select: none; background: var(--fig-background); }
+[data-canvas="dark"] .fe-slideview { background: var(--fig-dark-background); }
+.fe-stage.is-slide .fe-canvas { visibility: hidden; }
+.fe-slide-regions { list-style: none; margin: .4rem 0; padding: 0; display: grid; gap: .4rem; }
+.fe-region { display: grid; gap: .2rem; padding: .3rem; border: 1px solid var(--role-rule); }
