@@ -72,9 +72,18 @@ export function mount(root, { docked = false, onSend = null, onStatus = null, on
     if (m === "source") srcText.value = JSON.stringify(toWaveDrom(value), null, 2);
     if (m === "diagram") render();   // its width follows the view, which has a size only when shown
   };
-  root.addEventListener("click", (e) => { const t = e.target.closest("[data-view]"); if (t) showView(t.dataset.view); });
+  root.addEventListener("click", (e) => { const t = e.target.closest("[data-view]"); if (t && root.contains(t)) showView(t.dataset.view); });   // only this tool's own tabs
 
+  /** Redraw everything; if one part fails, say so and keep the rest (the pane must never go blank). */
   function render() {
+    status.removeAttribute("data-error");
+    for (const step of [drawDiagram, renderBrushes, renderGrid, renderEdges, renderBands, renderChips]) {
+      try { step(); } catch (e) { console.error(e); say(`Could not redraw (${e.message}).`, true); }
+    }
+    const n = value.signal.filter((s) => s.name || s.wave).length;
+    if (!status.hasAttribute("data-error")) say(n ? `${n} signal${n === 1 ? "" : "s"}, ${stepCount(value)} steps.` : "Empty: add a node from the circuit to start.");
+  }
+  function drawDiagram() {
     natural = naturalSize(toWaveDrom(value));
     if (!custom) {   // on screen the diagram fills the view's width (laid out again, not stretched); Natural size gives WaveDrom's own proportions
       const room = view.parentElement.clientWidth - 32;
@@ -86,13 +95,6 @@ export function mount(root, { docked = false, onSend = null, onStatus = null, on
     if (!docked) root.dataset.canvas = siteIsDark() ? "dark" : "light";   // standalone: follow the site's look, as the editor's canvas does
     // The size is a layout input: steps and lanes are re-spaced to fit it, nothing is stretched.
     view.innerHTML = value.signal.length ? drawNow(!!root.closest('[data-canvas="dark"]')) : `<p class="fe-hint td-emptynote">No signals yet: add a node in the Edit view.</p>`;
-    renderBrushes();
-    renderGrid();
-    renderEdges();
-    renderBands();
-    renderChips();
-    const n = value.signal.filter((s) => s.name || s.wave).length;
-    say(n ? `${n} signal${n === 1 ? "" : "s"}, ${stepCount(value)} steps.` : "Empty: add a node from the circuit to start.");
   }
   if (!docked) new MutationObserver(() => render()).observe(document.body, { attributes: true, attributeFilter: ["class"] });
   window.addEventListener("resize", () => { if (!custom) render(); });

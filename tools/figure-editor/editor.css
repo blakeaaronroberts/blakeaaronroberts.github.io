@@ -199,9 +199,21 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 .fe-stepno { min-width: 3rem; text-align: center; font-size: .75rem; }
 
 /* Timing Diagram view: the pane takes the whole workspace; the toolbar stays on one row */
-[data-view="timing"] .fe-stage { display: none; }
-[data-view="timing"] .fe:has(> .fe-timing) > .fe-timing { grid-row: 2 / 4; height: auto; }
-[data-view="timing"] .fe-timing-head { display: none; }
+[data-workspace="timing"] .fe-stage { display: none; }
+[data-workspace="timing"] .fe:has(> .fe-timing) > .fe-timing { grid-row: 2 / 4; height: auto; }
+[data-workspace="timing"] .fe-timing-head { display: none; }
 .fe-toolbar { flex-wrap: nowrap; overflow-x: auto; }
 .fe-grouplabel { display: none; }
 .fe-group-end .fe-btn { padding-left: .35rem; padding-right: .35rem; font-size: .72rem; }
+
+/* ---- panes open and close smoothly ---- */
+:root { interpolate-size: allow-keywords; }
+.fe-pane::details-content, .fe-cat::details-content { block-size: 0; overflow: clip; transition: block-size .22s ease, content-visibility .22s ease allow-discrete; }
+.fe-pane[open]::details-content, .fe-cat[open]::details-content { block-size: auto; }
+@media (prefers-reduced-motion: reduce) { .fe-pane::details-content, .fe-cat::details-content, .fe-timing { transition: none; } }
+
+/* ---- the frame stepper in the navbar ---- */
+.fe-stepinput { width: 3.2rem; height: 1.7rem; padding: 0 .2rem; text-align: center; font: inherit; font-size: .75rem; border: 1px solid var(--role-rule); background: var(--role-background); color: var(--role-ink); }
+.fe-stepper .fe-btn:disabled { opacity: .35; }
+.fe-stepno { min-width: 2.2rem; text-align: left; font-size: .7rem; }
+.fe-toolbar .fe-btn { white-space: nowrap; }

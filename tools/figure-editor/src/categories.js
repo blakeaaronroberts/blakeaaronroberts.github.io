@@ -4,7 +4,7 @@
 
 export const CATEGORIES = [
   { id: "logic", title: "Logic gates", types: ["and_gate", "or_gate", "not_gate", "nand_gate", "nor_gate", "xor_gate"], open: true },
-  { id: "sequential", title: "Sequential", types: ["d_flipflop", "d_latch"], open: true },
+  { id: "sequential", title: "Sequential", types: ["d_flipflop", "d_latch"] },
   { id: "arithmetic", title: "Arithmetic and selection", types: ["full_adder", "mux2", "decoder2to4"] },
   { id: "passive", title: "Passive and semiconductor", types: ["resistor", "capacitor", "inductor", "diode", "switch", "npn_bjt", "nmos"] },
   { id: "sources", title: "Sources and ground", types: ["voltage_source", "ground", "vdd"] },
