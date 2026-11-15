@@ -277,8 +277,8 @@ Intent: the editor becomes one stable tool named **Figure Editor** (retire "beta
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
 | F18.1 | Rename to Figure Editor everywhere users see it; one stable URL, beta kept as a hidden preview only if needed | Steward, approved by Blake 2026-11-14 | Done | 87e2e6f (with F14.1): page title, navbar buttons, Tools menu and messages say Figure Editor; no beta preview kept (the beta URL redirects). |
-| F18.2 | Move the timing tool into a shared module; dock it as a minimisable, resizable pane in the editor with a splitter | Steward, approved by Blake 2026-11-14 | Open | |
-| F18.3 | Standalone Timing Diagram page loads the same module; the two can send a circuit's node names and a scenario to each other (copy and file, no server) | Steward, approved by Blake 2026-11-14 | Open | |
+| F18.2 | Move the timing tool into a shared module; dock it as a minimisable, resizable pane in the editor with a splitter | Steward, approved by Blake 2026-11-14 | Done | 53d2d29: code moved to tools/timing/ (src, test, timing.css, README stub); mount(el, {docked}) gives the page or the pane layout; pane under the canvas, minimise button, splitter (drag or arrow keys), state kept in the editor options; exports always light; dark canvas has zero black strokes in the pane. 182 tests pass. |
+| F18.3 | Standalone Timing Diagram page loads the same module; the two can send a circuit's node names and a scenario to each other (copy and file, no server) | Steward, approved by Blake 2026-11-14 | In progress | 53d2d29: page imports ../timing/src/app.js (no fork). Node names reach the timing tool from the editor (pane: live; page: the editor's autosave, or Open circuit .json); the scenario reaches the editor by Send (browser storage). No clipboard copy yet: waiting on Blake at the F18 review stop. |
 
 ---
 
