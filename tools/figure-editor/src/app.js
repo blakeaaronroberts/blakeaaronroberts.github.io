@@ -139,13 +139,12 @@ export async function mount(root, options = {}) {
       <div class="fe-group" role="group" aria-label="File">
         ${btn("new", "New")}${btn("open", "Open…")}${btn("save", "Save", "Control+S")}${btn("export", "Export SVG")}${btn("png", "Copy as PNG")}
       </div>
-      <div class="fe-group fe-group-end" role="navigation" aria-label="Views"><span class="fe-stepper" hidden>${btn("frameprev", "◀", "", "", "Previous frame")}<span class="fe-stepno label-mono"></span>${btn("framenext", "▶", "", "", "Next frame")}</span>${btn("viewfigure", "Figure Editor")}${btn("viewtiming", "Timing Diagram")}${btn("viewslide", "Slide")}${btn("help", "?", "?", ' aria-label="Keys"')}</div>
+      <div class="fe-group fe-group-end" role="navigation" aria-label="Views"><span class="fe-stepper">${btn("frameprev", "◀", "", "", "Previous frame")}<input class="fe-stepinput" type="number" min="1" step="1" aria-label="Go to frame" title="Type a frame number and press Enter"><span class="fe-stepno label-mono"></span>${btn("framenext", "▶", "", "", "Next frame")}${btn("navframes", "Export frames", "", "", "Export every frame: the schematic, the timing diagram or the slide, whichever view you are in")}</span>${btn("viewfigure", "Figure Editor")}${btn("viewtiming", "Timing Diagram")}${btn("viewslide", "Slide")}${btn("help", "?", "?", ' aria-label="Keys"')}</div>
       <input type="file" class="fe-file" accept=".json,.svg,application/json,image/svg+xml" hidden>
       <input type="file" class="fe-theme-file" accept=".json,application/json" hidden>
     </div>
     <details class="fe-palette fe-pane" open>
       <summary class="label-mono">Elements</summary>
-      <label class="fe-drafts"><input type="checkbox" name="fe-drafts"> Show drafts</label>
       <div class="fe-cats"></div>
     </details>
     <div class="fe-stage">
@@ -159,11 +158,11 @@ export async function mount(root, options = {}) {
       <div class="fe-timing-body"></div>
     </div>
     <div class="fe-side" role="region" aria-label="Figure properties">
-      <details class="fe-pane" open>
+      <details class="fe-pane">
         <summary class="label-mono">Selection</summary>
         <section class="fe-props" aria-label="Selection"></section>
       </details>
-      <details class="fe-pane" name="fe-doc" open>
+      <details class="fe-pane" name="fe-doc">
         <summary class="label-mono">Figure</summary>
         <label class="form-label">Figure id <input class="form-control form-control-sm" name="fe-id" spellcheck="false"></label>
         <label class="form-label">Title <input class="form-control form-control-sm" name="fe-title"></label>
@@ -239,7 +238,7 @@ export async function mount(root, options = {}) {
   const $ = (s) => root.querySelector(s);
   const svg = $(".fe-canvas"), statusEl = $(".fe-status"), fileInput = $(".fe-file"), themeInput = $(".fe-theme-file");
   const idInput = $('[name="fe-id"]'), titleInput = $('[name="fe-title"]'), propsEl = $(".fe-props"), helpEl = $(".fe-help");
-  const scaleInput = $('[name="fe-scale"]'), ptInput = $('[name="fe-labelpt"]'), tagsInput = $('[name="fe-tags"]'), draftsInput = $('[name="fe-drafts"]'), canvasInput = $('[name="fe-canvas"]'), exportDarkInput = $('[name="fe-exportdark"]');
+  const scaleInput = $('[name="fe-scale"]'), ptInput = $('[name="fe-labelpt"]'), tagsInput = $('[name="fe-tags"]'), draftsInput = { checked: false }, canvasInput = $('[name="fe-canvas"]'), exportDarkInput = $('[name="fe-exportdark"]');
   const view = createView(svg, loaded);
   // The editor fills the window below the site header; measure the header so the two never overlap.
   const header = document.querySelector("#quarto-header");
@@ -273,6 +272,7 @@ export async function mount(root, options = {}) {
   if (opt.grid !== 2) opt.grid = 1;   // snap for parts, in grid steps: 1 is half a module (default), 2 is a whole module
   if (!["auto", "light", "dark"].includes(opt.canvas)) opt.canvas = "auto";
   opt.exportDark = opt.exportDark === true;
+  opt.drafts = false;   // draft elements are no longer offered
   delete opt.frame;   // the F10 frame option is replaced by the slide saved in the figure (F19)
   /** Snap a point (grid steps) to the part grid. Wires, ports and labels always snap to one step (half a module). */
   function snapPart(p) { const g = opt.grid; return [g * Math.round(p[0] / g) || 0, g * Math.round(p[1] / g) || 0]; }
@@ -832,6 +832,12 @@ export async function mount(root, options = {}) {
     viewfigure: () => setView("figure"),
     viewtiming: () => setView("timing"),
     viewslide: () => setView("slide"),
+    navframes() {   // one button for the view you are in
+      if (!framesOf(doc).length) { status("No frames yet: add signals in the Timing Diagram, or capture a frame in the Frames pane.", true); return; }
+      if (opt.view === "timing") { tpBody.querySelector("[data-do=frames-export]")?.click(); return; }
+      framesWhat.value = opt.view === "slide" ? "slide" : "schematic";
+      return commands.framesexport();
+    },
     frameprev: () => stepFrame(-1),
     framenext: () => stepFrame(1),
     splitsreset() { const s = currentSlide(); if (s.layout in SLIDE_LAYOUTS) setSlide(withLayout(s, s.layout, { reset: true }), "Dividers back to the layout's defaults."); },
@@ -973,8 +979,11 @@ export async function mount(root, options = {}) {
   }
   function renderFrames() {
     const frames = framesOf(doc);
-    $(".fe-stepper").hidden = !frames.length;
-    $(".fe-stepno").textContent = frames.length ? `${selectedFrame >= 0 ? selectedFrame + 1 : "–"}/${frames.length}` : "";
+    $(".fe-stepno").textContent = frames.length ? `/ ${frames.length}` : "no frames";
+    const stepIn = $(".fe-stepinput");
+    stepIn.max = String(frames.length); stepIn.disabled = !frames.length;
+    if (document.activeElement !== stepIn) stepIn.value = selectedFrame >= 0 ? String(selectedFrame + 1) : "";
+    for (const c of ["frameprev", "framenext", "navframes"]) $(`[data-cmd="${c}"]`).disabled = !frames.length;
     if (selectedFrame >= frames.length) selectedFrame = frames.length - 1;
     const ol = $(".fe-frame-list");
     ol.innerHTML = frames.length ? frames.map((f, i) => `<li><button type="button" class="fe-frame-item${i === selectedFrame ? " is-selected" : ""}" data-frame="${i}" aria-pressed="${i === selectedFrame}">${numbered(i, frames.length)} ${esc(f.name)}</button></li>`).join("") : `<li class="fe-hint">No frames yet.</li>`;
@@ -1044,8 +1053,6 @@ export async function mount(root, options = {}) {
     const preset = pre && presetById(pre.dataset.preset);
     if (preset) startPlacing(BLOCK, e.detail === 0, structuredClone(preset.params));
   });
-  draftsInput.checked = !!opt.drafts;
-  draftsInput.addEventListener("change", () => { opt.drafts = draftsInput.checked; saveOptions(); renderPalette(); status(opt.drafts ? "Showing draft elements too." : "Showing approved elements only."); });
   // ---- the docked Timing Diagram pane (F18): the same module as the Timing Diagram page ----------------------------
   const tpEl = $(".fe-timing"), tpBody = $(".fe-timing-body"), tpToggle = $('[data-cmd="timingtoggle"]'), splitter = $(".fe-splitter");
   opt.timingPane = { open: opt.timingPane?.open === true, h: Number(opt.timingPane?.h) || 256 };
@@ -1057,9 +1064,9 @@ export async function mount(root, options = {}) {
     tpToggle.textContent = `Timing Diagram ${opt.timingPane.open ? "▾" : "▴"}`;
     if (opt.timingPane.open && !timingTool) {
       const { mount: mountTiming } = await import("../../timing/src/app.js");
-      timingTool = mountTiming(tpBody, { docked: true, onStatus: (m, err) => status(m, err), onChange: () => { if (opt.slideView) syncSlide(); } });
+      timingTool = mountTiming(tpBody, { docked: true, onStatus: (m, err) => status(m, err), onChange: () => { if (!framesOf(doc).length) populateFromTiming(true); if (opt.slideView) syncSlide(); } });
     }
-    if (opt.timingPane.open && timingTool) timingTool.setCircuit(D.serialize(doc, pack));
+    if (opt.timingPane.open && timingTool) { timingTool.setCircuit(D.serialize(doc, pack)); if (!framesOf(doc).length) populateFromTiming(true); }
   }
   splitter.addEventListener("pointerdown", (e) => {
     const y0 = e.clientY, h0 = tpEl.getBoundingClientRect().height, max = window.innerHeight * 0.7;
@@ -1082,11 +1089,21 @@ export async function mount(root, options = {}) {
     if (v === "timing") { opt.timingPane.open = true; tpEl.style.setProperty("--tp-h", `${stage.offsetHeight + tpEl.offsetHeight}px`); }
     else { opt.timingPane.open = false; }
     tpEl.classList.toggle("is-full", v === "timing");
-    root.dataset.view = v;
+    root.dataset.workspace = v;
     for (const [c, k] of [["viewfigure", "figure"], ["viewtiming", "timing"], ["viewslide", "slide"]]) $(`[data-cmd="${c}"]`).setAttribute("aria-pressed", String(v === k));
     saveOptions(); showTimingPane(); syncSlide();
   }
   /** Step through the frames from the toolbar: the canvas shows that frame's levels, the timing diagram marks its step. */
+  function goToFrame(n) {
+    const frames = framesOf(doc);
+    if (!frames.length || !Number.isFinite(n)) return;
+    selectedFrame = Math.max(0, Math.min(frames.length - 1, Math.round(n) - 1));
+    commit(applyFrame(doc, frames[selectedFrame]), `Frame ${selectedFrame + 1} of ${frames.length}: ${frames[selectedFrame].name}`);
+    timingTool?.setFrame(selectedFrame);
+    renderFrames();
+  }
+  $(".fe-stepinput").addEventListener("change", (e) => goToFrame(Number(e.target.value)));
+  $(".fe-stepinput").addEventListener("keydown", (e) => { if (e.key === "Enter") goToFrame(Number(e.target.value)); e.stopPropagation(); });
   function stepFrame(by) {
     const frames = framesOf(doc);
     if (!frames.length) return;
