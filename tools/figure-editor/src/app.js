@@ -7,6 +7,7 @@
 // only decides which one to call and records it for undo.
 
 import { LEVELS, loadPack, parsePrivateTheme } from "./pack.js";
+import { contrast, levelRoles, warnings as levelWarnings, withLevelColour } from "./levelcolours.js";
 import * as D from "./doc.js";
 import { History } from "./history.js";
 import { drawTiming } from "../../timing/src/draw.js";
@@ -180,6 +181,13 @@ export async function mount(root, options = {}) {
         <label class="form-label">Canvas <select class="form-select form-select-sm" name="fe-canvas"><option value="auto">Auto (follows system)</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
         <p class="fe-theme-note"></p>
         <div class="fe-theme-buttons" role="group" aria-label="Theme">${btn("theme", "Private theme…")}${btn("themereset", "Default theme")}</div>
+        <fieldset class="fe-levelcolours"><legend class="label-mono">Level colours</legend>
+          <p class="fe-hint">Choose the colour of each logic level, for the light and for the dark canvas. The choice is saved with the figure and used by every export. A colour left on its default follows the theme.</p>
+          <div class="fe-lc-head" aria-hidden="true"><span></span><span>Light</span><span>Dark</span><span></span></div>
+          ${LEVELS.map((l) => `<div class="fe-lc-row" data-level="${l.value}"><span class="fe-lc-name">${l.value} <small>${l.name}</small></span><input type="color" data-mode="light" aria-label="Level ${l.value}, light canvas"><input type="color" data-mode="dark" aria-label="Level ${l.value}, dark canvas"><button type="button" class="${BUTTON}" data-lc-reset="${l.value}" aria-label="Level ${l.value} back to the theme default" title="Back to the theme default">↺</button></div>`).join("")}
+          <ul class="fe-lc-warnings" aria-live="polite"></ul>
+          <div class="fe-theme-buttons">${btn("levelsreset", "Reset all to the defaults")}</div>
+        </fieldset>
       </details>
       <details class="fe-pane fe-slide-pane" name="fe-doc">
         <summary class="label-mono">Slide</summary>
@@ -298,7 +306,7 @@ export async function mount(root, options = {}) {
   }
   /** The pack drawn for the light or dark canvas. A private theme, if loaded, overrides the dark roles. */
   function packFor(dark) {
-    const roles = { ...(dark ? darkRoles() : {}), ...(privateRoles ?? {}) };
+    const roles = { ...(dark ? darkRoles() : {}), ...(privateRoles ?? {}), ...levelRoles(doc.style?.levels, dark) };   // the figure's own level colours (F17) win
     return Object.keys(roles).length ? loaded.withTheme(roles) : loaded;
   }
   /** Is the site showing its dark look? Read from the site's own role (the toggle swaps stylesheets), not the OS setting, which the toggle can override. */
@@ -310,6 +318,11 @@ export async function mount(root, options = {}) {
   }
   const canvasIsDark = () => opt.canvas === "dark" || (opt.canvas === "auto" && siteIsDark());
   /** Rebuild the drawing pack for the canvas theme in force, and tell the CSS which plate to show. */
+  let levelsKey = "";   // the figure's level colours as last applied to the canvas pack
+  function applyLevels() {
+    const key = JSON.stringify(doc.style?.levels ?? {});
+    if (key !== levelsKey) { levelsKey = key; applyCanvas(); }
+  }
   function applyCanvas() {
     const dark = canvasIsDark();
     pack = packFor(dark);
@@ -345,6 +358,7 @@ export async function mount(root, options = {}) {
 
   // ---- rendering -------------------------------------------------------------------------
   function render() {
+    applyLevels();
     lastDrawing = view.render({
       doc, pack, selection, ghost, rubber, hover, hoverWire, box: boxSel,
       typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags,
@@ -393,7 +407,7 @@ export async function mount(root, options = {}) {
     $(".fe-warnings").hidden = !warnings.length;
     if (lastDrawing) {
       const { widthCm, heightCm } = exportSize(lastDrawing, opt.scale);
-      syncSlide(); renderFrames();
+      syncSlide(); renderFrames(); syncLevels();
       $(".fe-size").textContent = lastDrawing.box ? `File size: ${widthCm.toFixed(2)} × ${heightCm.toFixed(2)} cm${opt.scale === 1 ? " (real size)" : ""}` : "Nothing to export yet.";
     }
     $(".fe-theme-note").textContent = privateRoles
@@ -817,6 +831,7 @@ export async function mount(root, options = {}) {
     addschematic: () => addRegion("schematic"),
     addtiming: () => addRegion("timing"),
     addtext: () => addRegion("text"),
+    levelsreset() { commit(D.setStyleLevels(doc, {}), "Level colours are back to the theme's defaults."); },
     framesfromtiming() { populateFromTiming(); },
     timingtoggle() { opt.timingPane.open = !opt.timingPane.open; saveOptions(); showTimingPane(); },
     framecapture() {
@@ -1050,6 +1065,39 @@ export async function mount(root, options = {}) {
     tpEl.style.setProperty("--tp-h", `${opt.timingPane.h}px`); saveOptions();
   });
   showTimingPane();
+
+  // ---- level colours (F17) ----------------------------------------------------------------------------
+  const lcRows = [...root.querySelectorAll(".fe-lc-row")], lcWarn = $(".fe-lc-warnings");
+  /** The colour a level has on a canvas now: the figure's choice, or the theme's default for that canvas. */
+  function levelNow(level, dark) {
+    const l = LEVELS.find((x) => x.value === level), chosen = doc.style?.levels?.[level]?.[dark ? "dark" : "light"];
+    return chosen ?? (dark ? darkRoles()[l.role] : null) ?? loaded.baseTheme.roles[l.role] ?? "#000000";
+  }
+  function syncLevels() {
+    for (const row of lcRows) {
+      const level = row.dataset.level, mine = doc.style?.levels?.[level] ?? {};
+      for (const inp of row.querySelectorAll("input")) {
+        if (document.activeElement !== inp) inp.value = levelNow(level, inp.dataset.mode === "dark").toLowerCase();
+        inp.classList.toggle("is-custom", !!mine[inp.dataset.mode]);
+      }
+      row.querySelector("button").disabled = !Object.keys(mine).length;
+    }
+    $('[data-cmd="levelsreset"]').disabled = !Object.keys(doc.style?.levels ?? {}).length;
+    const msgs = [];
+    for (const dark of [false, true]) {
+      const bg = dark ? (darkRoles().background ?? loaded.baseTheme.roles.background) : loaded.baseTheme.roles.background;
+      const colours = Object.fromEntries(LEVELS.map((l) => [l.value, levelNow(l.value, dark)]));
+      for (const w of levelWarnings(colours, bg)) msgs.push(`${dark ? "Dark" : "Light"} canvas: ${w}`);
+    }
+    lcWarn.innerHTML = msgs.map((m) => `<li>${esc(m)}</li>`).join("");
+  }
+  for (const row of lcRows) {
+    row.addEventListener("change", (e) => {
+      const inp = e.target.closest("input"); if (!inp) return;
+      commit(D.setStyleLevels(doc, withLevelColour(doc.style?.levels, row.dataset.level, inp.dataset.mode, inp.value)), `Level ${row.dataset.level}: ${inp.dataset.mode} colour set.`);
+    });
+    row.querySelector("button").addEventListener("click", () => commit(D.setStyleLevels(doc, Object.fromEntries(Object.entries(doc.style?.levels ?? {}).filter(([k]) => k !== row.dataset.level))), `Level ${row.dataset.level} is back on the theme default.`));
+  }
 
   // ---- the slide (F19) ----
   const slideEls = { show: $('[name="fe-slide-show"]'), format: $('[name="fe-slide-format"]'), header: $('[name="fe-slide-header"]'), footer: $('[name="fe-slide-footer"]'), layout: $('[name="fe-slide-layout"]') };
