@@ -264,8 +264,8 @@ defaults. Exports use the figure's choice.
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| T2.1 | Phase and step width controls | Steward, approved by Blake 2026-11-13 | In progress | 0a0362b (Blake 2026-11-14): step editor replaces the source text (no typing), per-signal delay; step width follows the size. Phase not exposed. |
-| T2.2 | Edge and arrow UI with labels | Steward, approved by Blake 2026-11-13 | Open | |
+| T2.1 | Phase and step width controls | Steward, approved by Blake 2026-11-13 | Done | 0a0362b, db96edc (Blake 2026-11-14): step editor replaces source text; per-signal phase, period and delay; step width (hscale) in Size. |
+| T2.2 | Edge and arrow UI with labels | Steward, approved by Blake 2026-11-13 | Done | db96edc: node brush puts letters on steps; Arrows list (from, shape: straight, curve or square with heads, to, label); drawn by draw.js. |
 | T2.3 | Per-transition export of the diagram, then with schematic frames | Steward, approved by Blake 2026-11-13 | Open | Schematic frames exist in the editor (see F11.2). Timing tool now reads the frames from the editor autosave or an opened circuit .json (`groups.frames`), a Frame list marks that step (frame i = wave character i, so a frame is one step; hscale respected) with a rounded translucent band, and Export frames writes one SVG per frame with its marker (timing-diagram-01.svg, ...; SVG only, no PNG yet). Not done: T2.1, T2.2, the combined schematic-plus-diagram slide per frame (needs F9 layout). Rounded line ends and corners on the timing diagram (stroke-linecap/linejoin round, rule kept inside the exported SVG): done, tools/timing-diagram/src/app.js. |
 
 ---
