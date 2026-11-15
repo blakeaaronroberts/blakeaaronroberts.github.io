@@ -160,7 +160,7 @@ own, at real size.
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| F10.1 | Slide frame, placement of the schematic and timing diagram, export of the frame or of either part | Steward, approved by Blake 2026-11-13 | In progress | Branch beta-f10, beta page only. New src/frame.js (DOM-free) and a Slide frame panel. A dashed slide-size rectangle on the canvas, in the drawing's own coordinates: 16:9 (33.87 x 19.05 cm, PowerPoint's size, default) or 4:3 (25.4 x 19.05 cm); layout is schematic only, or with a timing-diagram region below (60/40) or beside (55/45), tinted. Position by centre in grid steps, or Centre on the figure. Frame as SVG and Frame as PNG (300 dpi) write exactly what lies inside the rectangle at real size, 1:1 times the Scale option, no margin, drawn identically to the plain export (tested); a figure larger than the schematic's part is cut at the edge and the panel says which sides. The existing Export SVG writes the schematic alone. NOT DONE, waits for F9 or T1: the timing diagram itself (there is none to place yet, so only its region is reserved) and its separate export. The frame is a browser option (kept across reloads), not in the circuit file, because circuit/0.2 has no place for it; say if it should be saved with the figure. Browser check: check.js frame (light and dark, canvas, exports, 4:3, reload; zero black in dark). 9 new Deno tests (155 pass). |
+| F10.1 | Slide frame, placement of the schematic and timing diagram, export of the frame or of either part | Steward, approved by Blake 2026-11-13 | Folded into F19 | beta-f10 was already merged to main (1b46d5e); F19 builds on its frame.js and replaces the canvas frame outline (b616d67). |
 
 ---
 
@@ -264,7 +264,7 @@ defaults. Exports use the figure's choice.
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| T2.1 | Phase and step width controls | Steward, approved by Blake 2026-11-13 | Open | |
+| T2.1 | Phase and step width controls | Steward, approved by Blake 2026-11-13 | In progress | 0a0362b (Blake 2026-11-14): step editor replaces the source text (no typing), per-signal delay; step width follows the size. Phase not exposed. |
 | T2.2 | Edge and arrow UI with labels | Steward, approved by Blake 2026-11-13 | Open | |
 | T2.3 | Per-transition export of the diagram, then with schematic frames | Steward, approved by Blake 2026-11-13 | Open | Schematic frames exist in the editor (see F11.2). Timing tool now reads the frames from the editor autosave or an opened circuit .json (`groups.frames`), a Frame list marks that step (frame i = wave character i, so a frame is one step; hscale respected) with a rounded translucent band, and Export frames writes one SVG per frame with its marker (timing-diagram-01.svg, ...; SVG only, no PNG yet). Not done: T2.1, T2.2, the combined schematic-plus-diagram slide per frame (needs F9 layout). Rounded line ends and corners on the timing diagram (stroke-linecap/linejoin round, rule kept inside the exported SVG): done, tools/timing-diagram/src/app.js. |
 
@@ -288,10 +288,10 @@ Intent: replace the slide outline with a real slide export. The user sets the sl
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| F19.1 | Slide size presets (16:9 default, 4:3) and numeric header and footer heights, saved in the figure | Steward, approved by Blake 2026-11-14 | Open | |
-| F19.2 | Regions with labels, drag and resize on a module grid, auto-scale content to its region keeping line weights as drawn (never scaled strokes: re-draw at slot size) | Steward, approved by Blake 2026-11-14 | Open | |
-| F19.3 | Six layout presets that fill the regions; placeholder box for PowerPoint text, excluded from export | Steward, approved by Blake 2026-11-14 | Open | |
-| F19.4 | Export whole slide (SVG, PNG) and each part separately at its slot size (SVG, PNG); tests and one screenshot | Steward, approved by Blake 2026-11-14 | Open | |
+| F19.1 | Slide size presets (16:9 default, 4:3) and numeric header and footer heights, saved in the figure | Steward, approved by Blake 2026-11-14 | Done | b616d67: groups.slide in the figure (format, header and footer cm, layout, regions); sizes from frame.js. |
+| F19.2 | Regions with labels, drag and resize on a module grid, auto-scale content to its region keeping line weights as drawn (never scaled strokes: re-draw at slot size) | Steward, approved by Blake 2026-11-14 | Done | b616d67: slide view; drag to move, corner to resize, whole modules, kept on the slide; schematic scaled with strokes kept at drawn width, timing re-laid out at the region size. |
+| F19.3 | Six layout presets that fill the regions; placeholder box for PowerPoint text, excluded from export | Steward, approved by Blake 2026-11-14 | Done | b616d67: six layouts (over, side, caption, diagram only, 2 by 2 frames, text left); text regions only in the slide view, never exported. |
+| F19.4 | Export whole slide (SVG, PNG) and each part separately at its slot size (SVG, PNG); tests and one screenshot | Steward, approved by Blake 2026-11-14 | Done | b616d67: Slide as SVG/PNG, each region SVG/PNG at its slot size; test/slide.test.js (6 tests), browser checks pass, one screenshot. |
 
 ---
 
