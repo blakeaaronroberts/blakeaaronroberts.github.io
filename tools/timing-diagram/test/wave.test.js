@@ -69,3 +69,10 @@ Deno.test("a delay shifts a lane right by that many steps, fractions allowed, an
   const nums = (s) => (/ d="(M [^"]*)"/.exec(s.svg)[1].match(/[0-9.]+/g) ?? []).map(Number);
   assert(nums(a).join() !== nums(b).join() && nums(b)[0] === nums(a)[0], "the delayed lane differs but starts at the same x");
 });
+Deno.test("levelColour colours each level's line like the nets", async () => {
+  const { drawTiming } = await import("../src/draw.js");
+  const v = { signal: [{ name: "D", wave: "0.1.z" }] };
+  const s = drawTiming(v, { levelColour: (l) => ({ 0: "#111111", 1: "#222222", Z: "#333333" })[l] ?? null }).svg;
+  for (const c of ["#111111", "#222222", "#333333"]) assert(s.includes(`stroke="${c}"`), c);
+  assert(!drawTiming(v, {}).svg.includes("#111111"));
+});

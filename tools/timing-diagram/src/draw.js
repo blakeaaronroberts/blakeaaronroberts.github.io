@@ -48,7 +48,7 @@ export function naturalSize(value, hscale = Number(value?.config?.hscale) || 1) 
  * The SVG for a source at width x height px. Options: ink, accent (the step marker), marker (a step index or null).
  * Returns {svg, natural, geometry: {x0, stepW, laneH, steps}}.
  */
-export function drawTiming(value, { width, height, ink = "#000000", accent = "#0072B2", marker = null } = {}) {
+export function drawTiming(value, { width, height, ink = "#000000", accent = "#0072B2", marker = null, levelColour = null } = {}) {
   const lanes = lanesOf(value);
   const nat = naturalSize(value);
   const W = Math.max(100, width ?? nat.w), H = Math.max(40, height ?? nat.h);
@@ -67,8 +67,17 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
     const xAt = (i) => x0 + (i - lane.phase + lane.delay) * w;   // delay (in steps, may be fractional) shifts the lane right
     const d = [];
     let level = null, run = null, di = 0, prevBox = false;
-    const line = (x, y) => d.push(`${d.length ? "L" : "M"} ${n2(x)} ${n2(y)}`);
-    const endPath = () => { if (d.length) out.push(`<path d="${d.join(" ")}" ${stroke}/>`); d.length = 0; };
+    let cur = null, last = [0, 0];   // cur: the colour of the path being built (levelColour option: lines coloured like the schematic nets)
+    const line = (x, y) => { last = [x, y]; d.push(`${d.length ? "L" : "M"} ${n2(x)} ${n2(y)}`); };
+    const endPath = () => { if (d.length) out.push(`<path d="${d.join(" ")}" ${cur ? stroke.replace(`stroke="${ink}"`, `stroke="${cur}"`) : stroke}/>`); d.length = 0; };
+    const paint = (k) => {   // start a new path when the level colour changes
+      if (!levelColour) return;
+      const c = k ? levelColour({ lo: "0", hi: "1", mid: "Z" }[k]) ?? null : null;
+      if (c === cur) return;
+      const p = last, had = d.length;
+      endPath(); cur = c;
+      if (had) line(p[0], p[1]);
+    };
     const flush = () => {
       if (!run) return;
       const xl = Math.max(x0, xAt(run.from)), xr = xAt(run.to), hatch = run.c === "x";
@@ -79,7 +88,7 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
     };
     if (lane.delay > 0 && st.length) {   // before a delayed lane changes, it holds its first level
       const c0 = st[0].c, k0 = /^[pPnN]$/.test(c0) ? (c0 === "p" || c0 === "P" ? "lo" : "hi") : LEVEL[c0];
-      if (k0) { line(x0, yOf[k0]); level = k0; }
+      if (k0) { paint(k0); line(x0, yOf[k0]); level = k0; }
     }
     for (let i = 0; i < st.length; i++) {
       const { c, isNew } = st[i], xl = xAt(i), xr = xAt(i + 1);
@@ -88,18 +97,21 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
       const a = Math.max(xl, x0);
       if (/^[pPnN]$/.test(c)) {
         flush();
+        paint(null);
         const hi = c === "p" || c === "P", y1 = hi ? yh : yl, y2 = hi ? yl : yh, mid = (xl + xr) / 2;
         line(xl, level ? yOf[level] : y2); line(xl + slope, y1); line(mid, y1); line(mid + slope, y2); line(xr, y2);
         level = hi ? "lo" : "hi";
       } else if (LEVEL[c]) {
         flush();
         const k = LEVEL[c], y = yOf[k];
+        paint(k);
         if (isNew || !d.length) { if (level && yOf[level] !== y) { line(xl, yOf[level]); line(xl + slope, y); } else line(wasBox ? a - slope : a, y); }
         line(xr, y); level = k;
       } else if (BOX.test(c)) {
         if (isNew || !run) {
           flush();
           if (level && d.length) { line(xl + (level === "mid" ? 0 : slope), yOf[level]); endPath(); }
+          cur = null;
           run = { from: i, to: i + 1, c, label: c === "x" ? "" : lane.data[di++] ?? "" };
         } else run.to = i + 1;
         level = null;

@@ -1,5 +1,5 @@
 ---
-title: "Schematic editor"
+title: "Figure Editor"
 page-layout: full
 css: editor.css
 ---
