@@ -232,7 +232,7 @@ keys stay separate from the beta's.
 
 ---
 ---|---|---|---|
-| F14.1 | Promote, remove the duplicate, redirect, tests | Steward, approved by Blake 2026-11-13 | Open | |
+| F14.1 | Promote, remove the duplicate, redirect, tests | Steward, approved by Blake 2026-11-13 | In progress | Beta copied to stable again at Blake's request 2026-11-14 (own storage keys, tools nav buttons, tests pass). Beta kept as the testbed, so duplicate removal and redirect are NOT done. |
 
 ---
 

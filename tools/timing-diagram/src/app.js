@@ -24,7 +24,7 @@ export function mount(root) {
         <button type="button" class="${B}" data-do="export-png" title="PNG at 300 dpi">Export PNG</button>
         <label class="${B} td-file">Open circuit…<input type="file" accept=".json,application/json" data-do="open" hidden></label>
       </div>
-      <div class="fe-group fe-group-end"><a class="btn btn-sm fe-btn" aria-pressed="false" href="../figure-editor-beta/">Schematic editor (beta)</a><a class="btn btn-sm fe-btn" aria-pressed="true" aria-current="page" href="./">Timing diagram</a><a class="btn btn-sm fe-btn" aria-pressed="false" href="../figure-editor/">Stable</a></div>
+      <div class="fe-group fe-group-end"><a class="btn btn-sm fe-btn" aria-pressed="false" href="../figure-editor-beta/">Figure Editor (beta)</a><a class="btn btn-sm fe-btn" aria-pressed="true" aria-current="page" href="./">Timing diagram</a><a class="btn btn-sm fe-btn" aria-pressed="false" href="../figure-editor/">Stable</a></div>
     </div>
     <div class="fe-palette">
       <details class="fe-pane" open>
@@ -211,7 +211,7 @@ ${new XMLSerializer().serializeToString(clone)}
   root.addEventListener("click", (e) => {
     if (!e.target.closest("[data-do=send]") || !svgEl()) return;
     const s = svgEl();
-    store.set("timing-diagram/send", JSON.stringify({ svg: new XMLSerializer().serializeToString(s), w: Number(s.getAttribute("width")), h: Number(s.getAttribute("height")), signals: signalLevels(), at: Date.now() }));
+    store.set("timing-diagram/send", JSON.stringify({ svg: new XMLSerializer().serializeToString(s), w: Number(s.getAttribute("width")), h: Number(s.getAttribute("height")), signals: signalLevels(), source: last, at: Date.now() }));
     say("Sent to the editor, and its frames are filled from the steps. Set its slide frame layout to 'Timing diagram below' or 'beside'; the slide-frame exports now include this diagram.");
   });
 

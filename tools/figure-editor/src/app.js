@@ -134,7 +134,7 @@ export async function mount(root, options = {}) {
       <div class="fe-group" role="group" aria-label="File">
         ${btn("new", "New")}${btn("open", "Open…")}${btn("save", "Save", "Control+S")}${btn("export", "Export SVG")}${btn("png", "Copy as PNG")}
       </div>
-      <div class="fe-group fe-group-end"><a class="btn btn-sm fe-btn" aria-pressed="true" aria-current="page" href="./">Schematic editor</a><a class="btn btn-sm fe-btn" aria-pressed="false" href="../figure-editor-beta/">Beta</a>${btn("help", "?", "?", ' aria-label="Keys"')}</div>
+      <div class="fe-group fe-group-end"><a class="btn btn-sm fe-btn" aria-pressed="true" aria-current="page" href="./">Figure Editor</a><a class="btn btn-sm fe-btn" aria-pressed="false" href="../figure-editor-beta/">Beta</a>${btn("help", "?", "?", ' aria-label="Keys"')}</div>
       <input type="file" class="fe-file" accept=".json,.svg,application/json,image/svg+xml" hidden>
       <input type="file" class="fe-theme-file" accept=".json,application/json" hidden>
     </div>
