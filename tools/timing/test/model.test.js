@@ -1,0 +1,113 @@
+// The step editor's model: every edit it makes to the WaveDrom-format source.
+
+import { addSignal, cellsOf, dataAt, empty, moveSignal, nextValue, removeSignal, setCell, setClock, setDelay, setSteps, stepCount } from "../src/model.js";
+
+const assert = (c, m) => { if (!c) throw new Error(m ?? "assertion failed"); };
+const eq = (a, b) => assert(JSON.stringify(a) === JSON.stringify(b), `expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`);
+
+Deno.test("a new diagram is empty; added signals start low for every step, clocks as clocks; no duplicates", () => {
+  let v = empty();
+  eq(v.signal, []);
+  v = addSignal(addSignal(v, "D"), "clk", { clock: true });
+  eq(v.signal.map((s) => s.wave), ["0.......", "p......."]);
+  eq(addSignal(v, "D").signal.length, 2);
+});
+
+Deno.test("setting a step makes it explicit; later held steps follow it; shift (hold) continues the step before", () => {
+  let v = addSignal(empty(), "D");
+  v = setCell(v, 0, 3, "1");
+  eq(v.signal[0].wave, "0..1....");
+  eq(cellsOf(v.signal[0], 8).map((c) => c.value).join(""), "00011111");
+  v = setCell(v, 0, 3, ".");
+  eq(v.signal[0].wave, "0.......");
+});
+
+Deno.test("data steps keep their labels in order as steps are added and removed", () => {
+  let v = addSignal(empty(), "Q");
+  v = setCell(v, 0, 2, "=", "A");
+  v = setCell(v, 0, 5, "=", "B");
+  eq(v.signal[0].data, ["A", "B"]);
+  v = setCell(v, 0, 1, "=", "Z0");
+  eq(v.signal[0].data, ["Z0", "A", "B"]);
+  eq(dataAt(v.signal[0], 6), "B");
+  v = setCell(v, 0, 2, "0");
+  eq(v.signal[0].data, ["Z0", "B"]);
+});
+
+Deno.test("steps, clock, delay, order and removal", () => {
+  let v = addSignal(addSignal(empty(), "A"), "B");
+  v = setSteps(v, 5);
+  eq([stepCount(v), v.signal[0].wave], [5, "0...."]);
+  v = setClock(v, 1, true);
+  eq(v.signal[1].wave, "p....");
+  v = setCell(v, 1, 2, "1");
+  eq(v.signal[1].wave, "p.1..");   // a step of a clock can be set on its own, as WaveDrom allows
+  v = setDelay(v, 0, 0.25);
+  eq(v.signal[0].delay, 0.25);
+  eq(moveSignal(v, 1, -1).signal.map((s) => s.name), ["B", "A"]);
+  eq(removeSignal(v, 0).signal.map((s) => s.name), ["B"]);
+});
+
+Deno.test("the click cycle goes 0, 1, X, Z, data and back", () => {
+  eq(["0", "1", "x", "z", "="].map((c) => nextValue(c)), ["1", "x", "z", "=", "0"]);
+  eq(nextValue("0", true), "=");
+});
+
+import { addEdge, addSpacer, edgesOf, fromWaveDrom, nextLetter, nodeLetters, removeEdge, setBand, setEdge, setHscale, setNode, setProp, toWaveDrom } from "../src/model.js";
+import { drawTiming, lanesOf, parseEdge } from "../src/draw.js";
+
+Deno.test("period, phase, group; nodes and edges; spacers; head and foot; hscale", () => {
+  let v = addSignal(addSignal(empty(), "clk", { clock: true }), "D");
+  v = setProp(setProp(setProp(v, 0, "period", 2), 1, "phase", 0.5), 1, "group", "Inputs");
+  eq([v.signal[0].period, v.signal[1].phase, v.signal[1].group], [2, 0.5, "Inputs"]);
+  eq(setProp(v, 0, "period", 1).signal[0].period, undefined);
+  v = setNode(v, 0, 1, nextLetter(v));
+  v = setNode(v, 1, 3, nextLetter(v));
+  eq(nodeLetters(v), ["a", "b"]);
+  v = addEdge(v, { from: "a", op: "~>", to: "b", label: "t_pd" });
+  eq(v.edge, ["a~>b t_pd"]);
+  v = setEdge(v, 0, { op: "-|->" });
+  eq(edgesOf(v)[0], { from: "a", op: "-|->", to: "b", label: "t_pd" });
+  eq(removeEdge(v, 0).edge, undefined);
+  v = addSpacer(v);
+  eq(v.signal[2], {});
+  v = setBand(v, "head", { text: "Setup", tick: 0, every: 2 });
+  eq(v.head, { text: "Setup", tick: 0, every: 2 });
+  eq(setBand(v, "head", { text: "", tick: "", every: 1 }).head, undefined);
+  eq(setHscale(v, 2).config.hscale, 2);
+});
+
+Deno.test("WaveDrom groups go to flat signals and back", () => {
+  const w = { signal: [{ name: "clk", wave: "p..." }, ["Bus", { name: "A", wave: "01.." }, { name: "B", wave: "0.1." }]] };
+  const flat = fromWaveDrom(w);
+  eq(flat.signal.map((s) => s.group ?? ""), ["", "Bus", "Bus"]);
+  eq(toWaveDrom(flat).signal, w.signal);
+  eq(lanesOf(w).map((l) => l.groups.join("/")), ["", "Bus", "Bus"]);
+});
+
+Deno.test("the drawing has every WaveDrom feature: colours, gaps, clock arrows, groups, ticks, edges", () => {
+  const v = {
+    signal: [{ name: "clk", wave: "P.N.", node: ".a.." }, ["Bus", { name: "D", wave: "3.4|", data: ["A", "B"], node: "...b" }], {}, { name: "w", wave: "u.d.hl" }],
+    edge: ["a~>b t_pd", "a-|>b"], head: { text: "Title", tick: 0 }, foot: { tock: 1 },
+  };
+  const s = drawTiming(v, { dataFills: ["#111111", "#222222"] }).svg;
+  assert(s.includes('fill="#111111"') && s.includes('fill="#222222"'), "data colours 3 and 4");
+  assert(s.includes(">Title</text>") && s.includes(">t_pd</text>") && s.includes(">Bus</text>"), "head text, edge label, group name");
+  assert(s.includes("stroke-dasharray"), "weak pull-up drawn dashed");
+  assert((s.match(/ C /g) ?? []).length >= 1, "a curved edge");
+  eq(parseEdge("a<->b  hold").label, "hold");
+});
+
+import { setSlant, slantOf } from "../src/model.js";
+Deno.test("edge slant: 0 gives square vertical edges, 5 (the default) the slanted WaveDrom look, both drawn", () => {
+  const v = { signal: [{ name: "D", wave: "0.1.0" }] };
+  assert(slantOf(v) === 5 && slantOf(setSlant(v, 0)) === 0 && setSlant(v, 5).config.slant === undefined);
+  const xs = (svg) => [...svg.matchAll(/ L ([\d.]+) /g)].map((m) => +m[1]);
+  const sq = drawTiming(setSlant(v, 0), {}).svg, sl = drawTiming(v, {}).svg;
+  assert(sq !== sl);
+  const pts = (svg) => / d="(M [^"]*)"/.exec(svg)[1].split(/ [ML] /).map((p) => p.replace(/^M /, "").split(" ").map(Number));
+  const vertical = (svg) => pts(svg).some((p, i, a) => i && p[0] === a[i - 1][0] && p[1] !== a[i - 1][1]);
+  assert(vertical(sq), "square: the edge is vertical");
+  assert(!vertical(sl), "slanted: the edge leans");
+  assert(xs(sq).length > 0);
+});

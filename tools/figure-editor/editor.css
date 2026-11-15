@@ -159,3 +159,34 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 .fe-timing-head { display: flex; align-items: center; gap: .25rem; padding: 0 .5rem; background: var(--role-surface); }
 .fe-timing-body { min-height: 0; overflow: hidden; }
 
+
+/* ---- the slide view (F19): the slide as it exports, regions dragged on the module grid ---- */
+.fe-slideview { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; user-select: none; background: var(--fig-background); }
+[data-canvas="dark"] .fe-slideview { background: var(--fig-dark-background); }
+.fe-stage.is-slide .fe-canvas { visibility: hidden; }
+.fe-slide-regions { list-style: none; margin: .4rem 0; padding: 0; display: grid; gap: .4rem; }
+.fe-region { display: grid; gap: .2rem; padding: .3rem; border: 1px solid var(--role-rule); }
+.fe-slidebar { position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: stretch; gap: .35rem; padding: .4rem .6rem; background: var(--role-surface); border-bottom: 1px solid var(--role-rule); }
+.fe-slidebar > .label-mono { align-self: center; margin-right: .2rem; }
+.fe-layout { display: grid; justify-items: center; gap: .15rem; width: 6.6rem; padding: .25rem; border: 1px solid var(--role-rule); background: var(--role-background); color: var(--role-ink); font-size: .65rem; line-height: 1.15; cursor: pointer; }
+.fe-layout svg { width: 100%; height: auto; display: block; color: var(--role-muted); }
+.fe-layout:hover { border-color: var(--role-accent); }
+.fe-layout[aria-pressed="true"] { border-color: var(--role-accent); box-shadow: inset 0 0 0 1px var(--role-accent); }
+.fe-slidebar-end { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+.fe-stage.is-slide .fe-slideview { top: var(--slidebar-h, 6.5rem); height: calc(100% - var(--slidebar-h, 6.5rem)); }
+.fe-toolbar { column-gap: .3rem; }
+.fe-group { padding-right: .3rem; }
+.fe .fe-toolbar .fe-btn { --bs-btn-padding-x: .35rem; }
+.fe-splits { border: 1px solid var(--role-rule); padding: .4rem .5rem; margin: .4rem 0; display: grid; gap: .3rem; }
+.fe-splits legend { float: none; width: auto; padding: 0 .3rem; margin: 0; font-size: .7rem; }
+
+/* ---- level colours (F17) ---- */
+.fe-levelcolours { border: 1px solid var(--role-rule); padding: .4rem .5rem; margin: .5rem 0; display: grid; gap: .3rem; }
+.fe-levelcolours legend { float: none; width: auto; padding: 0 .3rem; margin: 0; font-size: .7rem; }
+.fe-lc-head, .fe-lc-row { display: grid; grid-template-columns: 1fr 2.6rem 2.6rem 2rem; gap: .3rem; align-items: center; }
+.fe-lc-head { font-size: .65rem; color: var(--role-muted); text-align: center; }
+.fe-lc-name small { color: var(--role-muted); }
+.fe-lc-row input[type="color"] { width: 100%; height: 1.7rem; padding: 0; border: 1px solid var(--role-rule); background: transparent; cursor: pointer; }
+.fe-lc-row input.is-custom { outline: 2px solid var(--role-accent); outline-offset: 1px; }
+.fe-lc-warnings { list-style: none; margin: 0; padding: 0; font-size: .75rem; display: grid; gap: .2rem; }
+.fe-lc-warnings li::before { content: "⚠ "; }

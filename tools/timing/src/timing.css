@@ -1,21 +1,114 @@
-/* Timing diagram page: the schematic editor's shell (editor.css). Controls live in the side panes; the middle is the code and the diagram, filling the screen. No colours or fonts are set here. */
+/* The timing tool, on its own page and docked in the Figure Editor. The shell comes from the Figure Editor (editor.css).
+   No colours or fonts are set here: roles only. */
 .td-pad { display: grid; gap: .5rem; padding: 0 .75rem .75rem; }
-.td-center { grid-column: 2; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(6rem, 2fr) 3fr; background: var(--fig-background); }
-.fe .td-src { height: 100%; width: 100%; resize: none; border: 0; border-bottom: 1px solid var(--role-rule); border-radius: 0; padding: .75rem; font-family: var(--bs-font-monospace); font-size: .8rem; line-height: 1.4; background: var(--role-surface); color: inherit; }
+.td-center { grid-column: 2; min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); background: var(--role-background); }
+.td-tabs { display: flex; gap: 2px; padding: .25rem .5rem; border-bottom: 1px solid var(--role-rule); }
+.td-tabs [aria-selected="true"] { background: var(--role-accent); border-color: var(--role-accent); color: var(--role-background); }
+.td-edit { min-height: 0; overflow: auto; padding: .5rem .75rem; display: grid; align-content: start; gap: .5rem; }
 .td-view { min-width: 0; min-height: 0; overflow: auto; padding: 1rem; background: var(--fig-background); line-height: 0; }
+[data-canvas="dark"] .td-view { background: var(--fig-dark-background); }
+.td-emptynote { line-height: 1.4; }
 .td-status[data-error] { font-weight: 700; }
-.td-chip { display: inline-block; margin: 0 .35rem .35rem 0; padding: 0 .45rem; border: 1px solid var(--role-rule); font: inherit; background: transparent; color: inherit; cursor: pointer; }
-.td-chip:hover { border-color: var(--role-accent); }
-.td-flag { font-weight: 700; }
 .fe .td-file { cursor: pointer; }
-@media (max-width: 800px) { .fe { grid-template-columns: 1fr; } .td-center, .fe-side, .fe-palette { grid-column: 1; } .td-center { grid-template-columns: 1fr; } }
+
+/* Add a node */
+.td-addbar { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; }
+.td-addbar .label-mono { margin-right: .25rem; }
+.td-chip { padding: 0 .45rem; border: 1px solid var(--role-rule); font: inherit; font-size: .8rem; background: transparent; color: inherit; cursor: pointer; }
+.td-chip:hover:not(:disabled) { border-color: var(--role-accent); color: var(--role-accent); }
+.td-chip:disabled { opacity: .45; cursor: default; }
+.td-flag { margin: 0; font-weight: 700; }
+.td-flag:empty { display: none; }
+
+/* The step editor: each step drawn as a small piece of waveform (a high line, a low line, a middle line, hatching or a box) */
+.td-grid { display: grid; gap: 2px; }
+.td-row { display: grid; grid-template-columns: 10rem minmax(0, 1fr) 4.5rem; align-items: center; gap: .5rem; }
+.td-name { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.td-name > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--bs-font-monospace); font-size: .8rem; }
+.td-mini { padding: 0 .25rem; border: 1px solid transparent; background: transparent; color: var(--role-muted); font: inherit; font-size: .7rem; line-height: 1.4; cursor: pointer; }
+.td-mini:hover { border-color: var(--role-rule); color: var(--role-ink); }
+.td-mini[aria-pressed="true"] { color: var(--role-accent); border-color: var(--role-accent); }
+.td-cells { display: grid; grid-template-columns: repeat(var(--n), minmax(1.6rem, 1fr)); gap: 0; }
+.td-stepno { text-align: center; font-family: var(--bs-font-monospace); font-size: .65rem; color: var(--role-muted); }
+.td-stepno.is-marked { color: var(--role-accent); font-weight: 700; }
+.td-cell { position: relative; height: 1.9rem; padding: 0 .15rem; border: 0; background: transparent; color: var(--role-ink); font-family: var(--bs-font-monospace); font-size: .7rem; cursor: pointer; overflow: hidden; white-space: nowrap; }
+.td-cell:hover { background: var(--role-surface); }
+.td-cell:focus-visible { outline: 2px solid var(--role-accent); outline-offset: -2px; }
+.td-cell.v-1 { box-shadow: inset 0 2px 0 currentColor; }
+.td-cell.v-0 { box-shadow: inset 0 -2px 0 currentColor; }
+.td-cell.v-z { background-image: linear-gradient(currentColor, currentColor); background-size: 100% 2px; background-position: 0 50%; background-repeat: no-repeat; color: var(--role-muted); }
+.td-cell.v-x { background-image: repeating-linear-gradient(45deg, transparent 0 4px, var(--role-rule) 4px 5px); box-shadow: inset 0 2px 0 var(--role-muted), inset 0 -2px 0 var(--role-muted); }
+.td-cell.v-data, .td-brush.v-data { box-shadow: inset 0 2px 0 currentColor, inset 0 -2px 0 currentColor; }
+.td-cell.v-d { background-image: linear-gradient(90deg, currentColor 50%, transparent 50%); background-size: 6px 2px; background-repeat: repeat-x; background-position: 0 100%; }
+.td-cell:not(.is-held) { border-left: 2px solid var(--role-accent); }
+.td-cell.is-held { color: var(--role-muted); }
+.td-cell.is-marked { background-color: var(--role-surface); }
+.td-clockcells { height: 1.9rem; display: flex; align-items: center; padding-left: .5rem; font-family: var(--bs-font-monospace); font-size: .7rem; color: var(--role-muted); background-image: repeating-linear-gradient(90deg, currentColor 0 2px, transparent 2px 50%); background-size: calc(100% / var(--n)) 2px; background-position: 0 30%; background-repeat: repeat-x; }
+.td-delay { font-size: .75rem; }
+.td-head .td-delay { color: var(--role-muted); font-size: .65rem; }
+.td-stepsbar { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; }
+.td-nsteps { min-width: 1.5rem; text-align: center; font-family: var(--bs-font-monospace); }
+
+@media (max-width: 800px) { .fe { grid-template-columns: 1fr; } .td-center, .fe-side, .fe-palette { grid-column: 1; } .td-row { grid-template-columns: 7rem minmax(0, 1fr) 4rem; } }
 
 /* ---- docked in the Figure Editor (F18) ---- */
 .td-dock { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; height: 100%; }
 .td-dockbar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px .25rem; padding: .2rem .5rem; border-bottom: 1px solid var(--role-rule); }
-.td-dockbar .td-status { margin-left: auto; padding: 0 .5rem; font-size: .8rem; color: var(--role-muted); }
-.td-dockbody { display: grid; grid-template-columns: minmax(12rem, 2fr) 3fr 13rem; min-height: 0; }
-.td-dock .td-src { height: 100%; width: 100%; resize: none; border: 0; border-right: 1px solid var(--role-rule); border-radius: 0; padding: .5rem; font-family: var(--bs-font-monospace); font-size: .8rem; line-height: 1.4; background: var(--role-surface); color: inherit; }
+.td-dockbar .td-status { margin-left: auto; padding: 0 .5rem; font-size: .8rem; color: var(--role-muted); border: 0; background: transparent; min-height: 0; }
+.td-dockbody { display: grid; grid-template-columns: minmax(0, 1fr) 13rem; min-height: 0; }
+.td-dock .td-center { grid-column: auto; }
 .td-dockside { min-height: 0; overflow-y: auto; border-left: 1px solid var(--role-rule); }
-.td-dock .td-view { min-width: 0; min-height: 0; overflow: auto; padding: .5rem; background: var(--fig-background); line-height: 0; }
-[data-canvas="dark"] .td-view { background: var(--fig-dark-background); }
+
+/* ---- every WaveDrom value, as brushes and as steps ---- */
+.td-brushes { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+.td-brushes .label-mono { margin-right: .3rem; }
+.td-brush { min-width: 1.9rem; height: 1.7rem; padding: 0 .3rem; border: 1px solid var(--role-rule); background: var(--role-background); color: var(--role-ink); font-family: var(--bs-font-monospace); font-size: .68rem; cursor: pointer; }
+.td-brush:hover { border-color: var(--role-accent); }
+.td-brush[aria-pressed="true"] { background: var(--role-accent); border-color: var(--role-accent); color: var(--role-background); box-shadow: none; }
+.td-cell.v-h, .td-brush.v-h, .td-brush.v-1 { box-shadow: inset 0 2px 0 currentColor; }
+.td-cell.v-l, .td-brush.v-l, .td-brush.v-0 { box-shadow: inset 0 -2px 0 currentColor; }
+.td-cell.v-u { box-shadow: none; background-image: linear-gradient(90deg, currentColor 50%, transparent 50%); background-size: 6px 2px; background-repeat: repeat-x; background-position: 0 0; }
+.td-cell.v-3, .td-brush.v-3 { background: color-mix(in srgb, var(--fig-high) 35%, transparent); }
+.td-cell.v-4, .td-brush.v-4 { background: color-mix(in srgb, var(--fig-flow) 35%, transparent); }
+.td-cell.v-5, .td-brush.v-5 { background: color-mix(in srgb, var(--fig-accent) 35%, transparent); }
+.td-cell.v-6, .td-brush.v-6 { background: color-mix(in srgb, var(--fig-highlight) 35%, transparent); }
+.td-cell.v-7, .td-brush.v-7 { background: color-mix(in srgb, var(--fig-shade) 35%, transparent); }
+.td-cell.v-8, .td-brush.v-8 { background: color-mix(in srgb, var(--fig-muted) 35%, transparent); }
+.td-cell.v-9, .td-brush.v-9 { background: color-mix(in srgb, var(--fig-rule) 35%, transparent); }
+.td-cell:is(.v-3, .v-4, .v-5, .v-6, .v-7, .v-8, .v-9) { box-shadow: inset 0 2px 0 currentColor, inset 0 -2px 0 currentColor; }
+.td-cell:is(.v-p, .v-n, .v-P, .v-N) { background-image: linear-gradient(90deg, transparent 0 48%, currentColor 48% 52%, transparent 52%); box-shadow: inset 0 2px 0 var(--role-muted), inset 0 -2px 0 var(--role-muted); color: var(--role-muted); }
+.td-node { position: absolute; top: 1px; right: 2px; font-size: .6rem; color: var(--role-accent); font-weight: 700; }
+.td-more { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; padding: .3rem 0 .5rem 10.5rem; font-size: .75rem; }
+.td-more label { display: grid; gap: .1rem; }
+.td-more .form-control { width: 6rem; }
+.td-more .form-check { display: flex; gap: .3rem; align-items: center; }
+.td-spacer .td-name span { font-style: italic; }
+.td-edges { display: grid; gap: .3rem; }
+.td-edgehead { display: flex; align-items: center; gap: .5rem; }
+.td-edge { display: grid; grid-template-columns: 4rem 13rem 4rem minmax(6rem, 1fr) auto; gap: .3rem; align-items: center; }
+.td-band { border: 0; padding: 0; margin: 0 0 .5rem; display: grid; gap: .3rem; }
+.td-source { min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: .5rem; padding: .5rem .75rem; }
+.fe .td-srctext { height: 100%; min-height: 12rem; resize: none; border-radius: 0; font-family: var(--bs-font-monospace); font-size: .8rem; line-height: 1.4; background: var(--role-surface); color: inherit; border-color: var(--role-rule); }
+
+/* ---- the Edit view in four steps ---- */
+.td-subtabs { display: flex; gap: 0; border-bottom: 1px solid var(--role-rule); margin: -.5rem -.75rem .25rem; padding: 0 .75rem; position: sticky; top: -.5rem; background: var(--role-background); z-index: 1; }
+.td-subtabs button { padding: .45rem .8rem; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--role-muted); font: inherit; font-size: .8rem; cursor: pointer; }
+.td-subtabs button b { display: inline-grid; place-items: center; width: 1.2rem; height: 1.2rem; margin-right: .3rem; border: 1px solid currentColor; border-radius: 50%; font-size: .7rem; font-weight: 600; }
+.td-subtabs button:hover { color: var(--role-ink); }
+.td-subtabs button[aria-selected="true"] { color: var(--role-ink); border-bottom-color: var(--role-accent); }
+.td-subtabs button[aria-selected="true"] b { background: var(--role-accent); border-color: var(--role-accent); color: var(--role-background); }
+.td-sub { display: grid; gap: .6rem; align-content: start; }
+.td-sub[hidden] { display: none; }
+.td-help { margin: 0; color: var(--role-muted); font-size: .8rem; }
+.td-steps-help { margin: 0; padding-left: 1.2rem; font-size: .8rem; display: grid; gap: .2rem; }
+.td-bgroup { display: inline-flex; align-items: center; gap: 2px; margin: 0 .6rem .3rem 0; padding-right: .6rem; border-right: 1px solid var(--role-rule); }
+.td-bgroup:last-child { border-right: 0; }
+.td-bgroup .label-mono { margin-right: .3rem; font-size: .6rem; }
+.td-brushes { display: flex; flex-wrap: wrap; align-items: center; row-gap: .1rem; }
+.td-bands { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }
+.td-presets { display: flex; gap: .5rem; }
+.td-preset { display: grid; justify-items: center; gap: .2rem; width: 6.5rem; padding: .4rem; border: 1px solid var(--role-rule); background: var(--role-background); color: var(--role-ink); font-size: .75rem; cursor: pointer; }
+.td-preset svg { width: 100%; height: 1.6rem; }
+.td-preset:hover { border-color: var(--role-accent); }
+.td-preset[aria-pressed="true"] { border-color: var(--role-accent); box-shadow: inset 0 0 0 1px var(--role-accent); }
+.td-band .form-control { max-width: 12rem; }

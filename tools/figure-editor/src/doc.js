@@ -592,10 +592,55 @@ export function lint(doc, pack) {
   return out;
 }
 
+// ---- the figure's style block (circuit/0.2, schema model-v0.3.1) -----------------------------------------------------
+// style.weight and style.theme are kept as they are (F4.4 gives them a UI); style.levels is F17's: colours for 0, 1, X, Z.
+
+const STYLE_WEIGHTS = ["thin", "regular", "bold"], STYLE_THEMES = ["default", "dark"], HEX6 = /^#[0-9A-Fa-f]{6}$/;
+
+/** The style block in the file's key order: weight, theme, levels ("0", "1", "X", "Z", each light then dark). */
+function orderedStyle(style) {
+  const out = {};
+  if (style.weight !== undefined) out.weight = style.weight;
+  if (style.theme !== undefined) out.theme = style.theme;
+  if (style.levels && Object.keys(style.levels).length) {
+    out.levels = {};
+    for (const k of LEVEL_VALUES) if (style.levels[k]) out.levels[k] = ordered(style.levels[k], ["light", "dark"]);
+  }
+  return out;
+}
+
+/** Check a style block as the schema does: only weight, theme and levels; levels only 0, 1, X, Z, each with light and dark as #RRGGBB. */
+function checkStyle(style, fail) {
+  if (!style || typeof style !== "object" || Array.isArray(style)) fail("style must be an object");
+  for (const k of Object.keys(style)) if (!["weight", "theme", "levels"].includes(k)) fail(`style: unknown field "${k}"`);
+  if (style.weight !== undefined && !STYLE_WEIGHTS.includes(style.weight)) fail("style.weight must be thin, regular or bold");
+  if (style.theme !== undefined && !STYLE_THEMES.includes(style.theme)) fail("style.theme must be default or dark");
+  if (style.levels !== undefined) {
+    if (!style.levels || typeof style.levels !== "object" || Array.isArray(style.levels)) fail("style.levels must be an object");
+    for (const [k, v] of Object.entries(style.levels)) {
+      if (!LEVEL_VALUES.includes(k)) fail(`style.levels: "${k}" is not a level (0, 1, X or Z)`);
+      if (!v || typeof v !== "object" || Array.isArray(v)) fail(`style.levels.${k} must be an object`);
+      for (const [m, c] of Object.entries(v)) {
+        if (m !== "light" && m !== "dark") fail(`style.levels.${k}: unknown field "${m}"`);
+        if (typeof c !== "string" || !HEX6.test(c)) fail(`style.levels.${k}.${m} must be a #RRGGBB colour`);
+      }
+    }
+  }
+  return style;
+}
+
+/** The document with the level colours set (an object {level: {light?, dark?}}), or cleared when empty. Other style fields are kept. */
+export function setStyleLevels(doc, levels) {
+  const d = clone(doc), style = { ...(d.style ?? {}) };
+  if (levels && Object.keys(levels).length) style.levels = levels; else delete style.levels;
+  if (Object.keys(style).length) d.style = style; else delete d.style;
+  return d;
+}
+
 // ---- save and load ---------------------------------------------------------------------
 
 const ORDER = {
-  top: ["schema", "id", "title", "grid_cm", "elements", "ports", "nets", "wires", "junctions", "groups", "labels"],
+  top: ["schema", "id", "title", "grid_cm", "style", "elements", "ports", "nets", "wires", "junctions", "groups", "labels"],
   element: ["id", "type", "at", "rotation", "mirror", "label", "level", "params"],
   port: ["id", "dir", "at", "label", "side"],
   wire: ["id", "from", "to", "via", "first", "arrow", "bus", "level"],
@@ -644,6 +689,7 @@ export function serialize(doc, pack) {
     id: JSON.stringify(doc.id),
     title: doc.title !== undefined ? JSON.stringify(doc.title) : undefined,
     grid_cm: JSON.stringify(doc.grid_cm),
+    style: doc.style && Object.keys(doc.style).length ? inline(orderedStyle(doc.style)) : undefined,
     elements: block(doc.elements.map(el)),
     ports: doc.ports.length ? block(doc.ports.map((p) => inline(ordered(p, ORDER.port)))) : undefined,
     nets: Object.keys(nets).length
@@ -680,6 +726,7 @@ export function parse(text) {
   };
   if (raw.title !== undefined) doc.title = String(raw.title);
   if (raw.groups !== undefined) doc.groups = raw.groups;
+  if (raw.style !== undefined) doc.style = checkStyle(raw.style, fail);
   const seen = new Set();
   const unique = (v, where) => { if (seen.has(v)) fail(`${where}: id "${v}" used twice`); seen.add(v); };
   doc.elements.forEach((e, i) => {

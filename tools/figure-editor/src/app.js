@@ -7,6 +7,7 @@
 // only decides which one to call and records it for undo.
 
 import { LEVELS, loadPack, parsePrivateTheme } from "./pack.js";
+import { contrast, levelRoles, warnings as levelWarnings, withLevelColour } from "./levelcolours.js";
 import * as D from "./doc.js";
 import { History } from "./history.js";
 import { drawTiming } from "../../timing/src/draw.js";
@@ -20,7 +21,8 @@ import { BLOCK, formatPins, handlesOf, parsePins, SHAPES, geometryOf } from "./b
 import { PRESETS, presetById } from "./presets.js";
 import { sections } from "./categories.js";
 import { circuitFromSvg, sanitizeSvg, MAX_SVG_BYTES } from "./svgimport.js";
-import { FORMATS, LAYOUTS, centreOn, cleanFrame, frameBox, overflow, regions, sizeOf } from "./frame.js";
+import { FORMATS } from "./frame.js";
+import { contentArea, defaultSlide, KINDS, layoutThumb, LAYOUTS as SLIDE_LAYOUTS, nudgeRegion, slideOf, slideSize, slideSvg, SPLITS, splitsOf, withLayout, withSlide, withSplit } from "./slide.js";
 import { orient } from "./geometry.js";
 import { migrateBeta } from "./migrate.js";
 import { framesFromSignals, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame } from "./levelframes.js";
@@ -127,6 +129,7 @@ export async function mount(root, options = {}) {
       <div class="fe-group" role="group" aria-label="Clipboard">
         ${btn("copy", "Copy", "Control+C")}${btn("paste", "Paste", "Control+V")}
       </div>
+      <div class="fe-group" role="group" aria-label="Workspace: the canvas or the slide">${btn("viewcanvas", "Canvas", "", ' aria-pressed="true"', "Draw on the canvas")}${btn("viewslide", "Slide", "", ' aria-pressed="false"', "Lay out the slide: layouts, regions, export")}</div>
       <div class="fe-group" role="group" aria-label="View">
         ${btn("zoomout", "Zoom out", "-")}${btn("zoomin", "Zoom in", "+")}${btn("fit", "Fit", "F")}
       </div>
@@ -147,6 +150,8 @@ export async function mount(root, options = {}) {
     </details>
     <div class="fe-stage">
       <svg class="fe-canvas" tabindex="0" role="application" aria-label="Figure canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="fe-slidebar" hidden role="toolbar" aria-label="Slide layouts"></div>
+      <svg class="fe-slideview" hidden role="img" aria-label="Slide view: drag a region to move it, drag its corner to resize it" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
     </div>
     <div class="fe-timing" data-open="false" role="region" aria-label="Timing Diagram">
       <div class="fe-splitter" role="separator" aria-orientation="horizontal" aria-label="Resize the Timing Diagram pane" tabindex="0" title="Drag to resize (or use the arrow keys)"></div>
@@ -176,18 +181,27 @@ export async function mount(root, options = {}) {
         <label class="form-label">Canvas <select class="form-select form-select-sm" name="fe-canvas"><option value="auto">Auto (follows system)</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
         <p class="fe-theme-note"></p>
         <div class="fe-theme-buttons" role="group" aria-label="Theme">${btn("theme", "Private theme…")}${btn("themereset", "Default theme")}</div>
+        <fieldset class="fe-levelcolours"><legend class="label-mono">Level colours</legend>
+          <p class="fe-hint">Choose the colour of each logic level, for the light and for the dark canvas. The choice is saved with the figure and used by every export. A colour left on its default follows the theme.</p>
+          <div class="fe-lc-head" aria-hidden="true"><span></span><span>Light</span><span>Dark</span><span></span></div>
+          ${LEVELS.map((l) => `<div class="fe-lc-row" data-level="${l.value}"><span class="fe-lc-name">${l.value} <small>${l.name}</small></span><input type="color" data-mode="light" aria-label="Level ${l.value}, light canvas"><input type="color" data-mode="dark" aria-label="Level ${l.value}, dark canvas"><button type="button" class="${BUTTON}" data-lc-reset="${l.value}" aria-label="Level ${l.value} back to the theme default" title="Back to the theme default">↺</button></div>`).join("")}
+          <ul class="fe-lc-warnings" aria-live="polite"></ul>
+          <div class="fe-theme-buttons">${btn("levelsreset", "Reset all to the defaults")}</div>
+        </fieldset>
       </details>
-      <details class="fe-pane fe-frame-pane" name="fe-doc">
-        <summary class="label-mono">Slide frame</summary>
-        <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-frame-show"> <span class="form-check-label">Show a slide-size frame on the canvas</span></label>
-        <label class="form-label">Slide <select class="form-select form-select-sm" name="fe-frame-format">${Object.entries(FORMATS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("")}</select></label>
-        <label class="form-label">Layout <select class="form-select form-select-sm" name="fe-frame-layout">${Object.entries(LAYOUTS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("")}</select></label>
-        <label class="form-label">Frame centre, right and up (grid steps) <span class="fe-pair"><input class="form-control form-control-sm" type="number" name="fe-frame-x" step="1"><input class="form-control form-control-sm" type="number" name="fe-frame-y" step="1"></span></label>
-        <div class="fe-theme-buttons" role="group" aria-label="Slide frame">${btn("framecentre", "Centre on the figure")}${btn("exportframe", "Frame as SVG")}${btn("pngframe", "Frame as PNG")}${btn("partsvg", "Schematic part as SVG")}${btn("partpng", "Schematic part as PNG")}</div>
-        <p class="fe-hint">The frame exports at the slide's real size, exactly what lies inside it at 1:1 (times the Scale option). The Export SVG button writes the schematic alone. The timing diagram, and its own export, arrive with the scenario player. The frame is kept in this browser, not in the circuit file.</p>
+      <details class="fe-pane fe-slide-pane" name="fe-doc">
+        <summary class="label-mono">Slide</summary>
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-slide-show"> <span class="form-check-label">Show the slide (instead of the canvas)</span></label>
+        <label class="form-label">Slide size <select class="form-select form-select-sm" name="fe-slide-format">${Object.entries(FORMATS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("")}</select></label>
+        <label class="form-label">Header and footer heights (cm) <span class="fe-pair"><input class="form-control form-control-sm" type="number" name="fe-slide-header" min="0" max="8" step="0.25" aria-label="Header height (cm)"><input class="form-control form-control-sm" type="number" name="fe-slide-footer" min="0" max="5" step="0.25" aria-label="Footer height (cm)"></span></label>
+        <label class="form-label">Layout <select class="form-select form-select-sm" name="fe-slide-layout"><option value="custom" disabled>Custom (regions moved by hand)</option>${Object.entries(SLIDE_LAYOUTS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("")}</select></label>
+        <fieldset class="fe-splits"><legend class="label-mono">Dividers</legend>${Object.entries(SPLITS).map(([k, v]) => `<label class="form-label" data-split="${k}">${v.name} (%) <input class="form-control form-control-sm" type="number" min="${v.min}" max="${v.max}" step="1" name="fe-split-${k}" title="${v.hint}"></label>`).join("")}<button type="button" class="${BUTTON}" data-cmd="splitsreset">Reset dividers to the layout's defaults</button></fieldset>
+        <ul class="fe-slide-regions" aria-label="Regions"></ul>
+        <div class="fe-theme-buttons" role="group" aria-label="Add a region">${btn("addschematic", "+ Schematic")}${btn("addtiming", "+ Timing")}${btn("addtext", "+ Text")}</div>
+        <div class="fe-theme-buttons" role="group" aria-label="Export the slide">${btn("slidesvg", "Slide as SVG")}${btn("slidepng", "Slide as PNG")}</div>
+        <p class="fe-hint">Regions sit on the 0.5 cm module grid: drag one in the slide view to move it, drag its corner to resize it. Content is fitted to its region and re-drawn there, so line weights stay as drawn. Text regions only mark where PowerPoint text goes and are never exported. The slide is saved in the figure.</p>
         <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-tmarker"> <span class="form-check-label">Mark the selected frame's step on the timing diagram</span></label>
         <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-tcolour"> <span class="form-check-label">Colour the timing diagram like the nets (by level)</span></label>
-        <p class="fe-frame-note" aria-live="polite"></p>
       </details>
       <details class="fe-pane fe-frames-pane" name="fe-doc">
         <summary class="label-mono">Frames</summary>
@@ -195,7 +209,7 @@ export async function mount(root, options = {}) {
         <div class="fe-theme-buttons" role="group" aria-label="Frames">${btn("framesfromtiming", "Fill from timing diagram")}${btn("framecapture", "Capture frame")}${btn("framerecapture", "Update selected")}</div>
         <ol class="fe-frame-list" aria-label="Frames"></ol>
         <div class="fe-theme-buttons" role="group" aria-label="Edit the selected frame">${btn("framerename", "Rename")}${btn("frameup", "Move up")}${btn("framedown", "Move down")}${btn("framedelete", "Delete")}</div>
-        <label class="form-label">Export each frame as <select class="form-select form-select-sm" name="fe-frames-what"><option value="schematic">The schematic alone</option><option value="slide">The slide frame</option></select></label>
+        <label class="form-label">Export each frame as <select class="form-select form-select-sm" name="fe-frames-what"><option value="schematic">The schematic alone</option><option value="slide">The slide</option></select></label>
         <div class="fe-theme-buttons" role="group" aria-label="Export frames">${btn("framesexport", "Export frames")}${btn("framesslide", "Export all on one slide")}</div>
         <p class="fe-hint">Export frames writes one SVG and one PNG per frame, numbered 01, 02, … (your browser may ask to allow several downloads). The one-slide export lays every frame out as a grid of small figures, labelled with their names, at the slide's size.</p>
       </details>
@@ -249,6 +263,7 @@ export async function mount(root, options = {}) {
   let spaceHeld = false;
   let lastDrawing = null;
   let selectedFrame = -1;            // the frame chosen in the Frames list (level frames, F11.2)
+  let timingTool = null, timingTimer = 0;   // the docked Timing Diagram pane, mounted on first open (F18)
   const framesWhat = $('[name="fe-frames-what"]');
   let autosaveTimer = null;
   const typeset = new Map();         // TeX to parseTypeset's result (every label drawn is typeset once)
@@ -258,7 +273,7 @@ export async function mount(root, options = {}) {
   if (opt.grid !== 2) opt.grid = 1;   // snap for parts, in grid steps: 1 is half a module (default), 2 is a whole module
   if (!["auto", "light", "dark"].includes(opt.canvas)) opt.canvas = "auto";
   opt.exportDark = opt.exportDark === true;
-  opt.frame = cleanFrame(opt.frame);
+  delete opt.frame;   // the F10 frame option is replaced by the slide saved in the figure (F19)
   /** Snap a point (grid steps) to the part grid. Wires, ports and labels always snap to one step (half a module). */
   function snapPart(p) { const g = opt.grid; return [g * Math.round(p[0] / g) || 0, g * Math.round(p[1] / g) || 0]; }
   const saveOptions = () => store.set(OPTIONS, JSON.stringify(opt));
@@ -291,7 +306,7 @@ export async function mount(root, options = {}) {
   }
   /** The pack drawn for the light or dark canvas. A private theme, if loaded, overrides the dark roles. */
   function packFor(dark) {
-    const roles = { ...(dark ? darkRoles() : {}), ...(privateRoles ?? {}) };
+    const roles = { ...(dark ? darkRoles() : {}), ...(privateRoles ?? {}), ...levelRoles(doc.style?.levels, dark) };   // the figure's own level colours (F17) win
     return Object.keys(roles).length ? loaded.withTheme(roles) : loaded;
   }
   /** Is the site showing its dark look? Read from the site's own role (the toggle swaps stylesheets), not the OS setting, which the toggle can override. */
@@ -303,6 +318,11 @@ export async function mount(root, options = {}) {
   }
   const canvasIsDark = () => opt.canvas === "dark" || (opt.canvas === "auto" && siteIsDark());
   /** Rebuild the drawing pack for the canvas theme in force, and tell the CSS which plate to show. */
+  let levelsKey = "";   // the figure's level colours as last applied to the canvas pack
+  function applyLevels() {
+    const key = JSON.stringify(doc.style?.levels ?? {});
+    if (key !== levelsKey) { levelsKey = key; applyCanvas(); }
+  }
   function applyCanvas() {
     const dark = canvasIsDark();
     pack = packFor(dark);
@@ -338,8 +358,9 @@ export async function mount(root, options = {}) {
 
   // ---- rendering -------------------------------------------------------------------------
   function render() {
+    applyLevels();
     lastDrawing = view.render({
-      doc, pack, selection, ghost, rubber, hover, hoverWire, box: boxSel, frame: opt.frame, timing: (() => { const t = opt.frame.show ? timingOpt(true) : null; return t ? timingGroup(t.sent, t.box) : null; })(),
+      doc, pack, selection, ghost, rubber, hover, hoverWire, box: boxSel,
       typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags,
     });
     if (lastDrawing.pending.length) queueTypeset();
@@ -386,7 +407,7 @@ export async function mount(root, options = {}) {
     $(".fe-warnings").hidden = !warnings.length;
     if (lastDrawing) {
       const { widthCm, heightCm } = exportSize(lastDrawing, opt.scale);
-      syncFrame(); renderFrames();
+      syncSlide(); renderFrames(); syncLevels();
       $(".fe-size").textContent = lastDrawing.box ? `File size: ${widthCm.toFixed(2)} × ${heightCm.toFixed(2)} cm${opt.scale === 1 ? " (real size)" : ""}` : "Nothing to export yet.";
     }
     $(".fe-theme-note").textContent = privateRoles
@@ -573,7 +594,15 @@ export async function mount(root, options = {}) {
     try { ok = store.set(AUTOSAVE, D.serialize(doc, pack)); } catch { ok = false; }
     if (!ok && !autosaveWarned) { autosaveWarned = true; status("Autosave is off: this browser will not store the figure. Use Save to keep it.", true); }
   }
+  /** The timing pane follows the circuit live: its node buttons and frames update shortly after each edit. */
+  function followTiming() {
+    if (!timingTool) return;
+    clearTimeout(timingTimer);
+    timingTimer = setTimeout(() => timingTool.setCircuit(D.serialize(doc, pack)), 250);
+  }
+
   function changed(msg) {
+    followTiming();
     unsaved = true;
     render();
     if (msg) status(msg);
@@ -774,12 +803,7 @@ export async function mount(root, options = {}) {
     gridfull: () => setGrid(2),
     zoomin: () => view.zoomAt(1 / 1.25),
     zoomout: () => view.zoomAt(1.25),
-    fit() {   // with the slide frame showing, fit the frame and anything that sticks out of it
-      const b = lastDrawing?.box ?? null;
-      if (!opt.frame.show) return view.fit(b);
-      const f = frameBox(opt.frame);
-      view.fit(b ? { min: [Math.min(b.min[0], f.min[0]), Math.min(b.min[1], f.min[1])], max: [Math.max(b.max[0], f.max[0]), Math.max(b.max[1], f.max[1])] } : f);
-    },
+    fit: () => view.fit(lastDrawing?.box ?? null),
     new() { commit(D.newDoc(), "New figure (Undo brings the old one back)."); selection = none(); loadWarnings = []; view.fit(null); render(); },
     open: () => fileInput.click(),
     save() {
@@ -795,28 +819,19 @@ export async function mount(root, options = {}) {
     async export() {
       try { download(await svgNow(), `${doc.id}.svg`, "image/svg+xml"); status(`Exported ${doc.id}.svg.`); } catch (e) { status(e.message); }
     },
-    async exportframe() {
-      try { download(await svgNow(true), `${doc.id}-slide.svg`, "image/svg+xml"); status(`Exported ${doc.id}-slide.svg: the slide frame at real size.`); } catch (e) { status(e.message); }
+    async slidesvg() {
+      try { download(await slideNow(), `${doc.id}-slide.svg`, "image/svg+xml"); status(`Exported ${doc.id}-slide.svg: the whole slide at its real size.`); } catch (e) { status(e.message, true); }
     },
-    async pngframe() {
-      try {
-        const blob = await pngNow(true);
-        download(blob, `${doc.id}-slide.png`, "image/png");
-        status(`Exported ${doc.id}-slide.png: the slide frame at 300 dpi.`);
-      } catch (e) { status(e.message); }
+    async slidepng() {
+      try { download(await pngOf(await slideNow()), `${doc.id}-slide.png`, "image/png"); status(`Exported ${doc.id}-slide.png at 300 dpi.`); } catch (e) { status(e.message, true); }
     },
-    async partsvg() {
-      try { download(await partSvg(), `${doc.id}-schematic-part.svg`, "image/svg+xml"); status(`Exported ${doc.id}-schematic-part.svg: exactly the size of the schematic's part of the slide.`); } catch (e) { status(e.message, true); }
-    },
-    async partpng() {
-      try { download(await pngOf(await partSvg()), `${doc.id}-schematic-part.png`, "image/png"); status(`Exported ${doc.id}-schematic-part.png: exactly the size of the schematic's part of the slide.`); } catch (e) { status(e.message, true); }
-    },
-    framecentre() {
-      if (!lastDrawing?.box) { status("Nothing to centre on yet."); return; }
-      opt.frame = centreOn(opt.frame, lastDrawing.box);
-      saveOptions(); syncFrame(); render();
-      status("The frame is centred on the figure.");
-    },
+    viewcanvas() { opt.slideView = false; saveOptions(); syncSlide(); },
+    viewslide() { opt.slideView = true; saveOptions(); syncSlide(); status("The slide: pick a layout above, drag regions to move them, drag a corner to resize. Canvas goes back to drawing."); },
+    splitsreset() { const s = currentSlide(); if (s.layout in SLIDE_LAYOUTS) setSlide(withLayout(s, s.layout, { reset: true }), "Dividers back to the layout's defaults."); },
+    addschematic: () => addRegion("schematic"),
+    addtiming: () => addRegion("timing"),
+    addtext: () => addRegion("text"),
+    levelsreset() { commit(D.setStyleLevels(doc, {}), "Level colours are back to the theme's defaults."); },
     framesfromtiming() { populateFromTiming(); },
     timingtoggle() { opt.timingPane.open = !opt.timingPane.open; saveOptions(); showTimingPane(); },
     framecapture() {
@@ -851,19 +866,19 @@ export async function mount(root, options = {}) {
         for (const [i, f] of frames.entries()) {
           const at = applyFrame(doc, f), nn = numbered(i, frames.length), name = `${doc.id}-${nn}`;
           const keepSel = selectedFrame; selectedFrame = i;   // the exported frame is the marked step
-          let text; try { text = await svgNow(framed, at); } finally { selectedFrame = keepSel; }
+          let text; try { text = framed ? await slideNow({ frame: i }) : await svgNow(false, at); } finally { selectedFrame = keepSel; }
           download(text, `${name}.svg`, "image/svg+xml");
           download(await pngOf(text), `${name}.png`, "image/png");
           await new Promise((r) => setTimeout(r, 200));   // so the browser takes every download
         }
-        status(`Exported ${frames.length} frames as ${doc.id}-${numbered(0, frames.length)} to ${numbered(frames.length - 1, frames.length)}, each as SVG and PNG${framed ? ", at the slide frame" : ""}.`);
+        status(`Exported ${frames.length} frames as ${doc.id}-${numbered(0, frames.length)} to ${numbered(frames.length - 1, frames.length)}, each as SVG and PNG${framed ? ", as the slide" : ""}.`);
       } catch (e) { status(e.message, true); }
     },
     async framesslide() {
       const frames = framesOf(doc);
       if (!frames.length) { status("There are no frames yet: set the levels and press Capture frame."); return; }
       try {
-        const text = await slideNow(frames);
+        const text = await gridNow(frames);
         download(text, `${doc.id}-all-frames.svg`, "image/svg+xml");
         download(await pngOf(text), `${doc.id}-all-frames.png`, "image/png");
         status(`Exported ${doc.id}-all-frames: ${frames.length} frames on one slide, SVG and PNG.`);
@@ -891,43 +906,35 @@ export async function mount(root, options = {}) {
     },
   };
 
-  /** The diagram the timing tool sent, if any, and the timing part of the slide frame it goes in (only for a frame export with a timing layout). */
-  function timingOpt(framed) {
-    if (!framed || opt.frame.layout === "schematic") return null;
+  /** What a timing region draws: the diagram the timing tool sent, in the given pack's roles, the marked step and the net colours as the options say. */
+  function timingFor(pk, step = selectedFrame) {
     try {
       const sent = JSON.parse(store.get("timing-diagram/send") ?? "null");
-      if (!sent) return null;
-      if (sent.source) {   // drawn here so the step marker and the net colours can follow the selected frame
-        const pk = packFor(opt.exportDark), step = opt.timingMarker && selectedFrame >= 0 ? selectedFrame : null;
-        sent.svg = drawTiming(sent.source, { width: sent.w, height: sent.h, ink: pk.theme.roles.ink, accent: pk.theme.roles.accent, marker: step, levelColour: opt.timingColour ? (l) => pk.levelColour(l) ?? null : null }).svg;
-      }
-      return { sent, box: regions(opt.frame).timing };
+      if (!sent?.source) return null;
+      const r = pk.theme.roles, lc = (l) => pk.levelColour(l) ?? r.ink;
+      return { source: sent.source, ink: r.ink, accent: r.accent, paper: r.background, dataFills: [lc("1"), lc("0"), r.accent, lc("X"), lc("Z"), r.muted ?? r.ink, r.ink], marker: opt.timingMarker && step >= 0 ? step : null, levelColour: opt.timingColour ? (l) => pk.levelColour(l) ?? null : null };
     } catch { return null; }
   }
 
-  /** The SVG as the export option settings say; labels are typeset first. Throws if one cannot be drawn. */
-  async function svgNow(framed = false, at = doc) {
+  /** The schematic alone as the export options say; labels are typeset first. Throws if one cannot be drawn. */
+  async function svgNow(_unused = false, at = doc) {
     await typesetAll(texNeeded(at, pack, { levelTags: opt.levelTags }), typeset);
-    return exportSvg(at, packFor(opt.exportDark), { ...drawOpts(), frame: framed ? frameBox(opt.frame) : null, timing: timingOpt(framed) });   // light by default; dark only if asked
+    return exportSvg(at, packFor(opt.exportDark), drawOpts());   // light by default; dark only if asked
   }
 
-  /** The schematic fitted into its part of the slide: a file exactly that size, the figure centred at real size (or shrunk to fit). */
-  async function partSvg() {
-    const pk = packFor(opt.exportDark);
-    await typesetAll(texNeeded(doc, pk, { levelTags: opt.levelTags }), typeset);
-    const d = drawing(doc, pk, drawOpts());
-    if (!d.box) throw new Error("Nothing to export yet.");
-    const reg = regions(opt.frame).schematic, rw = reg.max[0] - reg.min[0], rh = reg.max[1] - reg.min[1];
-    const k = Math.max(1, (d.box.max[0] - d.box.min[0]) / rw, (d.box.max[1] - d.box.min[1]) / rh);   // modules of figure per module of slide; never enlarged
-    const cx = (d.box.min[0] + d.box.max[0]) / 2, cy = (d.box.min[1] + d.box.max[1]) / 2;
-    const box = { min: [cx - (rw * k) / 2, cy - (rh * k) / 2], max: [cx + (rw * k) / 2, cy + (rh * k) / 2] };
-    return exportSvg(doc, pk, { ...drawOpts(), scale: 1 / k, frame: box });
+  /** The slide (or one region of it, `only`) as an SVG file, in the export theme. `frame`: draw at that frame's levels, with its step marked. */
+  async function slideNow({ only = null, frame = null } = {}) {
+    const pk = packFor(opt.exportDark), s = currentSlide();
+    const frames = framesOf(doc);
+    const docs = [doc, ...frames.map((f) => applyFrame(doc, f))];
+    await typesetAll([...new Set(docs.flatMap((d) => texNeeded(d, pk, { levelTags: opt.levelTags })))], typeset);
+    return slideSvg(doc, pk, s, { ...drawOpts(), only, frame, timing: timingFor(pk, frame ?? selectedFrame) });
   }
 
   const DPI = 300, MAX_PIXELS = 16000;
 
   /** The figure as a PNG at 300 dpi at its exported size (scale option included), on a transparent background. */
-  async function pngNow(framed = false) { return pngOf(await svgNow(framed)); }
+  async function pngNow() { return pngOf(await svgNow()); }
 
   async function pngOf(text) {
     const cm = (name) => +new RegExp(`${name}="([\\d.]+)cm"`).exec(text)[1];
@@ -985,8 +992,8 @@ export async function mount(root, options = {}) {
   window.addEventListener("storage", (e) => { if (e.key === "timing-diagram/send") populateFromTiming(true); });
 
   /** One slide with every frame as a small figure, labelled with its name. */
-  async function slideNow(frames) {
-    const pk = packFor(opt.exportDark), size = sizeOf(opt.frame);
+  async function gridNow(frames) {
+    const pk = packFor(opt.exportDark), size = slideSize(currentSlide().format);
     await typesetAll([...texNeeded(doc, pk, { levelTags: opt.levelTags }), ...frames.map((f) => frameTex(f.name))], typeset);
     return exportGridSvg(doc, pk, frames.map((f) => ({ name: f.name, doc: applyFrame(doc, f) })), size, drawOpts());
   }
@@ -1031,7 +1038,7 @@ export async function mount(root, options = {}) {
   // ---- the docked Timing Diagram pane (F18): the same module as the Timing Diagram page ----------------------------
   const tpEl = $(".fe-timing"), tpBody = $(".fe-timing-body"), tpToggle = $('[data-cmd="timingtoggle"]'), splitter = $(".fe-splitter");
   opt.timingPane = { open: opt.timingPane?.open === true, h: Number(opt.timingPane?.h) || 256 };
-  let timingTool = null;
+
   async function showTimingPane() {
     tpEl.dataset.open = String(opt.timingPane.open);
     tpEl.style.setProperty("--tp-h", `${opt.timingPane.h}px`);
@@ -1059,22 +1066,159 @@ export async function mount(root, options = {}) {
   });
   showTimingPane();
 
-  // ---- the slide frame (F10) -------------------------------------------------------------------------
-  const frameEls = { show: $('[name="fe-frame-show"]'), format: $('[name="fe-frame-format"]'), layout: $('[name="fe-frame-layout"]'), x: $('[name="fe-frame-x"]'), y: $('[name="fe-frame-y"]') };
-  function syncFrame() {
-    frameEls.show.checked = opt.frame.show; frameEls.format.value = opt.frame.format; frameEls.layout.value = opt.frame.layout;
-    if (document.activeElement !== frameEls.x) frameEls.x.value = String(opt.frame.x);
-    if (document.activeElement !== frameEls.y) frameEls.y.value = String(opt.frame.y);
-    const out = lastDrawing?.box ? overflow(opt.frame, lastDrawing.box) : [];
-    $(".fe-frame-note").textContent = opt.frame.show && out.length ? `The figure sticks out of the schematic's part of the frame on the ${out.join(", ")}: it is cut off in the frame export.` : "";
+  // ---- level colours (F17) ----------------------------------------------------------------------------
+  const lcRows = [...root.querySelectorAll(".fe-lc-row")], lcWarn = $(".fe-lc-warnings");
+  /** The colour a level has on a canvas now: the figure's choice, or the theme's default for that canvas. */
+  function levelNow(level, dark) {
+    const l = LEVELS.find((x) => x.value === level), chosen = doc.style?.levels?.[level]?.[dark ? "dark" : "light"];
+    return chosen ?? (dark ? darkRoles()[l.role] : null) ?? loaded.baseTheme.roles[l.role] ?? "#000000";
   }
-  for (const [k, el] of Object.entries(frameEls)) {
-    el.addEventListener("change", () => {
-      opt.frame = cleanFrame({ ...opt.frame, [k]: k === "show" ? el.checked : el.value });
-      saveOptions(); syncFrame(); render();
+  function syncLevels() {
+    for (const row of lcRows) {
+      const level = row.dataset.level, mine = doc.style?.levels?.[level] ?? {};
+      for (const inp of row.querySelectorAll("input")) {
+        if (document.activeElement !== inp) inp.value = levelNow(level, inp.dataset.mode === "dark").toLowerCase();
+        inp.classList.toggle("is-custom", !!mine[inp.dataset.mode]);
+      }
+      row.querySelector("button").disabled = !Object.keys(mine).length;
+    }
+    $('[data-cmd="levelsreset"]').disabled = !Object.keys(doc.style?.levels ?? {}).length;
+    const msgs = [];
+    for (const dark of [false, true]) {
+      const bg = dark ? (darkRoles().background ?? loaded.baseTheme.roles.background) : loaded.baseTheme.roles.background;
+      const colours = Object.fromEntries(LEVELS.map((l) => [l.value, levelNow(l.value, dark)]));
+      for (const w of levelWarnings(colours, bg)) msgs.push(`${dark ? "Dark" : "Light"} canvas: ${w}`);
+    }
+    lcWarn.innerHTML = msgs.map((m) => `<li>${esc(m)}</li>`).join("");
+  }
+  for (const row of lcRows) {
+    row.addEventListener("change", (e) => {
+      const inp = e.target.closest("input"); if (!inp) return;
+      commit(D.setStyleLevels(doc, withLevelColour(doc.style?.levels, row.dataset.level, inp.dataset.mode, inp.value)), `Level ${row.dataset.level}: ${inp.dataset.mode} colour set.`);
     });
+    row.querySelector("button").addEventListener("click", () => commit(D.setStyleLevels(doc, Object.fromEntries(Object.entries(doc.style?.levels ?? {}).filter(([k]) => k !== row.dataset.level))), `Level ${row.dataset.level} is back on the theme default.`));
   }
-  syncFrame();
+
+  // ---- the slide (F19) ----
+  const slideEls = { show: $('[name="fe-slide-show"]'), format: $('[name="fe-slide-format"]'), header: $('[name="fe-slide-header"]'), footer: $('[name="fe-slide-footer"]'), layout: $('[name="fe-slide-layout"]') };
+  const regionsEl = $(".fe-slide-regions"), slideView = $(".fe-slideview"), slideBar = $(".fe-slidebar");
+  opt.slideView = opt.slideView === true;
+  let slideDraft = null;      // the slide while a region is being dragged (committed on release)
+  let regionsKey = "";
+  function currentSlide() { return slideDraft ?? slideOf(doc) ?? defaultSlide(); }
+  function setSlide(next, msg) { commit(withSlide(doc, next), msg); }
+  function addRegion(kind) {
+    const s = currentSlide(), a = contentArea(s);
+    let n = s.regions.length + 1; while (s.regions.some((r) => r.id === `r${n}`)) n++;
+    setSlide({ ...s, layout: "custom", regions: [...s.regions, { id: `r${n}`, kind, label: KINDS[kind], x: a.x, y: a.y, w: Math.min(16, a.w), h: Math.min(10, a.h) }] }, `Added a ${KINDS[kind].toLowerCase()} region. Drag it into place in the slide view.`);
+  }
+  function syncSlide() {
+    const s = currentSlide(), frames = framesOf(doc);
+    slideEls.show.checked = opt.slideView;
+    slideEls.format.value = s.format; slideEls.layout.value = s.layout;
+    const sp = splitsOf(s);   // a divider is editable only when the layout uses it
+    for (const k of Object.keys(SPLITS)) {
+      const row = $(`[data-split="${k}"]`), inp = row.querySelector("input");
+      row.hidden = !(k in sp);
+      if (document.activeElement !== inp) inp.value = k in sp ? String(Math.round(sp[k])) : "";
+    }
+    if (document.activeElement !== slideEls.header) slideEls.header.value = String(s.headerCm);
+    if (document.activeElement !== slideEls.footer) slideEls.footer.value = String(s.footerCm);
+    const key = JSON.stringify([s.regions.map((r) => [r.id, r.kind, r.label, r.frame]), frames.length]);
+    if (key !== regionsKey && !regionsEl.contains(document.activeElement)) {
+      regionsKey = key;
+      regionsEl.innerHTML = s.regions.map((r) => `<li class="fe-region" data-r="${esc(r.id)}">
+        <input class="form-control form-control-sm" data-f="label" value="${esc(r.label)}" aria-label="Label of region ${esc(r.id)}">
+        <select class="form-select form-select-sm" data-f="kind" aria-label="Kind">${Object.entries(KINDS).map(([k, v]) => `<option value="${k}"${k === r.kind ? " selected" : ""}>${v}</option>`).join("")}</select>
+        ${r.kind === "schematic" ? `<select class="form-select form-select-sm" data-f="frame" aria-label="Levels shown"><option value="">Levels: as on the canvas</option>${frames.map((f, i) => `<option value="${i}"${r.frame === i ? " selected" : ""}>Levels: ${esc(numbered(i, frames.length))} ${esc(f.name)}</option>`).join("")}</select>` : ""}
+        <span class="fe-theme-buttons">${r.kind === "text" ? "" : `<button type="button" class="${BUTTON}" data-part="svg">SVG</button><button type="button" class="${BUTTON}" data-part="png">PNG</button>`}<button type="button" class="${BUTTON}" data-part="del" aria-label="Delete region ${esc(r.id)}">Delete</button></span>
+      </li>`).join("") || `<li class="fe-hint">No regions: pick a layout or add one.</li>`;
+    }
+    $(".fe-stage").classList.toggle("is-slide", opt.slideView);
+    slideView.toggleAttribute("hidden", !opt.slideView);   // an SVG element has no .hidden property
+    slideBar.hidden = !opt.slideView;
+    for (const [c, on] of [["viewcanvas", !opt.slideView], ["viewslide", opt.slideView]]) $(`[data-cmd="${c}"]`).setAttribute("aria-pressed", String(on));
+    if (opt.slideView) renderSlideView();
+  }
+  /** The slide view: the slide as it will export (with the header, footer and text boxes shown), and each region's outline and resize handle. */
+  function renderSlideView() {
+    const s = currentSlide(), { w, h } = slideSize(s.format), roles = pack.theme.roles;
+    let body;
+    try {
+      const text = slideSvg(doc, pack, s, { ...drawOpts(), preview: true, timing: timingFor(pack) });
+      body = text.slice(text.indexOf(">", text.indexOf("<svg")) + 1, text.lastIndexOf("</svg>")).replace(/<title>[\s\S]*?<\/title>/, "");
+    } catch { body = ""; queueTypeset(); }
+    const lw = 0.08, k = 0.9;
+    const outlines = s.regions.map((r) => `<g data-region="${esc(r.id)}" style="cursor:move">
+      <rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${roles.accent}" fill-opacity="0.001" stroke="${roles.accent}" stroke-width="${lw}" stroke-dasharray="0.4 0.25"/>
+      <text x="${r.x + 0.3}" y="${r.y + 0.3 + k}" font-size="${k}" font-family="var(--bs-font-monospace)" fill="${roles.accent}">${esc(r.label)}</text>
+      <rect data-handle="1" x="${r.x + r.w - 1}" y="${r.y + r.h - 1}" width="1" height="1" fill="${roles.accent}" style="cursor:nwse-resize"/>
+    </g>`).join("");
+    slideBar.innerHTML = `<span class="label-mono">Layout</span>${Object.entries(SLIDE_LAYOUTS).map(([k, v]) => `<button type="button" class="fe-layout" data-layout="${k}" aria-pressed="${s.layout === k}" title="${esc(v.name)}">${layoutThumb(k, s, roles)}<span>${esc(v.name)}</span></button>`).join("")}<span class="fe-slidebar-end">${btn("slidesvg", "Slide as SVG")}${btn("slidepng", "Slide as PNG")}</span>`;
+    $(".fe-stage").style.setProperty("--slidebar-h", `${slideBar.offsetHeight}px`);   // the slide sits below the layout strip
+    slideView.setAttribute("viewBox", `-1 -1 ${w + 2} ${h + 2}`);
+    slideView.innerHTML = `<rect x="0" y="0" width="${w}" height="${h}" fill="none" stroke="${roles.accent}" stroke-width="${lw * 1.5}"/>${body}${outlines}`;
+  }
+  slideView.addEventListener("pointerdown", (e) => {
+    const g = e.target.closest("[data-region]");
+    if (!g) return;
+    const id = g.dataset.region, resize = !!e.target.closest("[data-handle]"), base = currentSlide();
+    const at = (ev) => { const p = slideView.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY; return p.matrixTransform(slideView.getScreenCTM().inverse()); };
+    const p0 = at(e);
+    slideView.setPointerCapture(e.pointerId);
+    const move = (ev) => {
+      const p = at(ev), dx = Math.round(p.x - p0.x), dy = Math.round(p.y - p0.y);
+      slideDraft = nudgeRegion(base, id, resize ? { dw: dx, dh: dy } : { dx, dy });
+      renderSlideView();
+    };
+    const up = () => {
+      slideView.removeEventListener("pointermove", move);
+      const next = slideDraft; slideDraft = null;
+      if (next && JSON.stringify(next) !== JSON.stringify(base)) setSlide(next, resize ? "Region resized." : "Region moved.");
+      else syncSlide();
+    };
+    slideView.addEventListener("pointermove", move);
+    slideView.addEventListener("pointerup", up, { once: true });
+  });
+  slideBar.addEventListener("click", (e) => { const b = e.target.closest("[data-layout]"); if (b) setSlide(withLayout(currentSlide(), b.dataset.layout, { reset: true }), `Layout: ${SLIDE_LAYOUTS[b.dataset.layout].name}.`); });
+  for (const k of Object.keys(SPLITS)) $(`[name="fe-split-${k}"]`).addEventListener("change", (e) => {
+    const s = currentSlide();
+    if (!(s.layout in SLIDE_LAYOUTS)) return status("Pick a layout first: dividers belong to a layout.");
+    setSlide(withSplit(s, k, Number(e.target.value)), `${SPLITS[k].name} set.`);
+  });
+  slideEls.show.addEventListener("change", () => { opt.slideView = slideEls.show.checked; saveOptions(); syncSlide(); });
+  slideEls.format.addEventListener("change", () => setSlide(withLayout({ ...currentSlide(), format: slideEls.format.value }, currentSlide().layout === "custom" ? "over" : currentSlide().layout), "Slide size changed; the layout was fitted again."));
+  for (const k of ["header", "footer"]) slideEls[k].addEventListener("change", () => {
+    const s = { ...currentSlide(), [`${k}Cm`]: Number(slideEls[k].value) || 0 };
+    setSlide(s.layout === "custom" ? s : withLayout(s, s.layout), `${k === "header" ? "Header" : "Footer"} height changed.`);
+  });
+  slideEls.layout.addEventListener("change", () => setSlide(withLayout(currentSlide(), slideEls.layout.value, { reset: true }), `Layout: ${SLIDE_LAYOUTS[slideEls.layout.value].name}.`));
+  regionsEl.addEventListener("change", (e) => {
+    const li = e.target.closest("[data-r]"), f = e.target.dataset.f;
+    if (!li || !f) return;
+    const s = currentSlide(), v = e.target.value;
+    const regions = s.regions.map((r) => {
+      if (r.id !== li.dataset.r) return r;
+      const n = { ...r };
+      if (f === "label") n.label = v.trim() || KINDS[r.kind];
+      if (f === "kind") { n.kind = v; delete n.frame; }
+      if (f === "frame") { if (v === "") delete n.frame; else n.frame = Number(v); }
+      return n;
+    });
+    setSlide({ ...s, layout: f === "label" || f === "frame" ? s.layout : "custom", regions }, "Region changed.");
+  });
+  regionsEl.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-part]"), li = e.target.closest("[data-r]");
+    if (!b || !li) return;
+    const id = li.dataset.r, s = currentSlide();
+    if (b.dataset.part === "del") { setSlide({ ...s, layout: "custom", regions: s.regions.filter((r) => r.id !== id) }, "Region deleted."); return; }
+    try {
+      const text = await slideNow({ only: id }), name = `${doc.id}-${id}`;
+      if (b.dataset.part === "svg") download(text, `${name}.svg`, "image/svg+xml"); else download(await pngOf(text), `${name}.png`, "image/png");
+      status(`Exported ${name}.${b.dataset.part} at the region's size.`);
+    } catch (err) { status(err.message, true); }
+  });
+  syncSlide();
   scaleInput.value = String(Math.round(opt.scale * 100));
   scaleInput.addEventListener("change", () => {
     const v = +scaleInput.value;
