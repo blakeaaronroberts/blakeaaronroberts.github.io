@@ -57,7 +57,7 @@ Sync of 2026-11-14, 19:30 (Pacific). Facts only; work lives in the batches below
 | F11 | Figure editor: animated SVG, animated PNG and per-transition exports | Open | 2026-11-13 |
 | F13 | Figure editor: KiCad import | Open | 2026-11-13 |
 | F14 | Promote the beta editor to stable | In progress | 2026-11-13 |
-| F17 | Editor: configurable level colours | Blocked | 2026-11-13 |
+| F17 | Editor: configurable level colours | Done | 2026-11-13 |
 | T2 | Timing tool: transition timing, arrows between transitions, per-transition exports | Open | 2026-11-13 |
 | F18 | One stable Figure Editor with a minimisable Timing pane | Open | 2026-11-14 |
 | F19 | Slide export: sizes, regions, layouts, parts and whole | Open | 2026-11-14 |
@@ -247,7 +247,7 @@ defaults. Exports use the figure's choice.
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| F17.1 | Role override UI, saved in the figure, contrast warning, reset, export uses it | Steward, approved by Blake 2026-11-13 | Blocked | Not started. The figure has no `style` block today (F4.4, which would add it to the circuit schema, is still Open, and the schema is the circuit-model repo's). Needs Blake or the Steward to decide: add `style` to circuit/0.2 first (circuit-model), or keep the override outside the file. T2 not started (budget). |
+| F17.1 | Role override UI, saved in the figure, contrast warning, reset, export uses it | Steward, approved by Blake 2026-11-13 | Done | 38161fc: Theme pane, Level colours: a light and a dark colour per level (0, 1, X, Z), saved in style.levels exactly as the model-v0.3.1 schema defines it (other style fields kept); the figure's choice overrides the theme and a private theme on the canvas and in every export; contrast below 3:1 and level pairs under a colour difference of 20 (normal, protan, deutan, tritan vision) warn; per-level and all-levels reset. Tag model-v0.3.1 (commit 4fb47aa) pinned in tools/figure-editor/MODEL_PIN.json. 183 tests pass. **Schema conflict for Blake or the Steward:** frames, net labels, slide and divider settings are stored in groups (groups.frames, groups.wire_labels, groups.wire_label_style, groups.slide), but the schema's groups means buses (name to a list of port ids), so a figure with them fails circuit-model validation. circuit-model needs a place for editor data (for example a style.editor or a top-level extension object), or those features must save outside the circuit file. |
 
 ---
 
