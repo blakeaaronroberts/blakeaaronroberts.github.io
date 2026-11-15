@@ -25,7 +25,7 @@ import { FORMATS } from "./frame.js";
 import { contentArea, defaultSlide, KINDS, layoutThumb, LAYOUTS as SLIDE_LAYOUTS, nudgeRegion, slideOf, slideSize, slideSvg, SPLITS, splitsOf, withLayout, withSlide, withSplit } from "./slide.js";
 import { orient } from "./geometry.js";
 import { migrateBeta } from "./migrate.js";
-import { navHtml } from "../../timing/src/nav.js";
+import { truthTable } from "./demo.js";
 import { framesFromSignals, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame } from "./levelframes.js";
 
 const AUTOSAVE = "figure-editor/autosave";
@@ -130,7 +130,6 @@ export async function mount(root, options = {}) {
       <div class="fe-group" role="group" aria-label="Clipboard">
         ${btn("copy", "Copy", "Control+C")}${btn("paste", "Paste", "Control+V")}
       </div>
-      <div class="fe-group" role="group" aria-label="Workspace: the canvas or the slide">${btn("viewcanvas", "Canvas", "", ' aria-pressed="true"', "Draw on the canvas")}${btn("viewslide", "Slide", "", ' aria-pressed="false"', "Lay out the slide: layouts, regions, export")}</div>
       <div class="fe-group" role="group" aria-label="View">
         ${btn("zoomout", "Zoom out", "-")}${btn("zoomin", "Zoom in", "+")}${btn("fit", "Fit", "F")}
       </div>
@@ -140,7 +139,7 @@ export async function mount(root, options = {}) {
       <div class="fe-group" role="group" aria-label="File">
         ${btn("new", "New")}${btn("open", "Open…")}${btn("save", "Save", "Control+S")}${btn("export", "Export SVG")}${btn("png", "Copy as PNG")}
       </div>
-      ${navHtml("figure-editor", btn("help", "?", "?", ' aria-label="Keys"'))}
+      <div class="fe-group fe-group-end" role="navigation" aria-label="Views"><span class="fe-stepper" hidden>${btn("frameprev", "◀", "", "", "Previous frame")}<span class="fe-stepno label-mono"></span>${btn("framenext", "▶", "", "", "Next frame")}</span>${btn("viewfigure", "Figure Editor")}${btn("viewtiming", "Timing Diagram")}${btn("viewslide", "Slide")}${btn("help", "?", "?", ' aria-label="Keys"')}</div>
       <input type="file" class="fe-file" accept=".json,.svg,application/json,image/svg+xml" hidden>
       <input type="file" class="fe-theme-file" accept=".json,application/json" hidden>
     </div>
@@ -820,6 +819,8 @@ export async function mount(root, options = {}) {
       status(`Saved ${doc.id}.json.`);
     },
     async export() {
+      if (opt.view === "timing" && timingTool) return timingTool.exportSvg();
+      if (opt.view === "slide") return commands.slidesvg();
       try { download(await svgNow(), `${doc.id}.svg`, "image/svg+xml"); status(`Exported ${doc.id}.svg.`); } catch (e) { status(e.message); }
     },
     async slidesvg() {
@@ -828,8 +829,11 @@ export async function mount(root, options = {}) {
     async slidepng() {
       try { download(await pngOf(await slideNow()), `${doc.id}-slide.png`, "image/png"); status(`Exported ${doc.id}-slide.png at 300 dpi.`); } catch (e) { status(e.message, true); }
     },
-    viewcanvas() { opt.slideView = false; saveOptions(); syncSlide(); },
-    viewslide() { opt.slideView = true; saveOptions(); syncSlide(); status("The slide: pick a layout above, drag regions to move them, drag a corner to resize. Canvas goes back to drawing."); },
+    viewfigure: () => setView("figure"),
+    viewtiming: () => setView("timing"),
+    viewslide: () => setView("slide"),
+    frameprev: () => stepFrame(-1),
+    framenext: () => stepFrame(1),
     splitsreset() { const s = currentSlide(); if (s.layout in SLIDE_LAYOUTS) setSlide(withLayout(s, s.layout, { reset: true }), "Dividers back to the layout's defaults."); },
     addschematic: () => addRegion("schematic"),
     addtiming: () => addRegion("timing"),
@@ -888,6 +892,8 @@ export async function mount(root, options = {}) {
       } catch (e) { status(e.message, true); }
     },
     async png() {
+      if (opt.view === "timing" && timingTool) return timingTool.exportPng();
+      if (opt.view === "slide") return commands.slidepng();
       try {
         const blob = await pngNow();
         try {
@@ -967,6 +973,8 @@ export async function mount(root, options = {}) {
   }
   function renderFrames() {
     const frames = framesOf(doc);
+    $(".fe-stepper").hidden = !frames.length;
+    $(".fe-stepno").textContent = frames.length ? `${selectedFrame >= 0 ? selectedFrame + 1 : "–"}/${frames.length}` : "";
     if (selectedFrame >= frames.length) selectedFrame = frames.length - 1;
     const ol = $(".fe-frame-list");
     ol.innerHTML = frames.length ? frames.map((f, i) => `<li><button type="button" class="fe-frame-item${i === selectedFrame ? " is-selected" : ""}" data-frame="${i}" aria-pressed="${i === selectedFrame}">${numbered(i, frames.length)} ${esc(f.name)}</button></li>`).join("") : `<li class="fe-hint">No frames yet.</li>`;
@@ -1049,7 +1057,7 @@ export async function mount(root, options = {}) {
     tpToggle.textContent = `Timing Diagram ${opt.timingPane.open ? "▾" : "▴"}`;
     if (opt.timingPane.open && !timingTool) {
       const { mount: mountTiming } = await import("../../timing/src/app.js");
-      timingTool = mountTiming(tpBody, { docked: true, onSend: () => { populateFromTiming(true); render(); } });
+      timingTool = mountTiming(tpBody, { docked: true, onStatus: (m, err) => status(m, err), onChange: () => { if (opt.slideView) syncSlide(); } });
     }
     if (opt.timingPane.open && timingTool) timingTool.setCircuit(D.serialize(doc, pack));
   }
@@ -1067,6 +1075,26 @@ export async function mount(root, options = {}) {
     opt.timingPane.h = Math.min(window.innerHeight * 0.7, Math.max(120, opt.timingPane.h + (e.key === "ArrowUp" ? 16 : -16)));
     tpEl.style.setProperty("--tp-h", `${opt.timingPane.h}px`); saveOptions();
   });
+  /** The three views share one toolbar and panes: Figure Editor (canvas), Timing Diagram (the pane slides all the way up), Slide. */
+  function setView(v) {
+    opt.view = v; opt.slideView = v === "slide";
+    const stage = $(".fe-stage");
+    if (v === "timing") { opt.timingPane.open = true; tpEl.style.setProperty("--tp-h", `${stage.offsetHeight + tpEl.offsetHeight}px`); }
+    else { opt.timingPane.open = false; }
+    tpEl.classList.toggle("is-full", v === "timing");
+    root.dataset.view = v;
+    for (const [c, k] of [["viewfigure", "figure"], ["viewtiming", "timing"], ["viewslide", "slide"]]) $(`[data-cmd="${c}"]`).setAttribute("aria-pressed", String(v === k));
+    saveOptions(); showTimingPane(); syncSlide();
+  }
+  /** Step through the frames from the toolbar: the canvas shows that frame's levels, the timing diagram marks its step. */
+  function stepFrame(by) {
+    const frames = framesOf(doc);
+    if (!frames.length) return;
+    selectedFrame = Math.max(0, Math.min(frames.length - 1, (selectedFrame < 0 ? (by > 0 ? -1 : frames.length) : selectedFrame) + by));
+    commit(applyFrame(doc, frames[selectedFrame]), `Frame ${selectedFrame + 1} of ${frames.length}: ${frames[selectedFrame].name}`);
+    timingTool?.setFrame(selectedFrame);
+    renderFrames();
+  }
   showTimingPane();
 
   // ---- level colours (F17) ----------------------------------------------------------------------------
@@ -1140,7 +1168,6 @@ export async function mount(root, options = {}) {
     $(".fe-stage").classList.toggle("is-slide", opt.slideView);
     slideView.toggleAttribute("hidden", !opt.slideView);   // an SVG element has no .hidden property
     slideBar.hidden = !opt.slideView;
-    for (const [c, on] of [["viewcanvas", !opt.slideView], ["viewslide", opt.slideView]]) $(`[data-cmd="${c}"]`).setAttribute("aria-pressed", String(on));
     if (opt.slideView) renderSlideView();
   }
   /** The slide view: the slide as it will export (with the header, footer and text boxes shown), and each region's outline and resize handle. */
@@ -1535,8 +1562,21 @@ export async function mount(root, options = {}) {
   if (saved) {
     try { load(saved, false); status("Restored the autosaved figure."); } catch (e) { status(`The autosaved figure could not be read (${e.message}). It is left alone until your next edit replaces it.`, true); }
   }
+  if (!opened && !saved) {
+    try {
+      load(await (await fetch(new URL("examples/full-adder.json", document.baseURI))).text(), false);
+      const tt = truthTable(doc, pack, ["A", "B", "Cin"], ["S", "Cout"]);
+      doc = { ...doc, groups: { ...(doc.groups ?? {}), frames: tt.frames } };
+      if (!store.get("timing-diagram/source")) store.set("timing-diagram/source", JSON.stringify(tt.timing));
+      timingTool?.source !== undefined && (timingTool.source = JSON.stringify(tt.timing));
+      render(); renderFrames();
+      status("A full adder to start: step through its eight frames with ◀ ▶, or open Timing Diagram.");
+    } catch { /* the example could not load: start empty */ }
+  }
   if (migrated?.length) status(`Brought across from the beta editor: ${migrated.join(", ")}. The beta's own copies are kept in this browser too.`);
   else   if (!opened && !saved) status("Pick an element on the left to place it, or press W to draw a wire. Press ? for the keys. Autosave stays in this browser; use Save to take a figure to another computer.");
+
+  setView(new URLSearchParams(location.search).get("view") ?? opt.view ?? "figure");
 
   return {
     get doc() { return doc; },
