@@ -103,14 +103,6 @@ export const pageShell = (B) => `
     <p class="fe-status td-status" role="status" aria-live="polite"></p>`;
 
 export const dockShell = (B) => `
-    <div class="td-dockbar">
-      <button type="button" class="${B}" data-do="export">Export SVG</button>
-      <button type="button" class="${B}" data-do="export-png" title="PNG at 300 dpi">Export PNG</button>
-      <label class="${B} td-file">Open circuit…<input type="file" accept=".json,application/json" data-do="open" hidden></label>
-      <button type="button" class="${B}" data-do="fit-slide" title="Size the diagram to the timing region of the slide">Fit to slide</button>
-      <button type="button" class="${B}" data-do="send" title="Put this diagram on the slide and fill the frames from its steps">Send to slide</button>
-      <span class="td-frames td-barframes" hidden><label>Frame <select class="form-select form-select-sm" data-do="frame"></select></label><button type="button" class="${B}" data-do="frames-export">Export frames</button></span>
-      <p class="fe-status td-status" role="status" aria-live="polite"></p>
-    </div>
+    <div hidden><p class="td-status"></p><span class="td-frames"><select data-do="frame"></select><button type="button" data-do="frames-export"></button></span><input type="file" data-do="open"></div>
     <div class="td-center">${views(B, true)}</div>
     <p class="td-credit-bottom">Source format based on <a href="https://wavedrom.com">WaveDrom</a>. The drawing is this site's own code.</p>`;

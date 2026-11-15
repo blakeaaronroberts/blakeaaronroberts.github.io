@@ -16,7 +16,7 @@ const EDITOR_KEY = "figure-editor/autosave";   // read only; the Figure Editor w
 const CLOCK = /^(clk|clock|ck|phi\d?)$/i;
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-export function mount(root, { docked = false, onSend = null } = {}) {
+export function mount(root, { docked = false, onSend = null, onStatus = null, onChange = null } = {}) {
   root.classList.add(docked ? "td-dock" : "fe");   // standalone: the Figure Editor's shell (editor.css); docked: a pane inside the editor
   const header = document.querySelector("#quarto-header");
   const fit = () => root.style.setProperty("--fe-top", `${header ? Math.round(header.getBoundingClientRect().bottom) : 0}px`);
@@ -26,7 +26,7 @@ export function mount(root, { docked = false, onSend = null } = {}) {
   const $ = (s) => root.querySelector(s);
   const status = $(".td-status"), view = $("#WaveDrom_Display_0"), grid = $(".td-grid");
   const wIn = $("[data-size=w]"), hIn = $("[data-size=h]");
-  const say = (msg, error = false) => { status.textContent = msg; if (error) status.setAttribute("data-error", ""); else status.removeAttribute("data-error"); };
+  const say = (msg, error = false) => { onStatus?.(msg, error); status.textContent = msg; if (error) status.setAttribute("data-error", ""); else status.removeAttribute("data-error"); };
 
   // ---- the model: the diagram as data, kept in this browser ----
   // Opens empty. The old sample diagram (clk, D, Q) that earlier versions saved by default is not brought back.
@@ -41,7 +41,7 @@ export function mount(root, { docked = false, onSend = null } = {}) {
   let nodes = [], frameNames = [], frame = -1;
   let brush = "cycle";                  // what a click on a step sets: "cycle", a wave character, or "node"
   const open = new Set();               // signals whose period, phase and group settings are shown
-  const commit = (next, msg) => { value = next; store.set(KEY, tidy(value)); render(); if (msg) say(msg); };
+  const commit = (next, msg) => { value = next; store.set(KEY, tidy(value)); render(); if (msg) say(msg); if (docked) { autoSend(); onChange?.(); } };
 
   /** Is the site showing its dark look? Read from its own role, as the Figure Editor does. */
   const siteIsDark = () => {
@@ -249,7 +249,7 @@ export function mount(root, { docked = false, onSend = null } = {}) {
   function renderChips() {
     const have = new Set(value.signal.map((s) => s.name));
     chips.innerHTML = nodes.length ? nodes.map((nd) => `<button type="button" class="td-chip" data-node="${esc(nd.name)}"${have.has(nd.name) ? ' aria-pressed="true" disabled' : ""}>${esc(nd.name)}</button>`).join("") : `<span class="fe-hint">No circuit yet: draw one in the Figure Editor, or open a circuit file.</span>`;
-    const bad = nodes.length ? unknownNames(value.signal.map((s) => s.name), nodes) : [];
+    const bad = nodes.length ? unknownNames(value.signal.map((s) => s.name).filter(Boolean), nodes) : [];
     flag.textContent = bad.length ? `Not in the circuit: ${bad.join(", ")}` : "";
   }
   chips.addEventListener("click", (e) => { const b = e.target.closest("[data-node]"); if (b) commit(addSignal(value, b.dataset.node, { clock: CLOCK.test(b.dataset.node) }), `Added ${b.dataset.node}.`); });
@@ -364,5 +364,12 @@ export function mount(root, { docked = false, onSend = null } = {}) {
   if (fromEditor) setCircuit(fromEditor);
   showView("edit");
   render();
-  return { render, setCircuit, clear, get source() { return tidy(toWaveDrom(value)); }, set source(v) { const r = parseSource(v); if (r.ok) commit(fromWaveDrom(r.value)); }, get value() { return value; } };
+  /** Docked, the slide always shows the current diagram: no Send button needed. */
+  function autoSend() {
+    if (!value.signal.length) return;
+    try { localStorage.setItem("timing-diagram/send", JSON.stringify({ svg: "", w: Number(wIn.value) || natural.w, h: Number(hIn.value) || natural.h, signals: signalLevels(), source: toWaveDrom(value), at: Date.now() })); } catch { /* storage unavailable */ }
+  }
+  if (docked) autoSend();
+  return { render, setCircuit, clear, exportSvg, exportPng: async () => { try { save(await pngBlob(svgText()), "timing-diagram.png"); say("Exported timing-diagram.png at 300 dpi."); } catch (err) { say(err.message, true); } },
+    setFrame(i) { frame = i; render(); }, get source() { return tidy(toWaveDrom(value)); }, set source(v) { const r = parseSource(v); if (r.ok) commit(fromWaveDrom(r.value)); }, get value() { return value; } };
 }
