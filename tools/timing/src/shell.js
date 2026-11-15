@@ -3,7 +3,7 @@ import { navHtml } from "./nav.js";
 // pageShell: the standalone Timing Diagram page (the Figure Editor's shell, editor.css). dockShell: the pane docked in the
 // Figure Editor. In both, the middle is two swappable views: Edit (the step editor) and Diagram (the drawing).
 
-const views = (B) => `
+const views = (B, sizeInLook = false) => `
       <div class="td-tabs" role="tablist" aria-label="View">
         <button type="button" class="${B}" role="tab" data-view="edit" aria-selected="true">Edit</button>
         <button type="button" class="${B}" role="tab" data-view="diagram" aria-selected="false">Diagram</button>
@@ -44,6 +44,7 @@ const views = (B) => `
             </div>
             <label class="form-label">Lean of an edge (px, 0 to 12) <input class="form-control form-control-sm" type="number" min="0" max="12" step="0.5" data-look="slant"></label>
           </fieldset>
+          ${sizeInLook ? sizeFields(B) : ""}
           <fieldset class="td-band"><legend class="label-mono">Spacing</legend>
             <label class="form-label">Step width (WaveDrom hscale) <input class="form-control form-control-sm" type="number" min="0.25" max="8" step="0.25" data-size="hscale"></label>
           </fieldset>
@@ -61,6 +62,11 @@ const bandFields = () => ["head", "foot"].map((b) => `<fieldset class="td-band">
             <label class="form-check"><input class="form-check-input" type="checkbox" data-band="${b}" data-key="tock"> <span class="form-check-label">Number the steps themselves (1, 2, 3, …)</span></label>
             <label class="form-label">Number every <input class="form-control form-control-sm" type="number" min="1" step="1" data-band="${b}" data-key="every"></label></fieldset>`).join("");
 
+const sizeFields = (B) => `<fieldset class="td-band"><legend class="label-mono">Export size</legend>
+            <label class="form-label">Width (px) <input class="form-control form-control-sm" type="number" min="100" max="4000" step="10" data-size="w"></label>
+            <label class="form-label">Height (px) <input class="form-control form-control-sm" type="number" min="40" max="4000" step="10" data-size="h"></label>
+            <div class="fe-theme-buttons"><button type="button" class="${B}" data-do="natural">Natural size</button></div>
+            <p class="fe-hint">Steps and lanes are laid out again to fit, never stretched.</p></fieldset>`;
 const sizePane = (B) => `
         <details class="fe-pane"><summary class="label-mono">Export size</summary><div class="td-pad">
           <label class="form-label">Width (px) <input class="form-control form-control-sm" type="number" min="100" max="4000" step="10" data-size="w"></label>
@@ -103,9 +109,8 @@ export const dockShell = (B) => `
       <label class="${B} td-file">Open circuit…<input type="file" accept=".json,application/json" data-do="open" hidden></label>
       <button type="button" class="${B}" data-do="fit-slide" title="Size the diagram to the timing region of the slide">Fit to slide</button>
       <button type="button" class="${B}" data-do="send" title="Put this diagram on the slide and fill the frames from its steps">Send to slide</button>
+      <span class="td-frames td-barframes" hidden><label>Frame <select class="form-select form-select-sm" data-do="frame"></select></label><button type="button" class="${B}" data-do="frames-export">Export frames</button></span>
       <p class="fe-status td-status" role="status" aria-live="polite"></p>
     </div>
-    <div class="td-dockbody">
-      <div class="td-center">${views(B)}</div>
-      <div class="td-dockside">${sizePane(B)}${framesPane(B)}<div class="td-pad">${credit}</div></div>
-    </div>`;
+    <div class="td-center">${views(B, true)}</div>
+    <p class="td-credit-bottom">Source format based on <a href="https://wavedrom.com">WaveDrom</a>. The drawing is this site's own code.</p>`;
