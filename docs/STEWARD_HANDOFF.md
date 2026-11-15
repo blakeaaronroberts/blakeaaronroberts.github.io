@@ -232,7 +232,7 @@ keys stay separate from the beta's.
 
 ---
 ---|---|---|---|
-| F14.1 | Promote, remove the duplicate, redirect, tests | Steward, approved by Blake 2026-11-13 | In progress | Beta copied to stable again at Blake's request 2026-11-14 (own storage keys, tools nav buttons, tests pass). Beta kept as the testbed, so duplicate removal and redirect are NOT done. |
+| F14.1 | Promote, remove the duplicate, redirect, tests | Steward, approved by Blake 2026-11-13 | Done | 87e2e6f (with F18.1): one stable URL tools/figure-editor/ named Figure Editor with the beta's features; tools/figure-editor-beta/ is now a redirect page (keeps ?open=); beta browser storage copied once into figure-editor/ keys, beta keys left in place; saved list cap 10 to 20; tag editor-stable-before-snapshot kept; 170 tests and browser checks (dark, frames) pass. |
 
 ---
 
@@ -276,7 +276,7 @@ Intent: the editor becomes one stable tool named **Figure Editor** (retire "beta
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| F18.1 | Rename to Figure Editor everywhere users see it; one stable URL, beta kept as a hidden preview only if needed | Steward, approved by Blake 2026-11-14 | Open | |
+| F18.1 | Rename to Figure Editor everywhere users see it; one stable URL, beta kept as a hidden preview only if needed | Steward, approved by Blake 2026-11-14 | Done | 87e2e6f (with F14.1): page title, navbar buttons, Tools menu and messages say Figure Editor; no beta preview kept (the beta URL redirects). |
 | F18.2 | Move the timing tool into a shared module; dock it as a minimisable, resizable pane in the editor with a splitter | Steward, approved by Blake 2026-11-14 | Open | |
 | F18.3 | Standalone Timing Diagram page loads the same module; the two can send a circuit's node names and a scenario to each other (copy and file, no server) | Steward, approved by Blake 2026-11-14 | Open | |
 
