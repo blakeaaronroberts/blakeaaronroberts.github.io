@@ -6,7 +6,7 @@
 .td-tabs [aria-selected="true"] { background: var(--role-accent); border-color: var(--role-accent); color: var(--role-background); }
 .td-edit { min-height: 0; overflow: auto; padding: .5rem .75rem; display: grid; align-content: start; gap: .5rem; }
 .td-view { min-width: 0; min-height: 0; overflow: auto; padding: 1rem; background: var(--fig-background); line-height: 0; }
-[data-canvas="dark"] .td-view { background: var(--fig-dark-background); }
+.fe[data-canvas="dark"] > .td-center .td-view { background: var(--fig-dark-background); }   /* the page follows the site; the docked pane is always on the white figure plate */
 .td-emptynote { line-height: 1.4; }
 .td-status[data-error] { font-weight: 700; }
 .fe .td-file { cursor: pointer; }

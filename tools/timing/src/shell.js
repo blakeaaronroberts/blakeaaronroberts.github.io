@@ -1,3 +1,4 @@
+import { navHtml } from "./nav.js";
 // The timing tool's two layouts. Both carry the same hooks (classes, data-do, data-size), so app.js drives either one.
 // pageShell: the standalone Timing Diagram page (the Figure Editor's shell, editor.css). dockShell: the pane docked in the
 // Figure Editor. In both, the middle is two swappable views: Edit (the step editor) and Diagram (the drawing).
@@ -74,11 +75,12 @@ const credit = `<p class="fe-hint td-credit">Source format based on <a href="htt
 export const pageShell = (B) => `
     <div class="fe-toolbar">
       <div class="fe-group">
+        <button type="button" class="${B}" data-do="new" title="Start over: clears the diagram and the figure">New</button>
         <button type="button" class="${B}" data-do="export">Export SVG</button>
         <button type="button" class="${B}" data-do="export-png" title="PNG at 300 dpi">Export PNG</button>
         <label class="${B} td-file">Open circuit…<input type="file" accept=".json,application/json" data-do="open" hidden></label>
       </div>
-      <div class="fe-group fe-group-end"><a class="btn btn-sm fe-btn" aria-pressed="false" href="../figure-editor/">Figure Editor</a><a class="btn btn-sm fe-btn" aria-pressed="true" aria-current="page" href="./">Timing Diagram</a></div>
+      ${navHtml("timing-diagram")}
     </div>
     <div class="fe-palette">${sizePane(B)}${framesPane(B)}</div>
     <main class="td-center">${views(B)}</main>
