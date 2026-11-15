@@ -145,3 +145,17 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 .fe-frame-list { list-style: none; margin: .4rem 0; padding: 0; display: grid; gap: .2rem; max-height: 14rem; overflow: auto; }
 .fe-frame-item { width: 100%; text-align: left; padding: .2rem .5rem; border: 1px solid var(--role-rule, currentColor); background: transparent; color: inherit; font: inherit; border-radius: 4px; }
 .fe-frame-item.is-selected { background: var(--role-accent, #0072B2); color: var(--role-background, #fff); }
+
+/* ---- the docked Timing Diagram pane (F18): under the canvas, minimisable, resizable with the splitter ---- */
+.fe:has(> .fe-timing) { grid-template-rows: auto minmax(0, 1fr) auto auto; }
+.fe:has(> .fe-timing) > .fe-palette, .fe:has(> .fe-timing) > .fe-side { grid-row: 2 / 4; }
+.fe:has(> .fe-timing) > .fe-stage { grid-row: 2; }
+.fe:has(> .fe-timing) > .fe-status { grid-row: 4; }
+.fe-timing { grid-column: 2; grid-row: 3; display: grid; grid-template-rows: auto auto minmax(0, 1fr); min-height: 0; border-top: 1px solid var(--role-rule); background: var(--role-background); }
+.fe-timing[data-open="true"] { height: var(--tp-h, 16rem); }
+.fe-timing[data-open="false"] .fe-timing-body, .fe-timing[data-open="false"] .fe-splitter { display: none; }
+.fe-splitter { height: 6px; margin-top: -3px; cursor: ns-resize; touch-action: none; }
+.fe-splitter:hover, .fe-splitter:focus-visible { background: var(--role-accent); outline: none; }
+.fe-timing-head { display: flex; align-items: center; gap: .25rem; padding: 0 .5rem; background: var(--role-surface); }
+.fe-timing-body { min-height: 0; overflow: hidden; }
+

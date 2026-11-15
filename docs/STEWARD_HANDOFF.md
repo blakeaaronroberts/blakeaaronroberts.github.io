@@ -47,9 +47,9 @@ Sync of 2026-11-14, 19:30 (Pacific). Facts only; work lives in the batches below
 
 | Batch | Intent | Status | Approved by Blake |
 |---|---|---|---|
-| S4 | Make sure this repo's commits use Blake's GitHub noreply address, not a university or work email | Open | 2026-11-12 |
-| F2 | Figure editor v1 core: place, move, rotate and mirror elements on the grid; wires that stay anchored to pins; save, load and SVG export | Open | 2026-11-12 |
-| F3 | Figure editor v1 finish: labels in STIX Two, wire level colours, PNG copy, private theme, shortcuts, draft toggle | Open | 2026-11-12 |
+| S4 | Make sure this repo's commits use Blake's GitHub noreply address, not a university or work email | Done | 2026-11-12 |
+| F2 | Figure editor v1 core: place, move, rotate and mirror elements on the grid; wires that stay anchored to pins; save, load and SVG export | Done | 2026-11-12 |
+| F3 | Figure editor v1 finish: labels in STIX Two, wire level colours, PNG copy, private theme, shortcuts, draft toggle | Done | 2026-11-12 |
 | F4 | Figure editor options before launch: grid, whole-figure line weight (thin, regular, bold) and a dark theme, saved with the figure | Open | 2026-11-13 |
 | F8 | Figure editor: box select, copy and paste, align and distribute, label editing, shortcuts | Open | 2026-11-13 |
 | F10 | Figure editor: slide frame for arranging the schematic and timing diagram | Open | 2026-11-13 |
@@ -232,7 +232,7 @@ keys stay separate from the beta's.
 
 ---
 ---|---|---|---|
-| F14.1 | Promote, remove the duplicate, redirect, tests | Steward, approved by Blake 2026-11-13 | In progress | Beta copied to stable again at Blake's request 2026-11-14 (own storage keys, tools nav buttons, tests pass). Beta kept as the testbed, so duplicate removal and redirect are NOT done. |
+| F14.1 | Promote, remove the duplicate, redirect, tests | Steward, approved by Blake 2026-11-13 | Done | 87e2e6f (with F18.1): one stable URL tools/figure-editor/ named Figure Editor with the beta's features; tools/figure-editor-beta/ is now a redirect page (keeps ?open=); beta browser storage copied once into figure-editor/ keys, beta keys left in place; saved list cap 10 to 20; tag editor-stable-before-snapshot kept; 170 tests and browser checks (dark, frames) pass. |
 
 ---
 
@@ -276,9 +276,9 @@ Intent: the editor becomes one stable tool named **Figure Editor** (retire "beta
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| F18.1 | Rename to Figure Editor everywhere users see it; one stable URL, beta kept as a hidden preview only if needed | Steward, approved by Blake 2026-11-14 | Open | |
-| F18.2 | Move the timing tool into a shared module; dock it as a minimisable, resizable pane in the editor with a splitter | Steward, approved by Blake 2026-11-14 | Open | |
-| F18.3 | Standalone Timing Diagram page loads the same module; the two can send a circuit's node names and a scenario to each other (copy and file, no server) | Steward, approved by Blake 2026-11-14 | Open | |
+| F18.1 | Rename to Figure Editor everywhere users see it; one stable URL, beta kept as a hidden preview only if needed | Steward, approved by Blake 2026-11-14 | Done | 87e2e6f (with F14.1): page title, navbar buttons, Tools menu and messages say Figure Editor; no beta preview kept (the beta URL redirects). |
+| F18.2 | Move the timing tool into a shared module; dock it as a minimisable, resizable pane in the editor with a splitter | Steward, approved by Blake 2026-11-14 | Done | 53d2d29: code moved to tools/timing/ (src, test, timing.css, README stub); mount(el, {docked}) gives the page or the pane layout; pane under the canvas, minimise button, splitter (drag or arrow keys), state kept in the editor options; exports always light; dark canvas has zero black strokes in the pane. 182 tests pass. |
+| F18.3 | Standalone Timing Diagram page loads the same module; the two can send a circuit's node names and a scenario to each other (copy and file, no server) | Steward, approved by Blake 2026-11-14 | Done | 53d2d29: page imports ../timing/src/app.js (no fork). Node names reach the timing tool from the editor (pane: live; page: the editor's autosave, or Open circuit .json); the scenario reaches the editor by Send (browser storage). Blake 2026-11-14: done for now, no clipboard copy. |
 
 ---
 

@@ -1,16 +1,16 @@
 ---
-title: "Timing diagram"
+title: "Timing Diagram"
 page-layout: full
 css:
-  - ../figure-editor-beta/editor.css
-  - timing.css
+  - ../figure-editor/editor.css
+  - ../timing/src/timing.css
 ---
 
 ```{=html}
 <div id="td-app" class="fe-mount"></div>
 <noscript><p>The timing diagram tool needs JavaScript.</p></noscript>
 <script type="module">
-  import { mount } from "./src/app.js";
+  import { mount } from "../timing/src/app.js";
   window.timingDiagram = mount(document.getElementById("td-app"));
 </script>
 ```
