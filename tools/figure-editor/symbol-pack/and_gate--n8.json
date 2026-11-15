@@ -1,0 +1,115 @@
+{
+  "pack": "symbols/0.3",
+  "type": "and_gate",
+  "variant": {
+    "n": 8
+  },
+  "description": "AND gate with 2 to 8 inputs (option n, default 2); inputs A, B, C..., output Y",
+  "status": "draft",
+  "mirrorable": true,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "and_gate--n8.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-6.2, -4.19991, 12.4, 8.39999]
+  },
+  "bbox": {
+    "min": [-12.0, -8.0],
+    "max": [12.0, 8.0]
+  },
+  "pins": {
+    "A": {
+      "tip": [-12, 7],
+      "direction": "left",
+      "lead": {
+        "from": [-10.0, 7.0],
+        "length": 2.0
+      }
+    },
+    "B": {
+      "tip": [-12, 5],
+      "direction": "left",
+      "lead": {
+        "from": [-10.0, 5.0],
+        "length": 2.0
+      }
+    },
+    "C": {
+      "tip": [-12, 3],
+      "direction": "left",
+      "lead": {
+        "from": [-10.0, 3.0],
+        "length": 2.0
+      }
+    },
+    "D": {
+      "tip": [-12, 1],
+      "direction": "left",
+      "lead": {
+        "from": [-10.0, 1.0],
+        "length": 2.0
+      }
+    },
+    "E": {
+      "tip": [-12, -1],
+      "direction": "left",
+      "lead": {
+        "from": [-10.0, -1.0],
+        "length": 2.0
+      }
+    },
+    "F": {
+      "tip": [-12, -3],
+      "direction": "left",
+      "lead": {
+        "from": [-10.0, -3.0],
+        "length": 2.0
+      }
+    },
+    "G": {
+      "tip": [-12, -5],
+      "direction": "left",
+      "lead": {
+        "from": [-10.0, -5.0],
+        "length": 2.0
+      }
+    },
+    "H": {
+      "tip": [-12, -7],
+      "direction": "left",
+      "lead": {
+        "from": [-10.0, -7.0],
+        "length": 2.0
+      }
+    },
+    "Y": {
+      "tip": [12, 0],
+      "direction": "right",
+      "lead": {
+        "from": [9.692, 0.0],
+        "length": 2.308
+      }
+    }
+  },
+  "label": null,
+  "parameters": [
+    {
+      "name": "n",
+      "default": 2,
+      "values": [2, 3, 4, 5, 6, 7, 8],
+      "files": {
+        "2": "and_gate",
+        "3": "and_gate--n3",
+        "4": "and_gate--n4",
+        "5": "and_gate--n5",
+        "6": "and_gate--n6",
+        "7": "and_gate--n7",
+        "8": "and_gate--n8"
+      }
+    }
+  ],
+  "superseded_by": null
+}

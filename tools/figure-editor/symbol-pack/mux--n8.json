@@ -1,0 +1,135 @@
+{
+  "pack": "symbols/0.3",
+  "type": "mux",
+  "variant": {
+    "n": 8
+  },
+  "description": "N:1 multiplexer (option n = 2, 4 or 8): inputs I0.., select S.., output Y; replaces mux2",
+  "status": "draft",
+  "mirrorable": false,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "mux--n8.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-4.2, -4.19991, 8.4, 9.39991]
+  },
+  "bbox": {
+    "min": [-8.0, -10.0],
+    "max": [8.0, 8.0]
+  },
+  "pins": {
+    "I0": {
+      "tip": [-8, 7],
+      "direction": "left",
+      "lead": {
+        "from": [-6.0, 7.0],
+        "length": 2.0
+      }
+    },
+    "I1": {
+      "tip": [-8, 5],
+      "direction": "left",
+      "lead": {
+        "from": [-6.0, 5.0],
+        "length": 2.0
+      }
+    },
+    "I2": {
+      "tip": [-8, 3],
+      "direction": "left",
+      "lead": {
+        "from": [-6.0, 3.0],
+        "length": 2.0
+      }
+    },
+    "I3": {
+      "tip": [-8, 1],
+      "direction": "left",
+      "lead": {
+        "from": [-6.0, 1.0],
+        "length": 2.0
+      }
+    },
+    "I4": {
+      "tip": [-8, -1],
+      "direction": "left",
+      "lead": {
+        "from": [-6.0, -1.0],
+        "length": 2.0
+      }
+    },
+    "I5": {
+      "tip": [-8, -3],
+      "direction": "left",
+      "lead": {
+        "from": [-6.0, -3.0],
+        "length": 2.0
+      }
+    },
+    "I6": {
+      "tip": [-8, -5],
+      "direction": "left",
+      "lead": {
+        "from": [-6.0, -5.0],
+        "length": 2.0
+      }
+    },
+    "I7": {
+      "tip": [-8, -7],
+      "direction": "left",
+      "lead": {
+        "from": [-6.0, -7.0],
+        "length": 2.0
+      }
+    },
+    "S2": {
+      "tip": [-4, -10],
+      "direction": "down",
+      "lead": {
+        "from": [-4.0, -7.333],
+        "length": 2.667
+      }
+    },
+    "S1": {
+      "tip": [0, -8],
+      "direction": "down",
+      "lead": {
+        "from": [0.0, -6.0],
+        "length": 2.0
+      }
+    },
+    "S0": {
+      "tip": [4, -7],
+      "direction": "down",
+      "lead": {
+        "from": [4.0, -4.666],
+        "length": 2.334
+      }
+    },
+    "Y": {
+      "tip": [8, 0],
+      "direction": "right",
+      "lead": {
+        "from": [6.0, 0.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": null,
+  "parameters": [
+    {
+      "name": "n",
+      "default": 2,
+      "values": [2, 4, 8],
+      "files": {
+        "2": "mux",
+        "4": "mux--n4",
+        "8": "mux--n8"
+      }
+    }
+  ],
+  "superseded_by": null
+}

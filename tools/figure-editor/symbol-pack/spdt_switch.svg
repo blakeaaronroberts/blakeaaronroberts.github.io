@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="2.7cm" height="1.30009cm" viewBox="-2.7 -1.30009 5.4 2.60018" version="1.1">
+  <g class="body">
+    <g transform="matrix(0.07210918 0 0 0.07210918 -2.24059736 -1.13922826)">
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:round;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M -18.425818 -0.00121249 C -18.425818 0.781247 -19.060568 1.415998 -19.843028 1.415998 C -20.625488 1.415998 -21.260238 0.781247 -21.260238 -0.00121249 C -21.260238 -0.783672 -20.625488 -1.418423 -19.843028 -1.418423 C -19.060568 -1.418423 -18.425818 -0.783672 -18.425818 -0.00121249 Z M -18.425818 -0.00121249 " transform="matrix(0.978485,0,0,-0.978485,31.072352,15.799595)" />
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:round;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M 21.260061 14.174882 C 21.260061 14.957342 20.625311 15.592092 19.842851 15.592092 C 19.060391 15.592092 18.425641 14.957342 18.425641 14.174882 C 18.425641 13.392422 19.060391 12.757672 19.842851 12.757672 C 20.625311 12.757672 21.260061 13.392422 21.260061 14.174882 Z M 21.260061 14.174882 " transform="matrix(0.978485,0,0,-0.978485,31.072352,15.799595)" />
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:round;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M 21.260061 -14.173315 C 21.260061 -13.390855 20.625311 -12.756105 19.842851 -12.756105 C 19.060391 -12.756105 18.425641 -13.390855 18.425641 -14.173315 C 18.425641 -14.955775 19.060391 -15.590525 19.842851 -15.590525 C 20.625311 -15.590525 21.260061 -14.955775 21.260061 -14.173315 Z M 21.260061 -14.173315 " transform="matrix(0.978485,0,0,-0.978485,31.072352,15.799595)" />
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:round;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M -18.509653 -0.476277 L 18.509476 -13.69825 " transform="matrix(0.978485,0,0,-0.978485,31.072352,15.799595)" />
+    </g>
+  </g>
+  <g class="leads">
+    <path class="lead" data-pin="C" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -1.5 0 L -2.5 0" />
+    <path class="lead" data-pin="NO" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M 1.5 -1 L 2.5 -1" />
+    <path class="lead" data-pin="NC" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M 1.5 1 L 2.5 1" />
+  </g>
+</svg>

@@ -1,0 +1,107 @@
+{
+  "pack": "symbols/0.3",
+  "type": "xor_gate",
+  "variant": {
+    "n": 7
+  },
+  "description": "XOR gate with 2 to 8 inputs (option n, default 2); inputs A, B, C..., output Y",
+  "status": "draft",
+  "mirrorable": true,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "xor_gate--n7.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-6.2, -3.7001, 11.9, 7.39995]
+  },
+  "bbox": {
+    "min": [-12.0, -7.0],
+    "max": [11.0, 7.0]
+  },
+  "pins": {
+    "A": {
+      "tip": [-12, 6],
+      "direction": "left",
+      "lead": {
+        "from": [-10.0, 6.0],
+        "length": 2.0
+      }
+    },
+    "B": {
+      "tip": [-12, 4],
+      "direction": "left",
+      "lead": {
+        "from": [-9.407, 4.0],
+        "length": 2.593
+      }
+    },
+    "C": {
+      "tip": [-12, 2],
+      "direction": "left",
+      "lead": {
+        "from": [-9.009, 2.0],
+        "length": 2.991
+      }
+    },
+    "D": {
+      "tip": [-11, 0],
+      "direction": "left",
+      "lead": {
+        "from": [-8.868, 0.0],
+        "length": 2.132
+      }
+    },
+    "E": {
+      "tip": [-12, -2],
+      "direction": "left",
+      "lead": {
+        "from": [-9.009, -2.0],
+        "length": 2.991
+      }
+    },
+    "F": {
+      "tip": [-12, -4],
+      "direction": "left",
+      "lead": {
+        "from": [-9.407, -4.0],
+        "length": 2.593
+      }
+    },
+    "G": {
+      "tip": [-12, -6],
+      "direction": "left",
+      "lead": {
+        "from": [-10.0, -6.0],
+        "length": 2.0
+      }
+    },
+    "Y": {
+      "tip": [11, 0],
+      "direction": "right",
+      "lead": {
+        "from": [8.747, 0.0],
+        "length": 2.253
+      }
+    }
+  },
+  "label": null,
+  "parameters": [
+    {
+      "name": "n",
+      "default": 2,
+      "values": [2, 3, 4, 5, 6, 7, 8],
+      "files": {
+        "2": "xor_gate",
+        "3": "xor_gate--n3",
+        "4": "xor_gate--n4",
+        "5": "xor_gate--n5",
+        "6": "xor_gate--n6",
+        "7": "xor_gate--n7",
+        "8": "xor_gate--n8"
+      }
+    }
+  ],
+  "superseded_by": null
+}

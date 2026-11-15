@@ -1,0 +1,91 @@
+{
+  "pack": "symbols/0.3",
+  "type": "sram",
+  "variant": {},
+  "description": "Static RAM: address ADDR, data in DIN, write enable WE, chip enable CE, data out DOUT (options: addr_bits, bits)",
+  "status": "draft",
+  "mirrorable": false,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "sram.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-4.2, -2.94928, 8.4, 5.14906]
+  },
+  "bbox": {
+    "min": [-8.0, -4.0],
+    "max": [8.0, 5.499]
+  },
+  "pins": {
+    "ADDR": {
+      "tip": [-8, 3],
+      "direction": "left",
+      "lead": {
+        "from": [-6.0, 3.0],
+        "length": 2.0
+      }
+    },
+    "DIN": {
+      "tip": [-8, 1],
+      "direction": "left",
+      "lead": {
+        "from": [-6.0, 1.0],
+        "length": 2.0
+      }
+    },
+    "WE": {
+      "tip": [-8, -1],
+      "direction": "left",
+      "lead": {
+        "from": [-6.0, -1.0],
+        "length": 2.0
+      }
+    },
+    "CE": {
+      "tip": [-8, -3],
+      "direction": "left",
+      "lead": {
+        "from": [-6.0, -3.0],
+        "length": 2.0
+      }
+    },
+    "DOUT": {
+      "tip": [8, 0],
+      "direction": "right",
+      "lead": {
+        "from": [6.0, 0.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": null,
+  "parameters": [
+    {
+      "name": "addr_bits",
+      "default": 4,
+      "values": [2, 4, 8, 16],
+      "files": {
+        "2": "sram--addr_bits2",
+        "4": "sram",
+        "8": "sram--addr_bits8",
+        "16": "sram--addr_bits16"
+      }
+    },
+    {
+      "name": "bits",
+      "default": 8,
+      "values": [1, 2, 4, 8, 16, 32],
+      "files": {
+        "1": "sram--bits1",
+        "2": "sram--bits2",
+        "4": "sram--bits4",
+        "8": "sram",
+        "16": "sram--bits16",
+        "32": "sram--bits32"
+      }
+    }
+  ],
+  "superseded_by": null
+}

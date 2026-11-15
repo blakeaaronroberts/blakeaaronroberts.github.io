@@ -1,6 +1,7 @@
 {
-  "pack": "symbols/0.1",
+  "pack": "symbols/0.3",
   "type": "ground",
+  "variant": {},
   "description": "Ground (open triangle), connects upward",
   "status": "approved",
   "mirrorable": true,
@@ -28,5 +29,6 @@
     }
   },
   "label": null,
-  "parameters": []
+  "parameters": [],
+  "superseded_by": null
 }

@@ -1,0 +1,45 @@
+{
+  "pack": "symbols/0.3",
+  "type": "varactor",
+  "variant": {},
+  "description": "Varactor (diode with a capacitor plate on its cathode): anode A, cathode K; optional label above",
+  "status": "draft",
+  "mirrorable": true,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "varactor.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-1.7, -0.82491, 3.9, 1.64982]
+  },
+  "bbox": {
+    "min": [-3.0, -1.25],
+    "max": [4.0, 1.25]
+  },
+  "pins": {
+    "A": {
+      "tip": [-3, 0],
+      "direction": "left",
+      "lead": {
+        "from": [-1.0, 0.0],
+        "length": 2.0
+      }
+    },
+    "K": {
+      "tip": [4, 0],
+      "direction": "right",
+      "lead": {
+        "from": [1.25, 0.0],
+        "length": 2.75
+      }
+    }
+  },
+  "label": {
+    "anchor": [0.125, 1.25],
+    "direction": "up"
+  },
+  "parameters": [],
+  "superseded_by": null
+}

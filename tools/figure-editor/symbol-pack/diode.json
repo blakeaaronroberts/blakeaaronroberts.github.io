@@ -1,6 +1,7 @@
 {
-  "pack": "symbols/0.1",
+  "pack": "symbols/0.3",
   "type": "diode",
+  "variant": {},
   "description": "Diode (open triangle): anode A, cathode K; optional label above",
   "status": "approved",
   "mirrorable": true,
@@ -39,5 +40,6 @@
     "anchor": [-0.0, 1.25],
     "direction": "up"
   },
-  "parameters": []
+  "parameters": [],
+  "superseded_by": null
 }

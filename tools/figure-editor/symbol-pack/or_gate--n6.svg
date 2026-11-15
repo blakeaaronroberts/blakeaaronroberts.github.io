@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="5.2cm" height="3.19991cm" viewBox="-5.2 -3.2 10.4 6.39982" version="1.1">
+  <g class="body">
+    <g transform="matrix(0.07071611 0 0 0.07071611 -4.7064374 -3.10385855)">
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:round;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M -52.329924 42.519007 L -23.725852 42.519007 C 7.509199 43.396 36.716204 27.069833 52.329814 0.00441401 C 36.720119 -27.061005 7.509199 -43.391087 -23.721937 -42.514094 L -61.315188 -42.518009 C -48.92766 -15.816699 -48.92766 15.817697 -61.315188 42.519007 Z M -52.329924 42.519007 " transform="matrix(0.997727,0,0,-0.997727,68.73443,43.891123)" />
+    </g>
+  </g>
+  <g class="leads">
+    <path class="lead" data-pin="A" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -4 -2.5 L -5 -2.5" />
+    <path class="lead" data-pin="B" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -3.71729 -1.5 L -5 -1.5" />
+    <path class="lead" data-pin="C" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -3.55909 -0.5 L -5 -0.5" />
+    <path class="lead" data-pin="D" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -3.55909 0.5 L -5 0.5" />
+    <path class="lead" data-pin="E" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -3.71729 1.5 L -5 1.5" />
+    <path class="lead" data-pin="F" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -4 2.5 L -5 2.5" />
+    <path class="lead" data-pin="Y" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M 3.84638 0 L 5 0" />
+  </g>
+</svg>

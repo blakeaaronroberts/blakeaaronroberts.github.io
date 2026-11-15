@@ -39,21 +39,44 @@ export async function loadPack(read) {
   const defs = new Map(), svgs = new Map(), svgText = new Map();
   await Promise.all(index.elements.map(async (e) => {
     const [json, svg] = await Promise.all([read(e.json), read(e.svg)]);
-    defs.set(e.type, JSON.parse(json));
-    svgText.set(e.type, svg);
-    svgs.set(e.type, parseXml(svg));
+    const stem = e.json.replace(/\.json$/, "");   // pack 0.3: a file per variant (and_gate, and_gate--n3, ...); the default has the type's own name
+    defs.set(stem, JSON.parse(json));
+    svgText.set(stem, svg);
+    svgs.set(stem, parseXml(svg));
   }));
   return makePack({ index, theme, defs, svgs, svgText, baseTheme: theme, remap: new Map() });
+}
+
+const isDefault = (e) => !e.variant || Object.keys(e.variant).length === 0;
+function makeStem(p, el) {
+  const ps = p.defs.get(el.type)?.parameters ?? [];
+  const stem = el.type + ps.map((q) => { const v = el.params?.[q.name]; return v !== undefined && v !== q.default ? `--${q.name}${v}` : ""; }).join("");
+  return p.defs.has(stem) ? stem : el.type;
 }
 
 function makePack(p) {
   return {
     ...p,
     /** Element types in pack order; approved only unless drafts are asked for. */
-    types: (drafts = false) => p.index.elements.filter((e) => drafts || e.status === "approved").map((e) => e.type),
+    /** The element families in pack order: one per type (its default variant), the ones a newer type replaces left out; approved only unless drafts are asked for. */
+    types: (drafts = false) => p.index.elements.filter((e) => isDefault(e) && !e.superseded_by && (drafts || e.status === "approved")).map((e) => e.type),
+    /** Every type with a default variant, replaced ones included (an old figure may use them). */
+    allTypes: () => p.index.elements.filter(isDefault).map((e) => e.type),
+    /** The status of a type's default variant: "approved" or "draft". */
+    statusOf: (type) => p.index.elements.find((e) => isDefault(e) && e.type === type)?.status ?? "approved",
+    /** The sizes and counts a family can be drawn with: [{name, default, values}] (none for most elements). */
+    parametersOf: (type) => (p.defs.get(type)?.parameters ?? []).map(({ name, default: d, values }) => ({ name, default: d, values })),
+    /** The file stem of a placed element: its type plus a "--<name><value>" for each parameter that is not at its default. */
+    stemOf: (el) => {
+      const ps = p.defs.get(el.type)?.parameters ?? [];
+      const stem = el.type + ps.map((q) => { const v = el.params?.[q.name]; return v !== undefined && v !== q.default ? `--${q.name}${v}` : ""; }).join("");
+      return p.defs.has(stem) ? stem : el.type;
+    },
+    /** Every file stem in the pack, variants included. */
+    stems: () => [...p.defs.keys()],
     def: (type) => p.defs.get(type),
-    /** The definition of a placed element: the pack's, or for the built-in block the one its params make (null if they are invalid). */
-    defFor: (el) => (el.type === BLOCK ? blockDef(el.params) : p.defs.get(el.type)),
+    /** The definition of a placed element: the pack's (its variant, if its params ask for one), or for the built-in block the one its params make (null if they are invalid). */
+    defFor: (el) => (el.type === BLOCK ? blockDef(el.params) : p.defs.get(makeStem(p, el))),
     /** Only elements whose pack JSON says "mirrorable": true can be mirrored (proposal 10.3). The built-in block always can. */
     mirrorable: (type) => type === BLOCK || p.defs.get(type)?.mirrorable === true,
     /** A theme role's colour, or null if the theme has no such role. */

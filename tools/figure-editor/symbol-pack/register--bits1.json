@@ -1,0 +1,66 @@
+{
+  "pack": "symbols/0.3",
+  "type": "register",
+  "variant": {
+    "bits": 1
+  },
+  "description": "N-bit register: data D, clock CLK, output Q (option: bits)",
+  "status": "draft",
+  "mirrorable": false,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "register--bits1.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-2.7, -2.64126, 5.4, 4.34137]
+  },
+  "bbox": {
+    "min": [-5.0, -3.0],
+    "max": [5.0, 4.883]
+  },
+  "pins": {
+    "D": {
+      "tip": [-5, 1],
+      "direction": "left",
+      "lead": {
+        "from": [-3.0, 1.0],
+        "length": 2.0
+      }
+    },
+    "CLK": {
+      "tip": [-5, -1],
+      "direction": "left",
+      "lead": {
+        "from": [-3.0, -1.0],
+        "length": 2.0
+      }
+    },
+    "Q": {
+      "tip": [5, 0],
+      "direction": "right",
+      "lead": {
+        "from": [3.0, 0.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": null,
+  "parameters": [
+    {
+      "name": "bits",
+      "default": 4,
+      "values": [1, 2, 4, 8, 16, 32],
+      "files": {
+        "1": "register--bits1",
+        "2": "register--bits2",
+        "4": "register",
+        "8": "register--bits8",
+        "16": "register--bits16",
+        "32": "register--bits32"
+      }
+    }
+  ],
+  "superseded_by": null
+}

@@ -1,6 +1,7 @@
 {
-  "pack": "symbols/0.1",
+  "pack": "symbols/0.3",
   "type": "not_gate",
+  "variant": {},
   "description": "NOT gate (inverter)",
   "status": "approved",
   "mirrorable": true,
@@ -36,5 +37,6 @@
     }
   },
   "label": null,
-  "parameters": []
+  "parameters": [],
+  "superseded_by": null
 }

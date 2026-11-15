@@ -1,0 +1,74 @@
+{
+  "pack": "symbols/0.3",
+  "type": "d_flipflop_sr",
+  "variant": {},
+  "description": "D flip-flop with asynchronous set (SET, top) and reset (RST, bottom)",
+  "status": "draft",
+  "mirrorable": false,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "d_flipflop_sr.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-5.2, -3.2, 10.4, 6.4]
+  },
+  "bbox": {
+    "min": [-10.0, -6.0],
+    "max": [10.0, 6.0]
+  },
+  "pins": {
+    "D": {
+      "tip": [-10, 2],
+      "direction": "left",
+      "lead": {
+        "from": [-8.0, 2.0],
+        "length": 2.0
+      }
+    },
+    "CLK": {
+      "tip": [-10, -2],
+      "direction": "left",
+      "lead": {
+        "from": [-8.0, -2.0],
+        "length": 2.0
+      }
+    },
+    "Q": {
+      "tip": [10, 2],
+      "direction": "right",
+      "lead": {
+        "from": [8.0, 2.0],
+        "length": 2.0
+      }
+    },
+    "Qn": {
+      "tip": [10, -2],
+      "direction": "right",
+      "lead": {
+        "from": [8.0, -2.0],
+        "length": 2.0
+      }
+    },
+    "SET": {
+      "tip": [0, 6],
+      "direction": "up",
+      "lead": {
+        "from": [0.0, 4.0],
+        "length": 2.0
+      }
+    },
+    "RST": {
+      "tip": [0, -6],
+      "direction": "down",
+      "lead": {
+        "from": [0.0, -4.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": null,
+  "parameters": [],
+  "superseded_by": null
+}

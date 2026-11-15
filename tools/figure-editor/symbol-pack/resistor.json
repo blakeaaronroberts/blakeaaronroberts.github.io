@@ -1,6 +1,7 @@
 {
-  "pack": "symbols/0.1",
+  "pack": "symbols/0.3",
   "type": "resistor",
+  "variant": {},
   "description": "Resistor (US zig-zag), horizontal, optional label above",
   "status": "approved",
   "mirrorable": true,
@@ -39,5 +40,6 @@
     "anchor": [0.0, 0.368],
     "direction": "up"
   },
-  "parameters": []
+  "parameters": [],
+  "superseded_by": null
 }

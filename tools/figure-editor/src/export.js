@@ -54,7 +54,7 @@ export function drawing(doc, pack, opts = {}) {
     for (const pin of Object.keys(def.pins)) if (leadColour.has(`${el.id}.${pin}`)) byPin[pin] = leadColour.get(`${el.id}.${pin}`);
     const body = bodyColour.get(el.id) ?? null;
     const nodes = el.type === BLOCK ? blockNodes(el.params, pack, { body, leads: byPin })
-      : withBodyColour(withLeadColours(standaloneSymbol(pack, el.type), byPin), ink, body);
+      : withBodyColour(withLeadColours(standaloneSymbol(pack, pack.stemOf(el)), byPin), ink, body);
     return { el, transform: svgTransform(el), box: elementSvgBox(el, def), nodes };
   });
   // A wire with arrowheads is drawn shorter, ending inside each head; a bus mark is a slash across its longest run.

@@ -1,0 +1,83 @@
+{
+  "pack": "symbols/0.3",
+  "type": "or_gate",
+  "variant": {
+    "n": 4
+  },
+  "description": "OR gate with 2 to 8 inputs (option n, default 2); inputs A, B, C..., output Y",
+  "status": "draft",
+  "mirrorable": true,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "or_gate--n4.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-3.7, -2.19984, 7.9, 4.39995]
+  },
+  "bbox": {
+    "min": [-7.0, -4.0],
+    "max": [8.0, 4.0]
+  },
+  "pins": {
+    "A": {
+      "tip": [-7, 3],
+      "direction": "left",
+      "lead": {
+        "from": [-5.0, 3.0],
+        "length": 2.0
+      }
+    },
+    "B": {
+      "tip": [-7, 1],
+      "direction": "left",
+      "lead": {
+        "from": [-4.552, 1.0],
+        "length": 2.448
+      }
+    },
+    "C": {
+      "tip": [-7, -1],
+      "direction": "left",
+      "lead": {
+        "from": [-4.552, -1.0],
+        "length": 2.448
+      }
+    },
+    "D": {
+      "tip": [-7, -3],
+      "direction": "left",
+      "lead": {
+        "from": [-5.0, -3.0],
+        "length": 2.0
+      }
+    },
+    "Y": {
+      "tip": [8, 0],
+      "direction": "right",
+      "lead": {
+        "from": [5.356, 0.0],
+        "length": 2.644
+      }
+    }
+  },
+  "label": null,
+  "parameters": [
+    {
+      "name": "n",
+      "default": 2,
+      "values": [2, 3, 4, 5, 6, 7, 8],
+      "files": {
+        "2": "or_gate",
+        "3": "or_gate--n3",
+        "4": "or_gate--n4",
+        "5": "or_gate--n5",
+        "6": "or_gate--n6",
+        "7": "or_gate--n7",
+        "8": "or_gate--n8"
+      }
+    }
+  ],
+  "superseded_by": null
+}

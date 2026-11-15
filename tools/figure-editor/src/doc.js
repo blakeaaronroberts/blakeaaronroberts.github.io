@@ -115,6 +115,7 @@ export function addElement(doc, pack, type, at, rotation = 0, params = null) {
   const el = { id, type, at: [...at] };
   if (rotation) el.rotation = rotation;
   if (type === BLOCK) el.params = canonicalParams(params);   // throws, readably, on a bad shape, size or pin
+  else if (params && Object.keys(params).length) el.params = { ...params };   // a variant of a family: {"n": 4} for a 4-input gate
   doc.elements.push(el);
   return { doc, id };
 }

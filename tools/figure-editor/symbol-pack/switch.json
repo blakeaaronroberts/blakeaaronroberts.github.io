@@ -1,6 +1,7 @@
 {
-  "pack": "symbols/0.1",
+  "pack": "symbols/0.3",
   "type": "switch",
+  "variant": {},
   "description": "Switch (normally open, with closing arrow), optional label above",
   "status": "approved",
   "mirrorable": true,
@@ -39,5 +40,6 @@
     "anchor": [-0.0, 2.5],
     "direction": "up"
   },
-  "parameters": []
+  "parameters": [],
+  "superseded_by": null
 }

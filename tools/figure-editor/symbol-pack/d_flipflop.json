@@ -1,6 +1,7 @@
 {
-  "pack": "symbols/0.1",
+  "pack": "symbols/0.3",
   "type": "d_flipflop",
+  "variant": {},
   "description": "Positive-edge D flip-flop (clock wedge at the bottom)",
   "status": "approved",
   "mirrorable": false,
@@ -52,5 +53,6 @@
     }
   },
   "label": null,
-  "parameters": []
+  "parameters": [],
+  "superseded_by": null
 }

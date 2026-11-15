@@ -313,7 +313,7 @@ Intent: any gate with N inputs, muxes and decoders of any size, without crowding
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| F21.1 | Family entries and popover (inputs 2 to 8, mux and decoder sizes, bubbles per input), saved in the circuit as parameters | Steward, approved by Blake 2026-11-14 | Open | |
+| F21.1 | Family entries and popover (inputs 2 to 8, mux and decoder sizes, bubbles per input), saved in the circuit as parameters | Steward, approved by Blake 2026-11-14 | Done | c53eb85 (branch f21-1, not merged): symbol pack pinned to symbols-v0.3.0 (7cda209; 162 elements, variants as files and_gate--n3). Elements pane: one entry per family, the draft ones marked DRAFT and dashed, each under its category (new categories for 0.3: Data converters; sequential, arithmetic, passive and sources lists extended); replaced families (mux2, decoder2to4) hidden. Families (18) show their range and open a popover on click: one choice places at once, several choices have a Place button; the choice is saved as the element's params, e.g. {"n": 4}, and drawn, exported and wired as that variant. The Show drafts switch is gone. Not done: bubbles per input (the pack has no such parameter), and changing a placed element's size afterwards. Stopped here as asked: F21.2 and F21.3 untouched. 185 tests pass; browser checks adjusted for the bigger pack (the all-elements figure is too small to count black pixels). |
 | F21.2 | Search box and recents row in the Elements pane; keyboard usable | Steward, approved by Blake 2026-11-14 | Open | |
 | F21.3 | Tests and one screenshot of the pane in light and dark | Steward, approved by Blake 2026-11-14 | Open | |
 

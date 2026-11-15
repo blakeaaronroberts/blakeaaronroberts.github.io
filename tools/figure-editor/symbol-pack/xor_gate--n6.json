@@ -1,0 +1,99 @@
+{
+  "pack": "symbols/0.3",
+  "type": "xor_gate",
+  "variant": {
+    "n": 6
+  },
+  "description": "XOR gate with 2 to 8 inputs (option n, default 2); inputs A, B, C..., output Y",
+  "status": "draft",
+  "mirrorable": true,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "xor_gate--n6.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-5.7, -3.19991, 10.9, 6.39966]
+  },
+  "bbox": {
+    "min": [-11.0, -5.999],
+    "max": [10.0, 6.0]
+  },
+  "pins": {
+    "A": {
+      "tip": [-11, 5],
+      "direction": "left",
+      "lead": {
+        "from": [-9.0, 5.0],
+        "length": 2.0
+      }
+    },
+    "B": {
+      "tip": [-11, 3],
+      "direction": "left",
+      "lead": {
+        "from": [-8.435, 3.0],
+        "length": 2.565
+      }
+    },
+    "C": {
+      "tip": [-11, 1],
+      "direction": "left",
+      "lead": {
+        "from": [-8.118, 1.0],
+        "length": 2.882
+      }
+    },
+    "D": {
+      "tip": [-11, -1],
+      "direction": "left",
+      "lead": {
+        "from": [-8.118, -1.0],
+        "length": 2.882
+      }
+    },
+    "E": {
+      "tip": [-11, -3],
+      "direction": "left",
+      "lead": {
+        "from": [-8.435, -3.0],
+        "length": 2.565
+      }
+    },
+    "F": {
+      "tip": [-11, -5],
+      "direction": "left",
+      "lead": {
+        "from": [-9.0, -5.0],
+        "length": 2.0
+      }
+    },
+    "Y": {
+      "tip": [10, 0],
+      "direction": "right",
+      "lead": {
+        "from": [7.077, 0.0],
+        "length": 2.923
+      }
+    }
+  },
+  "label": null,
+  "parameters": [
+    {
+      "name": "n",
+      "default": 2,
+      "values": [2, 3, 4, 5, 6, 7, 8],
+      "files": {
+        "2": "xor_gate",
+        "3": "xor_gate--n3",
+        "4": "xor_gate--n4",
+        "5": "xor_gate--n5",
+        "6": "xor_gate--n6",
+        "7": "xor_gate--n7",
+        "8": "xor_gate--n8"
+      }
+    }
+  ],
+  "superseded_by": null
+}

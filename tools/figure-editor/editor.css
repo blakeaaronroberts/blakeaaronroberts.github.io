@@ -217,3 +217,17 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 .fe-stepper .fe-btn:disabled { opacity: .35; }
 .fe-stepno { min-width: 2.2rem; text-align: left; font-size: .7rem; }
 .fe-toolbar .fe-btn { white-space: nowrap; }
+
+/* ---- drafts and families in the Elements pane (F21.1) ---- */
+.fe-part { position: relative; }
+.fe-part .fe-draft { position: absolute; top: 1px; right: 1px; padding: 0 .25rem; font-style: normal; font-size: .55rem; letter-spacing: .04em; text-transform: uppercase; border: 1px solid var(--role-muted); color: var(--role-muted); background: var(--role-background); }
+.fe-part.is-draft { border-style: dashed; }
+.fe-part .fe-fam { position: absolute; top: 1px; left: 2px; font-style: normal; font-size: .55rem; color: var(--role-accent); }
+.fe-popover { position: fixed; z-index: 60; width: 15rem; padding: .6rem .7rem; display: grid; gap: .5rem; background: var(--role-background); color: var(--role-ink); border: 1px solid var(--role-rule); box-shadow: 0 4px 14px rgb(0 0 0 / .18); }
+.fe-popover p { margin: 0; }
+.fe-popover fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: .25rem; }
+.fe-popover legend { float: none; width: auto; padding: 0; margin: 0; font-size: .75rem; color: var(--role-muted); }
+.fe-pop-values { display: flex; flex-wrap: wrap; gap: 3px; }
+.fe-pop-values button { min-width: 2rem; height: 1.9rem; border: 1px solid var(--role-rule); background: transparent; color: inherit; font-family: var(--bs-font-monospace); cursor: pointer; }
+.fe-pop-values button:hover { border-color: var(--role-accent); }
+.fe-pop-values button[aria-pressed="true"] { background: var(--role-accent); border-color: var(--role-accent); color: var(--role-background); }

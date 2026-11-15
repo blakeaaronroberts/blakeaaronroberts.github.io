@@ -1,0 +1,74 @@
+{
+  "pack": "symbols/0.3",
+  "type": "counter",
+  "variant": {
+    "bits": 2
+  },
+  "description": "N-bit binary counter: clock CLK, reset RST, enable EN, output Q (option: bits)",
+  "status": "draft",
+  "mirrorable": false,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "counter--bits2.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-3.7, -2.41864, 7.4, 4.11866]
+  },
+  "bbox": {
+    "min": [-7.0, -3.0],
+    "max": [7.0, 4.437]
+  },
+  "pins": {
+    "CLK": {
+      "tip": [-7, 2],
+      "direction": "left",
+      "lead": {
+        "from": [-5.0, 2.0],
+        "length": 2.0
+      }
+    },
+    "RST": {
+      "tip": [-7, 0],
+      "direction": "left",
+      "lead": {
+        "from": [-5.0, 0.0],
+        "length": 2.0
+      }
+    },
+    "EN": {
+      "tip": [-7, -2],
+      "direction": "left",
+      "lead": {
+        "from": [-5.0, -2.0],
+        "length": 2.0
+      }
+    },
+    "Q": {
+      "tip": [7, 0],
+      "direction": "right",
+      "lead": {
+        "from": [5.0, 0.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": null,
+  "parameters": [
+    {
+      "name": "bits",
+      "default": 4,
+      "values": [1, 2, 4, 8, 16, 32],
+      "files": {
+        "1": "counter--bits1",
+        "2": "counter--bits2",
+        "4": "counter",
+        "8": "counter--bits8",
+        "16": "counter--bits16",
+        "32": "counter--bits32"
+      }
+    }
+  ],
+  "superseded_by": null
+}
