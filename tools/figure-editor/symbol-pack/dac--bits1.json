@@ -1,0 +1,66 @@
+{
+  "pack": "symbols/0.3",
+  "type": "dac",
+  "variant": {
+    "bits": 1
+  },
+  "description": "Digital-to-analogue converter: digital input D, clock CLK, analogue output VOUT (option: bits)",
+  "status": "draft",
+  "mirrorable": false,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "dac--bits1.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-5.7, -2.94917, 11.4, 5.14896]
+  },
+  "bbox": {
+    "min": [-11.0, -4.0],
+    "max": [11.0, 5.498]
+  },
+  "pins": {
+    "D": {
+      "tip": [-11, 2],
+      "direction": "left",
+      "lead": {
+        "from": [-9.0, 2.0],
+        "length": 2.0
+      }
+    },
+    "CLK": {
+      "tip": [-11, -2],
+      "direction": "left",
+      "lead": {
+        "from": [-9.0, -2.0],
+        "length": 2.0
+      }
+    },
+    "VOUT": {
+      "tip": [11, 0],
+      "direction": "right",
+      "lead": {
+        "from": [9.0, 0.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": null,
+  "parameters": [
+    {
+      "name": "bits",
+      "default": 4,
+      "values": [1, 2, 4, 8, 16, 32],
+      "files": {
+        "1": "dac--bits1",
+        "2": "dac--bits2",
+        "4": "dac",
+        "8": "dac--bits8",
+        "16": "dac--bits16",
+        "32": "dac--bits32"
+      }
+    }
+  ],
+  "superseded_by": null
+}

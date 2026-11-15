@@ -1,0 +1,45 @@
+{
+  "pack": "symbols/0.3",
+  "type": "voltmeter",
+  "variant": {},
+  "description": "Voltmeter (circle with V), horizontal; optional label above",
+  "status": "draft",
+  "mirrorable": false,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "voltmeter.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-1.7, -0.94984, 3.9, 1.89969]
+  },
+  "bbox": {
+    "min": [-3.0, -1.5],
+    "max": [4.0, 1.5]
+  },
+  "pins": {
+    "+": {
+      "tip": [-3, 0],
+      "direction": "left",
+      "lead": {
+        "from": [-1.0, 0.0],
+        "length": 2.0
+      }
+    },
+    "-": {
+      "tip": [4, 0],
+      "direction": "right",
+      "lead": {
+        "from": [2.0, 0.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": {
+    "anchor": [0.5, 1.5],
+    "direction": "up"
+  },
+  "parameters": [],
+  "superseded_by": null
+}

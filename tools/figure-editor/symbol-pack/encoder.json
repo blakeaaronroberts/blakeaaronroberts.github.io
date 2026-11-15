@@ -1,0 +1,85 @@
+{
+  "pack": "symbols/0.3",
+  "type": "encoder",
+  "variant": {},
+  "description": "2^k-to-k encoder (option k = 1 to 3 output bits): inputs I0..., outputs Y",
+  "status": "draft",
+  "mirrorable": false,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "encoder.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-8.2, -2.98353, 16.4, 5.18354]
+  },
+  "bbox": {
+    "min": [-16.0, -4.0],
+    "max": [16.0, 5.567]
+  },
+  "pins": {
+    "I0": {
+      "tip": [-16, 3],
+      "direction": "left",
+      "lead": {
+        "from": [-14.0, 3.0],
+        "length": 2.0
+      }
+    },
+    "I1": {
+      "tip": [-16, 1],
+      "direction": "left",
+      "lead": {
+        "from": [-14.0, 1.0],
+        "length": 2.0
+      }
+    },
+    "I2": {
+      "tip": [-16, -1],
+      "direction": "left",
+      "lead": {
+        "from": [-14.0, -1.0],
+        "length": 2.0
+      }
+    },
+    "I3": {
+      "tip": [-16, -3],
+      "direction": "left",
+      "lead": {
+        "from": [-14.0, -3.0],
+        "length": 2.0
+      }
+    },
+    "Y1": {
+      "tip": [16, 2],
+      "direction": "right",
+      "lead": {
+        "from": [14.0, 2.0],
+        "length": 2.0
+      }
+    },
+    "Y0": {
+      "tip": [16, -2],
+      "direction": "right",
+      "lead": {
+        "from": [14.0, -2.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": null,
+  "parameters": [
+    {
+      "name": "k",
+      "default": 2,
+      "values": [1, 2, 3],
+      "files": {
+        "1": "encoder--k1",
+        "2": "encoder",
+        "3": "encoder--k3"
+      }
+    }
+  ],
+  "superseded_by": null
+}

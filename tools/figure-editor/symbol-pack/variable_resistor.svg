@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="2.2cm" height="0.9499cm" viewBox="-2.2 -0.9499 4.4 1.8998" version="1.1">
+  <g class="body">
+    <g transform="matrix(0.07253907 0 0 0.07253907 -1.5952951 -0.78923383)">
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:round;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M -14.720085 0.00171418 L -12.728019 5.315227 L -9.840328 -5.315815 L -6.94862 5.315227 L -4.060929 -5.315815 L -1.169221 5.315227 L 1.71847 -5.315815 L 4.606162 5.315227 L 7.497869 -5.315815 L 10.385561 5.315227 L 13.277268 -5.315815 L 14.723122 0.00171418 " transform="matrix(0.972609,0,0,-0.972609,21.992663,10.880573)" />
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:round;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M -5.667433 -10.629328 L 3.951511 7.411715 " transform="matrix(0.972609,0,0,-0.972609,21.992663,10.880573)" />
+      <path style=" stroke:none;fill-rule:nonzero;fill:rgb(0%,0%,0%);fill-opacity:1;" d="M 27.507812 0.542969 C 26.550781 1.707031 24.777344 3.773438 22.769531 4.714844 C 24.898438 4.175781 25.941406 4.730469 26.679688 6.800781 C 26.34375 4.609375 27.070312 1.984375 27.507812 0.542969 Z M 27.507812 0.542969 " />
+    </g>
+    <circle cx="-1.0385" cy="-0.00014" r="0.03866" fill="#000000" />
+    <circle cx="1.03878" cy="-0.00014" r="0.03866" fill="#000000" />
+  </g>
+  <g class="leads">
+    <path class="lead" data-pin="1" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -1.0385 0 L -2 0" />
+    <path class="lead" data-pin="2" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M 1.03878 0 L 2 0" />
+  </g>
+</svg>

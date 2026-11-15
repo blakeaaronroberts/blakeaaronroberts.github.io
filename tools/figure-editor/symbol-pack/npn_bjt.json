@@ -1,6 +1,7 @@
 {
-  "pack": "symbols/0.1",
+  "pack": "symbols/0.3",
   "type": "npn_bjt",
+  "variant": {},
   "description": "NPN bipolar transistor: base B, collector C, emitter E",
   "status": "approved",
   "mirrorable": true,
@@ -44,5 +45,6 @@
     }
   },
   "label": null,
-  "parameters": []
+  "parameters": [],
+  "superseded_by": null
 }

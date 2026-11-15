@@ -1,0 +1,69 @@
+{
+  "pack": "symbols/0.3",
+  "type": "demux",
+  "variant": {},
+  "description": "1:N demultiplexer (option n = 2, 4 or 8): input I, select S.., outputs Y0",
+  "status": "draft",
+  "mirrorable": false,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "demux.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-2.2, -2.19986, 4.4, 4.89986]
+  },
+  "bbox": {
+    "min": [-4.0, -5.0],
+    "max": [4.0, 4.0]
+  },
+  "pins": {
+    "I": {
+      "tip": [-4, 0],
+      "direction": "left",
+      "lead": {
+        "from": [-2.0, 0.0],
+        "length": 2.0
+      }
+    },
+    "S0": {
+      "tip": [0, -5],
+      "direction": "down",
+      "lead": {
+        "from": [0.0, -3.0],
+        "length": 2.0
+      }
+    },
+    "Y0": {
+      "tip": [4, 2],
+      "direction": "right",
+      "lead": {
+        "from": [2.0, 2.0],
+        "length": 2.0
+      }
+    },
+    "Y1": {
+      "tip": [4, -2],
+      "direction": "right",
+      "lead": {
+        "from": [2.0, -2.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": null,
+  "parameters": [
+    {
+      "name": "n",
+      "default": 2,
+      "values": [2, 4, 8],
+      "files": {
+        "2": "demux",
+        "4": "demux--n4",
+        "8": "demux--n8"
+      }
+    }
+  ],
+  "superseded_by": null
+}

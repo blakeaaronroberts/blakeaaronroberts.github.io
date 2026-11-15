@@ -1,0 +1,45 @@
+{
+  "pack": "symbols/0.3",
+  "type": "photodiode",
+  "variant": {},
+  "description": "Photodiode (diode with two arrows pointing in): anode A, cathode K; optional label below",
+  "status": "draft",
+  "mirrorable": true,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "photodiode.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-1.7, -2.19996, 3.4, 3.0252]
+  },
+  "bbox": {
+    "min": [-3.0, -1.25],
+    "max": [3.0, 4.0]
+  },
+  "pins": {
+    "A": {
+      "tip": [-3, 0],
+      "direction": "left",
+      "lead": {
+        "from": [-1.0, 0.0],
+        "length": 2.0
+      }
+    },
+    "K": {
+      "tip": [3, 0],
+      "direction": "right",
+      "lead": {
+        "from": [1.0, 0.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": {
+    "anchor": [-0.0, -1.25],
+    "direction": "down"
+  },
+  "parameters": [],
+  "superseded_by": null
+}

@@ -368,9 +368,12 @@ export async function mount(root, options = {}) {
   }
 
   function renderPalette() {
-    const tile = (t) => `<li><button type="button" class="fe-part" data-type="${esc(t)}" title="${esc(pack.def(t).description)}">${thumbnail(pack, t)}<span>${esc(t)}</span></button></li>`;
+    const tile = (t) => {
+      const draft = pack.statusOf(t) !== "approved", family = pack.parametersOf(t);
+      return `<li><button type="button" class="fe-part${draft ? " is-draft" : ""}" data-type="${esc(t)}"${family.length ? ' aria-haspopup="dialog"' : ""} title="${esc(pack.def(t).description)}${draft ? " (draft)" : ""}">${thumbnail(pack, t)}<span>${esc(t)}</span>${family.length ? `<em class="fe-fam" aria-hidden="true">${esc(family.map((q) => `${q.values[0]}–${q.values.at(-1)}`).join(" · "))}</em>` : ""}${draft ? '<em class="fe-draft">draft</em>' : ""}</button></li>`;
+    };
     const preset = (p) => `<li><button type="button" class="fe-part" data-preset="${esc(p.id)}" title="${esc(p.name)}: a block with these pins; size, shape, pins and labels can all be changed">${blockThumbnail(pack, p.params)}<span>${esc(p.name)}</span></button></li>`;
-    $(".fe-palette .fe-cats").innerHTML = sections(pack.types(opt.drafts)).map((s) => {
+    $(".fe-palette .fe-cats").innerHTML = sections(pack.types(true)).map((s) => {
       const open = opt.cats?.[s.id] ?? s.open;
       const items = s.presets ? PRESETS.map(preset) : s.types.map(tile);
       return `<details class="fe-cat" data-cat="${esc(s.id)}"${open ? " open" : ""}><summary class="fe-cat-head label-mono">${esc(s.title)} <span class="fe-count">${items.length}</span></summary><nav aria-label="${esc(s.title)}"><ul class="${s.presets ? "fe-blocks" : "fe-parts"}">${items.join("")}</ul></nav></details>`;
@@ -381,6 +384,39 @@ export async function mount(root, options = {}) {
     const id = e.target.dataset?.cat;
     if (id) { opt.cats = { ...opt.cats, [id]: e.target.open }; saveOptions(); }
   }, true);
+
+  // ---- families: a popover chooses the size or count before placing (F21.1) ----
+  const PARAM_NAMES = { n: "Inputs or channels", k: "Select lines", bits: "Bits", addr_bits: "Address bits", data_bits: "Data bits", words: "Words" };
+  let familyPop = null;
+  function closeFamily() { familyPop?.remove(); familyPop = null; }
+  function openFamily(tile, type, viaKeyboard) {
+    closeFamily();
+    const params = pack.parametersOf(type), pick = Object.fromEntries(params.map((q) => [q.name, q.default]));
+    const place = () => {
+      const chosen = Object.fromEntries(Object.entries(pick).filter(([k, v]) => v !== params.find((q) => q.name === k).default));
+      closeFamily();
+      startPlacing(type, viaKeyboard, Object.keys(chosen).length ? chosen : null);
+    };
+    const pop = document.createElement("div");
+    pop.className = "fe-popover"; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", `${type}: choose a size`);
+    pop.innerHTML = `<p class="label-mono">${esc(type)}</p>${params.map((q) => `<fieldset><legend>${esc(PARAM_NAMES[q.name] ?? q.name)}</legend><div class="fe-pop-values">${q.values.map((v) => `<button type="button" data-p="${esc(q.name)}" data-v="${v}" aria-pressed="${v === q.default}">${v}</button>`).join("")}</div></fieldset>`).join("")}${params.length > 1 ? `<button type="button" class="${BUTTON} fe-pop-place">Place</button>` : ""}<p class="fe-hint">Default: ${params.map((q) => q.default).join(", ")}. Esc closes.</p>`;
+    pop.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-v]");
+      if (b) {
+        pick[b.dataset.p] = Number(b.dataset.v);
+        for (const x of pop.querySelectorAll(`[data-p="${b.dataset.p}"]`)) x.setAttribute("aria-pressed", String(x === b));
+        if (params.length === 1) place();   // one choice: the click places
+      }
+      if (e.target.closest(".fe-pop-place")) place();
+    });
+    pop.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeFamily(); tile.focus(); } e.stopPropagation(); });
+    const r = tile.getBoundingClientRect();
+    pop.style.left = `${Math.min(r.left, window.innerWidth - 260)}px`; pop.style.top = `${r.bottom + 4}px`;
+    document.body.append(pop);
+    familyPop = pop;
+    pop.querySelector('[aria-pressed="true"]')?.focus();
+  }
+  document.addEventListener("pointerdown", (e) => { if (familyPop && !familyPop.contains(e.target) && !e.target.closest(".fe-part")) closeFamily(); });
 
   function updateUI() {
     const has = total(selection) > 0;
@@ -1048,7 +1084,7 @@ export async function mount(root, options = {}) {
   });
   root.querySelector(".fe-palette").addEventListener("click", (e) => {
     const b = e.target.closest("[data-type]");
-    if (b) { startPlacing(b.dataset.type, e.detail === 0); return; }
+    if (b) { if (pack.parametersOf(b.dataset.type).length) openFamily(b, b.dataset.type, e.detail === 0); else startPlacing(b.dataset.type, e.detail === 0); return; }
     const pre = e.target.closest("[data-preset]");
     const preset = pre && presetById(pre.dataset.preset);
     if (preset) startPlacing(BLOCK, e.detail === 0, structuredClone(preset.params));

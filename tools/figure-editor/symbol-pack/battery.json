@@ -1,0 +1,45 @@
+{
+  "pack": "symbols/0.3",
+  "type": "battery",
+  "variant": {},
+  "description": "Battery (long and short plates), vertical with + on top; optional label to the right",
+  "status": "draft",
+  "mirrorable": true,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "battery.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-0.69996, -1.2, 1.39992, 2.9]
+  },
+  "bbox": {
+    "min": [-1.0, -3.0],
+    "max": [1.0, 2.0]
+  },
+  "pins": {
+    "+": {
+      "tip": [0, 2],
+      "direction": "up",
+      "lead": {
+        "from": [0.0, 0.0],
+        "length": 2.0
+      }
+    },
+    "-": {
+      "tip": [0, -3],
+      "direction": "down",
+      "lead": {
+        "from": [0.0, -0.8],
+        "length": 2.2
+      }
+    }
+  },
+  "label": {
+    "anchor": [1.0, -0.4],
+    "direction": "right"
+  },
+  "parameters": [],
+  "superseded_by": null
+}

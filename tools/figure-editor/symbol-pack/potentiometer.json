@@ -1,0 +1,50 @@
+{
+  "pack": "symbols/0.3",
+  "type": "potentiometer",
+  "variant": {},
+  "description": "Potentiometer (resistor with a wiper arrow): ends 1 and 2, wiper W above",
+  "status": "draft",
+  "mirrorable": true,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "potentiometer.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-2.2, -2.2, 4.4, 2.77493]
+  },
+  "bbox": {
+    "min": [-4.0, -0.75],
+    "max": [4.0, 4.0]
+  },
+  "pins": {
+    "1": {
+      "tip": [-4, 0],
+      "direction": "left",
+      "lead": {
+        "from": [-2.077, 0.0],
+        "length": 1.923
+      }
+    },
+    "2": {
+      "tip": [4, 0],
+      "direction": "right",
+      "lead": {
+        "from": [2.078, 0.0],
+        "length": 1.922
+      }
+    },
+    "W": {
+      "tip": [0, 4],
+      "direction": "up",
+      "lead": {
+        "from": [0.0, 2.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": null,
+  "parameters": [],
+  "superseded_by": null
+}

@@ -1,0 +1,66 @@
+{
+  "pack": "symbols/0.3",
+  "type": "jk_flipflop",
+  "variant": {},
+  "description": "Edge-triggered JK flip-flop: J, K, clock CLK, outputs Q and Qn",
+  "status": "draft",
+  "mirrorable": false,
+  "grid_cm": 0.25,
+  "svg": {
+    "file": "jk_flipflop.svg",
+    "unit": "module",
+    "unit_cm": 0.5,
+    "origin": [0, 0],
+    "y_axis": "down",
+    "viewBox": [-5.2, -3.14172, 10.4, 5.34163]
+  },
+  "bbox": {
+    "min": [-10.0, -4.0],
+    "max": [10.0, 5.883]
+  },
+  "pins": {
+    "J": {
+      "tip": [-10, 2],
+      "direction": "left",
+      "lead": {
+        "from": [-8.0, 2.0],
+        "length": 2.0
+      }
+    },
+    "CLK": {
+      "tip": [-10, 0],
+      "direction": "left",
+      "lead": {
+        "from": [-8.0, 0.0],
+        "length": 2.0
+      }
+    },
+    "K": {
+      "tip": [-10, -2],
+      "direction": "left",
+      "lead": {
+        "from": [-8.0, -2.0],
+        "length": 2.0
+      }
+    },
+    "Q": {
+      "tip": [10, 2],
+      "direction": "right",
+      "lead": {
+        "from": [8.0, 2.0],
+        "length": 2.0
+      }
+    },
+    "Qn": {
+      "tip": [10, -2],
+      "direction": "right",
+      "lead": {
+        "from": [8.0, -2.0],
+        "length": 2.0
+      }
+    }
+  },
+  "label": null,
+  "parameters": [],
+  "superseded_by": null
+}

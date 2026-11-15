@@ -19,7 +19,7 @@ export function createView(svg, basePack) {
   // Palette previews reuse these <symbol>s. Colours baked into the pack's SVGs go through the active pack's mapping,
   // so the palette matches the canvas (as shipped in light; dark roles in dark).
   const recolourAttrs = (n, pack) => ({ ...n, attrs: (n.attrs ?? []).map(([k, v]) => [k, v.replace(/#[0-9A-Fa-f]{6}|rgb\([^)]*\)/g, (c) => pack.recolour(hex(c)))]), children: (n.children ?? []).map((c) => recolourAttrs(c, pack)) });
-  const symbolsFor = (pack) => basePack.types(true).map((type) => {
+  const symbolsFor = (pack) => basePack.stems().map((type) => {
     const inner = basePack.svgs.get(type).children.map((n) => writeXml(recolourAttrs(n, pack))).join("");
     return `<symbol id="${symbolId(type)}" overflow="visible">${inner}</symbol>`;
   }).join("");
@@ -155,7 +155,7 @@ export function createView(svg, basePack) {
     if (state.ghost) {
       const el = state.ghost;
       if (el.type === BLOCK) o.push(`<g opacity="0.55" transform="${svgTransform(el)}">${blockNodes(el.params, pack).map((n) => writeXml(n)).join("")}</g>`);
-      else o.push(`<g opacity="0.55"><use href="#${symbolId(el.type)}" transform="${svgTransform(el)}"/></g>`);
+      else o.push(`<g opacity="0.55"><use href="#${symbolId(pack.stemOf(el))}" transform="${svgTransform(el)}"/></g>`);
     }
     if (state.rubber && state.rubber.length > 1) {
       o.push(`<path stroke="${roles.accent}" stroke-width="${fmt(lw)}" ${dash} d="${pathData(state.rubber.map(toSvg))}"/>`);

@@ -1,6 +1,7 @@
 {
-  "pack": "symbols/0.1",
+  "pack": "symbols/0.3",
   "type": "mux2",
+  "variant": {},
   "description": "2:1 multiplexer (inputs 0/1, select at the bottom)",
   "status": "approved",
   "mirrorable": false,
@@ -52,5 +53,6 @@
     }
   },
   "label": null,
-  "parameters": []
+  "parameters": [],
+  "superseded_by": "mux"
 }

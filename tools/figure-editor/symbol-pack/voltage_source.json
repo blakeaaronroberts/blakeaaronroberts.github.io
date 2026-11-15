@@ -1,6 +1,7 @@
 {
-  "pack": "symbols/0.1",
+  "pack": "symbols/0.3",
   "type": "voltage_source",
+  "variant": {},
   "description": "Independent voltage source, vertical with + on top; optional label to the right",
   "status": "approved",
   "mirrorable": false,
@@ -39,5 +40,6 @@
     "anchor": [1.5, 0.5],
     "direction": "right"
   },
-  "parameters": []
+  "parameters": [],
+  "superseded_by": null
 }

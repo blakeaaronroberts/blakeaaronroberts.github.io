@@ -1,6 +1,7 @@
 {
-  "pack": "symbols/0.1",
+  "pack": "symbols/0.3",
   "type": "decoder2to4",
+  "variant": {},
   "description": "2-to-4 decoder (inputs A1, A0; outputs Y0..Y3)",
   "status": "approved",
   "mirrorable": false,
@@ -68,5 +69,6 @@
     }
   },
   "label": null,
-  "parameters": []
+  "parameters": [],
+  "superseded_by": "decoder"
 }

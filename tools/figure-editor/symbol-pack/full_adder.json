@@ -1,6 +1,7 @@
 {
-  "pack": "symbols/0.1",
+  "pack": "symbols/0.3",
   "type": "full_adder",
+  "variant": {},
   "description": "1-bit full adder block (A, B, Cin in; S, Cout out)",
   "status": "approved",
   "mirrorable": false,
@@ -60,5 +61,6 @@
     }
   },
   "label": null,
-  "parameters": []
+  "parameters": [],
+  "superseded_by": "adder"
 }

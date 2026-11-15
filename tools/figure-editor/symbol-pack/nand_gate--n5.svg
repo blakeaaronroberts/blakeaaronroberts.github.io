@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="4.7cm" height="2.69993cm" viewBox="-4.2 -2.70011 9.4 5.39987" version="1.1">
+  <g class="body">
+    <g transform="matrix(0.07104609 0 0 0.07104609 -3.53459592 -2.55558357)">
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:round;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M -43.610169 35.432911 L 8.177678 35.432911 C 27.746608 35.432911 43.610225 19.569293 43.610225 0.000363166 C 43.610225 -19.568567 27.746608 -35.432184 8.177678 -35.432184 L -43.610169 -35.432184 Z M -43.610169 35.432911 " transform="matrix(0.993084,0,0,-0.993084,50.832003,35.969111)" />
+      <path style=" stroke:none;fill-rule:nonzero;fill:rgb(100%,100%,100%);fill-opacity:1;" d="M 104.980469 35.96875 C 104.980469 32.976562 102.550781 30.550781 99.558594 30.550781 C 96.566406 30.550781 94.140625 32.976562 94.140625 35.96875 C 94.140625 38.960938 96.566406 41.386719 99.558594 41.386719 C 102.550781 41.386719 104.980469 38.960938 104.980469 35.96875 Z M 104.980469 35.96875 " />
+      <path style="fill:none;stroke-width:1.0959;stroke-linecap:butt;stroke-linejoin:miter;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M 54.525558 0.000363166 C 54.525558 3.013388 52.07895 5.456063 49.065925 5.456063 C 46.0529 5.456063 43.610225 3.013388 43.610225 0.000363166 C 43.610225 -3.012662 46.0529 -5.455337 49.065925 -5.455337 C 52.07895 -5.455337 54.525558 -3.012662 54.525558 0.000363166 Z M 54.525558 0.000363166 " transform="matrix(0.993084,0,0,-0.993084,50.832003,35.969111)" />
+    </g>
+  </g>
+  <g class="leads">
+    <path class="lead" data-pin="A" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -3 -2 L -4 -2" />
+    <path class="lead" data-pin="B" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -3 -1 L -4 -1" />
+    <path class="lead" data-pin="C" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -3 0 L -4 0" />
+    <path class="lead" data-pin="D" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -3 1 L -4 1" />
+    <path class="lead" data-pin="E" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M -3 2 L -4 2" />
+    <path class="lead" data-pin="Y" fill="none" stroke="#000000" stroke-width="0.07732" stroke-linecap="butt" d="M 3.92377 0 L 5 0" />
+  </g>
+</svg>

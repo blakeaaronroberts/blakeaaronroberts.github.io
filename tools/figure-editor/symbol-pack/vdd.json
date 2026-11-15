@@ -1,6 +1,7 @@
 {
-  "pack": "symbols/0.1",
+  "pack": "symbols/0.3",
   "type": "vdd",
+  "variant": {},
   "description": "Supply rail (a bar with the supply's name above it); the wire leaves downward",
   "status": "approved",
   "mirrorable": true,
@@ -31,5 +32,6 @@
     "anchor": [0.0, 0.0],
     "direction": "up"
   },
-  "parameters": []
+  "parameters": [],
+  "superseded_by": null
 }

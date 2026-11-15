@@ -1,6 +1,7 @@
 {
-  "pack": "symbols/0.1",
+  "pack": "symbols/0.3",
   "type": "nmos",
+  "variant": {},
   "description": "N-channel enhancement MOSFET: gate G, drain D, source S",
   "status": "approved",
   "mirrorable": true,
@@ -44,5 +45,6 @@
     }
   },
   "label": null,
-  "parameters": []
+  "parameters": [],
+  "superseded_by": null
 }

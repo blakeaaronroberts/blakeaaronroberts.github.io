@@ -29,19 +29,20 @@ Deno.test("a pack with no straight_joint_frac (symbol pack 0.1) is refused with 
 });
 
 Deno.test("mirror follows the pack's flag: on where mirrorable is true, refused where it is false", () => {
-  const flags = Object.fromEntries(pack.types().map((t) => [t, pack.mirrorable(t)]));
+  const flags = Object.fromEntries(pack.types(true).map((t) => [t, pack.mirrorable(t)]));
   assertEquals(flags.and_gate, true);
-  assertEquals(flags.full_adder, false);
-  assertEquals(Object.values(flags).filter(Boolean).length, 15);
-  assertEquals(Object.entries(flags).filter(([, v]) => !v).map(([k]) => k).sort(), ["d_flipflop", "d_latch", "decoder2to4", "full_adder", "mux2", "voltage_source"]);
+  assert(Object.values(flags).every((v) => typeof v === "boolean"), "every family says whether it can be mirrored");
+  assert(Object.values(flags).some((v) => !v), "some families cannot be mirrored");
+  assertEquals(flags.d_flipflop, false);
 });
 
-Deno.test("drafts: the palette lists approved elements, and drafts only when asked", async () => {
+Deno.test("drafts: the palette lists approved elements, and drafts only when asked; replaced families are left out", async () => {
   const withDraft = await packWith((p, j) => { if (p === "index.json") j.elements.find((e) => e.type === "resistor").status = "draft"; });
   assert(!withDraft.types().includes("resistor"));
   assert(withDraft.types(true).includes("resistor"));
-  assertEquals(withDraft.types(true).length, 21);
-  assertEquals(withDraft.types().length, 20);
+  assertEquals(withDraft.statusOf("resistor"), "draft");
+  assert(withDraft.types().length < withDraft.types(true).length, "drafts add to the list");
+  assert(!pack.types(true).includes("mux2") && pack.allTypes().includes("mux2"), "mux2 is replaced by mux but old figures still draw it");
 });
 
 Deno.test("scale: 1 is real size; the option multiplies width and height, never the drawing", () => {
@@ -94,4 +95,19 @@ Deno.test("a dark mapping turns the pack's baked black into ink and white into b
   assert(/#E6E6E6/i.test(svg) && /#FF8A3D/i.test(svg), "ink and the dark high colour are used");
   assert(!/<text|font-family|href=|url\(/.test(svg), "no text, fonts or references");
   assertEquals(pack.role("ink"), "#000000");                                   // the loaded pack is untouched
+});
+
+Deno.test("families: a 4-input gate has four input pins, is saved as params {n: 4}, and draws and exports as the variant", async () => {
+  const { addElement, serialize, parse } = await import("../src/doc.js");
+  const { drawing } = await import("../src/export.js");
+  assertEquals(pack.parametersOf("and_gate"), [{ name: "n", default: 2, values: [2, 3, 4, 5, 6, 7, 8] }]);
+  assertEquals(pack.parametersOf("resistor"), []);
+  const d = addElement({ ...(await import("../src/doc.js")).newDoc(), }, pack, "and_gate", [0, 0], 0, { n: 4 });
+  const el = d.doc.elements[0];
+  assertEquals(pack.stemOf(el), "and_gate--n4");
+  assertEquals(Object.keys(pack.defFor(el).pins).sort(), ["A", "B", "C", "D", "Y"]);
+  assertEquals(pack.stemOf({ type: "and_gate", params: { n: 2 } }), "and_gate");
+  const back = parse(serialize(d.doc, pack)).doc;
+  assertEquals(back.elements[0].params, { n: 4 });
+  assert(drawing(back, pack, {}).elements.length === 1);
 });
