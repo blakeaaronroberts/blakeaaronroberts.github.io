@@ -38,7 +38,8 @@
 .td-cell.v-0 { box-shadow: inset 0 -2px 0 currentColor; }
 .td-cell.v-z { background-image: linear-gradient(currentColor, currentColor); background-size: 100% 2px; background-position: 0 50%; background-repeat: no-repeat; color: var(--role-muted); }
 .td-cell.v-x { background-image: repeating-linear-gradient(45deg, transparent 0 4px, var(--role-rule) 4px 5px); box-shadow: inset 0 2px 0 var(--role-muted), inset 0 -2px 0 var(--role-muted); }
-.td-cell.v-d { box-shadow: inset 0 2px 0 currentColor, inset 0 -2px 0 currentColor; }
+.td-cell.v-data, .td-brush.v-data { box-shadow: inset 0 2px 0 currentColor, inset 0 -2px 0 currentColor; }
+.td-cell.v-d { background-image: linear-gradient(90deg, currentColor 50%, transparent 50%); background-size: 6px 2px; background-repeat: repeat-x; background-position: 0 100%; }
 .td-cell:not(.is-held) { border-left: 2px solid var(--role-accent); }
 .td-cell.is-held { color: var(--role-muted); }
 .td-cell.is-marked { background-color: var(--role-surface); }
@@ -57,3 +58,34 @@
 .td-dockbody { display: grid; grid-template-columns: minmax(0, 1fr) 13rem; min-height: 0; }
 .td-dock .td-center { grid-column: auto; }
 .td-dockside { min-height: 0; overflow-y: auto; border-left: 1px solid var(--role-rule); }
+
+/* ---- every WaveDrom value, as brushes and as steps ---- */
+.td-brushes { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+.td-brushes .label-mono { margin-right: .3rem; }
+.td-brush { min-width: 1.9rem; height: 1.7rem; padding: 0 .3rem; border: 1px solid var(--role-rule); background: var(--role-background); color: var(--role-ink); font-family: var(--bs-font-monospace); font-size: .68rem; cursor: pointer; }
+.td-brush:hover { border-color: var(--role-accent); }
+.td-brush[aria-pressed="true"] { background: var(--role-accent); border-color: var(--role-accent); color: var(--role-background); box-shadow: none; }
+.td-cell.v-h, .td-brush.v-h, .td-brush.v-1 { box-shadow: inset 0 2px 0 currentColor; }
+.td-cell.v-l, .td-brush.v-l, .td-brush.v-0 { box-shadow: inset 0 -2px 0 currentColor; }
+.td-cell.v-u { box-shadow: none; background-image: linear-gradient(90deg, currentColor 50%, transparent 50%); background-size: 6px 2px; background-repeat: repeat-x; background-position: 0 0; }
+.td-cell.v-3, .td-brush.v-3 { background: color-mix(in srgb, var(--fig-high) 35%, transparent); }
+.td-cell.v-4, .td-brush.v-4 { background: color-mix(in srgb, var(--fig-flow) 35%, transparent); }
+.td-cell.v-5, .td-brush.v-5 { background: color-mix(in srgb, var(--fig-accent) 35%, transparent); }
+.td-cell.v-6, .td-brush.v-6 { background: color-mix(in srgb, var(--fig-highlight) 35%, transparent); }
+.td-cell.v-7, .td-brush.v-7 { background: color-mix(in srgb, var(--fig-shade) 35%, transparent); }
+.td-cell.v-8, .td-brush.v-8 { background: color-mix(in srgb, var(--fig-muted) 35%, transparent); }
+.td-cell.v-9, .td-brush.v-9 { background: color-mix(in srgb, var(--fig-rule) 35%, transparent); }
+.td-cell:is(.v-3, .v-4, .v-5, .v-6, .v-7, .v-8, .v-9) { box-shadow: inset 0 2px 0 currentColor, inset 0 -2px 0 currentColor; }
+.td-cell:is(.v-p, .v-n, .v-P, .v-N) { background-image: linear-gradient(90deg, transparent 0 48%, currentColor 48% 52%, transparent 52%); box-shadow: inset 0 2px 0 var(--role-muted), inset 0 -2px 0 var(--role-muted); color: var(--role-muted); }
+.td-node { position: absolute; top: 1px; right: 2px; font-size: .6rem; color: var(--role-accent); font-weight: 700; }
+.td-more { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; padding: .3rem 0 .5rem 10.5rem; font-size: .75rem; }
+.td-more label { display: grid; gap: .1rem; }
+.td-more .form-control { width: 6rem; }
+.td-more .form-check { display: flex; gap: .3rem; align-items: center; }
+.td-spacer .td-name span { font-style: italic; }
+.td-edges { display: grid; gap: .3rem; }
+.td-edgehead { display: flex; align-items: center; gap: .5rem; }
+.td-edge { display: grid; grid-template-columns: 4rem 13rem 4rem minmax(6rem, 1fr) auto; gap: .3rem; align-items: center; }
+.td-band { border: 0; padding: 0; margin: 0 0 .5rem; display: grid; gap: .3rem; }
+.td-source { min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: .5rem; padding: .5rem .75rem; }
+.fe .td-srctext { height: 100%; min-height: 12rem; resize: none; border-radius: 0; font-family: var(--bs-font-monospace); font-size: .8rem; line-height: 1.4; background: var(--role-surface); color: inherit; border-color: var(--role-rule); }

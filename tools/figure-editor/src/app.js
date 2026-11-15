@@ -894,7 +894,8 @@ export async function mount(root, options = {}) {
     try {
       const sent = JSON.parse(store.get("timing-diagram/send") ?? "null");
       if (!sent?.source) return null;
-      return { source: sent.source, ink: pk.theme.roles.ink, accent: pk.theme.roles.accent, marker: opt.timingMarker && step >= 0 ? step : null, levelColour: opt.timingColour ? (l) => pk.levelColour(l) ?? null : null };
+      const r = pk.theme.roles, lc = (l) => pk.levelColour(l) ?? r.ink;
+      return { source: sent.source, ink: r.ink, accent: r.accent, paper: r.background, dataFills: [lc("1"), lc("0"), r.accent, lc("X"), lc("Z"), r.muted ?? r.ink, r.ink], marker: opt.timingMarker && step >= 0 ? step : null, levelColour: opt.timingColour ? (l) => pk.levelColour(l) ?? null : null };
     } catch { return null; }
   }
 

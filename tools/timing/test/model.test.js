@@ -40,8 +40,8 @@ Deno.test("steps, clock, delay, order and removal", () => {
   eq([stepCount(v), v.signal[0].wave], [5, "0...."]);
   v = setClock(v, 1, true);
   eq(v.signal[1].wave, "p....");
-  v = setCell(v, 1, 2, "1");   // editing a clock makes it a plain signal
-  eq(v.signal[1].wave, "0.1..");
+  v = setCell(v, 1, 2, "1");
+  eq(v.signal[1].wave, "p.1..");   // a step of a clock can be set on its own, as WaveDrom allows
   v = setDelay(v, 0, 0.25);
   eq(v.signal[0].delay, 0.25);
   eq(moveSignal(v, 1, -1).signal.map((s) => s.name), ["B", "A"]);
@@ -51,4 +51,49 @@ Deno.test("steps, clock, delay, order and removal", () => {
 Deno.test("the click cycle goes 0, 1, X, Z, data and back", () => {
   eq(["0", "1", "x", "z", "="].map((c) => nextValue(c)), ["1", "x", "z", "=", "0"]);
   eq(nextValue("0", true), "=");
+});
+
+import { addEdge, addSpacer, edgesOf, fromWaveDrom, nextLetter, nodeLetters, removeEdge, setBand, setEdge, setHscale, setNode, setProp, toWaveDrom } from "../src/model.js";
+import { drawTiming, lanesOf, parseEdge } from "../src/draw.js";
+
+Deno.test("period, phase, group; nodes and edges; spacers; head and foot; hscale", () => {
+  let v = addSignal(addSignal(empty(), "clk", { clock: true }), "D");
+  v = setProp(setProp(setProp(v, 0, "period", 2), 1, "phase", 0.5), 1, "group", "Inputs");
+  eq([v.signal[0].period, v.signal[1].phase, v.signal[1].group], [2, 0.5, "Inputs"]);
+  eq(setProp(v, 0, "period", 1).signal[0].period, undefined);
+  v = setNode(v, 0, 1, nextLetter(v));
+  v = setNode(v, 1, 3, nextLetter(v));
+  eq(nodeLetters(v), ["a", "b"]);
+  v = addEdge(v, { from: "a", op: "~>", to: "b", label: "t_pd" });
+  eq(v.edge, ["a~>b t_pd"]);
+  v = setEdge(v, 0, { op: "-|->" });
+  eq(edgesOf(v)[0], { from: "a", op: "-|->", to: "b", label: "t_pd" });
+  eq(removeEdge(v, 0).edge, undefined);
+  v = addSpacer(v);
+  eq(v.signal[2], {});
+  v = setBand(v, "head", { text: "Setup", tick: 0, every: 2 });
+  eq(v.head, { text: "Setup", tick: 0, every: 2 });
+  eq(setBand(v, "head", { text: "", tick: "", every: 1 }).head, undefined);
+  eq(setHscale(v, 2).config.hscale, 2);
+});
+
+Deno.test("WaveDrom groups go to flat signals and back", () => {
+  const w = { signal: [{ name: "clk", wave: "p..." }, ["Bus", { name: "A", wave: "01.." }, { name: "B", wave: "0.1." }]] };
+  const flat = fromWaveDrom(w);
+  eq(flat.signal.map((s) => s.group ?? ""), ["", "Bus", "Bus"]);
+  eq(toWaveDrom(flat).signal, w.signal);
+  eq(lanesOf(w).map((l) => l.groups.join("/")), ["", "Bus", "Bus"]);
+});
+
+Deno.test("the drawing has every WaveDrom feature: colours, gaps, clock arrows, groups, ticks, edges", () => {
+  const v = {
+    signal: [{ name: "clk", wave: "P.N.", node: ".a.." }, ["Bus", { name: "D", wave: "3.4|", data: ["A", "B"], node: "...b" }], {}, { name: "w", wave: "u.d.hl" }],
+    edge: ["a~>b t_pd", "a-|>b"], head: { text: "Title", tick: 0 }, foot: { tock: 1 },
+  };
+  const s = drawTiming(v, { dataFills: ["#111111", "#222222"] }).svg;
+  assert(s.includes('fill="#111111"') && s.includes('fill="#222222"'), "data colours 3 and 4");
+  assert(s.includes(">Title</text>") && s.includes(">t_pd</text>") && s.includes(">Bus</text>"), "head text, edge label, group name");
+  assert(s.includes("stroke-dasharray"), "weak pull-up drawn dashed");
+  assert((s.match(/ C /g) ?? []).length >= 1, "a curved edge");
+  eq(parseEdge("a<->b  hold").label, "hold");
 });

@@ -1,10 +1,10 @@
 // The timing tool, one module for both places: the standalone Timing Diagram page and the pane docked in the Figure Editor
-// (F18). Two swappable views: Edit, a step editor (one button per step of each signal, no source text to type), and
-// Diagram, our own vector drawing (draw.js). Signals are added from the circuit's nodes, which follow the Figure Editor live.
+// (F18). Three swappable views: Edit, a step editor that exposes every WaveDrom feature without typing source; Diagram,
+// our own vector drawing (draw.js); and WaveDrom source, to copy a diagram out or paste one in. Signals are added from the circuit's nodes, which follow the Figure Editor live.
 import { parseSource, tidy } from "./wave.js";
 import { drawTiming, naturalSize, lanesOf, stepsOf } from "./draw.js";
 import { nodesOf, unknownNames, framesIn } from "./nodes.js";
-import { addSignal, cellsOf, dataAt, empty, isClock, LABEL, moveSignal, nextValue, removeSignal, setCell, setClock, setDelay, setSteps, stepCount } from "./model.js";
+import { addEdge, addSignal, addSpacer, cellsOf, dataAt, EDGE_OPS, edgesOf, empty, fromWaveDrom, isClock, LABEL, moveSignal, nextLetter, nextValue, nodeLetters, removeEdge, removeSignal, setBand, setCell, setClock, setDelay, setEdge, setHscale, setNode, setProp, setSteps, stepCount, toWaveDrom, WAVE } from "./model.js";
 import { dockShell, pageShell } from "./shell.js";
 
 const store = {
@@ -29,9 +29,11 @@ export function mount(root, { docked = false, onSend = null } = {}) {
   const say = (msg, error = false) => { status.textContent = msg; if (error) status.setAttribute("data-error", ""); else status.removeAttribute("data-error"); };
 
   // ---- the model: the diagram as data, kept in this browser ----
-  let value = (() => { const r = parseSource(store.get(KEY) ?? ""); return r.ok ? r.value : empty(); })();   // opens empty the first time
+  let value = (() => { const r = parseSource(store.get(KEY) ?? ""); return r.ok ? fromWaveDrom(r.value) : empty(); })();   // opens empty the first time
   let natural = null, custom = false;   // custom: the reader set the size by hand
   let nodes = [], frameNames = [], frame = -1;
+  let brush = "cycle";                  // what a click on a step sets: "cycle", a wave character, or "node"
+  const open = new Set();               // signals whose period, phase and group settings are shown
   const commit = (next, msg) => { value = next; store.set(KEY, tidy(value)); render(); if (msg) say(msg); };
 
   /** Is the site showing its dark look? Read from its own role, as the Figure Editor does. */
@@ -41,56 +43,87 @@ export function mount(root, { docked = false, onSend = null } = {}) {
     const [r, g, b] = [1, 3, 5].map((i) => parseInt(ctx.fillStyle.slice(i, i + 2), 16));
     return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
   };
+  /** The figure roles for data colours 3 to 9, light or dark. */
+  const dataRoles = (dark) => (dark ? ["--fig-dark-high", "--fig-dark-flow", "--fig-dark-accent", "--fig-dark-highlight", "--fig-dark-floating", "--fig-dark-unknown", "--fig-dark-low"] : ["--fig-high", "--fig-flow", "--fig-accent", "--fig-highlight", "--fig-shade", "--fig-muted", "--fig-rule"]);
   /** The diagram as SVG text in the figure roles: light unless `dark` (exports always ask for light). */
   const drawNow = (dark) => {
     const css = getComputedStyle(document.documentElement), role = (n) => css.getPropertyValue(n).trim() || undefined;
-    return drawTiming(value, { width: Number(wIn.value) || natural.w, height: Number(hIn.value) || natural.h, ink: role(dark ? "--fig-dark-ink" : "--fig-ink"), accent: role(dark ? "--fig-dark-accent" : "--fig-accent"), marker: frame >= 0 && frame < frameNames.length ? frame : null }).svg;
+    return drawTiming(toWaveDrom(value), {
+      width: Number(wIn.value) || natural.w, height: Number(hIn.value) || natural.h,
+      ink: role(dark ? "--fig-dark-ink" : "--fig-ink"), accent: role(dark ? "--fig-dark-accent" : "--fig-accent"),
+      dataFills: dataRoles(dark).map(role), paper: role(dark ? "--fig-dark-background" : "--fig-background"), marker: frame >= 0 && frame < frameNames.length ? frame : null,
+    }).svg;
   };
 
-  // ---- the two views ----
-  let mode = "edit";
+  // ---- the three views: Edit, Diagram, WaveDrom source ----
+  const srcText = $(".td-srctext");
   const showView = (m) => {
-    mode = m;
     for (const t of root.querySelectorAll("[data-view]")) t.setAttribute("aria-selected", String(t.dataset.view === m));
     $(".td-edit").hidden = m !== "edit";
     $(".td-view").hidden = m !== "diagram";
+    $(".td-source").hidden = m !== "source";
+    if (m === "source") srcText.value = JSON.stringify(toWaveDrom(value), null, 2);
+    if (m === "diagram") render();   // its width follows the view, which has a size only when shown
   };
   root.addEventListener("click", (e) => { const t = e.target.closest("[data-view]"); if (t) showView(t.dataset.view); });
 
   function render() {
-    natural = naturalSize(value);
-    if (!custom) { wIn.value = natural.w; hIn.value = natural.h; }
+    natural = naturalSize(toWaveDrom(value));
+    if (!custom) {   // on screen the diagram fills the view's width (laid out again, not stretched); Natural size gives WaveDrom's own proportions
+      const room = view.parentElement.clientWidth - 32;
+      wIn.value = Math.round(Math.max(natural.w, room > 0 ? room : 0)); hIn.value = Math.round(natural.h * (room > natural.w ? Math.min(2, room / natural.w) : 1));
+    }
+    if (document.activeElement !== hsIn) hsIn.value = String(value.config?.hscale ?? 1);
     if (!docked) root.dataset.canvas = siteIsDark() ? "dark" : "light";   // standalone: follow the site's look, as the editor's canvas does
     // The size is a layout input: steps and lanes are re-spaced to fit it, nothing is stretched.
     view.innerHTML = value.signal.length ? drawNow(!!root.closest('[data-canvas="dark"]')) : `<p class="fe-hint td-emptynote">No signals yet: add a node in the Edit view.</p>`;
+    renderBrushes();
     renderGrid();
+    renderEdges();
+    renderBands();
     renderChips();
-    const n = value.signal.length;
+    const n = value.signal.filter((s) => s.name || s.wave).length;
     say(n ? `${n} signal${n === 1 ? "" : "s"}, ${stepCount(value)} steps.` : "Empty: add a node from the circuit to start.");
   }
   if (!docked) new MutationObserver(() => render()).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  window.addEventListener("resize", () => { if (!custom) render(); });
 
-  // ---- Edit: the step editor ----
+  // ---- Edit: the brushes (what a click sets) ----
+  const brushes = $(".td-brushes");
+  function renderBrushes() {
+    const b = (v, label, title) => `<button type="button" class="td-brush v-${v === "=" ? "data" : v === "|" ? "gap" : v === "." ? "hold" : v}" data-brush="${esc(v)}" aria-pressed="${brush === v}" title="${esc(title)}">${esc(label)}</button>`;
+    brushes.innerHTML = `<span class="label-mono">Click sets</span>${b("cycle", "Cycle", "Each click steps through 0, 1, X, Z, data")}` +
+      WAVE.map(([v, t]) => b(v, LABEL[v] ?? v, t)).join("") + b("node", "• node", "Put an edge node (a letter) on a step, or take it off");
+  }
+  brushes.addEventListener("click", (e) => { const t = e.target.closest("[data-brush]"); if (t) { brush = t.dataset.brush; renderBrushes(); } });
+
+  // ---- Edit: the step grid ----
   function renderGrid() {
     const n = stepCount(value);
     $(".td-nsteps").textContent = String(n);
     const head = `<div class="td-row td-head"><div class="td-name"></div><div class="td-cells" style="--n:${n}">${Array.from({ length: n }, (_, i) => `<span class="td-stepno${i === frame ? " is-marked" : ""}">${i + 1}</span>`).join("")}</div><div class="td-delay label-mono">delay</div></div>`;
     const rows = value.signal.map((s, si) => {
-      const clock = isClock(s);
-      const cells = clock
-        ? `<div class="td-clockcells" style="grid-column: span ${n}">clock</div>`
-        : cellsOf(s, n).map((c, i) => `<button type="button" class="td-cell v-${c.value === "=" ? "d" : c.value}${c.held ? " is-held" : ""}${i === frame ? " is-marked" : ""}" data-step="${i}" title="Step ${i + 1}: ${LABEL[c.value] ?? c.value}${c.held ? " (held)" : ""}">${c.value === "=" ? esc(dataAt(s, i) || "=") : c.held ? "" : LABEL[c.value] ?? c.value}</button>`).join("");
+      const tools = `<button type="button" class="td-mini" data-act="up" aria-label="Move up">↑</button><button type="button" class="td-mini" data-act="down" aria-label="Move down">↓</button><button type="button" class="td-mini" data-act="del" aria-label="Remove">✕</button>`;
+      if (!s.name && !s.wave) return `<div class="td-row td-spacer" data-s="${si}"><div class="td-name"><span class="fe-hint">spacer</span>${tools}</div><div></div><div></div></div>`;
+      const node = s.node ?? "";
+      const cells = cellsOf(s, n).map((c, i) => {
+        const v = c.value === "=" ? "data" : c.value, letter = node[i] && node[i] !== "." ? node[i] : "";
+        const shown = /^[=3-9]$/.test(c.value) ? esc(dataAt(s, i) || LABEL[c.value] || c.value) : c.gap ? "‖" : c.held ? "" : esc(LABEL[c.value] ?? c.value);
+        return `<button type="button" class="td-cell v-${v}${c.held ? " is-held" : ""}${i === frame ? " is-marked" : ""}" data-step="${i}" title="Step ${i + 1}: ${esc(LABEL[c.value] ?? c.value)}${c.held ? " (held)" : ""}${letter ? `, node ${letter}` : ""}">${shown}${letter ? `<sup class="td-node">${esc(letter)}</sup>` : ""}</button>`;
+      }).join("");
+      const more = open.has(si) ? `<div class="td-more" data-s="${si}">
+          <label>Period <input class="form-control form-control-sm" type="number" min="0.25" step="0.25" data-prop="period" value="${Number(s.period) || 1}"></label>
+          <label>Phase <input class="form-control form-control-sm" type="number" step="0.05" data-prop="phase" value="${Number(s.phase) || 0}"></label>
+          <label>Group <input class="form-control form-control-sm" data-prop="group" value="${esc(s.group ?? "")}" placeholder="none"></label>
+          <label class="form-check"><input class="form-check-input" type="checkbox" data-act="clock"${isClock(s) ? " checked" : ""}> clock</label></div>` : "";
       return `<div class="td-row" data-s="${si}">
         <div class="td-name"><span title="${esc(s.name)}">${esc(s.name)}</span>
-          <button type="button" class="td-mini" data-act="clock" aria-pressed="${clock}" title="Make this a clock">clk</button>
-          <button type="button" class="td-mini" data-act="up" aria-label="Move ${esc(s.name)} up">↑</button>
-          <button type="button" class="td-mini" data-act="down" aria-label="Move ${esc(s.name)} down">↓</button>
-          <button type="button" class="td-mini" data-act="del" aria-label="Remove ${esc(s.name)}">✕</button></div>
+          <button type="button" class="td-mini" data-act="more" aria-expanded="${open.has(si)}" title="Period, phase, group, clock">⚙</button>${tools}</div>
         <div class="td-cells" style="--n:${n}">${cells}</div>
         <input class="form-control form-control-sm td-delay" type="number" step="0.05" data-act="delay" value="${Number(s.delay) || 0}" aria-label="Delay of ${esc(s.name)} in steps" title="Delay in steps (fractions allowed)">
-      </div>`;
+      </div>${more}`;
     }).join("");
-    if (grid.contains(document.activeElement) && document.activeElement.matches("input")) return;   // don't rebuild under the cursor
+    if (grid.contains(document.activeElement) && document.activeElement.matches("input:not([type=checkbox])")) return;   // don't rebuild under the cursor
     grid.innerHTML = value.signal.length ? head + rows : "";
   }
   const sigIndex = (e) => Number(e.target.closest("[data-s]")?.dataset.s);
@@ -100,12 +133,18 @@ export function mount(root, { docked = false, onSend = null } = {}) {
     if (cell) {
       const step = Number(cell.dataset.step), cur = cellsOf(value.signal[si], stepCount(value))[step];
       if (e.shiftKey) return commit(setCell(value, si, step, "."));
+      if (brush === "node") {
+        const has = (value.signal[si].node ?? "")[step];
+        return commit(setNode(value, si, step, has && has !== "." ? null : nextLetter(value)));
+      }
+      if (brush !== "cycle") return commit(setCell(value, si, step, brush));
       return commit(setCell(value, si, step, nextValue(cur.value)));
     }
     const act = e.target.closest("[data-act]")?.dataset.act;
+    if (act === "more") { if (open.has(si)) open.delete(si); else open.add(si); renderGrid(); }
     if (act === "clock") commit(setClock(value, si, !isClock(value.signal[si])));
-    if (act === "up" || act === "down") commit(moveSignal(value, si, act === "up" ? -1 : 1));
-    if (act === "del") commit(removeSignal(value, si), `Removed ${value.signal[si].name}.`);
+    if (act === "up" || act === "down") { open.clear(); commit(moveSignal(value, si, act === "up" ? -1 : 1)); }
+    if (act === "del") { open.clear(); commit(removeSignal(value, si), `Removed ${value.signal[si].name || "the spacer"}.`); }
   });
   grid.addEventListener("contextmenu", (e) => {
     const cell = e.target.closest("[data-step]");
@@ -117,20 +156,58 @@ export function mount(root, { docked = false, onSend = null } = {}) {
   grid.addEventListener("dblclick", (e) => {
     const cell = e.target.closest("[data-step]");
     if (!cell) return;
-    const si = sigIndex(e), step = Number(cell.dataset.step), s = value.signal[si];
-    if (cellsOf(s, stepCount(value))[step].value !== "=") return;
+    const si = sigIndex(e), step = Number(cell.dataset.step), s = value.signal[si], c = cellsOf(s, stepCount(value))[step].value;
+    if (!/^[=3-9]$/.test(c)) return;
     const label = window.prompt("Label of this data value", dataAt(s, step));
-    if (label !== null) commit(setCell(value, si, step, "=", label.trim()));
+    if (label !== null) commit(setCell(value, si, step, c, label.trim()));
   });
-  grid.addEventListener("change", (e) => { if (e.target.dataset.act === "delay") commit(setDelay(value, sigIndex(e), e.target.value)); });
+  grid.addEventListener("change", (e) => {
+    const si = sigIndex(e);
+    if (e.target.dataset.act === "delay") commit(setDelay(value, si, e.target.value));
+    if (e.target.dataset.prop) commit(setProp(value, si, e.target.dataset.prop, e.target.value));
+  });
+
+  // ---- Edit: edges between nodes ----
+  const edgesEl = $(".td-edges");
+  function renderEdges() {
+    if (edgesEl.contains(document.activeElement) && document.activeElement.matches("input")) return;
+    const letters = nodeLetters(value), es = edgesOf(value);
+    const pick = (v, f) => `<select class="form-select form-select-sm" data-edge-f="${f}">${letters.map((l) => `<option${l === v ? " selected" : ""}>${esc(l)}</option>`).join("")}${v && !letters.includes(v) ? `<option selected>${esc(v)}</option>` : ""}</select>`;
+    edgesEl.innerHTML = `<div class="td-edgehead"><span class="label-mono">Arrows between nodes</span><button type="button" class="td-chip" data-do="add-edge"${letters.length < 2 ? ' disabled title="Put two nodes on steps first (the • node brush)"' : ""}>+ Arrow</button></div>` +
+      es.map((e, i) => `<div class="td-edge" data-e="${i}">${pick(e.from, "from")}<select class="form-select form-select-sm" data-edge-f="op">${EDGE_OPS.map(([op, t]) => `<option value="${esc(op)}"${op === e.op ? " selected" : ""}>${esc(op)} ${esc(t)}</option>`).join("")}</select>${pick(e.to, "to")}<input class="form-control form-control-sm" data-edge-f="label" value="${esc(e.label)}" placeholder="label"><button type="button" class="td-mini" data-edge-del aria-label="Remove arrow">✕</button></div>`).join("");
+  }
+  edgesEl.addEventListener("change", (e) => { const i = Number(e.target.closest("[data-e]")?.dataset.e), f = e.target.dataset.edgeF; if (f) commit(setEdge(value, i, { [f]: f === "label" ? e.target.value.trim() : e.target.value })); });
+  edgesEl.addEventListener("click", (e) => {
+    if (e.target.closest("[data-edge-del]")) return commit(removeEdge(value, Number(e.target.closest("[data-e]").dataset.e)));
+    if (e.target.closest("[data-do=add-edge]")) { const l = nodeLetters(value); if (l.length >= 2) commit(addEdge(value, { from: l[0], op: "->", to: l[1], label: "" })); }
+  });
+
+  // ---- head, foot and step width ----
+  const hsIn = $("[data-size=hscale]");
+  function renderBands() {
+    for (const i of root.querySelectorAll("[data-band]")) {
+      if (i === document.activeElement) continue;
+      const b = value[i.dataset.band] ?? {}, k = i.dataset.key;
+      if (i.type === "checkbox") i.checked = b[k] !== undefined; else i.value = b[k] ?? "";
+    }
+  }
+  root.addEventListener("change", (e) => {
+    const i = e.target;
+    if (i.dataset?.band) commit(setBand(value, i.dataset.band, { [i.dataset.key]: i.type === "checkbox" ? i.checked : i.value }));
+    if (i === hsIn) commit(setHscale(value, i.value));
+  });
+
   root.addEventListener("click", (e) => {
     const act = e.target.closest("[data-do]")?.dataset.do;
     if (act === "steps-") commit(setSteps(value, stepCount(value) - 1));
     if (act === "steps+") commit(setSteps(value, stepCount(value) + 1));
-    if (act === "natural" && natural) { custom = false; render(); }
+    if (act === "natural" && natural) { custom = true; wIn.value = natural.w; hIn.value = natural.h; render(); }
     if (act === "export") exportSvg();
     if (act === "add-all") { let v = value; for (const nd of nodes) v = addSignal(v, nd.name, { clock: CLOCK.test(nd.name) }); commit(v, "Added every node."); }
     if (act === "add-custom") { const name = window.prompt("Name of the signal"); if (name?.trim()) commit(addSignal(value, name.trim(), { clock: CLOCK.test(name.trim()) })); }
+    if (act === "add-spacer") commit(addSpacer(value), "Added a spacer.");
+    if (act === "src-apply") { const r = parseSource(srcText.value); if (!r.ok) return say(r.error, true); commit(fromWaveDrom(r.value), "Using the pasted source."); showView("edit"); }
+    if (act === "src-copy") { navigator.clipboard?.writeText(srcText.value).then(() => say("Copied the WaveDrom source."), () => say("The browser would not copy; select the text and copy it.", true)); }
   });
   for (const i of [wIn, hIn]) i.addEventListener("input", () => { custom = true; render(); });
 
@@ -219,14 +296,14 @@ export function mount(root, { docked = false, onSend = null } = {}) {
 
   // ---- to the Figure Editor's slide ----
   /** Per-step levels of each named signal, for the editor's frames: 0 1 X Z, or null where there is no level (data boxes). */
-  const signalLevels = () => lanesOf(value).filter((l) => l.name).map((l) => ({
+  const signalLevels = () => lanesOf(toWaveDrom(value)).filter((l) => l.name).map((l) => ({
     name: l.name,
     levels: stepsOf(l.wave).flatMap((s) => Array(l.period).fill(({ 0: "0", l: "0", d: "0", n: "0", N: "0", 1: "1", h: "1", u: "1", p: "1", P: "1", x: "X", z: "Z" })[s.c] ?? null)),
   }));
   root.addEventListener("click", (e) => {
     if (!e.target.closest("[data-do=send]")) return;
     if (!value.signal.length) return say("Nothing to send yet.", true);
-    store.set("timing-diagram/send", JSON.stringify({ svg: drawNow(false), w: Number(wIn.value) || natural.w, h: Number(hIn.value) || natural.h, signals: signalLevels(), source: value, at: Date.now() }));
+    store.set("timing-diagram/send", JSON.stringify({ svg: drawNow(false), w: Number(wIn.value) || natural.w, h: Number(hIn.value) || natural.h, signals: signalLevels(), source: toWaveDrom(value), at: Date.now() }));
     onSend?.();
     say("Sent: the slide's timing regions show this diagram, and the editor's frames are filled from its steps.");
   });
@@ -246,5 +323,5 @@ export function mount(root, { docked = false, onSend = null } = {}) {
   if (fromEditor) setCircuit(fromEditor);
   showView("edit");
   render();
-  return { render, setCircuit, get source() { return tidy(value); }, set source(v) { const r = parseSource(v); if (r.ok) commit(r.value); }, get value() { return value; } };
+  return { render, setCircuit, get source() { return tidy(toWaveDrom(value)); }, set source(v) { const r = parseSource(v); if (r.ok) commit(fromWaveDrom(r.value)); }, get value() { return value; } };
 }
