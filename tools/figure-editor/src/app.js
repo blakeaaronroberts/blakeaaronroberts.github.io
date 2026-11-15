@@ -9,7 +9,7 @@
 import { LEVELS, loadPack, parsePrivateTheme } from "./pack.js";
 import * as D from "./doc.js";
 import { History } from "./history.js";
-import { drawTiming } from "../../timing-diagram/src/draw.js";
+import { drawTiming } from "../../timing/src/draw.js";
 import { drawing, exportSize, exportSvg, exportGridSvg, labelBoxes, timingGroup } from "./export.js";
 import { hitTest, inBox } from "./hit.js";
 import { packLabelPt, texNeeded } from "./labels.js";
@@ -147,6 +147,11 @@ export async function mount(root, options = {}) {
     </details>
     <div class="fe-stage">
       <svg class="fe-canvas" tabindex="0" role="application" aria-label="Figure canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div class="fe-timing" data-open="false" role="region" aria-label="Timing Diagram">
+      <div class="fe-splitter" role="separator" aria-orientation="horizontal" aria-label="Resize the Timing Diagram pane" tabindex="0" title="Drag to resize (or use the arrow keys)"></div>
+      <div class="fe-timing-head"><button type="button" class="${BUTTON}" data-cmd="timingtoggle" aria-expanded="false" title="Show or minimise the Timing Diagram pane">Timing Diagram ▴</button></div>
+      <div class="fe-timing-body"></div>
     </div>
     <div class="fe-side" role="region" aria-label="Figure properties">
       <details class="fe-pane" open>
@@ -813,6 +818,7 @@ export async function mount(root, options = {}) {
       status("The frame is centred on the figure.");
     },
     framesfromtiming() { populateFromTiming(); },
+    timingtoggle() { opt.timingPane.open = !opt.timingPane.open; saveOptions(); showTimingPane(); },
     framecapture() {
       commit(captureFrame(doc), null);
       const frames = framesOf(doc);
@@ -1022,6 +1028,37 @@ export async function mount(root, options = {}) {
   });
   draftsInput.checked = !!opt.drafts;
   draftsInput.addEventListener("change", () => { opt.drafts = draftsInput.checked; saveOptions(); renderPalette(); status(opt.drafts ? "Showing draft elements too." : "Showing approved elements only."); });
+  // ---- the docked Timing Diagram pane (F18): the same module as the Timing Diagram page ----------------------------
+  const tpEl = $(".fe-timing"), tpBody = $(".fe-timing-body"), tpToggle = $('[data-cmd="timingtoggle"]'), splitter = $(".fe-splitter");
+  opt.timingPane = { open: opt.timingPane?.open === true, h: Number(opt.timingPane?.h) || 256 };
+  let timingTool = null;
+  async function showTimingPane() {
+    tpEl.dataset.open = String(opt.timingPane.open);
+    tpEl.style.setProperty("--tp-h", `${opt.timingPane.h}px`);
+    tpToggle.setAttribute("aria-expanded", String(opt.timingPane.open));
+    tpToggle.textContent = `Timing Diagram ${opt.timingPane.open ? "▾" : "▴"}`;
+    if (opt.timingPane.open && !timingTool) {
+      const { mount: mountTiming } = await import("../../timing/src/app.js");
+      timingTool = mountTiming(tpBody, { docked: true, onSend: () => { populateFromTiming(true); render(); } });
+    }
+    if (opt.timingPane.open && timingTool) timingTool.setCircuit(D.serialize(doc, pack));
+  }
+  splitter.addEventListener("pointerdown", (e) => {
+    const y0 = e.clientY, h0 = tpEl.getBoundingClientRect().height, max = window.innerHeight * 0.7;
+    splitter.setPointerCapture(e.pointerId);
+    const move = (ev) => { opt.timingPane.h = Math.round(Math.min(max, Math.max(120, h0 - (ev.clientY - y0)))); tpEl.style.setProperty("--tp-h", `${opt.timingPane.h}px`); };
+    const up = () => { splitter.removeEventListener("pointermove", move); saveOptions(); };
+    splitter.addEventListener("pointermove", move);
+    splitter.addEventListener("pointerup", up, { once: true });
+  });
+  splitter.addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    e.preventDefault();
+    opt.timingPane.h = Math.min(window.innerHeight * 0.7, Math.max(120, opt.timingPane.h + (e.key === "ArrowUp" ? 16 : -16)));
+    tpEl.style.setProperty("--tp-h", `${opt.timingPane.h}px`); saveOptions();
+  });
+  showTimingPane();
+
   // ---- the slide frame (F10) -------------------------------------------------------------------------
   const frameEls = { show: $('[name="fe-frame-show"]'), format: $('[name="fe-frame-format"]'), layout: $('[name="fe-frame-layout"]'), x: $('[name="fe-frame-x"]'), y: $('[name="fe-frame-y"]') };
   function syncFrame() {

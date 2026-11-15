@@ -1,4 +1,4 @@
-// Run the timing-diagram tests with Quarto's bundled Deno:  quarto run tools/timing-diagram/test/run.js
+// Run the timing-diagram tests with Quarto's bundled Deno:  quarto run tools/timing/test/run.js
 const dir = new URL(".", import.meta.url);
 const path = decodeURIComponent(dir.pathname).replace(/^\/([A-Za-z]:)/, "$1");
 const src = decodeURIComponent(new URL("../src/", dir).pathname).replace(/^\/([A-Za-z]:)/, "$1");

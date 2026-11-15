@@ -1,7 +1,9 @@
 ---
 title: "Figure Editor"
 page-layout: full
-css: editor.css
+css:
+  - editor.css
+  - ../timing/src/timing.css
 ---
 
 ```{=html}

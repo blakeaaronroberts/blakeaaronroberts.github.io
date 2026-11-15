@@ -1,7 +1,9 @@
-// The timing-diagram page: WaveDrom-format source in, our own vector drawing out (draw.js), SVG export.
+// The timing tool, one module for both places: the standalone Timing Diagram page and the pane docked in the Figure Editor
+// (F18). WaveDrom-format source in, our own vector drawing out (draw.js), SVG and PNG export.
 import { parseSource, signalNames, tidy, SAMPLE } from "./wave.js";
 import { drawTiming, naturalSize, lanesOf, stepsOf } from "./draw.js";
 import { nodesOf, starterLines, unknownNames, framesIn } from "./nodes.js";
+import { dockShell, pageShell } from "./shell.js";
 
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -10,62 +12,13 @@ const store = {
 const KEY = "timing-diagram/source";
 const EDITOR_KEY = "figure-editor/autosave";   // read only; the Figure Editor writes it
 
-export function mount(root) {
-  root.classList.add("fe");   // the Figure Editor's shell: toolbar, side panes, status bar (editor.css)
+export function mount(root, { docked = false, onSend = null } = {}) {
+  root.classList.add(docked ? "td-dock" : "fe");   // standalone: the Figure Editor's shell (editor.css); docked: a pane inside the editor
   const header = document.querySelector("#quarto-header");
   const fit = () => root.style.setProperty("--fe-top", `${header ? Math.round(header.getBoundingClientRect().bottom) : 0}px`);
-  fit(); window.addEventListener("resize", fit);
+  if (!docked) { fit(); window.addEventListener("resize", fit); }
   const B = "btn btn-sm fe-btn";
-  root.innerHTML = `
-    <div class="fe-toolbar">
-      <div class="fe-group">
-        <button type="button" class="${B}" data-do="tidy">Tidy</button>
-        <button type="button" class="${B}" data-do="export">Export SVG</button>
-        <button type="button" class="${B}" data-do="export-png" title="PNG at 300 dpi">Export PNG</button>
-        <label class="${B} td-file">Open circuit…<input type="file" accept=".json,application/json" data-do="open" hidden></label>
-      </div>
-      <div class="fe-group fe-group-end"><a class="btn btn-sm fe-btn" aria-pressed="false" href="../figure-editor/">Figure Editor</a><a class="btn btn-sm fe-btn" aria-pressed="true" aria-current="page" href="./">Timing Diagram</a></div>
-    </div>
-    <div class="fe-palette">
-      <details class="fe-pane" open>
-        <summary class="label-mono">Size</summary>
-        <div class="td-pad">
-          <label class="form-label">Width (px) <input class="form-control form-control-sm" type="number" min="100" max="4000" step="10" data-size="w"></label>
-          <label class="form-label">Height (px) <input class="form-control form-control-sm" type="number" min="40" max="4000" step="10" data-size="h"></label>
-          <div class="fe-theme-buttons"><button type="button" class="${B}" data-do="natural">Natural size</button></div>
-        </div>
-      </details>
-      <details class="fe-pane td-nodes" open hidden>
-        <summary class="label-mono td-nodes-title">Nodes</summary>
-        <div class="td-pad"><div class="td-chips"></div><button type="button" data-do="add-all" class="td-chip">Add starter lines for all</button><div class="td-flag" role="status"></div></div>
-      </details>
-    </div>
-    <main class="td-center">
-      <textarea class="td-src form-control" spellcheck="false" aria-label="WaveDrom source"></textarea>
-      <div class="td-view"><div id="WaveDrom_Display_0"></div></div>
-    </main>
-    <div class="fe-side">
-      <details class="fe-pane" open>
-        <summary class="label-mono">Slide</summary>
-        <div class="td-pad">
-          <div class="fe-theme-buttons"><button type="button" class="${B}" data-do="fit-slide" title="Size the diagram to the timing part of the editor's slide frame">Fit to slide</button><button type="button" class="${B}" data-do="send" title="Send this diagram to the Figure Editor's slide frame">Send to schematic</button></div>
-          <p class="fe-hint">Send also fills the editor's frames from the steps.</p>
-        </div>
-      </details>
-      <details class="fe-pane" open>
-        <summary class="label-mono">Delay</summary>
-        <div class="td-pad td-delays"></div>
-      </details>
-      <details class="fe-pane td-frames" open hidden>
-        <summary class="label-mono">Frames</summary>
-        <div class="td-pad"><label class="form-label">Frame <select class="form-select form-select-sm" data-do="frame"></select></label><div class="fe-theme-buttons"><button type="button" class="${B}" data-do="frames-export">Export frames</button></div></div>
-      </details>
-      <details class="fe-pane" open>
-        <summary class="label-mono">About</summary>
-        <div class="td-pad"><p class="fe-hint td-credit">Source format based on <a href="https://wavedrom.com">WaveDrom</a>. The drawing is this site's own code.</p></div>
-      </details>
-    </div>
-    <p class="fe-status td-status" role="status" aria-live="polite"></p>`;
+  root.innerHTML = docked ? dockShell(B) : pageShell(B);
   const $ = (s) => root.querySelector(s);
   const src = $(".td-src"), status = $(".td-status"), view = $("#WaveDrom_Display_0");
   const wIn = $("[data-size=w]"), hIn = $("[data-size=h]");
@@ -73,6 +26,19 @@ export function mount(root) {
 
   const say = (msg, error = false) => { status.textContent = msg; if (error) status.setAttribute("data-error", ""); else status.removeAttribute("data-error"); };
   const svgEl = () => view.querySelector("svg");
+  /** Is the site showing its dark look? Read from its own role, as the Figure Editor does. */
+  const siteIsDark = () => {
+    const ctx = document.createElement("canvas").getContext("2d");
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--role-background").trim() || "white";
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(ctx.fillStyle.slice(i, i + 2), 16));
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
+  };
+  if (!docked) new MutationObserver(() => render()).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  /** The diagram as SVG text in the figure roles: light unless `dark` (exports always ask for light). */
+  const drawNow = (dark) => {
+    const css = getComputedStyle(document.documentElement), role = (n) => css.getPropertyValue(n).trim() || undefined;
+    return drawTiming(last, { width: Number(wIn.value) || natural.w, height: Number(hIn.value) || natural.h, ink: role(dark ? "--fig-dark-ink" : "--fig-ink"), accent: role(dark ? "--fig-dark-accent" : "--fig-accent"), marker: frame >= 0 && frame < frameNames.length ? frame : null }).svg;
+  };
   const render = () => {
     const r = parseSource(src.value);
     if (!r.ok) { say(r.error, true); return; }
@@ -80,9 +46,9 @@ export function mount(root) {
       last = r.value;
       natural = naturalSize(r.value);
       if (!custom) { wIn.value = natural.w; hIn.value = natural.h; }
-      const accent = getComputedStyle(document.documentElement).getPropertyValue("--fig-accent").trim() || "#0072B2";
-      // The size is a layout input: steps and lanes are re-spaced to fit it, nothing is stretched.
-      view.innerHTML = drawTiming(r.value, { width: Number(wIn.value) || natural.w, height: Number(hIn.value) || natural.h, accent, marker: frame >= 0 && frame < frameNames.length ? frame : null }).svg;
+      // The size is a layout input: steps and lanes are re-spaced to fit it, nothing is stretched. On the dark canvas the screen uses the dark roles.
+      if (!docked) root.dataset.canvas = siteIsDark() ? "dark" : "light";   // standalone: follow the site's look, as the editor's canvas does
+      view.innerHTML = drawNow(!!root.closest('[data-canvas="dark"]'));
       renderDelays();
       say(`${signalNames(r.value).length} signals.`);
     } catch (e) { say(`Could not draw the diagram: ${e.message}`, true); }
@@ -100,20 +66,14 @@ export function mount(root) {
   });
 
   function svgText() {
-    const clone = svgEl().cloneNode(true);
-    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
     return `<?xml version="1.0" encoding="UTF-8"?>
-${new XMLSerializer().serializeToString(clone)}
-`;
+${drawNow(false)}
+`;   // always the light figure roles, whatever the screen shows
   }
 
   function exportSvg() {
     const s = svgEl(); if (!s) return say("Nothing to export yet.", true);
-    const clone = s.cloneNode(true);
-    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n${new XMLSerializer().serializeToString(clone)}\n`;
+    const xml = svgText();
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml" }));
     a.download = "timing-diagram.svg";
@@ -211,7 +171,8 @@ ${new XMLSerializer().serializeToString(clone)}
   root.addEventListener("click", (e) => {
     if (!e.target.closest("[data-do=send]") || !svgEl()) return;
     const s = svgEl();
-    store.set("timing-diagram/send", JSON.stringify({ svg: new XMLSerializer().serializeToString(s), w: Number(s.getAttribute("width")), h: Number(s.getAttribute("height")), signals: signalLevels(), source: last, at: Date.now() }));
+    store.set("timing-diagram/send", JSON.stringify({ svg: drawNow(false), w: Number(s.getAttribute("width")), h: Number(s.getAttribute("height")), signals: signalLevels(), source: last, at: Date.now() }));
+    onSend?.();
     say("Sent to the editor, and its frames are filled from the steps. Set its slide frame layout to 'Timing diagram below' or 'beside'; the slide-frame exports now include this diagram.");
   });
 
@@ -269,5 +230,7 @@ ${new XMLSerializer().serializeToString(clone)}
   const fromEditor = store.get(EDITOR_KEY);
   if (fromEditor) { const res = nodesOf(fromEditor); if (res.ok) { setNodes(res, "the editor's circuit"); setFrames(framesIn(fromEditor)); } }
   render();
-  return { render, get source() { return src.value; }, set source(v) { src.value = v; render(); }, get last() { return last; } };
+  /** The editor hands over its circuit: node names for the chips and its frames for the Frame list. */
+  const setCircuit = (text) => { const res = nodesOf(text); if (res.ok) { setNodes(res, "the editor's circuit"); setFrames(framesIn(text)); } };
+  return { render, setCircuit, get source() { return src.value; }, set source(v) { src.value = v; render(); }, get last() { return last; } };
 }
