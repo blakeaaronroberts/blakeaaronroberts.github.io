@@ -29,7 +29,14 @@ export function mount(root, { docked = false, onSend = null } = {}) {
   const say = (msg, error = false) => { status.textContent = msg; if (error) status.setAttribute("data-error", ""); else status.removeAttribute("data-error"); };
 
   // ---- the model: the diagram as data, kept in this browser ----
-  let value = (() => { const r = parseSource(store.get(KEY) ?? ""); return r.ok ? fromWaveDrom(r.value) : empty(); })();   // opens empty the first time
+  // Opens empty. The old sample diagram (clk, D, Q) that earlier versions saved by default is not brought back.
+  const LEGACY = ["p.......", "0.1..0..", "x.1..0.."];
+  let value = (() => {
+    const r = parseSource(store.get(KEY) ?? "");
+    if (!r.ok) return empty();
+    const waves = (r.value.signal ?? []).map((s) => s?.wave);
+    return waves.length === 3 && waves.every((w, i) => w === LEGACY[i]) ? empty() : fromWaveDrom(r.value);
+  })();
   let natural = null, custom = false;   // custom: the reader set the size by hand
   let nodes = [], frameNames = [], frame = -1;
   let brush = "cycle";                  // what a click on a step sets: "cycle", a wave character, or "node"
@@ -78,7 +85,7 @@ export function mount(root, { docked = false, onSend = null } = {}) {
     for (const p of root.querySelectorAll("[data-slant]")) p.setAttribute("aria-pressed", String(Number(p.dataset.slant) === slantOf(value)));
     if (!docked) root.dataset.canvas = siteIsDark() ? "dark" : "light";   // standalone: follow the site's look, as the editor's canvas does
     // The size is a layout input: steps and lanes are re-spaced to fit it, nothing is stretched.
-    view.innerHTML = value.signal.length ? drawNow(!!root.closest('[data-canvas="dark"]')) : `<p class="fe-hint td-emptynote">No signals yet: add a node in the Edit view.</p>`;
+    view.innerHTML = value.signal.length ? drawNow(!docked && !!root.closest('[data-canvas="dark"]')) : `<p class="fe-hint td-emptynote">No signals yet: add a node in the Edit view.</p>`;
     renderBrushes();
     renderGrid();
     renderEdges();
@@ -223,6 +230,12 @@ export function mount(root, { docked = false, onSend = null } = {}) {
     if (act === "steps+") commit(setSteps(value, stepCount(value) + 1));
     if (act === "natural" && natural) { custom = true; wIn.value = natural.w; hIn.value = natural.h; render(); }
     if (act === "export") exportSvg();
+    if (act === "new") {   // the page's New also clears the figure the Figure Editor keeps in this browser
+      if (!window.confirm("Start over? This clears the diagram and the figure in the Figure Editor.")) return;
+      clear();
+      try { localStorage.removeItem(EDITOR_KEY); } catch { /* storage unavailable */ }
+      nodes = []; renderChips(); say("New: the diagram and the figure are cleared.");
+    }
     if (act === "add-all") { let v = value; for (const nd of nodes) v = addSignal(v, nd.name, { clock: CLOCK.test(nd.name) }); commit(v, "Added every node."); }
     if (act === "add-custom") { const name = window.prompt("Name of the signal"); if (name?.trim()) commit(addSignal(value, name.trim(), { clock: CLOCK.test(name.trim()) })); }
     if (act === "add-spacer") commit(addSpacer(value), "Added a spacer.");
@@ -314,6 +327,14 @@ export function mount(root, { docked = false, onSend = null } = {}) {
     say(`Exported ${frameNames.length} diagrams, each with its step marked (timing-diagram-01 to ${String(frameNames.length).padStart(2, "0")}).`);
   });
 
+  /** Start over: no signals, no frames, nothing sent to the slide. The Figure Editor's New calls this too. */
+  function clear() {
+    value = empty(); custom = false; frame = -1; open.clear();
+    store.set(KEY, tidy(value));
+    try { localStorage.removeItem("timing-diagram/send"); } catch { /* storage unavailable */ }
+    setFrames([]);
+    say("New: the diagram is empty.");
+  }
   // ---- to the Figure Editor's slide ----
   /** Per-step levels of each named signal, for the editor's frames: 0 1 X Z, or null where there is no level (data boxes). */
   const signalLevels = () => lanesOf(toWaveDrom(value)).filter((l) => l.name).map((l) => ({
@@ -343,5 +364,5 @@ export function mount(root, { docked = false, onSend = null } = {}) {
   if (fromEditor) setCircuit(fromEditor);
   showView("edit");
   render();
-  return { render, setCircuit, get source() { return tidy(toWaveDrom(value)); }, set source(v) { const r = parseSource(v); if (r.ok) commit(fromWaveDrom(r.value)); }, get value() { return value; } };
+  return { render, setCircuit, clear, get source() { return tidy(toWaveDrom(value)); }, set source(v) { const r = parseSource(v); if (r.ok) commit(fromWaveDrom(r.value)); }, get value() { return value; } };
 }

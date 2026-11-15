@@ -25,6 +25,7 @@ import { FORMATS } from "./frame.js";
 import { contentArea, defaultSlide, KINDS, layoutThumb, LAYOUTS as SLIDE_LAYOUTS, nudgeRegion, slideOf, slideSize, slideSvg, SPLITS, splitsOf, withLayout, withSlide, withSplit } from "./slide.js";
 import { orient } from "./geometry.js";
 import { migrateBeta } from "./migrate.js";
+import { navHtml } from "../../timing/src/nav.js";
 import { framesFromSignals, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame } from "./levelframes.js";
 
 const AUTOSAVE = "figure-editor/autosave";
@@ -139,7 +140,7 @@ export async function mount(root, options = {}) {
       <div class="fe-group" role="group" aria-label="File">
         ${btn("new", "New")}${btn("open", "Open…")}${btn("save", "Save", "Control+S")}${btn("export", "Export SVG")}${btn("png", "Copy as PNG")}
       </div>
-      <div class="fe-group fe-group-end"><a class="btn btn-sm fe-btn" aria-pressed="true" aria-current="page" href="./">Figure Editor</a><a class="btn btn-sm fe-btn" aria-pressed="false" href="../timing-diagram/">Timing Diagram</a>${btn("help", "?", "?", ' aria-label="Keys"')}</div>
+      ${navHtml("figure-editor", btn("help", "?", "?", ' aria-label="Keys"'))}
       <input type="file" class="fe-file" accept=".json,.svg,application/json,image/svg+xml" hidden>
       <input type="file" class="fe-theme-file" accept=".json,application/json" hidden>
     </div>
@@ -804,7 +805,9 @@ export async function mount(root, options = {}) {
     zoomin: () => view.zoomAt(1 / 1.25),
     zoomout: () => view.zoomAt(1.25),
     fit: () => view.fit(lastDrawing?.box ?? null),
-    new() { commit(D.newDoc(), "New figure (Undo brings the old one back)."); selection = none(); loadWarnings = []; view.fit(null); render(); },
+    new() {   // clears the figure and the Timing Diagram together (the figure can be brought back with Undo; the diagram cannot)
+      if (timingTool) timingTool.clear(); else { store.remove("timing-diagram/source"); store.remove("timing-diagram/send"); }
+      commit(D.newDoc(), "New: the figure and the timing diagram are cleared (Undo brings the figure back)."); selection = none(); loadWarnings = []; view.fit(null); render(); },
     open: () => fileInput.click(),
     save() {
       const text = D.serialize(doc, pack);
