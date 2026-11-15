@@ -1,8 +1,8 @@
 ---
-title: "Timing diagram"
+title: "Timing Diagram"
 page-layout: full
 css:
-  - ../figure-editor-beta/editor.css
+  - ../figure-editor/editor.css
   - timing.css
 ---
 

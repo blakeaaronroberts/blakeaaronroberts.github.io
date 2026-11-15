@@ -8,10 +8,10 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); } catch { /* storage unavailable: the page still works */ } },
 };
 const KEY = "timing-diagram/source";
-const EDITOR_KEY = "figure-editor-beta/autosave";   // read only; the beta editor writes it
+const EDITOR_KEY = "figure-editor/autosave";   // read only; the Figure Editor writes it
 
 export function mount(root) {
-  root.classList.add("fe");   // the schematic editor's shell: toolbar, side panes, status bar (editor.css)
+  root.classList.add("fe");   // the Figure Editor's shell: toolbar, side panes, status bar (editor.css)
   const header = document.querySelector("#quarto-header");
   const fit = () => root.style.setProperty("--fe-top", `${header ? Math.round(header.getBoundingClientRect().bottom) : 0}px`);
   fit(); window.addEventListener("resize", fit);
@@ -24,7 +24,7 @@ export function mount(root) {
         <button type="button" class="${B}" data-do="export-png" title="PNG at 300 dpi">Export PNG</button>
         <label class="${B} td-file">Open circuit…<input type="file" accept=".json,application/json" data-do="open" hidden></label>
       </div>
-      <div class="fe-group fe-group-end"><a class="btn btn-sm fe-btn" aria-pressed="false" href="../figure-editor-beta/">Figure Editor (beta)</a><a class="btn btn-sm fe-btn" aria-pressed="true" aria-current="page" href="./">Timing diagram</a><a class="btn btn-sm fe-btn" aria-pressed="false" href="../figure-editor/">Stable</a></div>
+      <div class="fe-group fe-group-end"><a class="btn btn-sm fe-btn" aria-pressed="false" href="../figure-editor/">Figure Editor</a><a class="btn btn-sm fe-btn" aria-pressed="true" aria-current="page" href="./">Timing Diagram</a></div>
     </div>
     <div class="fe-palette">
       <details class="fe-pane" open>
@@ -48,7 +48,7 @@ export function mount(root) {
       <details class="fe-pane" open>
         <summary class="label-mono">Slide</summary>
         <div class="td-pad">
-          <div class="fe-theme-buttons"><button type="button" class="${B}" data-do="fit-slide" title="Size the diagram to the timing part of the editor's slide frame">Fit to slide</button><button type="button" class="${B}" data-do="send" title="Send this diagram to the schematic editor's slide frame">Send to schematic</button></div>
+          <div class="fe-theme-buttons"><button type="button" class="${B}" data-do="fit-slide" title="Size the diagram to the timing part of the editor's slide frame">Fit to slide</button><button type="button" class="${B}" data-do="send" title="Send this diagram to the Figure Editor's slide frame">Send to schematic</button></div>
           <p class="fe-hint">Send also fills the editor's frames from the steps.</p>
         </div>
       </details>
@@ -207,7 +207,7 @@ ${new XMLSerializer().serializeToString(clone)}
     name: l.name,
     levels: stepsOf(l.wave).flatMap((s) => Array(l.period).fill(({ 0: "0", l: "0", d: "0", n: "0", N: "0", 1: "1", h: "1", u: "1", p: "1", P: "1", x: "X", z: "Z" })[s.c] ?? null)),
   }));
-  // Send the diagram to the beta editor: it is kept in this browser and placed in the timing part of the slide frame on export.
+  // Send the diagram to the Figure Editor: it is kept in this browser and placed in the timing part of the slide frame on export.
   root.addEventListener("click", (e) => {
     if (!e.target.closest("[data-do=send]") || !svgEl()) return;
     const s = svgEl();
@@ -216,11 +216,11 @@ ${new XMLSerializer().serializeToString(clone)}
   });
 
   // Fit to the timing part of the editor's slide frame (the editor keeps it in its options), then export there.
-  // Slide sizes and splits are the editor's (tools/figure-editor-beta/src/frame.js): 16:9 33.867 x 19.05 cm, 4:3 25.4 x 19.05 cm; timing is the last 40% below, the last 45% beside.
+  // Slide sizes and splits are the editor's (tools/figure-editor/src/frame.js): 16:9 33.867 x 19.05 cm, 4:3 25.4 x 19.05 cm; timing is the last 40% below, the last 45% beside.
   root.addEventListener("click", (e) => {
     if (!e.target.closest("[data-do=fit-slide]")) return;
     let f = {};
-    try { f = JSON.parse(store.get("figure-editor-beta/options") ?? "{}").frame ?? {}; } catch { f = {}; }
+    try { f = JSON.parse(store.get("figure-editor/options") ?? "{}").frame ?? {}; } catch { f = {}; }
     const fw = f.format === "4:3" ? 25.4 : 33.867, fh = 19.05;
     if (f.layout !== "below" && f.layout !== "beside") return say("Set the editor's slide frame layout to 'Timing diagram below' or 'beside' first (Slide frame pane), then come back.", true);
     const cmW = f.layout === "below" ? fw : fw * 0.45, cmH = f.layout === "below" ? fh * 0.4 : fh;
@@ -229,7 +229,7 @@ ${new XMLSerializer().serializeToString(clone)}
     say(`Sized to ${cmW.toFixed(2)} x ${cmH.toFixed(2)} cm: the timing part of the ${f.format ?? "16:9"} slide.`);
   });
 
-  // ---- nodes of a circuit: from the beta editor's autosave (if any) or an opened .json ----
+  // ---- nodes of a circuit: from the Figure Editor's autosave (if any) or an opened .json ----
   let nodes = [];
   const nodesBox = $(".td-nodes"), chips = $(".td-chips"), flag = $(".td-flag"), nodesTitle = $(".td-nodes-title");
   const setNodes = (res, from) => {

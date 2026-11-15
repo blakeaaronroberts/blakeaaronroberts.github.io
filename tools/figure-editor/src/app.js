@@ -9,6 +9,7 @@
 import { LEVELS, loadPack, parsePrivateTheme } from "./pack.js";
 import * as D from "./doc.js";
 import { History } from "./history.js";
+import { drawTiming } from "../../timing-diagram/src/draw.js";
 import { drawing, exportSize, exportSvg, exportGridSvg, labelBoxes, timingGroup } from "./export.js";
 import { hitTest, inBox } from "./hit.js";
 import { packLabelPt, texNeeded } from "./labels.js";
@@ -21,10 +22,11 @@ import { sections } from "./categories.js";
 import { circuitFromSvg, sanitizeSvg, MAX_SVG_BYTES } from "./svgimport.js";
 import { FORMATS, LAYOUTS, centreOn, cleanFrame, frameBox, overflow, regions, sizeOf } from "./frame.js";
 import { orient } from "./geometry.js";
+import { migrateBeta } from "./migrate.js";
 import { framesFromSignals, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame } from "./levelframes.js";
 
 const AUTOSAVE = "figure-editor/autosave";
-const SAVES = "figure-editor/saves";               // the last 10 manual saves
+const SAVES = "figure-editor/saves";               // the last 20 manual saves
 const OPTIONS = "figure-editor/options";           // scale, label size, tags, drafts: per-viewer conveniences
 const THEME = "figure-editor/private-theme";       // a private theme: kept in this browser only, never sent anywhere
 const store = {
@@ -112,7 +114,7 @@ export async function mount(root, options = {}) {
 
   root.innerHTML = `
   <div class="fe">
-    <div class="fe-toolbar" role="toolbar" aria-label="Figure editor">
+    <div class="fe-toolbar" role="toolbar" aria-label="Figure Editor">
       <div class="fe-group" role="group" aria-label="Tool">
         ${btn("select", "Select", "Escape", ' aria-pressed="true"')}${btn("wire", "Wire", "W", ' aria-pressed="false"')}${btn("port", "Port", "P", ' aria-pressed="false"')}${btn("label", "Label", "T", ' aria-pressed="false"')}
       </div>
@@ -134,7 +136,7 @@ export async function mount(root, options = {}) {
       <div class="fe-group" role="group" aria-label="File">
         ${btn("new", "New")}${btn("open", "Open…")}${btn("save", "Save", "Control+S")}${btn("export", "Export SVG")}${btn("png", "Copy as PNG")}
       </div>
-      <div class="fe-group fe-group-end"><a class="btn btn-sm fe-btn" aria-pressed="true" aria-current="page" href="./">Figure Editor</a><a class="btn btn-sm fe-btn" aria-pressed="false" href="../figure-editor-beta/">Beta</a>${btn("help", "?", "?", ' aria-label="Keys"')}</div>
+      <div class="fe-group fe-group-end"><a class="btn btn-sm fe-btn" aria-pressed="true" aria-current="page" href="./">Figure Editor</a><a class="btn btn-sm fe-btn" aria-pressed="false" href="../timing-diagram/">Timing Diagram</a>${btn("help", "?", "?", ' aria-label="Keys"')}</div>
       <input type="file" class="fe-file" accept=".json,.svg,application/json,image/svg+xml" hidden>
       <input type="file" class="fe-theme-file" accept=".json,application/json" hidden>
     </div>
@@ -178,6 +180,8 @@ export async function mount(root, options = {}) {
         <label class="form-label">Frame centre, right and up (grid steps) <span class="fe-pair"><input class="form-control form-control-sm" type="number" name="fe-frame-x" step="1"><input class="form-control form-control-sm" type="number" name="fe-frame-y" step="1"></span></label>
         <div class="fe-theme-buttons" role="group" aria-label="Slide frame">${btn("framecentre", "Centre on the figure")}${btn("exportframe", "Frame as SVG")}${btn("pngframe", "Frame as PNG")}${btn("partsvg", "Schematic part as SVG")}${btn("partpng", "Schematic part as PNG")}</div>
         <p class="fe-hint">The frame exports at the slide's real size, exactly what lies inside it at 1:1 (times the Scale option). The Export SVG button writes the schematic alone. The timing diagram, and its own export, arrive with the scenario player. The frame is kept in this browser, not in the circuit file.</p>
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-tmarker"> <span class="form-check-label">Mark the selected frame's step on the timing diagram</span></label>
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-tcolour"> <span class="form-check-label">Colour the timing diagram like the nets (by level)</span></label>
         <p class="fe-frame-note" aria-live="polite"></p>
       </details>
       <details class="fe-pane fe-frames-pane" name="fe-doc">
@@ -244,7 +248,8 @@ export async function mount(root, options = {}) {
   let autosaveTimer = null;
   const typeset = new Map();         // TeX to parseTypeset's result (every label drawn is typeset once)
 
-  const opt = { frame: null, scale: 1, labelPt: null, levelTags: false, drafts: false, grid: 1, canvas: "auto", exportDark: false, ...(() => { try { return JSON.parse(store.get(OPTIONS) ?? "{}"); } catch { return {}; } })() };
+  const migrated = migrateBeta((k) => store.get(k), (k, v) => store.set(k, v));   // the beta page now redirects here; bring its storage across once, before the options are read
+  const opt = { frame: null, scale: 1, labelPt: null, levelTags: false, timingMarker: true, timingColour: false, drafts: false, grid: 1, canvas: "auto", exportDark: false, ...(() => { try { return JSON.parse(store.get(OPTIONS) ?? "{}"); } catch { return {}; } })() };
   if (opt.grid !== 2) opt.grid = 1;   // snap for parts, in grid steps: 1 is half a module (default), 2 is a whole module
   if (!["auto", "light", "dark"].includes(opt.canvas)) opt.canvas = "auto";
   opt.exportDark = opt.exportDark === true;
@@ -764,7 +769,12 @@ export async function mount(root, options = {}) {
     gridfull: () => setGrid(2),
     zoomin: () => view.zoomAt(1 / 1.25),
     zoomout: () => view.zoomAt(1.25),
-    fit: () => view.fit(lastDrawing?.box ?? null),
+    fit() {   // with the slide frame showing, fit the frame and anything that sticks out of it
+      const b = lastDrawing?.box ?? null;
+      if (!opt.frame.show) return view.fit(b);
+      const f = frameBox(opt.frame);
+      view.fit(b ? { min: [Math.min(b.min[0], f.min[0]), Math.min(b.min[1], f.min[1])], max: [Math.max(b.max[0], f.max[0]), Math.max(b.max[1], f.max[1])] } : f);
+    },
     new() { commit(D.newDoc(), "New figure (Undo brings the old one back)."); selection = none(); loadWarnings = []; view.fit(null); render(); },
     open: () => fileInput.click(),
     save() {
@@ -774,7 +784,7 @@ export async function mount(root, options = {}) {
       let saves = [];
       try { saves = JSON.parse(store.get(SAVES) ?? "[]"); } catch { saves = []; }
       saves.unshift({ id: doc.id, saved: new Date().toISOString(), text });
-      store.set(SAVES, JSON.stringify(saves.slice(0, 10)));
+      store.set(SAVES, JSON.stringify(saves.slice(0, 20)));
       status(`Saved ${doc.id}.json.`);
     },
     async export() {
@@ -834,7 +844,8 @@ export async function mount(root, options = {}) {
       try {
         for (const [i, f] of frames.entries()) {
           const at = applyFrame(doc, f), nn = numbered(i, frames.length), name = `${doc.id}-${nn}`;
-          const text = await svgNow(framed, at);
+          const keepSel = selectedFrame; selectedFrame = i;   // the exported frame is the marked step
+          let text; try { text = await svgNow(framed, at); } finally { selectedFrame = keepSel; }
           download(text, `${name}.svg`, "image/svg+xml");
           download(await pngOf(text), `${name}.png`, "image/png");
           await new Promise((r) => setTimeout(r, 200));   // so the browser takes every download
@@ -877,7 +888,15 @@ export async function mount(root, options = {}) {
   /** The diagram the timing tool sent, if any, and the timing part of the slide frame it goes in (only for a frame export with a timing layout). */
   function timingOpt(framed) {
     if (!framed || opt.frame.layout === "schematic") return null;
-    try { const sent = JSON.parse(store.get("timing-diagram/send") ?? "null"); return sent ? { sent, box: regions(opt.frame).timing } : null; } catch { return null; }
+    try {
+      const sent = JSON.parse(store.get("timing-diagram/send") ?? "null");
+      if (!sent) return null;
+      if (sent.source) {   // drawn here so the step marker and the net colours can follow the selected frame
+        const pk = packFor(opt.exportDark), step = opt.timingMarker && selectedFrame >= 0 ? selectedFrame : null;
+        sent.svg = drawTiming(sent.source, { width: sent.w, height: sent.h, ink: pk.theme.roles.ink, accent: pk.theme.roles.accent, marker: step, levelColour: opt.timingColour ? (l) => pk.levelColour(l) ?? null : null }).svg;
+      }
+      return { sent, box: regions(opt.frame).timing };
+    } catch { return null; }
   }
 
   /** The SVG as the export option settings say; labels are typeset first. Throws if one cannot be drawn. */
@@ -940,6 +959,7 @@ export async function mount(root, options = {}) {
     const b = e.target.closest("[data-frame]");
     if (!b) return;
     selectedFrame = +b.dataset.frame;
+    render();
     const f = framesOf(doc)[selectedFrame];
     commit(applyFrame(doc, f), `Showing frame "${f.name}": its levels are on the canvas.`);
     renderFrames();
@@ -1037,6 +1057,10 @@ export async function mount(root, options = {}) {
   canvasInput.addEventListener("change", () => { opt.canvas = canvasInput.value; saveOptions(); applyCanvas(); render(); status(`Canvas: ${canvasInput.selectedOptions[0].text}.`); });
   exportDarkInput.checked = opt.exportDark;
   exportDarkInput.addEventListener("change", () => { opt.exportDark = exportDarkInput.checked; saveOptions(); status(opt.exportDark ? "SVG and PNG exports will use the dark theme." : "SVG and PNG exports will use the default light theme."); });
+  for (const [n, k] of [["fe-tmarker", "timingMarker"], ["fe-tcolour", "timingColour"]]) {
+    const box = $(`[name="${n}"]`); box.checked = !!opt[k];
+    box.addEventListener("change", () => { opt[k] = box.checked; saveOptions(); render(); });
+  }
   tagsInput.checked = !!opt.levelTags;
   tagsInput.addEventListener("change", () => { opt.levelTags = tagsInput.checked; saveOptions(); render(); queueTypeset(); });
   // ---- a backdrop to trace over (F12.2): never part of the figure, never saved or exported ----------------------
@@ -1327,7 +1351,8 @@ export async function mount(root, options = {}) {
   if (saved) {
     try { load(saved, false); status("Restored the autosaved figure."); } catch (e) { status(`The autosaved figure could not be read (${e.message}). It is left alone until your next edit replaces it.`, true); }
   }
-  if (!opened && !saved) status("Pick an element on the left to place it, or press W to draw a wire. Press ? for the keys. Autosave stays in this browser; use Save to take a figure to another computer.");
+  if (migrated?.length) status(`Brought across from the beta editor: ${migrated.join(", ")}. The beta's own copies are kept in this browser too.`);
+  else   if (!opened && !saved) status("Pick an element on the left to place it, or press W to draw a wire. Press ? for the keys. Autosave stays in this browser; use Save to take a figure to another computer.");
 
   return {
     get doc() { return doc; },
