@@ -7,7 +7,7 @@
 //
 // Every function returns a new document; none changes its argument.
 
-import { clone } from "./doc.js";
+import { clone, connectedWireIds, wiresForRefs } from "./doc.js";
 
 export const KEY = "frames";
 
@@ -120,7 +120,7 @@ export function setWireLabelStyle(doc, ids, patch) {
 // The timing tool sends signals as [{name, levels: ["0","1","X","Z",null, ...]}], one level per step. Step i becomes frame i.
 
 /** The wire and element ids a signal name drives: wires with that net label, the net a port of that name or label sits on, and an element of that id. */
-export function targetsOf(doc, nets, name) {
+export function targetsOf(doc, nets, name, pack = null) {
   const wires = new Set(), elements = new Set();
   const refs = new Set();
   for (const [key, members] of Object.entries(nets)) {
@@ -132,6 +132,10 @@ export function targetsOf(doc, nets, name) {
     const onNet = [w.from, w.to].some((e) => typeof e === "string" && refs.has(e));
     if (lab === name || onNet) wires.add(w.id);
   }
+  if (pack) {
+    for (const id of wiresForRefs(doc, pack, [...refs])) wires.add(id);
+    for (const id of connectedWireIds(doc, pack, [...wires])) wires.add(id);
+  }
   for (const w of doc.wires) if (doc.groups?.wire_labels?.[w.id] === name) [w.from, w.to].forEach((e) => { if (typeof e === "string") refs.add(e); });
   for (const w of doc.wires) if ([w.from, w.to].some((e) => typeof e === "string" && refs.has(e))) wires.add(w.id);
   for (const e of doc.elements) if (e.id === name) elements.add(e.id);
@@ -139,12 +143,12 @@ export function targetsOf(doc, nets, name) {
 }
 
 /** Replace the document's frames with one per step of the signals. Returns { doc, steps, matched (signal names that drive something), unmatched }. */
-export function framesFromSignals(doc, nets, signals) {
+export function framesFromSignals(doc, nets, signals, pack = null) {
   const steps = Math.max(0, ...signals.map((s) => s.levels.length));
   const frames = Array.from({ length: steps }, (_, i) => ({ name: `Step ${i + 1}`, levels: {} }));
   const matched = [], unmatched = [];
   for (const s of signals) {
-    const t = targetsOf(doc, nets, s.name);
+    const t = targetsOf(doc, nets, s.name, pack);
     if (!t.wires.length && !t.elements.length) { unmatched.push(s.name); continue; }
     matched.push(s.name);
     s.levels.forEach((lv, i) => { if (lv) for (const id of [...t.wires, ...t.elements]) frames[i].levels[id] = lv; });

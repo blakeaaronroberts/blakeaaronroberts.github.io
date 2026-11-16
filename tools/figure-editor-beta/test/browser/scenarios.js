@@ -771,3 +771,106 @@ scenarios.frames = async (ctx) => {
   } finally { await page.close(); }
   return res;
 };
+
+/** Beta-only timing controls, outlined TeX names, isolated storage and a full-pane source editor. */
+scenarios.timing = async (ctx) => {
+  const res = [];
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(`${ctx.url}?view=timing`);
+    await page.waitFor(`!!document.querySelector(".td-tabs")`);
+    await page.eval(`document.querySelector('[data-view="diagram"]').click()`);
+    await page.sleep(300);
+    const controls = await page.eval(`(() => {
+      const view = document.querySelector(".td-view");
+      const look = view.querySelector(".td-view-look"), chart = view.querySelector("#WaveDrom_Display_0");
+      look.open = true;
+      const chartBox = chart.getBoundingClientRect(), lookBox = look.getBoundingClientRect(), lookStyle = getComputedStyle(look);
+      return { shown: !view.hidden, look: !!look, below: chartBox.bottom <= lookBox.top, unboxed: lookStyle.borderLeftWidth === "0px" && lookStyle.borderRightWidth === "0px" && lookStyle.borderBottomWidth === "0px", showNames: view.querySelector('[data-look="showNames"]')?.checked, font: view.querySelector('[data-look="fontSize"]')?.value, width: view.querySelector('[data-look="lineWidth"]')?.value, spacing: !!view.querySelector('[data-size="hscale"]'), size: !!view.querySelector('[data-size="w"]') };
+    })()`);
+    res.push([controls.shown && controls.look && controls.below && controls.unboxed && controls.showNames === true && controls.font === "12" && controls.width === "1.6" && controls.spacing && controls.size, `diagram sits above integrated look and size controls (${JSON.stringify(controls)})`]);
+
+    await page.eval(`window.figureEditor.load(JSON.stringify({
+      schema: "circuit/0.2", id: "timing_connected_wires", grid_cm: 0.25,
+      elements: [], ports: [], nets: {},
+      wires: [{ id: "w1", from: [0, 0], to: [2, 0] }, { id: "w2", from: [2, 0], to: [4, 0] }],
+      groups: { wire_labels: { w1: "$Q_{0}$" } }
+    }))`);
+    await page.waitFor(`Array.from(document.querySelectorAll(".td-chips [data-node]")).map((b) => b.dataset.node).join(",") === "$Q_{0}$"`, 10000);
+    const connectedNames = await page.eval(`Array.from(document.querySelectorAll(".td-chips [data-node]")).map((b) => b.dataset.node)`);
+    res.push([connectedNames.length === 1 && connectedNames[0] === "$Q_{0}$", `connected wire segments become one TeX-named timing node (${JSON.stringify(connectedNames)})`]);
+
+    await page.eval(`(() => {
+      document.querySelector('[data-view="source"]').click();
+      const source = document.querySelector(".td-srctext");
+      source.value = JSON.stringify({ signal: [{ name: "$Q_{0}$", wave: "01" }, { name: "D", wave: "0.1" }] });
+      document.querySelector('[data-do="src-apply"]').click();
+      document.querySelector('[data-view="diagram"]').click();
+    })()`);
+    await page.waitFor(`!!document.querySelector(".td-name-math")`, 30000);
+    const nameToggle = await page.eval(`(() => {
+      const input = document.querySelector('[data-look="showNames"]');
+      input.checked = false; input.dispatchEvent(new Event("change", { bubbles: true }));
+      const hidden = !document.querySelector("#WaveDrom_Display_0 .td-name-math") && !Array.from(document.querySelectorAll("#WaveDrom_Display_0 svg text")).some((t) => t.textContent === "D");
+      input.checked = true; input.dispatchEvent(new Event("change", { bubbles: true }));
+      return hidden;
+    })()`);
+    await page.waitFor(`!!document.querySelector(".td-name-math")`, 10000);
+    res.push([nameToggle, "the timing viewer can hide and restore net names"]);
+    await page.eval(`(() => {
+      const font = document.querySelector('[data-look="fontSize"]'), width = document.querySelector('[data-look="lineWidth"]');
+      font.value = "18"; font.dispatchEvent(new Event("change", { bubbles: true }));
+      width.value = "2.6"; width.dispatchEvent(new Event("change", { bubbles: true }));
+    })()`);
+    await page.sleep(250);
+    const svg = await page.eval(`(() => {
+      const s = document.querySelector("#WaveDrom_Display_0 svg");
+      return { math: !!s?.querySelector(".td-name-math path"), textSized: !!s?.querySelector('.td-name-math[transform*="scale(0.018)"]'), thickLine: !!s?.querySelector('[stroke-width="2.6"]'), widths: Array.from(s?.querySelectorAll("[stroke-width]") ?? []).map((t) => t.getAttribute("stroke-width")), config: window.figureEditor.doc.schema, sourceKey: !!localStorage.getItem("figure-editor-beta/timing-source"), stableKey: localStorage.getItem("timing-diagram/source"), legacySend: localStorage.getItem("timing-diagram/send") };
+    })()`);
+    res.push([svg.math, "a TeX signal name is typeset as SVG paths"]);
+    res.push([svg.textSized && svg.thickLine, `text size and line width update the diagram (${JSON.stringify(svg)})`]);
+    res.push([svg.sourceKey && svg.stableKey === null && svg.legacySend === null, "beta timing data stays in beta-only browser storage"]);
+
+    await page.eval(`document.querySelector('[data-view="source"]').click()`);
+    const pane = await page.eval(`(() => {
+      const body = document.querySelector(".td-source").getBoundingClientRect(), editor = document.querySelector(".td-srctext").getBoundingClientRect();
+      const rect = (s) => { const r = document.querySelector(s).getBoundingClientRect(); return [r.width, r.height]; };
+      return { visible: !document.querySelector(".td-source").hidden, pane: [body.width, body.height], editor: [editor.width, editor.height], center: rect(".td-center"), dock: rect(".td-dock"), section: rect('[data-sec="timing"]'), grid: getComputedStyle(document.querySelector(".td-dock")).gridTemplateRows, centerGrid: getComputedStyle(document.querySelector(".td-center")).gridTemplateRows, sourceDisplay: getComputedStyle(document.querySelector(".td-source")).display, wrap: document.querySelector(".td-srctext").wrap };
+    })()`);
+    res.push([pane.visible && pane.editor[0] >= pane.pane[0] * 0.9 && pane.editor[1] >= pane.pane[1] * 0.65 && pane.wrap === "off", `WaveDrom source fills the pane as an unwrapped editor (${JSON.stringify(pane)})`]);
+
+    await page.eval(`(() => { document.querySelector('[data-view="diagram"]').click(); document.querySelector(".td-view-look").open = true; })()`);
+    await page.sleep(250);
+    await page.shot(`${ctx.out}/beta-timing-look.png`);
+    res.push([page.errors.length === 0, `no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};
+
+scenarios.netnames = async (ctx) => {
+  const res = [];
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(`${ctx.url}?open=examples/full-adder-levels.json&view=figure`);
+    await page.waitFor(ready);
+    await page.eval(`(async () => {
+      const doc = await (await fetch("./examples/full-adder-levels.json")).json();
+      doc.groups = { ...(doc.groups ?? {}), wire_labels: { w1: "$Q_{0}$" } };
+      window.figureEditor.load(JSON.stringify(doc));
+    })()`);
+    await page.waitFor(`!!document.querySelector('svg.fe-canvas [data-label="net:w1"]')`, 30000);
+    const result = await page.eval(`(() => {
+      const input = document.querySelector('[name="fe-netnames"]');
+      const shown = !!document.querySelector('svg.fe-canvas [data-label="net:w1"]') && input.checked;
+      input.checked = false; input.dispatchEvent(new Event("change", { bubbles: true }));
+      const hidden = !document.querySelector('svg.fe-canvas [data-label="net:w1"]');
+      const saved = JSON.parse(window.figureEditor.save()).groups.wire_labels.w1 === "$Q_{0}$";
+      input.checked = true; input.dispatchEvent(new Event("change", { bubbles: true }));
+      return { shown, hidden, saved };
+    })()`);
+    await page.waitFor(`!!document.querySelector('svg.fe-canvas [data-label="net:w1"]')`, 30000);
+    res.push([result.shown && result.hidden && result.saved, `schematic net names can be hidden without changing the saved label (${JSON.stringify(result)})`]);
+    res.push([page.errors.length === 0, `net names: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};

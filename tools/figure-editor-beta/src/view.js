@@ -95,7 +95,7 @@ export function createView(svg, basePack) {
     paper.setAttribute("fill", roles.background);
     gridDot.setAttribute("r", fmt(lw / 2)); gridDot.setAttribute("fill", roles.grid);
 
-    const d = drawing(state.doc, pack, { typeset: state.typeset, labelPt: state.labelPt, levelTags: state.levelTags });
+    const d = drawing(state.doc, pack, { typeset: state.typeset, labelPt: state.labelPt, levelTags: state.levelTags, netNames: state.netNames });
     const parts = [];
     parts.push(`<g stroke="${roles.ink}" stroke-width="${fmt(lw)}" stroke-linecap="${line.cap}" stroke-linejoin="${line.join}" fill="none">`);
     for (const w of d.wires) {

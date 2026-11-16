@@ -2,7 +2,7 @@
 // the optional 0/1/X/Z tag; and the unavailable levels of a theme that lacks a role.
 // (Saving and loading levels is in roundtrip.test.js.)
 
-import { addElement, addWire, lint, newDoc, setLevel } from "../src/doc.js";
+import { addElement, addWire, connectedWireIds, lint, newDoc, setLevel } from "../src/doc.js";
 import { drawing, exportSvg, tagAnchor } from "../src/export.js";
 import { LEVELS } from "../src/pack.js";
 import { buildFullAdderLevels, INPUTS, propagate } from "../examples/full-adder-levels.js";
@@ -78,6 +78,15 @@ Deno.test("setLevel validates, clears and applies to every wire given", () => {
   assertEquals(doc.wires.map((w) => w.level), ["Z", undefined]);
   assertThrows(() => setLevel(doc, ["w1"], "2"), /0, 1, X or Z/);
   assertThrows(() => setLevel(doc, ["w1"], "high"), /0, 1, X or Z/);
+});
+
+Deno.test("setting a wire level reaches every ordinary wire on its electrical net", () => {
+  let doc = addWire(newDoc(), pack, P([0, 0]), P([10, 0])).doc;
+  doc = addWire(doc, pack, P([10, 0]), P([20, 0])).doc;
+  doc = addWire(doc, pack, P([0, 8]), P([10, 8])).doc;
+  assertEquals(connectedWireIds(doc, pack, ["w2"]), ["w1", "w2"]);
+  doc = setLevel(doc, ["w2"], "1", [], pack);
+  assertEquals(doc.wires.map((w) => w.level), ["1", "1", undefined]);
 });
 
 Deno.test("level tags are off by default; on, each levelled wire gets its level beside its longest segment", () => {

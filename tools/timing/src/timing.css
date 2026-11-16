@@ -4,6 +4,7 @@
 .td-center { grid-column: 2; min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); background: var(--role-background); }
 .td-tabs { display: flex; gap: 2px; padding: .25rem .5rem; border-bottom: 1px solid var(--role-rule); }
 .td-tabs [aria-selected="true"] { background: var(--role-accent); border-color: var(--role-accent); color: var(--role-background); }
+.td-beta .td-edit[hidden], .td-beta .td-view[hidden], .td-beta .td-source[hidden] { display: none; }
 .td-edit { min-height: 0; overflow: auto; padding: .5rem .75rem; display: grid; align-content: start; gap: .5rem; }
 .td-view { min-width: 0; min-height: 0; overflow: auto; padding: 1rem; background: var(--fig-background); line-height: 0; }
 .fe[data-canvas="dark"] > .td-center .td-view { background: var(--fig-dark-background); }   /* the page follows the site; the docked pane is always on the white figure plate */
@@ -58,6 +59,7 @@
 .td-barframes { display: inline-flex; align-items: center; gap: .3rem; padding-left: .4rem; border-left: 1px solid var(--role-rule); font-size: .8rem; }
 .td-barframes[hidden] { display: none; }
 .td-dock .td-center { grid-column: auto; min-height: 0; }
+.td-dock.td-beta { grid-template-rows: minmax(0, 1fr) auto; }
 .td-dock .td-view { margin: .5rem .75rem; border: 1px solid var(--role-rule); background: var(--fig-background); }
 [data-canvas="dark"] .td-dock .td-view { background: var(--fig-dark-background); }
 .td-credit-bottom { margin: 0; padding: .15rem .6rem; font-size: .65rem; color: var(--role-muted); text-align: right; border-top: 1px solid var(--role-rule); background: var(--role-surface); }
@@ -91,6 +93,17 @@
 .td-band { border: 0; padding: 0; margin: 0 0 .5rem; display: grid; gap: .3rem; }
 .td-source { min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: .5rem; padding: .5rem .75rem; }
 .fe .td-srctext { height: 100%; min-height: 12rem; resize: none; border-radius: 0; font-family: var(--bs-font-monospace); font-size: .8rem; line-height: 1.4; background: var(--role-surface); color: inherit; border-color: var(--role-rule); }
+
+/* Beta timing controls stay with the diagram; the source editor fills its entire pane. */
+.td-beta .td-view { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: .5rem; }
+.td-beta #WaveDrom_Display_0 { min-width: 0; min-height: 0; overflow: auto; line-height: 1.4; }
+.td-view-look { min-width: 0; border-top: 1px solid var(--role-rule); color: var(--role-ink); line-height: 1.4; }
+.td-view-look > summary { padding: .5rem .25rem .25rem; color: var(--role-accent); cursor: pointer; font-family: var(--bs-font-monospace); font-size: .75rem; }
+.td-view-look-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: .5rem; padding: .5rem .25rem 0; }
+.td-view-look .form-control { max-width: 10rem; }
+.td-beta .td-source { min-width: 0; min-height: 0; overflow: hidden; }
+.td-beta .td-srctext { box-sizing: border-box; width: 100%; min-width: 0; min-height: 0; height: 100%; padding: 1rem; resize: none; background: var(--role-background); color: var(--role-ink); border-color: var(--role-rule); font-size: .85rem; line-height: 1.55; tab-size: 2; }
+.td-beta .td-srctext:focus { outline: 2px solid var(--role-accent); outline-offset: -2px; border-color: var(--role-accent); box-shadow: none; }
 
 /* ---- the Edit view in four steps ---- */
 .td-subtabs { display: flex; gap: 0; border-bottom: 1px solid var(--role-rule); margin: -.5rem -.75rem .25rem; padding: 0 .75rem; position: sticky; top: -.5rem; background: var(--role-background); z-index: 1; }

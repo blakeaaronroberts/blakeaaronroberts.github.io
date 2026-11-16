@@ -189,6 +189,30 @@ export function setHscale(v, x) {
   return d;
 }
 
+export const textSizeOf = (v) => Math.min(24, Math.max(8, Number(v?.config?.fontSize) || 12));
+export function setTextSize(v, x) {
+  const d = clone(v), k = Math.round(Math.max(8, Math.min(24, Number(x) || 12)));
+  d.config = { ...(d.config ?? {}) };
+  if (k === 12) delete d.config.fontSize; else d.config.fontSize = k;
+  return d;
+}
+
+export const lineWidthOf = (v) => Math.min(4, Math.max(0.5, Number(v?.config?.lineWidth) || 1.6));
+export function setLineWidth(v, x) {
+  const d = clone(v), k = Math.round(Math.max(0.5, Math.min(4, Number(x) || 1.6)) * 10) / 10;
+  d.config = { ...(d.config ?? {}) };
+  if (k === 1.6) delete d.config.lineWidth; else d.config.lineWidth = k;
+  return d;
+}
+
+export const showNamesOf = (v) => v?.config?.showNames !== false;
+export function setShowNames(v, show) {
+  const d = clone(v);
+  d.config = { ...(d.config ?? {}) };
+  if (show) delete d.config.showNames; else d.config.showNames = false;
+  return d;
+}
+
 /** The diagram as WaveDrom writes it: signals with the same `group` side by side become a named group array. */
 export function toWaveDrom(v) {
   const out = [];

@@ -10,6 +10,7 @@ import { buildClaChevron } from "../examples/cla-chevron.js";
 import { assert, assertEquals, pack, typeset } from "./helpers.js";
 
 const base = () => buildClaChevron(pack);
+const P = (at) => ({ kind: "point", at });
 
 Deno.test("capture stores the current levels; apply draws them; the figure's own levels are untouched", () => {
   let doc = setLevel(base(), [base().wires[0].id], "1");
@@ -96,6 +97,17 @@ Deno.test("net label side and spacing move the label; the default is above a hor
   assertEquals(b.at[1], a.at[1] - 2);
 });
 
+Deno.test("net names can be hidden without hiding other schematic labels", async () => {
+  const { drawing } = await import("../src/export.js");
+  const { setWireLabels } = await import("../src/levelframes.js");
+  const doc = setWireLabels(base(), [base().wires[0].id], "$X$");
+  const shown = drawing(doc, pack, { typeset });
+  const hidden = drawing(doc, pack, { typeset, netNames: false });
+  assert(shown.labels.some((l) => l.kind === "net"));
+  assert(!hidden.labels.some((l) => l.kind === "net"));
+  assertEquals(hidden.labels.map((l) => l.key), shown.labels.filter((l) => l.kind !== "net").map((l) => l.key));
+});
+
 Deno.test("the schematic part is exported at exactly its slide size", async () => {
   const { regions, defaultFrame } = await import("../src/frame.js");
   const { drawing } = await import("../src/export.js");
@@ -130,4 +142,15 @@ Deno.test("frames fill from timing signals: a net label, a port and an element n
   assertEquals(f.map((x) => x.name), ["Step 1", "Step 2", "Step 3"]);
   assertEquals(f[1].levels[w], "1");
   assert(Object.keys(f[2].levels).length > 0 && f[2].levels[w] === undefined || f[2].levels[w] === "X");
+});
+
+Deno.test("a timing signal drives every ordinary wire segment on its labelled net", async () => {
+  const { addWire, deriveNets, newDoc } = await import("../src/doc.js");
+  const { framesFromSignals, setWireLabels } = await import("../src/levelframes.js");
+  let doc = addWire(newDoc(), pack, P([0, 0]), P([10, 0])).doc;
+  doc = addWire(doc, pack, P([10, 0]), P([20, 0])).doc;
+  doc = setWireLabels(doc, ["w1"], "CLK");
+  const result = framesFromSignals(doc, deriveNets(doc, pack), [{ name: "CLK", levels: ["0", "1"] }], pack);
+  assertEquals(result.matched, ["CLK"]);
+  assertEquals(framesOf(result.doc).map((f) => [f.levels.w1, f.levels.w2]), [["0", "0"], ["1", "1"]]);
 });

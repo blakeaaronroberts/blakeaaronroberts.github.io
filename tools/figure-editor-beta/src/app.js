@@ -13,7 +13,7 @@ import { History } from "./history.js";
 import { drawTiming } from "../../timing/src/draw.js";
 import { drawing, exportSize, exportSvg, exportGridSvg, labelBoxes, timingGroup } from "./export.js";
 import { hitTest, inBox } from "./hit.js";
-import { packLabelPt, texNeeded } from "./labels.js";
+import { packLabelPt, texNeeded, texOf } from "./labels.js";
 import { typesetAll } from "./mathjax.js";
 import { nearestOnPolyline, route } from "./router.js";
 import { createView, thumbnail, blockThumbnail } from "./view.js";
@@ -31,6 +31,8 @@ const AUTOSAVE = "figure-editor-beta/autosave";
 const SAVES = "figure-editor-beta/saves";               // the last 20 manual saves
 const OPTIONS = "figure-editor-beta/options";           // scale, label size, tags, drafts: per-viewer conveniences
 const THEME = "figure-editor-beta/private-theme";       // a private theme: kept in this browser only, never sent anywhere
+const TIMING_SOURCE = "figure-editor-beta/timing-source";
+const TIMING_SEND = "figure-editor-beta/timing-send";
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } },
@@ -174,6 +176,7 @@ export async function mount(root, options = {}) {
         <label class="form-label">Scale (%) <input class="form-control form-control-sm" type="number" name="fe-scale" min="10" max="1000" step="5"></label>
         <label class="form-label">Label size (pt) <input class="form-control form-control-sm" type="number" name="fe-labelpt" min="4" max="48" step="0.5"></label>
         <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-tags"> <span class="form-check-label">Level tags (0, 1, X, Z) by each wire</span></label>
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-netnames"> <span class="form-check-label">Show net names</span></label>
         <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-exportdark"> <span class="form-check-label">Export in dark theme</span></label>
         <p class="fe-size" aria-live="polite"></p>
       </details>
@@ -240,7 +243,7 @@ export async function mount(root, options = {}) {
   const $ = (s) => root.querySelector(s);
   const svg = $(".fe-canvas"), statusEl = $(".fe-status"), fileInput = $(".fe-file"), themeInput = $(".fe-theme-file");
   const idInput = $('[name="fe-id"]'), titleInput = $('[name="fe-title"]'), propsEl = $(".fe-props"), helpEl = $(".fe-help");
-  const scaleInput = $('[name="fe-scale"]'), ptInput = $('[name="fe-labelpt"]'), tagsInput = $('[name="fe-tags"]'), draftsInput = { checked: false }, canvasInput = $('[name="fe-canvas"]'), exportDarkInput = $('[name="fe-exportdark"]');
+  const scaleInput = $('[name="fe-scale"]'), ptInput = $('[name="fe-labelpt"]'), tagsInput = $('[name="fe-tags"]'), netNamesInput = $('[name="fe-netnames"]'), draftsInput = { checked: false }, canvasInput = $('[name="fe-canvas"]'), exportDarkInput = $('[name="fe-exportdark"]');
   const view = createView(svg, loaded);
   // The editor fills the window below the site header; measure the header so the two never overlap.
   const header = document.querySelector("#quarto-header");
@@ -269,16 +272,17 @@ export async function mount(root, options = {}) {
   let autosaveTimer = null;
   const typeset = new Map();         // TeX to parseTypeset's result (every label drawn is typeset once)
 
-  const opt = { frame: null, scale: 1, labelPt: null, levelTags: false, timingMarker: true, timingColour: false, drafts: false, grid: 1, canvas: "auto", exportDark: false, ...(() => { try { return JSON.parse(store.get(OPTIONS) ?? "{}"); } catch { return {}; } })() };
+  const opt = { frame: null, scale: 1, labelPt: null, levelTags: false, netNames: true, timingMarker: true, timingColour: false, drafts: false, grid: 1, canvas: "auto", exportDark: false, ...(() => { try { return JSON.parse(store.get(OPTIONS) ?? "{}"); } catch { return {}; } })() };
   if (opt.grid !== 2) opt.grid = 1;   // snap for parts, in grid steps: 1 is half a module (default), 2 is a whole module
   if (!["auto", "light", "dark"].includes(opt.canvas)) opt.canvas = "auto";
   opt.exportDark = opt.exportDark === true;
+  opt.netNames = opt.netNames !== false;
   opt.drafts = false;   // draft elements are no longer offered
   delete opt.frame;   // the F10 frame option is replaced by the slide saved in the figure (F19)
   /** Snap a point (grid steps) to the part grid. Wires, ports and labels always snap to one step (half a module). */
   function snapPart(p) { const g = opt.grid; return [g * Math.round(p[0] / g) || 0, g * Math.round(p[1] / g) || 0]; }
   const saveOptions = () => store.set(OPTIONS, JSON.stringify(opt));
-  const drawOpts = () => ({ typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags, scale: opt.scale });
+  const drawOpts = () => ({ typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags, netNames: opt.netNames, scale: opt.scale });
 
   /** The status line. An error is bold and announced at once, and stays until the next message. */
   const status = (msg, error = false) => {
@@ -362,7 +366,7 @@ export async function mount(root, options = {}) {
     applyLevels();
     lastDrawing = view.render({
       doc, pack, selection, ghost, rubber, hover, hoverWire, box: boxSel,
-      typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags,
+      typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags, netNames: opt.netNames,
     });
     if (lastDrawing.pending.length) queueTypeset();
     updateUI();
@@ -680,8 +684,10 @@ export async function mount(root, options = {}) {
     if (!selection.wires.length && !selection.elements.length) { status("Select one or more wires or elements first."); return; }
     if (level && !pack.levelColour(level)) { status(`This theme has no colour for level ${level}.`); return; }
     const name = LEVELS.find((l) => l.value === level)?.name;
-    const n = selection.wires.length + selection.elements.length;
-    commit(D.setLevel(doc, selection.wires, level, selection.elements), level ? `Level ${level} (${name}) set on ${count(n, n === selection.wires.length ? "wire" : "item")}.` : "Level cleared.");
+    const wires = D.connectedWireIds(doc, pack, selection.wires);
+    const n = wires.length + selection.elements.length;
+    const noun = selection.elements.length ? "item" : "wire";
+    commit(D.setLevel(doc, selection.wires, level, selection.elements, pack), level ? `Level ${level} (${name}) set on ${count(n, noun)}.` : "Level cleared.");
   }
 
   function setGrid(g) {
@@ -846,7 +852,7 @@ export async function mount(root, options = {}) {
     zoomout: () => view.zoomAt(1.25),
     fit: () => view.fit(lastDrawing?.box ?? null),
     new() {   // clears the figure and the Timing Diagram together (the figure can be brought back with Undo; the diagram cannot)
-      if (timingTool) timingTool.clear(); else { store.remove("timing-diagram/source"); store.remove("timing-diagram/send"); }
+      if (timingTool) timingTool.clear(); else { store.remove(TIMING_SOURCE); store.remove(TIMING_SEND); }
       commit(D.newDoc(), "New: the figure and the timing diagram are cleared (Undo brings the figure back)."); selection = none(); loadWarnings = []; view.fit(null); render(); },
     open: () => fileInput.click(),
     save() {
@@ -962,12 +968,30 @@ export async function mount(root, options = {}) {
   };
 
   /** What a timing region draws: the diagram the timing tool sent, in the given pack's roles, the marked step and the net colours as the options say. */
+  const timingNameTex = (name) => { try { return texOf(name); } catch { return null; } };
   function timingFor(pk, step = selectedFrame) {
     try {
-      const sent = JSON.parse(store.get("timing-diagram/send") ?? "null");
+      const sent = JSON.parse(store.get(TIMING_SEND) ?? "null");
       if (!sent?.source) return null;
       const r = pk.theme.roles, lc = (l) => pk.levelColour(l) ?? r.ink;
-      return { source: sent.source, ink: r.ink, accent: r.accent, paper: r.background, dataFills: [lc("1"), lc("0"), r.accent, lc("X"), lc("Z"), r.muted ?? r.ink, r.ink], marker: opt.timingMarker && step >= 0 ? step : null, levelColour: opt.timingColour ? (l) => pk.levelColour(l) ?? null : null };
+      const names = new Set(), collect = (items) => {
+        for (const item of items ?? []) {
+          if (Array.isArray(item)) collect(typeof item[0] === "string" ? item.slice(1) : item);
+          else if (typeof item?.name === "string" && item.name) names.add(item.name);
+        }
+      };
+      collect(sent.source.signal);
+      const nameTypeset = new Map([...names].map((name) => [name, timingNameTex(name)]).filter(([, tex]) => tex).map(([name, tex]) => [name, typeset.get(tex)]).filter(([, parsed]) => parsed));
+      return {
+        source: sent.source, ink: r.ink, accent: r.accent, paper: r.background,
+        dataFills: [lc("1"), lc("0"), r.accent, lc("X"), lc("Z"), r.muted ?? r.ink, r.ink],
+        marker: opt.timingMarker && step >= 0 ? step : null,
+        levelColour: opt.timingColour ? (l) => pk.levelColour(l) ?? null : null,
+        fontSize: Math.min(24, Math.max(8, Number(sent.source.config?.fontSize) || 12)),
+        lineWidth: Math.min(4, Math.max(0.5, Number(sent.source.config?.lineWidth) || 1.6)),
+        showNames: sent.source.config?.showNames !== false,
+        nameTypeset,
+      };
     } catch { return null; }
   }
 
@@ -982,7 +1006,16 @@ export async function mount(root, options = {}) {
     const pk = packFor(opt.exportDark), s = currentSlide();
     const frames = framesOf(doc);
     const docs = [doc, ...frames.map((f) => applyFrame(doc, f))];
-    await typesetAll([...new Set(docs.flatMap((d) => texNeeded(d, pk, { levelTags: opt.levelTags })))], typeset);
+    const timing = timingFor(pk, frame ?? selectedFrame);
+    const timingTex = [];
+    if (timing) {
+      const collect = (items) => { for (const item of items ?? []) {
+        if (Array.isArray(item)) collect(typeof item[0] === "string" ? item.slice(1) : item);
+        else if (typeof item?.name === "string" && item.name) { const tex = timingNameTex(item.name); if (tex) timingTex.push(tex); }
+      } };
+      collect(timing.source.signal);
+    }
+    await typesetAll([...new Set([...docs.flatMap((d) => texNeeded(d, pk, { levelTags: opt.levelTags })), ...timingTex])], typeset);
     return slideSvg(doc, pk, s, { ...drawOpts(), only, frame, timing: timingFor(pk, frame ?? selectedFrame) });
   }
 
@@ -1041,15 +1074,15 @@ export async function mount(root, options = {}) {
   // ---- frames from the timing diagram: one frame per step, levels from the signals that match wires, ports or elements ----
   function populateFromTiming(auto = false) {
     let sent = null;
-    try { sent = JSON.parse(store.get("timing-diagram/send") ?? "null"); } catch { sent = null; }
+    try { sent = JSON.parse(store.get(TIMING_SEND) ?? "null"); } catch { sent = null; }
     if (!sent?.signals?.length) { if (!auto) status("Nothing sent yet: in the timing tool, press Send to schematic."); return; }
-    const r = framesFromSignals(doc, D.deriveNets(doc, pack), sent.signals);
+    const r = framesFromSignals(doc, D.deriveNets(doc, pack), sent.signals, pack);
     commit(r.doc, null);
     selectedFrame = -1;
     renderFrames();
     status(`${r.steps} frames filled from the timing diagram. Drives: ${r.matched.join(", ") || "nothing"}.${r.unmatched.length ? ` No wire, port or element named: ${r.unmatched.join(", ")} (name a wire with its Net label).` : ""}`, !r.matched.length);
   }
-  window.addEventListener("storage", (e) => { if (e.key === "timing-diagram/send") populateFromTiming(true); });
+  window.addEventListener("storage", (e) => { if (e.key === TIMING_SEND) populateFromTiming(true); });
 
   /** One slide with every frame as a small figure, labelled with its name. */
   async function gridNow(frames) {
@@ -1098,7 +1131,17 @@ export async function mount(root, options = {}) {
   async function mountTiming() {
     if (timingTool) return;
     const { mount } = await import("../../timing/src/app.js");
-    timingTool = mount(tpBody, { docked: true, onStatus: (m, err) => { if (opt.view === "timing") status(m, err); }, onChange: () => { if (!framesOf(doc).length) populateFromTiming(true); if (opt.slideView) syncSlide(); } });
+    timingTool = mount(tpBody, {
+      docked: true, betaFeatures: true, storageKey: TIMING_SOURCE, sendKey: TIMING_SEND, editorKey: AUTOSAVE,
+      mergeConnectedNodes: true, allowTexSignalNames: true,
+      typesetSignalNames: async (names) => {
+        const texByName = new Map(names.map((name) => [name, texOf(name)]));
+        await typesetAll([...new Set(texByName.values())], typeset);
+        return new Map([...texByName].map(([name, tex]) => [name, typeset.get(tex)]));
+      },
+      onStatus: (m, err) => { if (opt.view === "timing") status(m, err); },
+      onChange: () => { if (!framesOf(doc).length) populateFromTiming(true); if (opt.slideView) syncSlide(); },
+    });
     timingTool.setCircuit(D.serialize(doc, pack));
     if (!framesOf(doc).length) populateFromTiming(true);
   }
@@ -1306,6 +1349,8 @@ export async function mount(root, options = {}) {
   }
   tagsInput.checked = !!opt.levelTags;
   tagsInput.addEventListener("change", () => { opt.levelTags = tagsInput.checked; saveOptions(); render(); queueTypeset(); });
+  netNamesInput.checked = opt.netNames;
+  netNamesInput.addEventListener("change", () => { opt.netNames = netNamesInput.checked; saveOptions(); render(); });
   // ---- a backdrop to trace over (F12.2): never part of the figure, never saved or exported ----------------------
   let backdrop = null;                     // {href, width, height (modules at 100%), cx, cy (modules), scale, opacity}
   const bdOpacity = $('[name="fe-bd-opacity"]'), bdScale = $('[name="fe-bd-scale"]'), bdX = $('[name="fe-bd-x"]'), bdY = $('[name="fe-bd-y"]');
@@ -1602,7 +1647,7 @@ export async function mount(root, options = {}) {
       load(await (await fetch(new URL("examples/full-adder.json", document.baseURI))).text(), false);
       const tt = truthTable(doc, pack, ["A", "B", "Cin"], ["S", "Cout"]);
       doc = { ...doc, groups: { ...(doc.groups ?? {}), frames: tt.frames } };
-      if (!store.get("timing-diagram/source")) store.set("timing-diagram/source", JSON.stringify(tt.timing));
+      if (!store.get(TIMING_SOURCE)) store.set(TIMING_SOURCE, JSON.stringify(tt.timing));
       timingTool?.source !== undefined && (timingTool.source = JSON.stringify(tt.timing));
       render(); renderFrames();
       status("A full adder to start: step through its eight frames with ◀ ▶, or open Timing Diagram.");

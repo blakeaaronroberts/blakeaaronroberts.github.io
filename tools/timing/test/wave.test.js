@@ -52,6 +52,15 @@ Deno.test("a wire's net label, or its bus label, names the signal", async () => 
     groups: { wire_labels: { a: "CLK" } } };
   assertEquals(nodesOf(JSON.stringify(doc)).nodes.map((x) => x.name), ["CLK", "D[3:0]", "n3"]);
 });
+Deno.test("beta timing nodes merge connected segments and retain TeX labels", () => {
+  const doc = { schema: "circuit/0.3", ports: [{ id: "p1", label: "P", at: [0, 0] }], nets: { n1: ["p1"] },
+    wires: [{ id: "w1", from: [0, 0], to: [4, 0] }, { id: "w2", from: [4, 0], to: [10, 0] }],
+    groups: { wire_labels: { w2: "$Q_{0}$" } } };
+  assertEquals(nodesOf(JSON.stringify(doc), { mergeConnected: true, allowTexNames: true }).nodes.map((x) => x.name), ["$Q_{0}$"]);
+  const texPort = JSON.stringify({ schema: "circuit/0.2", ports: [{ id: "q", label: "$Q_{n+1}$" }] });
+  assertEquals(nodesOf(texPort).nodes.map((x) => x.name), ["q"]);
+  assertEquals(nodesOf(texPort, { allowTexNames: true }).nodes.map((x) => x.name), ["$Q_{n+1}$"]);
+});
 Deno.test("our drawing is laid out from the size, not scaled to it: stroke width stays, step width follows", async () => {
   const { drawTiming } = await import("../src/draw.js");
   const v = { signal: [{ name: "clk", wave: "p...." }, { name: "D", wave: "0.1=0", data: ["a"] }] };
@@ -61,6 +70,34 @@ Deno.test("our drawing is laid out from the size, not scaled to it: stroke width
   assert(!/preserveAspectRatio/.test(b.svg));
   assert(drawTiming(v, { marker: 2 }).svg.includes('class="td-marker"'));
   assert(drawTiming(v, {}).svg.includes(">a</text>"));
+});
+Deno.test("text size, line width and outlined TeX names are drawing inputs", async () => {
+  const { drawTiming, naturalSize } = await import("../src/draw.js");
+  const name = "$Q_0$", parsed = { ok: true, left: 0, width: 0.9, height: 0.7, depth: 0.2, nodes: [{ tag: "path", attrs: [["d", "M0 0L1 1"], ["fill", "currentColor"]], children: [] }] };
+  const value = { signal: [{ name, wave: "01" }, { name: "D", wave: "01" }] }, names = new Map([[name, parsed]]);
+  const plain = drawTiming(value, {}), tuned = drawTiming(value, { fontSize: 18, lineWidth: 3.2, nameTypeset: names });
+  assert(tuned.svg.includes('class="td-name-math"') && tuned.svg.includes("<path d=") && tuned.svg.includes("scale(0.018)"));
+  assert(!tuned.svg.includes(`${name}</text>`));
+  assert(tuned.svg.includes('font-size="18"') && tuned.svg.includes('stroke-width="3.2"'));
+  assert(naturalSize(value, 1, { fontSize: 18, nameTypeset: names }).h > naturalSize(value).h);
+  assert(plain.svg.includes('font-size="12"') && plain.svg.includes('stroke-width="1.6"'));
+  const hidden = drawTiming(value, { showNames: false });
+  assert(!hidden.svg.includes(`${name}</text>`) && !hidden.svg.includes(">D</text>"));
+  assert(hidden.natural.w < plain.natural.w);
+});
+Deno.test("beta look settings persist in WaveDrom config with unchanged defaults", async () => {
+  const { empty, lineWidthOf, setLineWidth, setTextSize, textSizeOf, toWaveDrom } = await import("../src/model.js");
+  let value = setTextSize(setLineWidth(empty(), 2.4), 18);
+  assertEquals([textSizeOf(value), lineWidthOf(value), toWaveDrom(value).config.fontSize, toWaveDrom(value).config.lineWidth], [18, 2.4, 18, 2.4]);
+  value = setTextSize(setLineWidth(value, 1.6), 12);
+  assertEquals([textSizeOf(value), lineWidthOf(value), value.config.fontSize, value.config.lineWidth], [12, 1.6, undefined, undefined]);
+});
+Deno.test("net-name visibility persists in WaveDrom config and defaults to visible", async () => {
+  const { empty, setShowNames, showNamesOf, toWaveDrom } = await import("../src/model.js");
+  const value = empty(), hidden = setShowNames(value, false), shown = setShowNames(hidden, true);
+  assert(showNamesOf(value) && !showNamesOf(hidden) && showNamesOf(shown));
+  assertEquals(toWaveDrom(hidden).config.showNames, false);
+  assertEquals(shown.config.showNames, undefined);
 });
 Deno.test("a delay shifts a lane right by that many steps, fractions allowed, and the lane holds its first level before it", async () => {
   const { drawTiming } = await import("../src/draw.js");

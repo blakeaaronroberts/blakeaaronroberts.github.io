@@ -4,7 +4,7 @@
 import { parseSource, tidy } from "./wave.js";
 import { drawTiming, naturalSize, lanesOf, stepsOf } from "./draw.js";
 import { nodesOf, unknownNames, framesIn } from "./nodes.js";
-import { addEdge, addSignal, addSpacer, cellsOf, dataAt, EDGE_OPS, edgesOf, empty, fromWaveDrom, isClock, LABEL, moveSignal, nextLetter, nextValue, nodeLetters, removeEdge, removeSignal, setBand, setCell, setClock, setDelay, setEdge, setHscale, setNode, setProp, setSlant, setSteps, slantOf, stepCount, toWaveDrom, WAVE } from "./model.js";
+import { addEdge, addSignal, addSpacer, cellsOf, dataAt, EDGE_OPS, edgesOf, empty, fromWaveDrom, isClock, LABEL, lineWidthOf, moveSignal, nextLetter, nextValue, nodeLetters, removeEdge, removeSignal, setBand, setCell, setClock, setDelay, setEdge, setHscale, setLineWidth, setNode, setProp, setShowNames, setSlant, setSteps, setTextSize, showNamesOf, slantOf, stepCount, textSizeOf, toWaveDrom, WAVE } from "./model.js";
 import { dockShell, pageShell } from "./shell.js";
 
 const store = {
@@ -12,17 +12,22 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); } catch { /* storage unavailable: the page still works */ } },
 };
 const KEY = "timing-diagram/source";
+const SEND_KEY = "timing-diagram/send";
 const EDITOR_KEY = "figure-editor/autosave";   // read only; the Figure Editor writes it
 const CLOCK = /^(clk|clock|ck|phi\d?)$/i;
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-export function mount(root, { docked = false, onSend = null, onStatus = null, onChange = null } = {}) {
+export function mount(root, {
+  docked = false, onSend = null, onStatus = null, onChange = null, betaFeatures = false,
+  storageKey = KEY, sendKey = SEND_KEY, editorKey = EDITOR_KEY, mergeConnectedNodes = false, allowTexSignalNames = false, typesetSignalNames = null,
+} = {}) {
   root.classList.add(docked ? "td-dock" : "fe");   // standalone: the Figure Editor's shell (editor.css); docked: a pane inside the editor
+  if (betaFeatures) root.classList.add("td-beta");
   const header = document.querySelector("#quarto-header");
   const fit = () => root.style.setProperty("--fe-top", `${header ? Math.round(header.getBoundingClientRect().bottom) : 0}px`);
   if (!docked) { fit(); window.addEventListener("resize", fit); }
   const B = "btn btn-sm fe-btn";
-  root.innerHTML = docked ? dockShell(B) : pageShell(B);
+  root.innerHTML = docked ? dockShell(B, betaFeatures) : pageShell(B);
   const $ = (s) => root.querySelector(s);
   const status = $(".td-status"), view = $("#WaveDrom_Display_0"), grid = $(".td-grid");
   const wIn = $("[data-size=w]"), hIn = $("[data-size=h]");
@@ -32,16 +37,18 @@ export function mount(root, { docked = false, onSend = null, onStatus = null, on
   // Opens empty. The old sample diagram (clk, D, Q) that earlier versions saved by default is not brought back.
   const LEGACY = ["p.......", "0.1..0..", "x.1..0.."];
   let value = (() => {
-    const r = parseSource(store.get(KEY) ?? "");
+    const r = parseSource(store.get(storageKey) ?? "");
     if (!r.ok) return empty();
     const waves = (r.value.signal ?? []).map((s) => s?.wave);
     return waves.length === 3 && waves.every((w, i) => w === LEGACY[i]) ? empty() : fromWaveDrom(r.value);
   })();
   let natural = null, custom = false;   // custom: the reader set the size by hand
   let nodes = [], frameNames = [], frame = -1;
+  const nameTypesets = new Map();
+  let nameTypesetting = false;
   let brush = "cycle";                  // what a click on a step sets: "cycle", a wave character, or "node"
   const open = new Set();               // signals whose period, phase and group settings are shown
-  const commit = (next, msg) => { value = next; store.set(KEY, tidy(value)); render(); if (msg) say(msg); if (docked) { autoSend(); onChange?.(); } };
+  const commit = (next, msg) => { value = next; store.set(storageKey, tidy(value)); render(); if (msg) say(msg); if (docked) { autoSend(); onChange?.(); } };
 
   /** Is the site showing its dark look? Read from its own role, as the Figure Editor does. */
   const siteIsDark = () => {
@@ -59,6 +66,7 @@ export function mount(root, { docked = false, onSend = null, onStatus = null, on
       width: Number(wIn.value) || natural.w, height: Number(hIn.value) || natural.h,
       ink: role(dark ? "--fig-dark-ink" : "--fig-ink"), accent: role(dark ? "--fig-dark-accent" : "--fig-accent"),
       dataFills: dataRoles(dark).map(role), paper: role(dark ? "--fig-dark-background" : "--fig-background"), marker: frame >= 0 && frame < frameNames.length ? frame : null,
+      ...(betaFeatures ? { fontSize: textSizeOf(value), lineWidth: lineWidthOf(value), nameTypeset: nameTypesets, showNames: showNamesOf(value) } : {}),
     }).svg;
   };
 
@@ -84,17 +92,46 @@ export function mount(root, { docked = false, onSend = null, onStatus = null, on
     if (!status.hasAttribute("data-error")) say(n ? `${n} signal${n === 1 ? "" : "s"}, ${stepCount(value)} steps.` : "Empty: add a node from the circuit to start.");
   }
   function drawDiagram() {
-    natural = naturalSize(toWaveDrom(value));
+    const fontSize = betaFeatures ? textSizeOf(value) : 12;
+    natural = naturalSize(toWaveDrom(value), Number(value.config?.hscale) || 1, betaFeatures ? { fontSize, nameTypeset: nameTypesets, showNames: showNamesOf(value) } : {});
     if (!custom) {   // on screen the diagram fills the view's width (laid out again, not stretched); Natural size gives WaveDrom's own proportions
       const room = view.parentElement.clientWidth - 32;
       wIn.value = Math.round(Math.max(natural.w, room > 0 ? room : 0)); hIn.value = Math.round(natural.h * (room > natural.w ? Math.min(2, room / natural.w) : 1));
     }
     if (document.activeElement !== hsIn) hsIn.value = String(value.config?.hscale ?? 1);
     if (document.activeElement !== slantIn) slantIn.value = String(slantOf(value));
+    const fontIn = $("[data-look=fontSize]"), lineIn = $("[data-look=lineWidth]");
+    if (fontIn && document.activeElement !== fontIn) fontIn.value = String(textSizeOf(value));
+    if (lineIn && document.activeElement !== lineIn) lineIn.value = String(lineWidthOf(value));
+    const namesIn = $("[data-look=showNames]");
+    if (namesIn && document.activeElement !== namesIn) namesIn.checked = showNamesOf(value);
     for (const p of root.querySelectorAll("[data-slant]")) p.setAttribute("aria-pressed", String(Number(p.dataset.slant) === slantOf(value)));
     if (!docked) root.dataset.canvas = siteIsDark() ? "dark" : "light";   // standalone: follow the site's look, as the editor's canvas does
     // The size is a layout input: steps and lanes are re-spaced to fit it, nothing is stretched.
     view.innerHTML = value.signal.length ? drawNow(!!root.closest('[data-canvas="dark"]')) : `<p class="fe-hint td-emptynote">No signals yet: add a node in the Edit view.</p>`;
+    ensureNameTypesets();
+  }
+  async function ensureNameTypesets() {
+    if (!betaFeatures || !typesetSignalNames || nameTypesetting) return;
+    const pending = [...new Set(value.signal.map((s) => s?.name).filter((n) => n && !nameTypesets.has(n)))];
+    if (!pending.length) return;
+    nameTypesetting = true;
+    try {
+      const result = await typesetSignalNames(pending);
+      const failures = [];
+      for (const name of pending) {
+        const parsed = result.get(name) ?? { ok: false, error: "no typeset result" };
+        nameTypesets.set(name, parsed);
+        if (!parsed.ok) failures.push(parsed.error ? `${name}: ${parsed.error}` : name);
+      }
+      if (failures.length) say(`Some signal names remain plain text: ${failures.join(", ")}.`, true);
+    } catch (e) {
+      for (const name of pending) nameTypesets.set(name, { ok: false });
+      say(`Could not typeset signal names: ${e.message}`, true);
+    } finally {
+      nameTypesetting = false;
+      drawDiagram();
+    }
   }
   if (!docked) new MutationObserver(() => render()).observe(document.body, { attributes: true, attributeFilter: ["class"] });
   window.addEventListener("resize", () => { if (!custom) render(); });
@@ -224,6 +261,9 @@ export function mount(root, { docked = false, onSend = null, onStatus = null, on
     if (i.dataset?.band) commit(setBand(value, i.dataset.band, { [i.dataset.key]: i.type === "checkbox" ? i.checked : i.value }));
     if (i === hsIn) commit(setHscale(value, i.value));
     if (i === slantIn) commit(setSlant(value, i.value));
+    if (i.dataset?.look === "fontSize") commit(setTextSize(value, i.value));
+    if (i.dataset?.look === "lineWidth") commit(setLineWidth(value, i.value));
+    if (i.dataset?.look === "showNames") commit(setShowNames(value, i.checked));
   });
 
   root.addEventListener("click", (e) => {
@@ -235,7 +275,7 @@ export function mount(root, { docked = false, onSend = null, onStatus = null, on
     if (act === "new") {   // the page's New also clears the figure the Figure Editor keeps in this browser
       if (!window.confirm("Start over? This clears the diagram and the figure in the Figure Editor.")) return;
       clear();
-      try { localStorage.removeItem(EDITOR_KEY); } catch { /* storage unavailable */ }
+      try { localStorage.removeItem(editorKey); } catch { /* storage unavailable */ }
       nodes = []; renderChips(); say("New: the diagram and the figure are cleared.");
     }
     if (act === "add-all") { let v = value; for (const nd of nodes) v = addSignal(v, nd.name, { clock: CLOCK.test(nd.name) }); commit(v, "Added every node."); }
@@ -257,14 +297,14 @@ export function mount(root, { docked = false, onSend = null, onStatus = null, on
   chips.addEventListener("click", (e) => { const b = e.target.closest("[data-node]"); if (b) commit(addSignal(value, b.dataset.node, { clock: CLOCK.test(b.dataset.node) }), `Added ${b.dataset.node}.`); });
   /** The editor hands over its circuit: node names for the buttons and its frames for the Frame list. */
   function setCircuit(text) {
-    const res = nodesOf(text);
+    const res = nodesOf(text, { mergeConnected: mergeConnectedNodes, allowTexNames: allowTexSignalNames });
     if (!res.ok) return;
     nodes = res.nodes;
     const names = framesIn(text);
     if (names.join("\u0001") !== frameNames.join("\u0001")) setFrames(names);
     renderChips();
   }
-  if (!docked) window.addEventListener("storage", (e) => { if (e.key === EDITOR_KEY && e.newValue) setCircuit(e.newValue); });   // the editor in another tab
+  if (!docked) window.addEventListener("storage", (e) => { if (e.key === editorKey && e.newValue) setCircuit(e.newValue); });   // the editor in another tab
   $("[data-do=open]").addEventListener("change", async (e) => {
     const f = e.target.files[0]; e.target.value = "";
     if (!f) return;
@@ -332,8 +372,8 @@ export function mount(root, { docked = false, onSend = null, onStatus = null, on
   /** Start over: no signals, no frames, nothing sent to the slide. The Figure Editor's New calls this too. */
   function clear() {
     value = empty(); custom = false; frame = -1; open.clear();
-    store.set(KEY, tidy(value));
-    try { localStorage.removeItem("timing-diagram/send"); } catch { /* storage unavailable */ }
+    store.set(storageKey, tidy(value));
+    try { localStorage.removeItem(sendKey); } catch { /* storage unavailable */ }
     setFrames([]);
     say("New: the diagram is empty.");
   }
@@ -346,7 +386,7 @@ export function mount(root, { docked = false, onSend = null, onStatus = null, on
   root.addEventListener("click", (e) => {
     if (!e.target.closest("[data-do=send]")) return;
     if (!value.signal.length) return say("Nothing to send yet.", true);
-    store.set("timing-diagram/send", JSON.stringify({ svg: drawNow(false), w: Number(wIn.value) || natural.w, h: Number(hIn.value) || natural.h, signals: signalLevels(), source: toWaveDrom(value), at: Date.now() }));
+    store.set(sendKey, JSON.stringify({ svg: drawNow(false), w: Number(wIn.value) || natural.w, h: Number(hIn.value) || natural.h, signals: signalLevels(), source: toWaveDrom(value), at: Date.now() }));
     onSend?.();
     say("Sent: the slide's timing regions show this diagram, and the editor's frames are filled from its steps.");
   });
@@ -354,7 +394,7 @@ export function mount(root, { docked = false, onSend = null, onStatus = null, on
   root.addEventListener("click", (e) => {
     if (!e.target.closest("[data-do=fit-slide]")) return;
     let region = null;
-    try { region = (JSON.parse(store.get(EDITOR_KEY) ?? "{}").groups?.slide?.regions ?? []).find((r) => r?.kind === "timing"); } catch { region = null; }
+    try { region = (JSON.parse(store.get(editorKey) ?? "{}").groups?.slide?.regions ?? []).find((r) => r?.kind === "timing"); } catch { region = null; }
     if (!region) return say("The slide has no timing region: pick a layout with one in the Figure Editor's Slide pane.", true);
     const px = (m) => Math.round(((m * 0.5) / 2.54) * 96 * 100) / 100;
     wIn.value = px(region.w); hIn.value = px(region.h);
@@ -362,14 +402,14 @@ export function mount(root, { docked = false, onSend = null, onStatus = null, on
     say(`Sized to ${(region.w * 0.5).toFixed(1)} x ${(region.h * 0.5).toFixed(1)} cm: the slide's timing region.`);
   });
 
-  const fromEditor = store.get(EDITOR_KEY);
+  const fromEditor = store.get(editorKey);
   if (fromEditor) setCircuit(fromEditor);
   showView("edit");
   render();
   /** Docked, the slide always shows the current diagram: no Send button needed. */
   function autoSend() {
     if (!value.signal.length) return;
-    try { localStorage.setItem("timing-diagram/send", JSON.stringify({ svg: "", w: Number(wIn.value) || natural.w, h: Number(hIn.value) || natural.h, signals: signalLevels(), source: toWaveDrom(value), at: Date.now() })); } catch { /* storage unavailable */ }
+    try { localStorage.setItem(sendKey, JSON.stringify({ svg: "", w: Number(wIn.value) || natural.w, h: Number(hIn.value) || natural.h, signals: signalLevels(), source: toWaveDrom(value), at: Date.now() })); } catch { /* storage unavailable */ }
   }
   if (docked) autoSend();
   return { render, setCircuit, clear, exportSvg, exportPng: async () => { try { save(await pngBlob(svgText()), "timing-diagram.png"); say("Exported timing-diagram.png at 300 dpi."); } catch (err) { say(err.message, true); } },

@@ -3,7 +3,7 @@ import { navHtml } from "./nav.js";
 // pageShell: the standalone Timing Diagram page (the Figure Editor's shell, editor.css). dockShell: the pane docked in the
 // Figure Editor. In both, the middle is two swappable views: Edit (the step editor) and Diagram (the drawing).
 
-const views = (B, sizeInLook = false) => `
+const views = (B, sizeInLook = false, betaFeatures = false) => `
       <div class="td-tabs" role="tablist" aria-label="View">
         <button type="button" class="${B}" role="tab" data-view="edit" aria-selected="true">Edit</button>
         <button type="button" class="${B}" role="tab" data-view="diagram" aria-selected="false">Diagram</button>
@@ -14,7 +14,7 @@ const views = (B, sizeInLook = false) => `
           <button type="button" role="tab" data-sub-tab="signals" aria-selected="true"><b>1</b> Signals</button>
           <button type="button" role="tab" data-sub-tab="arrows" aria-selected="false"><b>2</b> Arrows</button>
           <button type="button" role="tab" data-sub-tab="title" aria-selected="false"><b>3</b> Title and ticks</button>
-          <button type="button" role="tab" data-sub-tab="look" aria-selected="false"><b>4</b> Look</button>
+          ${betaFeatures ? "" : '<button type="button" role="tab" data-sub-tab="look" aria-selected="false"><b>4</b> Look</button>'}
         </div>
         <section class="td-sub" data-sub="signals">
           <p class="td-help">Add the signals, then click the steps to set them.</p>
@@ -35,7 +35,7 @@ const views = (B, sizeInLook = false) => `
           <p class="td-help">A title above or below the signals, and numbers along the steps.</p>
           <div class="td-bands">${bandFields()}</div>
         </section>
-        <section class="td-sub" data-sub="look" hidden>
+        ${betaFeatures ? "" : `<section class="td-sub" data-sub="look" hidden>
           <p class="td-help">How the waveforms are drawn. These are saved with the diagram.</p>
           <fieldset class="td-band"><legend class="label-mono">Edges</legend>
             <div class="td-presets" role="group" aria-label="Edge style">
@@ -48,11 +48,33 @@ const views = (B, sizeInLook = false) => `
           <fieldset class="td-band"><legend class="label-mono">Spacing</legend>
             <label class="form-label">Step width (WaveDrom hscale) <input class="form-control form-control-sm" type="number" min="0.25" max="8" step="0.25" data-size="hscale"></label>
           </fieldset>
-        </section>
+        </section>`}
       </div>
-      <div class="td-view" role="tabpanel" aria-label="Diagram" hidden><div id="WaveDrom_Display_0"></div></div>
+      <div class="td-view" role="tabpanel" aria-label="Diagram" hidden>
+        <div id="WaveDrom_Display_0"></div>
+        ${betaFeatures ? `<details class="td-view-look"><summary>Look and size</summary>
+          <div class="td-view-look-controls">
+            <fieldset class="td-band"><legend class="label-mono">Edges</legend>
+              <div class="td-presets" role="group" aria-label="Edge style">
+                <button type="button" class="td-preset" data-slant="5" aria-pressed="true" title="WaveDrom's look: edges lean"><svg viewBox="0 0 40 16" aria-hidden="true"><path d="M2 13 H12 L16 3 H26 L30 13 H38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span>Slanted</span></button>
+                <button type="button" class="td-preset" data-slant="0" aria-pressed="false" title="Textbook look: vertical edges"><svg viewBox="0 0 40 16" aria-hidden="true"><path d="M2 13 H14 V3 H26 V13 H38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span>Square</span></button>
+              </div>
+              <label class="form-label">Lean of an edge (px, 0 to 12) <input class="form-control form-control-sm" type="number" min="0" max="12" step="0.5" data-look="slant"></label>
+            </fieldset>
+            <fieldset class="td-band"><legend class="label-mono">Text and lines</legend>
+              <label class="form-check"><input class="form-check-input" type="checkbox" data-look="showNames"> <span class="form-check-label">Show net names</span></label>
+              <label class="form-label">Text size (px) <input class="form-control form-control-sm" type="number" min="8" max="24" step="1" data-look="fontSize"></label>
+              <label class="form-label">Line width (px) <input class="form-control form-control-sm" type="number" min="0.5" max="4" step="0.1" data-look="lineWidth"></label>
+            </fieldset>
+            <fieldset class="td-band"><legend class="label-mono">Spacing</legend>
+              <label class="form-label">Step width (WaveDrom hscale) <input class="form-control form-control-sm" type="number" min="0.25" max="8" step="0.25" data-size="hscale"></label>
+            </fieldset>
+            ${sizeFields(B)}
+          </div>
+        </details>` : ""}
+      </div>
       <div class="td-source" role="tabpanel" aria-label="WaveDrom source" hidden>
-        <textarea class="form-control td-srctext" spellcheck="false" aria-label="WaveDrom source"></textarea>
+        <textarea class="form-control td-srctext" spellcheck="false"${betaFeatures ? ' autocomplete="off" autocapitalize="off" wrap="off"' : ""} aria-label="WaveDrom source"></textarea>
         <div class="fe-theme-buttons"><button type="button" class="${B}" data-do="src-apply">Use this source</button><button type="button" class="${B}" data-do="src-copy">Copy</button><span class="fe-hint">Any WaveDrom diagram: paste one in and press Use this source.</span></div>
       </div>`;
 
@@ -102,7 +124,7 @@ export const pageShell = (B) => `
     </div>
     <p class="fe-status td-status" role="status" aria-live="polite"></p>`;
 
-export const dockShell = (B) => `
+export const dockShell = (B, betaFeatures = false) => `
     <div hidden><p class="td-status"></p><span class="td-frames"><select data-do="frame"></select><button type="button" data-do="frames-export"></button></span><input type="file" data-do="open"></div>
-    <div class="td-center">${views(B, true)}</div>
+    <div class="td-center">${views(B, true, betaFeatures)}</div>
     <p class="td-credit-bottom">Source format based on <a href="https://wavedrom.com">WaveDrom</a>. The drawing is this site's own code.</p>`;

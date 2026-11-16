@@ -91,7 +91,10 @@ export function drawing(doc, pack, opts = {}) {
     const colour = ink;   // F15: level colour is for the body only; a block's title text keeps the ink role like element names
     labels.push({ key: item.key, kind: item.kind, id: item.id, index: item.index, transform: placed.transform, box: placed.box, nodes: colourNodes(ts.nodes, colour) });
   };
-  for (const item of labelItems(doc, pack, corners)) put(item, `label ${JSON.stringify(item.text)}`);
+  for (const item of labelItems(doc, pack, corners)) {
+    if (item.kind === "net" && opts.netNames === false) continue;
+    put(item, `label ${JSON.stringify(item.text)}`);
+  }
   if (opts.levelTags) {
     for (const [id, c] of corners) {
       const level = levelOf.get(id);

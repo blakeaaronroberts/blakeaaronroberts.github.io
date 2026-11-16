@@ -499,10 +499,11 @@ export function setWireStyle(doc, wireIds, fields) {
 }
 
 /** The logic level wires are drawn at: "0", "1", "X", "Z", or null for the default colour. */
-export function setLevel(doc, wireIds, level, elementIds = []) {
+export function setLevel(doc, wireIds, level, elementIds = [], pack = null) {
   if (level !== null && !LEVEL_VALUES.includes(level)) throw new Error(`level must be 0, 1, X or Z`);
   doc = clone(doc);
-  for (const x of [...doc.wires.filter((w) => wireIds.includes(w.id)), ...doc.elements.filter((e) => elementIds.includes(e.id))]) {
+  const affectedWires = pack ? connectedWireIds(doc, pack, wireIds) : wireIds;
+  for (const x of [...doc.wires.filter((w) => affectedWires.includes(w.id)), ...doc.elements.filter((e) => elementIds.includes(e.id))]) {
     if (level === null) delete x.level; else x.level = level;
   }
   return doc;
@@ -531,7 +532,7 @@ export function naturalOrder(a, b) {
  * ends (pin tips, ports and free wire ends at the same grid point). Wires that only
  * cross are not joined. Members are pins and ports; a net is named after its port.
  */
-export function deriveNets(doc, pack) {
+function netGraph(doc, pack) {
   const parent = new Map();
   const find = (x) => { while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
   const node = (x) => { if (!parent.has(x)) parent.set(x, x); return x; };
@@ -555,6 +556,25 @@ export function deriveNets(doc, pack) {
     wired.add(`~${w.id}`);
   }
   for (const j of doc.junctions) union(`#${j.id}`, `~${j.on}`);
+  return { find, node, members, wired };
+}
+
+/** Every ordinary wire on the electrical nets touched by the selected wires. */
+export function connectedWireIds(doc, pack, wireIds) {
+  const graph = netGraph(doc, pack);
+  const selected = new Set(doc.wires.filter((w) => wireIds.includes(w.id)).map((w) => graph.find(`~${w.id}`)));
+  return doc.wires.filter((w) => selected.has(graph.find(`~${w.id}`))).map((w) => w.id);
+}
+
+/** Ordinary wires connected to any pin or port reference. */
+export function wiresForRefs(doc, pack, refs) {
+  const graph = netGraph(doc, pack);
+  const selected = new Set(refs.map((ref) => graph.find(`#${ref}`)));
+  return doc.wires.filter((w) => selected.has(graph.find(`~${w.id}`))).map((w) => w.id);
+}
+
+export function deriveNets(doc, pack) {
+  const { find, node, members, wired } = netGraph(doc, pack);
 
   const groups = new Map();
   for (const m of members) {

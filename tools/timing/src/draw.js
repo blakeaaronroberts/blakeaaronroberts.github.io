@@ -16,7 +16,8 @@
 
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const n2 = (v) => String(Math.round(v * 100) / 100);
-const FONT = 12, SMALL = 10, FAMILY = "'STIX Two Text', 'Times New Roman', serif";
+const n4 = (v) => String(Math.round(v * 10000) / 10000);
+const FONT = 12, FAMILY = "'STIX Two Text', 'Times New Roman', serif";
 const GROUP_W = 18;
 
 /** The lanes of a source, in order: groups flattened (each lane carries its group path), spacers kept. */
@@ -56,15 +57,20 @@ const LEVEL = { 0: "lo", l: "lo", d: "lo", 1: "hi", h: "hi", u: "hi", z: "mid" }
 const SHARP = new Set(["h", "l"]), WEAK = new Set(["u", "d"]);
 const BOX = /^[=2-9x]$/;
 const groupDepth = (lanes) => Math.max(0, ...lanes.map((l) => l.groups.length));
-const labelWidth = (lanes) => Math.ceil(Math.max(0, ...lanes.map((l) => l.name.length)) * FONT * 0.6) + 8 + groupDepth(lanes) * GROUP_W;
+const labelWidth = (lanes, fontSize = FONT, nameTypeset = null) => Math.ceil(Math.max(0, ...lanes.map((l) => {
+  const parsed = nameTypeset?.get(l.name);
+  return parsed?.ok ? parsed.width * fontSize : l.name.length * fontSize * 0.6;
+}))) + 8 + groupDepth(lanes) * GROUP_W;
 const stepCount = (lanes) => Math.max(1, ...lanes.map((l) => Math.ceil(l.wave.length * l.period)));
 const textOf = (t) => (typeof t === "string" ? t : Array.isArray(t) ? t.filter((x) => typeof x === "string" || Array.isArray(x)).map(textOf).join(" ") : "");
-const bandHeight = (b) => (b && textOf(b.text) ? 18 : 0) + (b && (b.tick !== undefined || b.tock !== undefined) ? 14 : 0);
+const bandHeight = (b, fontSize = FONT) => (b && textOf(b.text) ? fontSize * 1.5 : 0) + (b && (b.tick !== undefined || b.tock !== undefined) ? fontSize * 14 / FONT : 0);
 
 /** The size a source gets by default: 40 px a step (times hscale), 30 px a lane, plus the head and foot. */
-export function naturalSize(value, hscale = Number(value?.config?.hscale) || 1) {
+export function naturalSize(value, hscale = Number(value?.config?.hscale) || 1, { fontSize = FONT, nameTypeset = null, showNames = true } = {}) {
   const lanes = lanesOf(value);
-  return { w: Math.round(labelWidth(lanes) + 12 + stepCount(lanes) * 40 * hscale + 10), h: Math.max(1, lanes.length) * 30 + 10 + bandHeight(value?.head) + bandHeight(value?.foot) };
+  const laneHeight = Math.max(30, fontSize * 2.5);
+  const labelW = showNames ? labelWidth(lanes, fontSize, nameTypeset) : groupDepth(lanes) * GROUP_W;
+  return { w: Math.round(labelW + 12 + stepCount(lanes) * 40 * hscale + 10), h: Math.max(1, lanes.length) * laneHeight + 10 + bandHeight(value?.head, fontSize) + bandHeight(value?.foot, fontSize) };
 }
 
 /** Parse one edge string: "a->b label". Returns {from, to, op, label} or null. */
@@ -79,43 +85,48 @@ export function parseEdge(s) {
  * (the background colour, behind edge labels; none if not given).
  * Returns {svg, natural, geometry: {x0, stepW, laneH, steps, top}}.
  */
-export function drawTiming(value, { width, height, ink = "#000000", accent = "#0072B2", marker = null, levelColour = null, dataFills = [], paper = null } = {}) {
+export function drawTiming(value, { width, height, ink = "#000000", accent = "#0072B2", marker = null, levelColour = null, dataFills = [], paper = null, fontSize = FONT, lineWidth = 1.6, nameTypeset = null, showNames = true } = {}) {
   const lanes = lanesOf(value);
-  const nat = naturalSize(value);
+  const nat = naturalSize(value, Number(value?.config?.hscale) || 1, { fontSize, nameTypeset, showNames });
   const W = Math.max(100, width ?? nat.w), H = Math.max(40, height ?? nat.h);
-  const labelW = labelWidth(lanes), x0 = labelW + 12, gw = groupDepth(lanes) * GROUP_W;
+  const labelW = showNames ? labelWidth(lanes, fontSize, nameTypeset) : groupDepth(lanes) * GROUP_W, x0 = labelW + 12, gw = groupDepth(lanes) * GROUP_W;
   const steps = stepCount(lanes);
   const stepW = Math.max(4, (W - x0 - 10) / steps);
-  const headH = bandHeight(value?.head), footH = bandHeight(value?.foot);
+  const headH = bandHeight(value?.head, fontSize), footH = bandHeight(value?.foot, fontSize);
   const top0 = 5 + headH;
   const laneH = Math.max(12, (H - 10 - headH - footH) / Math.max(1, lanes.length));
   const cfgSlant = value?.config?.slant, slant = cfgSlant === undefined ? 5 : Math.min(12, Math.max(0, Number(cfgSlant) || 0));   // config.slant: 0 is square edges, 5 is WaveDrom's look
-  const slope = Math.min(slant, stepW * 0.15), lw = 1.6;
-  const stroke = `clip-path="url(#plot)" fill="none" stroke="${ink}" stroke-width="${lw}" stroke-linecap="round" stroke-linejoin="round"`;
+  const slope = Math.min(slant, stepW * 0.15), lw = lineWidth, small = fontSize * 10 / FONT;
+  const stroke = `clip-path="url(#plot)" fill="none" stroke="${ink}" stroke-width="${n2(lw)}" stroke-linecap="round" stroke-linejoin="round"`;
   const out = [], nodes = new Map();
-  const text = (x, y, s, anchor = "middle", size = FONT, extra = "") => `<text x="${n2(x)}" y="${n2(y)}" text-anchor="${anchor}" font-size="${size}" font-family="${FAMILY}" fill="${ink}"${extra}>${esc(s)}</text>`;
+  const text = (x, y, s, anchor = "middle", size = fontSize, extra = "") => `<text x="${n2(x)}" y="${n2(y)}" text-anchor="${anchor}" font-size="${n2(size)}" font-family="${FAMILY}" fill="${ink}"${extra}>${esc(s)}</text>`;
+  const mathText = (x, y, parsed, anchor = "end") => {
+    const width = parsed.width * fontSize, left = anchor === "end" ? x - width : anchor === "middle" ? x - width / 2 : x;
+    const nodesSvg = (nodes) => nodes.map((node) => `<${node.tag}${node.attrs.map(([k, v]) => ` ${k}="${esc(v)}"`).join("")}>${nodesSvg(node.children)}</${node.tag}>`).join("");
+    return `<g class="td-name-math" aria-label="typeset signal name" color="${ink}" transform="translate(${n2(left)} ${n2(y)}) scale(${n4(fontSize / 1000)}) translate(${n2(-parsed.left * 1000)} 0)">${nodesSvg(parsed.nodes)}</g>`;
+  };
 
   // Head and foot: text, then numbered step edges (tick) or step middles (tock), every Nth.
   const band = (b, yText, yNum) => {
     if (!b) return;
-    if (textOf(b.text)) out.push(text(x0 + (steps * stepW) / 2, yText, textOf(b.text), "middle", FONT, ' font-weight="bold"'));
+    if (textOf(b.text)) out.push(text(x0 + (steps * stepW) / 2, yText, textOf(b.text), "middle", fontSize, ' font-weight="bold"'));
     const every = Math.max(1, Number(b.every) || 1);
     const labels = (v, n) => (typeof v === "string" && /\s/.test(v.trim()) ? v.trim().split(/\s+/) : Array.from({ length: n }, (_, i) => String((Number(v) || 0) + i)));
     if (b.tick !== undefined) {
       const ls = labels(b.tick, steps + 1);
       for (let i = 0; i <= steps; i += every) {
-        out.push(text(x0 + i * stepW, yNum, ls[i] ?? "", "middle", SMALL));
-        out.push(`<line x1="${n2(x0 + i * stepW)}" y1="${n2(top0)}" x2="${n2(x0 + i * stepW)}" y2="${n2(top0 + lanes.length * laneH)}" stroke="${ink}" stroke-opacity="0.18" stroke-width="0.8" stroke-dasharray="2 3"/>`);
+        out.push(text(x0 + i * stepW, yNum, ls[i] ?? "", "middle", small));
+        out.push(`<line x1="${n2(x0 + i * stepW)}" y1="${n2(top0)}" x2="${n2(x0 + i * stepW)}" y2="${n2(top0 + lanes.length * laneH)}" stroke="${ink}" stroke-opacity="0.18" stroke-width="${n2(lw * 0.5)}" stroke-dasharray="2 3"/>`);
       }
     }
     if (b.tock !== undefined) {
       const ls = labels(b.tock, steps);
-      for (let i = 0; i < steps; i += every) out.push(text(x0 + (i + 0.5) * stepW, yNum, ls[i] ?? "", "middle", SMALL));
+      for (let i = 0; i < steps; i += every) out.push(text(x0 + (i + 0.5) * stepW, yNum, ls[i] ?? "", "middle", small));
     }
   };
-  if (value?.head) band(value.head, 5 + 13, 5 + (textOf(value.head.text) ? 18 : 0) + 10);
+  if (value?.head) band(value.head, 5 + fontSize * 13 / FONT, 5 + (textOf(value.head.text) ? fontSize * 18 / FONT : 0) + small);
   const lanesBottom = top0 + lanes.length * laneH;
-  if (value?.foot) band(value.foot, lanesBottom + (value.foot.tick !== undefined || value.foot.tock !== undefined ? 14 : 0) + 14, lanesBottom + 11);
+  if (value?.foot) band(value.foot, lanesBottom + (value.foot.tick !== undefined || value.foot.tock !== undefined ? small * 1.4 : 0) + small * 1.4, lanesBottom + small * 1.1);
 
   // Group brackets, outermost at the left, with the group's name turned up the bracket.
   for (let depth = 0; depth < groupDepth(lanes); depth++) {
@@ -126,8 +137,8 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
       let j = i;
       while (j + 1 < lanes.length && lanes[j + 1].groups.slice(0, depth + 1).join("\u0001") === key) j++;
       const x = 14 + depth * GROUP_W, y1 = top0 + i * laneH + 3, y2 = top0 + (j + 1) * laneH - 3;
-      out.push(`<path d="M ${n2(x + 4)} ${n2(y1)} L ${n2(x)} ${n2(y1)} L ${n2(x)} ${n2(y2)} L ${n2(x + 4)} ${n2(y2)}" fill="none" stroke="${ink}" stroke-width="1"/>`);
-      out.push(text(x - 5, (y1 + y2) / 2, lanes[i].groups[depth], "middle", SMALL, ` transform="rotate(-90 ${n2(x - 5)} ${n2((y1 + y2) / 2)})"`));
+      out.push(`<path d="M ${n2(x + 4)} ${n2(y1)} L ${n2(x)} ${n2(y1)} L ${n2(x)} ${n2(y2)} L ${n2(x + 4)} ${n2(y2)}" fill="none" stroke="${ink}" stroke-width="${n2(lw / 1.6)}"/>`);
+      out.push(text(x - 5, (y1 + y2) / 2, lanes[i].groups[depth], "middle", small, ` transform="rotate(-90 ${n2(x - 5)} ${n2((y1 + y2) / 2)})"`));
       i = j + 1;
     }
   }
@@ -135,7 +146,10 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
   lanes.forEach((lane, li) => {
     const top = top0 + li * laneH, yh = top + laneH * 0.17, yl = top + laneH * 0.83, ym = (yh + yl) / 2;
     const yOf = { hi: yh, lo: yl, mid: ym };
-    if (lane.name) out.push(text(labelW, ym + FONT * 0.35, lane.name, "end"));
+    if (showNames && lane.name) {
+      const parsed = nameTypeset?.get(lane.name);
+      out.push(parsed?.ok ? mathText(labelW, ym + fontSize * 0.35, parsed) : text(labelW, ym + fontSize * 0.35, lane.name, "end"));
+    }
     if (lane.spacer) return;
     const st = stepsOf(lane.wave), w = stepW * lane.period;
     const xAt = (i) => x0 + (i - lane.phase + lane.delay) * w;   // phase shifts left, delay (fine, in steps) shifts right
@@ -164,10 +178,10 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
       const pts = [[xl, ym], [xl + slope, yh], [xr - slope, yh], [xr, ym], [xr - slope, yl], [xl + slope, yl]];
       const colour = /[3-9]/.test(run.c) ? dataFills[+run.c - 3] : null;
       out.push(`<path clip-path="url(#plot)" d="M ${pts.map((p) => `${n2(p[0])} ${n2(p[1])}`).join(" L ")} Z" fill="${hatch ? "url(#hatch)" : colour ?? ink}" fill-opacity="${hatch ? 1 : colour ? 0.35 : 0.08}" stroke="${ink}" stroke-width="${lw}" stroke-linejoin="round"/>`);
-      if (!hatch && run.label) out.push(text((xl + xr) / 2, ym + FONT * 0.35, run.label));
+      if (!hatch && run.label) out.push(text((xl + xr) / 2, ym + fontSize * 0.35, run.label));
       run = null;
     };
-    const gapMark = (x) => out.push(`<path clip-path="url(#plot)" d="M ${n2(x - 3)} ${n2(yl + 2)} L ${n2(x + 1)} ${n2(yh - 2)} M ${n2(x + 1)} ${n2(yl + 2)} L ${n2(x + 5)} ${n2(yh - 2)}" fill="none" stroke="${ink}" stroke-width="1"/>`);
+    const gapMark = (x) => out.push(`<path clip-path="url(#plot)" d="M ${n2(x - 3)} ${n2(yl + 2)} L ${n2(x + 1)} ${n2(yh - 2)} M ${n2(x + 1)} ${n2(yl + 2)} L ${n2(x + 5)} ${n2(yh - 2)}" fill="none" stroke="${ink}" stroke-width="${n2(lw / 1.6)}"/>`);
     const arrow = (x, y, up) => out.push(`<path clip-path="url(#plot)" d="M ${n2(x - 3.5)} ${n2(y + (up ? 4 : -4))} L ${n2(x)} ${n2(y)} L ${n2(x + 3.5)} ${n2(y + (up ? 4 : -4))} Z" fill="${ink}"/>`);
     if (lane.delay > 0 && st.length) {   // before a delayed lane changes, it holds its first level
       const c0 = st[0].c, k0 = /^[pPnN]$/.test(c0) ? (c0 === "p" || c0 === "P" ? "lo" : "hi") : LEVEL[c0];
@@ -237,21 +251,21 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
       dpath = `M ${n2(a[0])} ${n2(a[1])} L ${n2(b[0])} ${n2(b[1])}`;
       mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
     }
-    out.push(`<path d="${dpath}" fill="none" stroke="${ink}" stroke-width="1"/>`);
+    out.push(`<path d="${dpath}" fill="none" stroke="${ink}" stroke-width="${n2(lw / 1.6)}"/>`);
     if (e.op.endsWith(">")) out.push(head(b, bDir));
     if (e.op.startsWith("<")) out.push(head(a, aDir));
     if (e.label) {   // on a small patch of the paper colour, so it reads over the lines
-      const tw = e.label.length * SMALL * 0.55 + 4;
-      if (paper) out.push(`<rect x="${n2(mid[0] - tw / 2)}" y="${n2(mid[1] - 4 - SMALL)}" width="${n2(tw)}" height="${n2(SMALL + 3)}" fill="${paper}"/>`);
-      out.push(text(mid[0], mid[1] - 4, e.label, "middle", SMALL));
+      const tw = e.label.length * small * 0.55 + 4;
+      if (paper) out.push(`<rect x="${n2(mid[0] - tw / 2)}" y="${n2(mid[1] - 4 - small)}" width="${n2(tw)}" height="${n2(small + 3)}" fill="${paper}"/>`);
+      out.push(text(mid[0], mid[1] - 4, e.label, "middle", small));
     }
   }
 
   if (marker !== null && marker >= 0 && marker < steps) {
-    out.push(`<rect class="td-marker" x="${n2(x0 + marker * stepW)}" y="2" width="${n2(stepW)}" height="${n2(H - 4)}" rx="6" ry="6" fill="${accent}" fill-opacity="0.18" stroke="${accent}" stroke-width="1.2"/>`);
+    out.push(`<rect class="td-marker" x="${n2(x0 + marker * stepW)}" y="2" width="${n2(stepW)}" height="${n2(H - 4)}" rx="6" ry="6" fill="${accent}" fill-opacity="0.18" stroke="${accent}" stroke-width="${n2(lw * 0.75)}"/>`);
   }
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${n2(W)}" height="${n2(H)}" viewBox="0 0 ${n2(W)} ${n2(H)}">` +
-    `<defs><clipPath id="plot"><rect x="${n2(x0 - 2)}" y="0" width="${n2(W - x0 - 8)}" height="${n2(H)}"/></clipPath><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${ink}" stroke-width="1"/></pattern></defs>` +
+    `<defs><clipPath id="plot"><rect x="${n2(x0 - 2)}" y="0" width="${n2(W - x0 - 8)}" height="${n2(H)}"/></clipPath><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${ink}" stroke-width="${n2(lw / 1.6)}"/></pattern></defs>` +
     out.join("") + `</svg>`;
   return { svg, natural: nat, geometry: { x0, stepW, laneH, steps, top: top0, groupWidth: gw } };
 }
