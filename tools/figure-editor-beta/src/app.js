@@ -27,8 +27,8 @@ import { contentArea, defaultSlide, KINDS, layoutThumb, LAYOUTS as SLIDE_LAYOUTS
 import { orient } from "./geometry.js";
 import { namedNetNames, parseTruthTable, truthTable } from "./demo.js";
 import { latexTable, parseTable } from "./latex-table.js";
-import { framesFromSignals, levelTagStyleOf, setLevelTagStyle, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, ensureFrameZero, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame, targetsOf } from "./levelframes.js";
-import { logicModeOf, resolveLogic, setLogicMode } from "./logic.js";
+import { framesFromSignals, levelTagStyleOf, setCalculatedFrames, setLevelTagStyle, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, ensureFrameZero, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame, targetsOf } from "./levelframes.js";
+import { logicModeOf, resolveLogic, setLogicMode, timingCalculator } from "./logic.js";
 import { zipStore } from "./zip.js";
 
 const AUTOSAVE = "figure-editor-beta/autosave";
@@ -949,9 +949,10 @@ export async function mount(root, options = {}) {
     const n = wires.length + selection.elements.length;
     const noun = selection.elements.length ? "item" : "wire";
     let next = setPortLevelsForWires(D.setLevel(doc, selection.wires, level, selection.elements, pack), wires, level);
-    if (selectedFrame > 0) next = resolveLogic(next, pack);
-    if (selectedFrame >= 0) next = recaptureFrame(next, selectedFrame);
-    commit(next, level ? `Level ${level} (${name}) set on ${count(n, noun)}.` : "Level cleared.", { preserveLevels: selectedFrame === 0 });
+    if (selectedFrame >= 0) next = recaptureFrame(next, selectedFrame, [...wires, ...selection.elements, ...next.ports.filter((port) => D.wiresForRefs(next, pack, [port.id]).some((id) => wires.includes(id))).map((port) => port.id)]);
+    const message = level ? `Level ${level} (${name}) set on ${count(n, noun)}.` : "Level cleared.";
+    commit(next, selectedFrame > 0 && logicModeOf(doc) === "calculated" ? `${message} Recalculate timing to update computed levels.` : message, { preserveLevels: selectedFrame >= 0 });
+    if (selectedFrame > 0 && level) syncEditedNodeToTiming(wires, [], level, selection.elements);
   }
 
   function setPortLevelsForWires(next, wires, level, extraPorts = []) {
@@ -962,6 +963,17 @@ export async function mount(root, options = {}) {
     if (Object.keys(levels).length) groups.port_levels = levels; else delete groups.port_levels;
     next.groups = groups;
     return next;
+  }
+
+  function syncEditedNodeToTiming(wires, ports, level, elements = []) {
+    if (!timingTool) return;
+    const nets = D.deriveNets(doc, pack), updates = {};
+    for (const signal of timingTool.value.signal) {
+      if (!signal?.name) continue;
+      const target = targetsOf(doc, nets, signal.name, pack);
+      if (target.wires.some((id) => wires.includes(id)) || target.ports.some((id) => ports.includes(id)) || target.elements.some((id) => elements.includes(id))) updates[signal.name] = level;
+    }
+    if (Object.keys(updates).length) timingTool.setSignalLevels(selectedFrame - 1, updates);
   }
 
   function nodeLevelRows() {
@@ -1010,17 +1022,10 @@ export async function mount(root, options = {}) {
     if (!row) return status("The node is no longer available.", true);
     const level = select.value || null;
     let next = setPortLevelsForWires(D.setLevel(doc, row.wires, level, [], pack), row.wires, level, row.ports);
-    if (selectedFrame >= 0) next = recaptureFrame(next, selectedFrame);
-    commit(next, `${row.name}: ${level ?? "unset"} in Frame ${selectedFrame}.`, { preserveLevels: true });
-    if (selectedFrame > 0 && level && timingTool) {
-      const nets = D.deriveNets(doc, pack), updates = {};
-      for (const signal of timingTool.value.signal) {
-        if (!signal?.name) continue;
-        const target = targetsOf(doc, nets, signal.name, pack);
-        if (target.wires.some((id) => row.wires.includes(id)) || target.ports.some((id) => row.ports.includes(id))) updates[signal.name] = level;
-      }
-      if (Object.keys(updates).length) timingTool.setSignalLevels(selectedFrame - 1, updates);
-    }
+    if (selectedFrame >= 0) next = recaptureFrame(next, selectedFrame, [...row.wires, ...row.ports]);
+    const message = `${row.name}: ${level ?? "unset"} in Frame ${selectedFrame}.`;
+    commit(next, selectedFrame > 0 && logicModeOf(doc) === "calculated" ? `${message} Recalculate timing to update computed levels.` : message, { preserveLevels: true });
+    if (selectedFrame > 0 && level) syncEditedNodeToTiming(row.wires, row.ports, level);
   });
 
   function setGrid(g) {
@@ -1561,6 +1566,61 @@ export async function mount(root, options = {}) {
     timingTool?.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
     if (!quiet) status(`Frame 0 and ${r.steps} timing steps are now synced. Drives: ${r.matched.join(", ") || "nothing"}.${r.unmatched.length ? ` No wire, port or element named: ${r.unmatched.join(", ")} (name a wire with its Net label).` : ""}`, !!r.steps && !r.matched.length);
   }
+  function calculateTiming() {
+    if (!timingTool) return status("Open the timing editor first.", true);
+    if (logicModeOf(doc) !== "calculated") return status("Enable calculated logic levels before calculating timing.", true);
+    const signals = timingTool.getSignals();
+    if (!signals.length) return status("Add timing signals before calculating.", true);
+    const shifted = signals.find((signal) => signal.period !== 1 || signal.phase || signal.delay);
+    if (shifted) return status(`Calculation needs period 1 and zero phase and delay: ${shifted.name}.`, true);
+    const nets = D.deriveNets(doc, pack);
+    const synced = framesFromSignals(doc, nets, signals, pack).doc;
+    const frames = framesOf(synced), results = [];
+    let problem = null;
+    try {
+      const calculator = timingCalculator(synced, pack, frames[0].levels);
+      for (let i = 1; i < frames.length; i++) {
+        const frame = frames[i], manual = { ...frame.levels };
+        for (const [id, level] of Object.entries(frame.calculated ?? {})) if (manual[id] === level) delete manual[id];
+        const pulseIds = signals.filter((signal) => signal.pulses[i - 1]).flatMap((signal) => {
+          const target = targetsOf(synced, nets, signal.name, pack);
+          return [...target.wires, ...target.ports];
+        });
+        const generated = calculator.step(manual, (reason) => {
+          while (true) {
+            const answer = window.prompt(`${reason}\nChoose Q: 0, 1, or X. Cancel stops calculation.`, "X");
+            if (answer === null) return null;
+            const level = answer.trim().toUpperCase();
+            if (["0", "1", "X"].includes(level)) return level;
+          }
+        }, pulseIds);
+        if (generated === null) { problem = "Calculation cancelled."; break; }
+        results.push(generated);
+      }
+    } catch (error) {
+      problem = `Calculation stopped: ${error.message}`;
+    }
+    if (results.length) {
+      let next = setCalculatedFrames(synced, results);
+      const current = framesOf(next)[selectedFrame];
+      if (current) next = applyFrame(next, current);
+      commit(next, null, { preserveLevels: true });
+      const rows = nodeLevelRows();
+      const candidates = new Map(rows.filter((row) => !row.name.startsWith("Unconnected ")).map((row) => [row.name, [...row.wires, ...row.ports]]));
+      for (const signal of signals) {
+        const target = targetsOf(next, nets, signal.name, pack);
+        candidates.set(signal.name, [...target.wires, ...target.ports]);
+      }
+      const updates = {};
+      for (const [name, ids] of candidates) for (const [step, generated] of results.entries()) {
+        const levels = [...new Set(ids.map((id) => generated[id]).filter(Boolean))];
+        if (levels.length === 1) (updates[name] ??= {})[step] = levels[0];
+      }
+      if (Object.keys(updates).length) timingTool.setCalculatedLevels(updates);
+      renderFrames();
+    }
+    status(problem ? `${problem} Kept ${results.length} completed timing steps.` : `Calculated ${results.length} timing steps.`, !!problem);
+  }
   function selectTimingFrame(step) {
     if (!Number.isInteger(step) || step < 0) return;
     const index = step + 1, frame = framesOf(doc)[index];
@@ -1650,6 +1710,7 @@ export async function mount(root, options = {}) {
     const timingLogicInput = tpBody.querySelector("[data-logic-calculation]");
     timingLogicInput.checked = logicModeOf(doc) === "calculated";
     timingLogicInput.addEventListener("change", () => setCalculationMode(timingLogicInput.checked));
+    tpBody.querySelector("[data-do=calculate-timing]").addEventListener("click", calculateTiming);
     timingTool.setCircuit(D.serialize(doc, pack));
     timingTool.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
     syncTimingSelection();

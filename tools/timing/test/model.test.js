@@ -1,6 +1,6 @@
 // The step editor's model: every edit it makes to the WaveDrom-format source.
 
-import { addSignal, cellsOf, dataAt, empty, moveSignal, nextValue, removeSignal, setCell, setClock, setDelay, setSteps, stepCount } from "../src/model.js";
+import { addSignal, cellsOf, dataAt, empty, isCalculatedCell, moveSignal, nextValue, removeSignal, setCalculatedLevels, setCell, setClock, setDelay, setSteps, stepCount } from "../src/model.js";
 
 const assert = (c, m) => { if (!c) throw new Error(m ?? "assertion failed"); };
 const eq = (a, b) => assert(JSON.stringify(a) === JSON.stringify(b), `expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`);
@@ -51,6 +51,21 @@ Deno.test("steps, clock, delay, order and removal", () => {
 Deno.test("the click cycle goes 0, 1, X, Z, data and back", () => {
   eq(["0", "1", "x", "z", "="].map((c) => nextValue(c)), ["1", "x", "z", "=", "0"]);
   eq(nextValue("0", true), "=");
+});
+
+Deno.test("calculated cells are tracked independently and a manual edit is never overwritten", () => {
+  let v = setSteps(addSignal(empty(), "D"), 3);
+  v = setCalculatedLevels(v, { Q: { 0: "0", 1: "1", 2: "0" } });
+  eq(v.signal[1].wave, "010");
+  eq([0, 1, 2].map((i) => isCalculatedCell(v.signal[1], i)), [true, true, true]);
+  v = setCell(v, 1, 1, "x");
+  v = setCalculatedLevels(v, { Q: { 0: "1", 1: "1", 2: "1" }, D: { 0: "1" } });
+  eq(v.signal[1].wave, "1x1");
+  eq(isCalculatedCell(v.signal[1], 1), false);
+  eq(v.signal[0].wave, "0..");
+  const saved = fromWaveDrom(toWaveDrom(v));
+  eq(isCalculatedCell(saved.signal[1], 0), true);
+  eq(isCalculatedCell(saved.signal[1], 1), false);
 });
 
 import { addEdge, addSpacer, arrowHeadColourOf, arrowHeadSizeOf, dataColoursOf, edgesOf, edgeLineColourOf, edgeLineWidthOf, fromWaveDrom, nextLetter, nodeLetters, removeEdge, resetTimingColours, setArrowHeadColour, setArrowHeadSize, setBand, setDataColour, setEdge, setEdgeLineColour, setEdgeLineWidth, setHscale, setNode, setProp, toWaveDrom } from "../src/model.js";

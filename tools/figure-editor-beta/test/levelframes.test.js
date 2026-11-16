@@ -4,7 +4,7 @@ import { drawing, exportGridSvg, exportSvg } from "../src/export.js";
 import { parse, serialize, setLevel } from "../src/doc.js";
 import { REFERENCE_TEX } from "../src/labels.js";
 import {
-  applyFrame, captureFrame, frameTex, framesFromSignals, framesOf, gridShape, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame,
+  applyFrame, captureFrame, frameTex, framesFromSignals, framesOf, gridShape, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame, setCalculatedFrames,
 } from "../src/levelframes.js";
 import { buildClaChevron } from "../examples/cla-chevron.js";
 import { assert, assertEquals, pack, typeset } from "./helpers.js";
@@ -32,6 +32,26 @@ Deno.test("timing refresh preserves initial and unrelated per-frame manual level
   ] };
   const refreshed = framesFromSignals(doc, {}, [{ name: "unmatched", levels: ["0", "1"] }], pack).doc;
   assertEquals(framesOf(refreshed).map((frame) => frame.levels), [{ [a.id]: "1" }, { [b.id]: "0" }, { [b.id]: "1" }]);
+});
+
+Deno.test("calculated frame levels survive refresh and manual levels take precedence", () => {
+  const doc = base(), [a, b] = doc.wires;
+  doc.groups = { ...(doc.groups ?? {}), wire_labels: { [a.id]: "A", [b.id]: "B" }, frames: [
+    { name: "Frame 0", levels: {} },
+    { name: "Step 1", levels: { [a.id]: "0" } },
+    { name: "Step 2", levels: { [b.id]: "1" } },
+  ] };
+  const filled = setCalculatedFrames(doc, [{ [a.id]: "1", [b.id]: "0" }, { [b.id]: "0" }]);
+  assertEquals(framesOf(filled)[1].levels[a.id], "0");
+  assertEquals(framesOf(filled)[1].calculated[b.id], "0");
+  assertEquals(framesOf(filled)[2].levels[b.id], "1");
+  const refreshed = framesFromSignals(filled, {}, [{ name: "B", levels: ["0", "X"], calculated: [true, true] }], pack).doc;
+  assertEquals(framesOf(refreshed)[1].levels[b.id], "0");
+  assertEquals(framesOf(refreshed)[1].calculated[b.id], "0");
+  assertEquals(framesOf(refreshed)[2].levels[b.id], "1");
+  const edited = recaptureFrame(applyFrame(refreshed, framesOf(refreshed)[1]), 1, [b.id]);
+  assertEquals(framesOf(edited)[1].calculated, undefined);
+  assertEquals(framesOf(parse(serialize(edited, pack)).doc)[1].levels[b.id], "0");
 });
 
 Deno.test("capture stores the current levels; apply draws them; the figure's own levels are untouched", () => {

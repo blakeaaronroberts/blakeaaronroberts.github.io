@@ -55,7 +55,13 @@ export function moveSignal(v, i, by) {
 export function setSteps(v, n) {
   const d = clone(v), m = Math.max(1, Math.min(64, Math.round(n)));
   d.config = { ...(d.config ?? {}), steps: m };
-  for (const s of lanes(d)) if (typeof s.wave === "string") s.wave = pad(s.wave, m);
+  for (const s of lanes(d)) if (typeof s.wave === "string") {
+    s.wave = pad(s.wave, m);
+    if (s.calculated) {
+      s.calculated = Object.fromEntries(Object.entries(s.calculated).filter(([step]) => Number(step) < m));
+      if (!Object.keys(s.calculated).length) delete s.calculated;
+    }
+  }
   return d;
 }
 
@@ -76,6 +82,10 @@ export function setCell(v, si, step, value, label) {
   const w = pad(sig.wave, n).split("");
   w[step] = value;
   sig.wave = w.join("");
+  if (sig.calculated) {
+    delete sig.calculated[step];
+    if (!Object.keys(sig.calculated).length) delete sig.calculated;
+  }
   // Keep `data` in step with the "=" characters: insert or remove this step's label.
   const isData = /^[=2-9]$/.test(value);
   if (startedData && !isData) before.splice(wasData, 1);
@@ -96,12 +106,40 @@ export function setClock(v, si, on) {
   if (!sig) return d;
   sig.wave = on ? pad("p", n) : pad("0", n);
   delete sig.data;
+  delete sig.calculated;
+  return d;
+}
+
+/** Whether a cell still contains the value previously written by calculation. */
+export function isCalculatedCell(signal, step) {
+  const saved = signal?.calculated?.[step];
+  return typeof saved === "string" && signal?.wave?.[step] === saved;
+}
+
+/** Fill calculated cells without replacing existing manual cells. */
+export function setCalculatedLevels(v, updates) {
+  let d = clone(v), n = stepCount(d);
+  for (const [name, levels] of Object.entries(updates)) {
+    let si = lanes(d).findIndex((signal) => signal?.name === name);
+    if (si < 0) {
+      d.signal.push({ name, wave: "x".repeat(n), calculated: Object.fromEntries(Array.from({ length: n }, (_, i) => [i, "x"])) });
+      si = d.signal.length - 1;
+    }
+    for (const [stepText, level] of Object.entries(levels)) {
+      const step = Number(stepText), sig = d.signal[si], wave = { "0": "0", "1": "1", X: "x", Z: "z" }[level];
+      if (!Number.isInteger(step) || step < 0 || step >= n || !wave) throw new Error("Invalid calculated timing cell.");
+      if (!isCalculatedCell(sig, step)) continue;
+      d = setCell(d, si, step, wave);
+      d.signal[si].calculated = { ...(d.signal[si].calculated ?? {}), [step]: wave };
+    }
+  }
   return d;
 }
 
 export function setDelay(v, si, delay) {
   const d = clone(v), sig = lanes(d)[si], x = Number(delay) || 0;
   if (!sig) return d;
+  delete sig.calculated;
   if (x) sig.delay = Math.round(x * 100) / 100; else delete sig.delay;
   return d;
 }
@@ -129,6 +167,7 @@ export function setProp(v, si, key, val) {
   const d = clone(v), sig = lanes(d)[si];
   if (!sig || !["period", "phase", "group", "delay"].includes(key)) return d;
   if (key === "group") { const g = String(val ?? "").trim().slice(0, 40); if (g) sig.group = g; else delete sig.group; return d; }
+  delete sig.calculated;
   const x = Math.round((Number(val) || 0) * 100) / 100;
   if (key === "period" ? x > 0 && x !== 1 : x !== 0) sig[key] = key === "period" ? Math.max(0.25, x) : x; else delete sig[key];
   return d;

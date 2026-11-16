@@ -1,6 +1,6 @@
 import { addElement, addWire, deleteSelection, newDoc, parse, serialize, setLevel } from "../src/doc.js";
 import { drawing } from "../src/export.js";
-import { logicModeOf, resolveLogic, setLogicMode } from "../src/logic.js";
+import { logicModeOf, resolveLogic, setLogicMode, timingCalculator } from "../src/logic.js";
 import { setWireLabels } from "../src/levelframes.js";
 import { assert, assertEquals, pack } from "./helpers.js";
 
@@ -19,9 +19,9 @@ function gate(type, inputs, params = null) {
   return { doc: output.doc, output: output.id, gate: el.id };
 }
 
-function nandLatch(set, reset) {
-  let doc = addElement(newDoc(), pack, "nand_gate", [0, 0]).doc;
-  doc = addElement(doc, pack, "nand_gate", [0, 16]).doc;
+function nandLatch(set, reset, type = "nand_gate") {
+  let doc = addElement(newDoc(), pack, type, [0, 0]).doc;
+  doc = addElement(doc, pack, type, [0, 16]).doc;
   const [q, qbar] = doc.elements;
   const qInputs = Object.keys(pack.defFor(q).pins).filter((name) => name !== "Y").sort();
   const qbarInputs = Object.keys(pack.defFor(qbar).pins).filter((name) => name !== "Y").sort();
@@ -150,4 +150,90 @@ Deno.test("a gate output carries through disconnected wires with the same net la
   const resolved = resolveLogic(doc, pack);
   assertEquals(resolved.wires.map((wire) => wire.level), ["0", "1", "1", "1"]);
   assert(Object.keys(resolved.groups.logic_generated_levels).includes("w4"));
+});
+
+Deno.test("timing calculation follows a NAND latch across steps and retains completed steps on cancellation", () => {
+  const latch = nandLatch("1", "1");
+  const calc = timingCalculator(latch.doc, pack, { [latch.qWire]: "0" });
+  const inputs = (a, b) => ({ [latch.setWire]: a, [latch.resetWire]: b });
+  assertEquals(calc.step(inputs("1", "1"), () => { throw new Error("unexpected prompt"); }), { [latch.qWire]: "0", [latch.qbarWire]: "1" });
+  assertEquals(calc.step(inputs("0", "1"), () => { throw new Error("unexpected prompt"); }), { [latch.qWire]: "1", [latch.qbarWire]: "0" });
+  assertEquals(calc.step(inputs("0", "0"), () => null), null);
+  assertEquals(calc.step(inputs("1", "1"), () => { throw new Error("unexpected prompt"); }), { [latch.qWire]: "1", [latch.qbarWire]: "0" });
+});
+
+Deno.test("timing calculation recognizes cross-coupled NOR gates", () => {
+  const latch = nandLatch("0", "0", "nor_gate");
+  const calc = timingCalculator(latch.doc, pack, { [latch.qWire]: "1" });
+  const inputs = (a, b) => ({ [latch.setWire]: a, [latch.resetWire]: b });
+  const noPrompt = () => { throw new Error("unexpected prompt"); };
+  assertEquals(calc.step(inputs("0", "0"), noPrompt)[latch.qWire], "1");
+  assertEquals(calc.step(inputs("1", "0"), noPrompt)[latch.qWire], "0");
+  assertEquals(calc.step(inputs("0", "0"), noPrompt)[latch.qWire], "0");
+  assertEquals(calc.step(inputs("0", "1"), noPrompt)[latch.qWire], "1");
+});
+
+Deno.test("JK flip-flops use previous state and prompt for missing state when toggling", () => {
+  let doc = addElement(newDoc(), pack, "jk_flipflop", [0, 0]).doc;
+  const el = doc.elements[0], wires = {};
+  for (const [i, name] of ["J", "K", "CLK", "Q", "Qn"].entries()) {
+    const added = addWire(doc, pack, pin(`${el.id}.${name}`), point([40 + i * 4, 20]));
+    doc = added.doc; wires[name] = added.id;
+  }
+  const calc = timingCalculator(doc, pack);
+  let prompts = 0;
+  const choose = () => { prompts++; return "0"; };
+  const inputs = (clock) => ({ [wires.J]: "1", [wires.K]: "1", [wires.CLK]: clock });
+  assertEquals(calc.step(inputs("0"), choose)[wires.Q], "0");
+  assertEquals(calc.step(inputs("1"), choose)[wires.Q], "1");
+  assertEquals(prompts, 1);
+});
+
+Deno.test("timing calculation uses Frame 0 state but detects edges only between timing steps", () => {
+  let doc = addElement(newDoc(), pack, "d_flipflop", [0, 0]).doc;
+  const el = doc.elements[0], wires = {};
+  for (const [i, name] of ["D", "CLK", "Q", "Qn"].entries()) {
+    const added = addWire(doc, pack, pin(`${el.id}.${name}`), point([20 + i * 4, 20]));
+    doc = added.doc; wires[name] = added.id;
+  }
+  const calc = timingCalculator(doc, pack, { [wires.Q]: "0" });
+  const inputs = (data, clock) => ({ [wires.D]: data, [wires.CLK]: clock });
+  assertEquals(calc.step(inputs("1", "1"), () => { throw new Error("unexpected prompt"); }), { [wires.Q]: "0", [wires.Qn]: "1" });
+  assertEquals(calc.step(inputs("1", "0"), () => { throw new Error("unexpected prompt"); }), { [wires.Q]: "0", [wires.Qn]: "1" });
+  assertEquals(calc.step(inputs("1", "1"), () => { throw new Error("unexpected prompt"); }), { [wires.Q]: "1", [wires.Qn]: "0" });
+});
+
+Deno.test("timing calculation detects repeated clock pulses after the first step", () => {
+  let doc = addElement(newDoc(), pack, "t_flipflop", [0, 0]).doc;
+  const el = doc.elements[0], wires = {};
+  for (const [i, name] of ["T", "CLK", "Q", "Qn"].entries()) {
+    const added = addWire(doc, pack, pin(`${el.id}.${name}`), point([30 + i * 4, 20]));
+    doc = added.doc; wires[name] = added.id;
+  }
+  const calc = timingCalculator(doc, pack, { [wires.Q]: "0" });
+  const inputs = { [wires.T]: "1", [wires.CLK]: "1" };
+  const noPrompt = () => { throw new Error("unexpected prompt"); };
+  assertEquals(calc.step(inputs, noPrompt, [wires.CLK])[wires.Q], "0");
+  assertEquals(calc.step(inputs, noPrompt, [wires.CLK])[wires.Q], "1");
+  assertEquals(calc.step(inputs, noPrompt, [wires.CLK])[wires.Q], "0");
+});
+
+Deno.test("transparent latches propagate through a chain in the same step", () => {
+  let doc = addElement(newDoc(), pack, "d_latch", [0, 0]).doc;
+  doc = addElement(doc, pack, "d_latch", [24, 0]).doc;
+  const [a, b] = doc.elements, wires = {};
+  for (const [name, from, to] of [
+    ["data", point([-20, 2]), pin(`${a.id}.D`)],
+    ["enableA", point([0, -20]), pin(`${a.id}.CLK`)],
+    ["enableB", point([24, -20]), pin(`${b.id}.CLK`)],
+    ["middle", pin(`${a.id}.Q`), pin(`${b.id}.D`)],
+    ["out", pin(`${b.id}.Q`), point([40, 2])],
+  ]) {
+    const added = addWire(doc, pack, from, to);
+    doc = added.doc; wires[name] = added.id;
+  }
+  const calc = timingCalculator(doc, pack);
+  const result = calc.step({ [wires.data]: "1", [wires.enableA]: "1", [wires.enableB]: "1" }, () => "X");
+  assertEquals(result[wires.middle], "1");
+  assertEquals(result[wires.out], "1");
 });

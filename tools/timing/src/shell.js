@@ -19,7 +19,7 @@ const views = (B, sizeInLook = false, betaFeatures = false, externalControls = f
         </div>
         <section class="td-sub" data-sub="signals">
           ${betaFeatures ? "" : '<p class="td-help">Add the signals, then click the steps to set them.</p>'}
-          ${betaFeatures ? '<label class="form-check"><input class="form-check-input" type="checkbox" data-logic-calculation> <span class="form-check-label">Calculate schematic logic levels</span></label>' : ""}
+          ${betaFeatures ? '<label class="form-check"><input class="form-check-input" type="checkbox" data-logic-calculation> <span class="form-check-label">Calculate schematic logic levels</span></label><div class="td-addbar"><button type="button" class="td-chip" data-do="calculate-timing">Calculate timing from schematic</button></div>' : ""}
           <div class="td-addbar"><span class="label-mono">Add a node</span><span class="td-chips"></span><button type="button" class="td-chip" data-do="add-all">All</button><button type="button" class="td-chip" data-do="add-custom">Other…</button><button type="button" class="td-chip" data-do="add-spacer" title="An empty lane between signals">Spacer</button></div>
           <p class="td-flag" role="status"></p>
           <div class="td-brushes" role="toolbar" aria-label="What a click on a step sets"></div>

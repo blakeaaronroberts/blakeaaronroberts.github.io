@@ -1772,6 +1772,132 @@ scenarios.initialNodeLevels = async (ctx) => {
   return res;
 };
 
+scenarios.sequentialTiming = async (ctx) => {
+  const res = [];
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(`${ctx.url}?view=figure`);
+    await page.waitFor(ready);
+    await page.eval(`window.figureEditor.load(JSON.stringify({
+      schema: "circuit/0.2", id: "sequential_test", grid_cm: 0.25,
+      elements: [{ id: "ff", type: "d_flipflop", at: [0, 0] }],
+      ports: [
+        { id: "D", dir: "in", at: [-12, 2], side: "left" },
+        { id: "CLK", dir: "in", at: [0, -12], side: "down" },
+        { id: "Q", dir: "out", at: [12, 2], side: "right" },
+        { id: "Qn", dir: "out", at: [12, 0], side: "right" }
+      ],
+      wires: [
+        { id: "wd", from: "D", to: "ff.D" },
+        { id: "wc", from: "CLK", to: "ff.CLK" },
+        { id: "wq", from: "ff.Q", to: "Q" },
+        { id: "wn", from: "ff.Qn", to: "Qn" }
+      ],
+      groups: { frames: [{ name: "Frame 0", levels: { wq: "0", wn: "1", Q: "0", Qn: "1" } }] }
+    }))`);
+    await page.eval(`window.__initialSequential = window.figureEditor.save()`);
+    const initialDocument = await page.eval(`window.__initialSequential`);
+    await page.eval(`document.querySelector('[data-sec-bar="timing"]').click()`);
+    await page.waitFor(`!!document.querySelector('[data-do="calculate-timing"]')`, 10000);
+    async function source(signals) {
+      await page.eval(`(() => {
+        document.querySelector('[data-view="source"]').click();
+        document.querySelector(".td-srctext").value = ${JSON.stringify(JSON.stringify({ signal: signals }))};
+        document.querySelector('[data-do="src-apply"]').click();
+      })()`);
+    }
+    await source([{ name: "D", wave: "1111" }, { name: "CLK", wave: "0101" }]);
+    await page.eval(`document.querySelector('[data-do="calculate-timing"]').click()`);
+    const level = await page.eval(`(() => ({
+      source: JSON.parse(localStorage.getItem("figure-editor-beta/timing-source")),
+      frames: JSON.parse(window.figureEditor.save()).groups.frames,
+      status: document.querySelector(".fe-status").textContent
+    }))()`);
+    const lane = (name) => level.source.signal.find((signal) => signal.name === name);
+    res.push([lane("Q")?.wave === "0111" && lane("Qn")?.wave === "1000", `0/1 clocks calculate the expected Q and complement (${JSON.stringify(level)})`]);
+    res.push([level.frames.slice(1).map((frame) => frame.levels.wq).join("") === "0111", "calculated values populate the schematic frames"]);
+
+    await page.eval(`(() => {
+      const cell = document.querySelector('[data-s="2"] [data-step="1"]');
+      cell.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      document.querySelector('[data-do="calculate-timing"]').click();
+    })()`);
+    const manual = await page.eval(`JSON.parse(localStorage.getItem("figure-editor-beta/timing-source")).signal.find((s) => s.name === "Q")`);
+    res.push([manual.wave[1] !== "1" && !Object.hasOwn(manual.calculated ?? {}, "1"), "manual output edits remain manual after recalculation"]);
+
+    await page.sleep(1200);
+    await page.goto(`${ctx.url}?view=timing`);
+    await page.waitFor(ready);
+    await page.waitFor(`!!document.querySelector('[data-do="calculate-timing"]')`, 10000);
+    await page.eval(`document.querySelector('[data-do="calculate-timing"]').click()`);
+    const restored = await page.eval(`JSON.parse(localStorage.getItem("figure-editor-beta/timing-source")).signal.find((s) => s.name === "Q")`);
+    res.push([restored.wave[1] === manual.wave[1] && !Object.hasOwn(restored.calculated ?? {}, "1"), "manual and calculated cell provenance survives reload"]);
+
+    await page.eval(`window.figureEditor.load(${JSON.stringify(initialDocument)})`);
+    await source([{ name: "D", wave: "1111" }, { name: "CLK", wave: "0101" }]);
+    await page.eval(`document.querySelector('[data-do="calculate-timing"]').click()`);
+    await page.eval(`(() => {
+      document.querySelector('[data-sec-bar="figure"]').click();
+      document.querySelector('[data-cmd="framenext"]').click();
+      document.querySelector('[data-cmd="framenext"]').click();
+    })()`);
+    const wire = await page.eval(`(() => {
+      const r = document.querySelector('[data-wire="wq"]').getBoundingClientRect();
+      return [r.left + r.width / 2, r.top + r.height / 2];
+    })()`);
+    await page.click(...wire);
+    await page.key("0", "Digit0", 48);
+    const editedWire = await page.eval(`(() => ({
+      source: JSON.parse(localStorage.getItem("figure-editor-beta/timing-source")),
+      frame: JSON.parse(window.figureEditor.save()).groups.frames[2]
+    }))()`);
+    const editedQ = editedWire.source.signal.find((s) => s.name === "Q");
+    const untouchedQn = editedWire.source.signal.find((s) => s.name === "Qn");
+    res.push([editedWire.frame.levels.wq === "0" && editedQ.wave[1] === "0" && !Object.hasOwn(editedQ.calculated ?? {}, "1") && Object.hasOwn(untouchedQn.calculated ?? {}, "1"), "editing a schematic wire marks only that timing cell manual"]);
+
+    await page.eval(`window.figureEditor.load(${JSON.stringify(initialDocument)})`);
+    await page.eval(`document.querySelector('[data-sec-bar="timing"]').click()`);
+    await source([{ name: "D", wave: "1010" }, { name: "CLK", wave: "p..." }]);
+    await page.eval(`document.querySelector('[data-do="calculate-timing"]').click()`);
+    const pulse = await page.eval(`(() => ({
+      signal: JSON.parse(localStorage.getItem("figure-editor-beta/timing-source")).signal.find((s) => s.name === "Q"),
+      status: document.querySelector(".fe-status").textContent
+    }))()`);
+    res.push([pulse.signal?.wave === "0010", `clock pulses calculate after the first timing step (${JSON.stringify(pulse)})`]);
+
+    await page.eval(`(() => {
+      const doc = JSON.parse(${JSON.stringify(initialDocument)});
+      doc.groups.frames[0].levels = {};
+      window.figureEditor.load(JSON.stringify(doc));
+      window.__prompts = 0;
+      window.prompt = () => { window.__prompts++; return "1"; };
+    })()`);
+    await source([{ name: "D", wave: "0000" }, { name: "CLK", wave: "0101" }]);
+    await page.eval(`document.querySelector('[data-do="calculate-timing"]').click()`);
+    const prompted = await page.eval(`(() => ({
+      prompts: window.__prompts,
+      source: JSON.parse(localStorage.getItem("figure-editor-beta/timing-source"))
+    }))()`);
+    res.push([prompted.prompts === 1 && prompted.source.signal.find((s) => s.name === "Q")?.wave === "1000" && prompted.source.signal.find((s) => s.name === "Qn")?.wave === "0111", "unknown initial state prompts for Q and derives its complement"]);
+
+    await page.eval(`window.figureEditor.load(${JSON.stringify(initialDocument)})`);
+    await source([{ name: "D", wave: "1x00" }, { name: "CLK", wave: "0101" }]);
+    await page.eval(`window.prompt = () => null; document.querySelector('[data-do="calculate-timing"]').click()`);
+    const cancelled = await page.eval(`(() => ({
+      source: JSON.parse(localStorage.getItem("figure-editor-beta/timing-source")),
+      frames: JSON.parse(window.figureEditor.save()).groups.frames,
+      status: document.querySelector(".fe-status").textContent
+    }))()`);
+    res.push([cancelled.status.includes("cancelled") && cancelled.status.includes("1 completed") && cancelled.frames[1].levels.wq === "0", `cancelling retains the completed timing step (${JSON.stringify(cancelled)})`]);
+    await source([{ name: "CLK", wave: "p...", period: 0.5 }]);
+    await page.eval(`document.querySelector('[data-do="calculate-timing"]').click()`);
+    const unsupported = await page.eval(`document.querySelector(".fe-status").textContent`);
+    res.push([unsupported.includes("period 1"), "unsupported sub-step clock periods are reported rather than miscalculated"]);
+    res.push([page.errors.length === 0, `sequential timing: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};
+
 scenarios.projectZip = async (ctx) => {
   const res = [];
   const page = await ctx.launch({ scheme: "light", port: nextPort++ });

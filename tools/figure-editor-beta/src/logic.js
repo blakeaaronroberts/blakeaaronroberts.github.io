@@ -1,6 +1,7 @@
 // Four-valued gate logic and state retention for cross-coupled NAND latches.
 
 import { clone, deriveNets, wiresForRefs } from "./doc.js";
+import { sequentialStep } from "./sequential.js";
 
 const GENERATED = "logic_generated_levels";
 const MODE = "logic_mode";
@@ -104,6 +105,7 @@ function networkOf(doc, pack) {
   }
   for (const wire of doc.wires) {
     const key = find(wireNet.get(wire.id));
+    wireNet.set(wire.id, key);
     if (!wiresByKey.has(key)) wiresByKey.set(key, []);
     wiresByKey.get(key).push(wire.id);
   }
@@ -114,10 +116,10 @@ function networkOf(doc, pack) {
   return { keyForRef, wireNet, wiresByKey };
 }
 
-function nandLatchPairs(drivers, keyForRef) {
+function latchPairs(drivers, keyForRef, type = "nand_gate") {
   const candidates = new Map();
   for (const [output, gates] of drivers) {
-    if (gates.length !== 1 || gates[0].el.type !== "nand_gate" || gates[0].inputs.length !== 2) continue;
+    if (gates.length !== 1 || gates[0].el.type !== type || gates[0].inputs.length !== 2) continue;
     candidates.set(output, gates[0].inputs.map((name) => keyForRef(`${gates[0].el.id}.${name}`)));
   }
 
@@ -192,7 +194,7 @@ export function resolveLogic(doc, pack) {
 
   if (!drivers.size) return base;
 
-  const latches = nandLatchPairs(drivers, keyForRef);
+  const latches = latchPairs(drivers, keyForRef);
   const latchKeys = new Set(latches.flatMap(({ a, b }) => [a, b]));
   const previous = priorLevelsByNet(doc, wireNet);
   const values = new Map();
@@ -261,4 +263,146 @@ export function resolveLogic(doc, pack) {
   }
   if (Object.keys(generated).length) next.groups = { ...(next.groups ?? {}), [GENERATED]: generated };
   return next;
+}
+
+/** Create a stateful, frame-by-frame calculator. Inputs are explicit levels keyed by wire or port id. */
+export function timingCalculator(doc, pack, initialLevels = {}) {
+  const { keyForRef, wireNet, wiresByKey } = networkOf(doc, pack);
+  const drivers = new Map(), devices = [];
+  for (const el of doc.elements) {
+    const pins = Object.keys(pack.defFor(el)?.pins ?? {});
+    if (OPERATIONS[el.type] && pins.includes("Y")) {
+      const key = keyForRef(`${el.id}.Y`);
+      if (key !== null) {
+        if (!drivers.has(key)) drivers.set(key, []);
+        drivers.get(key).push({ el, operation: OPERATIONS[el.type], inputs: pins.filter((name) => name !== "Y").sort() });
+      }
+    } else if (["d_latch", "d_flipflop", "d_flipflop_sr", "jk_flipflop", "t_flipflop"].includes(el.type)) {
+      const device = {
+        id: el.id, type: el.type, a: keyForRef(`${el.id}.Q`), b: keyForRef(`${el.id}.Qn`),
+        inputs: Object.fromEntries(pins.filter((name) => name !== "Q" && name !== "Qn")
+          .map((name) => [name, keyForRef(`${el.id}.${name}`)])),
+      };
+      if (device.a !== null || device.b !== null) devices.push(device);
+    }
+  }
+  for (const type of ["nand_gate", "nor_gate"]) {
+    for (const latch of latchPairs(drivers, keyForRef, type)) {
+      const gate = drivers.get(latch.a)[0];
+      devices.push({ id: gate.el.id, type: type === "nand_gate" ? "nand_latch" : "nor_latch",
+        a: latch.a, b: latch.b, inputs: { A: latch.inputA, B: latch.inputB } });
+      drivers.delete(latch.a);
+      drivers.delete(latch.b);
+    }
+  }
+  const outputs = new Set();
+  for (const device of devices) for (const key of [device.a, device.b]) {
+    if (key === null) continue;
+    if (outputs.has(key) || drivers.has(key)) throw new Error("A sequential output has multiple drivers.");
+    outputs.add(key);
+  }
+  const byNet = (levels) => {
+    const values = new Map();
+    for (const [id, value] of Object.entries(levels)) {
+      if (!["0", "1", "X", "Z"].includes(value)) continue;
+      const key = wireNet.get(id) ?? keyForRef(id);
+      if (key === null || key === undefined) continue;
+      if (values.has(key) && values.get(key) !== value) throw new Error(`Conflicting manual levels on net ${id}.`);
+      values.set(key, value);
+    }
+    return values;
+  };
+  const initial = byNet(initialLevels);
+  const prior = new Map(), clocks = new Map();
+  for (const d of devices) {
+    const a = initial.get(d.a), b = initial.get(d.b);
+    if (BINARY.has(a) && BINARY.has(b) && a === b) throw new Error(`Initial outputs for ${d.id} are not complementary.`);
+    prior.set(d.id, a ?? (b === undefined ? null : invert(b)));
+  }
+  let step = 0;
+  return {
+    step(levels, choose, pulseIds = []) {
+      const manual = byNet(levels), values = new Map(manual);
+      const pulses = new Set(pulseIds.map((id) => wireNet.get(id) ?? keyForRef(id)).filter((key) => key !== null && key !== undefined));
+      for (const gates of drivers.values()) for (const { el, inputs } of gates) {
+        if (inputs.some((name) => pulses.has(keyForRef(`${el.id}.${name}`)))) {
+          throw new Error("Clock pulses through combinational gates cannot be calculated; use 0/1 clock levels.");
+        }
+      }
+      const write = (key, value) => { if (key !== null && !manual.has(key)) values.set(key, value); };
+      for (const d of devices) {
+        const q = prior.get(d.id) ?? "X";
+        write(d.a, q); write(d.b, invert(q));
+      }
+      const settle = () => {
+        const seen = new Set();
+        for (let pass = 0; pass <= drivers.size + 1; pass++) {
+          const before = JSON.stringify([...drivers.keys()].map((key) => values.get(key) ?? null));
+          if (seen.has(before)) throw new Error("Combinational feedback did not settle.");
+          seen.add(before);
+          const next = new Map();
+          for (const [key, gates] of drivers) {
+            if (manual.has(key)) continue;
+            const results = gates.map(({ el, operation, inputs }) => operation(inputs.map((name) => {
+              const level = values.get(keyForRef(`${el.id}.${name}`));
+              return BINARY.has(level) ? level : "X";
+            })));
+            next.set(key, results.every((v) => v === results[0]) ? results[0] : "X");
+          }
+          for (const [key, value] of next) values.set(key, value);
+          if (before === JSON.stringify([...drivers.keys()].map((key) => values.get(key) ?? null))) return;
+        }
+        throw new Error("Combinational logic did not settle.");
+      };
+      const nextState = new Map(prior), nextClocks = new Map(clocks), decisions = new Map(), seen = new Set();
+      let settled = false;
+      for (let pass = 0; pass <= 2 * (drivers.size + devices.length + 1); pass++) {
+        settle();
+        const before = JSON.stringify([...[...nextState.entries()], ...[...nextClocks.entries()]]);
+        if (seen.has(before)) throw new Error("Sequential feedback did not settle.");
+        seen.add(before);
+        const results = [];
+        for (const d of devices) {
+          const input = Object.fromEntries(Object.entries(d.inputs).map(([name, key]) => [name, values.get(key) ?? "X"]));
+          const pulse = pulses.has(d.inputs.CLK);
+          if (pulse) input.CLK = "1";
+          const a = manual.get(d.a), b = manual.get(d.b);
+          if (BINARY.has(a) && BINARY.has(b) && a === b) throw new Error(`Manual outputs for ${d.id} are not complementary.`);
+          const forced = a ?? (b === undefined ? null : invert(b));
+          const previousClock = step === 0 ? null : pulse && pass === 0 ? "0" : nextClocks.get(d.id);
+          const result = forced !== null ? { q: forced, qn: invert(forced) }
+            : sequentialStep(d.type, input, nextState.get(d.id), previousClock,
+              (reason) => {
+                const key = `${d.id}: ${reason}`;
+                if (!decisions.has(key)) decisions.set(key, choose(`${d.id}, step ${step + 1}: ${reason}`));
+                return decisions.get(key);
+              });
+          if (result === null) return null;
+          results.push([d, result, input.CLK ?? "X"]);
+        }
+        for (const [d, result, clock] of results) {
+          nextState.set(d.id, result.q);
+          nextClocks.set(d.id, clock);
+          write(d.a, result.q); write(d.b, result.qn);
+        }
+        const after = JSON.stringify([...[...nextState.entries()], ...[...nextClocks.entries()]]);
+        if (before === after) { settled = true; break; }
+      }
+      if (!settled) throw new Error("Sequential logic did not settle.");
+      settle();
+      const generated = {};
+      for (const [key, ids] of wiresByKey) {
+        if (!drivers.has(key) && !outputs.has(key)) continue;
+        if (!manual.has(key) && values.has(key)) for (const id of ids) generated[id] = values.get(key);
+      }
+      for (const port of doc.ports) {
+        const key = keyForRef(port.id);
+        if (key !== null && (drivers.has(key) || outputs.has(key)) && !manual.has(key) && values.has(key)) generated[port.id] = values.get(key);
+      }
+      for (const [id, value] of nextState) prior.set(id, value);
+      for (const [id, value] of nextClocks) clocks.set(id, value);
+      step++;
+      return generated;
+    },
+  };
 }

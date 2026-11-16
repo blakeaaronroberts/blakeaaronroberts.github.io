@@ -80,9 +80,38 @@ export function moveFrame(doc, i, by) {
 }
 
 /** Replace frame i's levels with the document's current ones. */
-export function recaptureFrame(doc, i) {
+export function recaptureFrame(doc, i, editedIds = null) {
   const frames = framesOf(doc);
-  if (i >= 0 && frames[i]) frames[i].levels = levelsOf(doc);
+  if (i >= 0 && frames[i]) {
+    frames[i].levels = levelsOf(doc);
+    if (editedIds === null) delete frames[i].calculated;
+    else if (frames[i].calculated) {
+      for (const id of editedIds) delete frames[i].calculated[id];
+      if (!Object.keys(frames[i].calculated).length) delete frames[i].calculated;
+    }
+  }
+  return withFrames(doc, frames);
+}
+
+/** Replace calculated levels for completed timing steps, keeping explicitly edited levels. */
+export function setCalculatedFrames(doc, results) {
+  const frames = framesOf(doc);
+  for (const [i, generated] of results.entries()) {
+    const frame = frames[i + 1];
+    if (!frame) throw new Error(`Missing timing frame ${i + 1}.`);
+    const previous = frame.calculated ?? {};
+    for (const [id, level] of Object.entries(previous)) {
+      if (frame.levels[id] === level) delete frame.levels[id];
+    }
+    frame.calculated = {};
+    for (const [id, level] of Object.entries(generated)) {
+      if (!(id in frame.levels)) {
+        frame.levels[id] = level;
+        frame.calculated[id] = level;
+      }
+    }
+    if (!Object.keys(frame.calculated).length) delete frame.calculated;
+  }
   return withFrames(doc, frames);
 }
 
@@ -188,16 +217,34 @@ export function framesFromSignals(doc, nets, signals, pack = null) {
     const target = targetsOf(doc, nets, signal.name, pack);
     return [...target.wires, ...target.elements, ...target.ports];
   }));
-  const frames = [old[0], ...Array.from({ length: steps }, (_, i) => ({
-    name: `Step ${i + 1}`,
-    levels: Object.fromEntries(Object.entries(old[i + 1]?.levels ?? {}).filter(([id]) => !driven.has(id))),
-  }))];
+  const frames = [old[0], ...Array.from({ length: steps }, (_, i) => {
+    const levels = Object.fromEntries(Object.entries(old[i + 1]?.levels ?? {}).filter(([id]) => !driven.has(id)));
+    const calculated = Object.fromEntries(Object.entries(old[i + 1]?.calculated ?? {}).filter(([id, value]) => !driven.has(id) && levels[id] === value));
+    return { name: `Step ${i + 1}`, levels, ...(Object.keys(calculated).length ? { calculated } : {}) };
+  })];
+  const manual = frames.map(() => new Set());
   const matched = [], unmatched = [];
   for (const s of signals) {
     const t = targetsOf(doc, nets, s.name, pack);
     if (!t.wires.length && !t.elements.length && !t.ports.length) { unmatched.push(s.name); continue; }
     matched.push(s.name);
-    s.levels.forEach((lv, i) => { if (lv) for (const id of [...t.wires, ...t.elements, ...t.ports]) frames[i + 1].levels[id] = lv; });
+    s.levels.forEach((lv, i) => {
+      if (!lv) return;
+      const frame = frames[i + 1], generated = s.calculated?.[i] === true;
+      for (const id of [...t.wires, ...t.elements, ...t.ports]) {
+        if (generated && manual[i + 1].has(id)) continue;
+        const oldLevel = old[i + 1]?.levels?.[id];
+        if (generated && oldLevel && old[i + 1]?.calculated?.[id] !== oldLevel) {
+          frame.levels[id] = oldLevel;
+          manual[i + 1].add(id);
+          continue;
+        }
+        frame.levels[id] = lv;
+        if (generated) frame.calculated = { ...(frame.calculated ?? {}), [id]: lv };
+        else { manual[i + 1].add(id); if (frame.calculated) delete frame.calculated[id]; }
+      }
+      if (frame.calculated && !Object.keys(frame.calculated).length) delete frame.calculated;
+    });
   }
   return { doc: withFrames(doc, frames), steps, matched, unmatched };
 }
