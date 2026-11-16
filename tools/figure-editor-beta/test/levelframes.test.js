@@ -154,3 +154,14 @@ Deno.test("a timing signal drives every ordinary wire segment on its labelled ne
   assertEquals(result.matched, ["CLK"]);
   assertEquals(framesOf(result.doc).map((f) => [f.levels.w1, f.levels.w2]), [["0", "0"], ["1", "1"]]);
 });
+
+Deno.test("a timing signal drives disconnected wires with the same net label", async () => {
+  const { addWire, deriveNets, newDoc } = await import("../src/doc.js");
+  const { framesFromSignals, setWireLabels } = await import("../src/levelframes.js");
+  let doc = addWire(newDoc(), pack, P([0, 0]), P([10, 0])).doc;
+  doc = addWire(doc, pack, P([20, 0]), P([30, 0])).doc;
+  doc = setWireLabels(doc, ["w1", "w2"], "READY");
+  const result = framesFromSignals(doc, deriveNets(doc, pack), [{ name: "READY", levels: ["0", "1"] }], pack);
+  assertEquals(result.matched, ["READY"]);
+  assertEquals(framesOf(result.doc).map((f) => [f.levels.w1, f.levels.w2]), [["0", "0"], ["1", "1"]]);
+});

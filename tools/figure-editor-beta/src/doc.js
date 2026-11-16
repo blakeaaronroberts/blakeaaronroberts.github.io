@@ -516,7 +516,7 @@ export function setWireStyle(doc, wireIds, fields) {
 export function setLevel(doc, wireIds, level, elementIds = [], pack = null) {
   if (level !== null && !LEVEL_VALUES.includes(level)) throw new Error(`level must be 0, 1, X or Z`);
   doc = clone(doc);
-  const affectedWires = pack ? connectedWireIds(doc, pack, wireIds) : wireIds;
+  const affectedWires = levelWireIds(doc, wireIds, pack);
   for (const x of [...doc.wires.filter((w) => affectedWires.includes(w.id)), ...doc.elements.filter((e) => elementIds.includes(e.id))]) {
     if (level === null) delete x.level; else x.level = level;
   }
@@ -603,6 +603,24 @@ export function connectedWireIds(doc, pack, wireIds) {
   const graph = netGraph(doc, pack);
   const selected = new Set(doc.wires.filter((w) => wireIds.includes(w.id)).map((w) => graph.find(`~${w.id}`)));
   return doc.wires.filter((w) => selected.has(graph.find(`~${w.id}`))).map((w) => w.id);
+}
+
+/** Wires sharing an electrical connection or a non-empty net label inherit one level. */
+export function levelWireIds(doc, wireIds, pack = null) {
+  const ids = new Set(doc.wires.filter((w) => wireIds.includes(w.id)).map((w) => w.id));
+  const labelOf = (id) => {
+    const label = doc.groups?.wire_labels?.[id];
+    return typeof label === "string" ? label.trim() : "";
+  };
+  let changed = true;
+  while (changed) {
+    const before = ids.size;
+    if (pack) for (const id of connectedWireIds(doc, pack, [...ids])) ids.add(id);
+    const labels = new Set([...ids].map(labelOf).filter(Boolean));
+    for (const w of doc.wires) if (labels.has(labelOf(w.id))) ids.add(w.id);
+    changed = ids.size !== before;
+  }
+  return doc.wires.filter((w) => ids.has(w.id)).map((w) => w.id);
 }
 
 /** Ordinary wires connected to any pin or port reference. */

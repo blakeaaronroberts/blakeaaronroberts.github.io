@@ -4,7 +4,7 @@
 import { parseSource, tidy } from "./wave.js";
 import { drawTiming, naturalSize, lanesOf, stepsOf } from "./draw.js";
 import { nodesOf, unknownNames, framesIn } from "./nodes.js";
-import { addEdge, addSignal, addSpacer, arrowHeadColourOf, arrowHeadSizeOf, cellsOf, dataAt, dataColoursOf, EDGE_OPS, edgeLineColourOf, edgeLineWidthOf, edgesOf, empty, fromWaveDrom, isClock, LABEL, lineWidthOf, moveSignal, nextLetter, nextValue, nodeLetters, removeEdge, removeSignal, resetTimingColours, setArrowHeadColour, setArrowHeadSize, setBand, setCell, setClock, setDataColour, setDelay, setEdge, setEdgeLineColour, setEdgeLineWidth, setHscale, setLineWidth, setNode, setProp, setShowNames, setSignalLineColour, setSlant, setSteps, setTextSize, showNamesOf, signalLineColourOf, slantOf, stepCount, textSizeOf, toWaveDrom, WAVE } from "./model.js";
+import { addEdge, addSignal, addSpacer, arrowHeadColourOf, arrowHeadSizeOf, cellsOf, dataAt, dataColoursOf, EDGE_OPS, edgeLineColourOf, edgeLineWidthOf, edgeStyleOf, edgesOf, empty, fromWaveDrom, isClock, LABEL, lineWidthOf, moveSignal, nextLetter, nextValue, nodeLetters, removeEdge, removeSignal, resetTimingColours, resetTimingLook, setArrowHeadSize, setBand, setCell, setClock, setDataColour, setDelay, setEdge, setEdgeLineWidth, setEdgeStyle, setHscale, setLineWidth, setNode, setProp, setShowNames, setSignalLineColour, setSlant, setSteps, setTextSize, showNamesOf, signalLineColourOf, slantOf, stepCount, textSizeOf, toWaveDrom, WAVE } from "./model.js";
 import { dockShell, pageShell } from "./shell.js";
 
 const store = {
@@ -31,6 +31,8 @@ export function mount(root, {
   const $ = (s) => root.querySelector(s);
   const status = $(".td-status"), view = $("#WaveDrom_Display_0"), grid = $(".td-grid");
   const wIn = $("[data-size=w]"), hIn = $("[data-size=h]");
+  const aspectLockIn = $("[data-size=lockAspect]");
+  let lockedAspectRatio = null;
   const say = (msg, error = false) => { onStatus?.(msg, error); status.textContent = msg; if (error) status.setAttribute("data-error", ""); else status.removeAttribute("data-error"); };
 
   // ---- the model: the diagram as data, kept in this browser ----
@@ -177,9 +179,12 @@ export function mount(root, {
     const edgeWidthIn = $("[data-look=edgeLineWidth]"), headSizeIn = $("[data-look=arrowHeadSize]");
     if (edgeWidthIn && document.activeElement !== edgeWidthIn) edgeWidthIn.value = edgeLineWidthOf(value, lineWidthOf(value)).toFixed(2);
     if (headSizeIn && document.activeElement !== headSizeIn) headSizeIn.value = String(arrowHeadSizeOf(value));
-    const edgeColourIn = $("[data-look=edgeLineColour]"), headColourIn = $("[data-look=arrowHeadColour]");
-    if (edgeColourIn && document.activeElement !== edgeColourIn) edgeColourIn.value = pickerColour(edgeLineColourOf(value, ink));
-    if (headColourIn && document.activeElement !== headColourIn) headColourIn.value = pickerColour(arrowHeadColourOf(value, ink));
+    for (const input of root.querySelectorAll('[data-look="edgeColour"]')) {
+      if (document.activeElement !== input) input.value = pickerColour(edgeStyleOf(value, input.dataset.edgeType).colour ?? edgeLineColourOf(value, ink));
+    }
+    for (const input of root.querySelectorAll('[data-look="edgeDotted"]')) {
+      if (document.activeElement !== input) input.checked = edgeStyleOf(value, input.dataset.edgeType).dotted;
+    }
     const colourDefaults = dataDefaults(dark);
     for (const input of root.querySelectorAll('[data-look="dataColour"]')) {
       if (document.activeElement !== input) input.value = pickerColour(dataColoursOf(value, colourDefaults)[Number(input.dataset.colourIndex)]);
@@ -348,17 +353,31 @@ export function mount(root, {
     if (i.dataset?.look === "showNames") commit(setShowNames(value, i.checked));
     if (i.dataset?.look === "dataColour") commit(setDataColour(value, Number(i.dataset.colourIndex), i.value));
     if (i.dataset?.look === "edgeLineWidth") commit(setEdgeLineWidth(value, i.value));
-    if (i.dataset?.look === "edgeLineColour") commit(setEdgeLineColour(value, i.value));
     if (i.dataset?.look === "arrowHeadSize") commit(setArrowHeadSize(value, i.value));
-    if (i.dataset?.look === "arrowHeadColour") commit(setArrowHeadColour(value, i.value));
+    if (i.dataset?.look === "edgeColour") commit(setEdgeStyle(value, i.dataset.edgeType, { colour: i.value }));
+    if (i.dataset?.look === "edgeDotted") commit(setEdgeStyle(value, i.dataset.edgeType, { dotted: i.checked }));
+    if (i === aspectLockIn) {
+      const width = Number(wIn.value), height = Number(hIn.value);
+      lockedAspectRatio = i.checked && width > 0 && height > 0 ? width / height : null;
+    }
   });
 
   root.addEventListener("click", (e) => {
     const act = e.target.closest("[data-do]")?.dataset.do;
     if (act === "reset-look-colours") commit(resetTimingColours(value), "Restored theme colours.");
+    if (act === "reset-look") {
+      custom = false; lockedAspectRatio = null;
+      if (aspectLockIn) aspectLockIn.checked = false;
+      const changed = commit(resetTimingLook(value), "Restored the timing look to defaults.");
+      if (!changed) { render(); say("Restored the timing look to defaults."); }
+    }
     if (act === "steps-") commit(setSteps(value, stepCount(value) - 1));
     if (act === "steps+") commit(setSteps(value, stepCount(value) + 1));
-    if (act === "natural" && natural) { custom = true; wIn.value = natural.w; hIn.value = natural.h; render(); }
+    if (act === "natural" && natural) {
+      custom = true; wIn.value = natural.w; hIn.value = natural.h;
+      if (aspectLockIn?.checked) lockedAspectRatio = natural.w / natural.h;
+      render();
+    }
     if (act === "fit") fitToView();
     if (act === "export") exportSvg();
     if (act === "new") {   // the page's New also clears the figure the Figure Editor keeps in this browser
@@ -375,7 +394,14 @@ export function mount(root, {
     if (act === "src-save") { save(new Blob([srcText.value], { type: "application/json" }), "timing-diagram.json"); say("Saved WaveDrom source as timing-diagram.json."); }
     if (act === "src-copy") { navigator.clipboard?.writeText(srcText.value).then(() => say("Copied the WaveDrom source."), () => say("The browser would not copy; select the text and copy it.", true)); }
   });
-  for (const i of [wIn, hIn]) i.addEventListener("input", () => { custom = true; render(); });
+  for (const [i, other] of [[wIn, hIn], [hIn, wIn]]) i.addEventListener("input", () => {
+    custom = true;
+    const size = Number(i.value);
+    if (aspectLockIn?.checked && lockedAspectRatio && size > 0) {
+      other.value = String(Math.round(i === wIn ? size / lockedAspectRatio : size * lockedAspectRatio));
+    }
+    render();
+  });
 
   // ---- the circuit's nodes: one button each, live from the Figure Editor ----
   const chips = $(".td-chips"), flag = $(".td-flag");

@@ -5,6 +5,7 @@
 import { addElement, addWire, connectedWireIds, lint, newDoc, setLevel } from "../src/doc.js";
 import { drawing, exportSvg, tagAnchor } from "../src/export.js";
 import { LEVELS } from "../src/pack.js";
+import { setLevelTagStyle, setWireLabels } from "../src/levelframes.js";
 import { buildFullAdderLevels, INPUTS, propagate } from "../examples/full-adder-levels.js";
 import { deriveNets } from "../src/doc.js";
 import { assert, assertEquals, assertThrows, pack, packWith, typeset } from "./helpers.js";
@@ -89,6 +90,16 @@ Deno.test("setting a wire level reaches every ordinary wire on its electrical ne
   assertEquals(doc.wires.map((w) => w.level), ["1", "1", undefined]);
 });
 
+Deno.test("setting a wire level reaches disconnected wires with the same net label", () => {
+  let doc = addWire(newDoc(), pack, P([0, 0]), P([10, 0])).doc;
+  doc = addWire(doc, pack, P([20, 0]), P([30, 0])).doc;
+  doc = addWire(doc, pack, P([40, 0]), P([50, 0])).doc;
+  doc = setWireLabels(doc, ["w1", "w2"], "READY");
+  doc = setLevel(doc, ["w1"], "1", [], pack);
+  assertEquals(doc.wires.map((w) => w.level), ["1", "1", undefined]);
+  assertEquals(drawing(doc, pack).wires.map((w) => w.colour), [roles.high, roles.high, roles.ink]);
+});
+
 Deno.test("level tags are off by default; on, each levelled wire gets its level beside its longest segment", () => {
   let doc = addWire(newDoc(), pack, P([0, 0]), P([10, 0])).doc;
   doc = addWire(doc, pack, P([20, 0]), P([20, 12])).doc;
@@ -101,6 +112,24 @@ Deno.test("level tags are off by default; on, each levelled wire gets its level 
   assertEquals(tagAnchor([[0, 0], [2, 0], [2, 12]]), { at: [2, 6], dir: [1, 0] }); // longest is vertical: to its right
   assert(exportSvg(doc, pack, { typeset }).split("\n").filter((l) => /scale\(/.test(l)).length === 0, "default export has no tags");
   assertEquals(exportSvg(doc, pack, { typeset, levelTags: true }).split("\n").filter((l) => /^  <g transform="translate\([-\d. ]+\) scale\(/.test(l)).length, 2);
+});
+
+Deno.test("level tags accept their own position, offset, size and theme colour", () => {
+  let doc = addWire(newDoc(), pack, P([0, 0]), P([10, 0])).doc;
+  doc = setLevel(doc, ["w1"], "1");
+  const standard = drawing(doc, pack, { typeset, levelTags: true }).labels[0];
+  doc = setLevelTagStyle(doc, ["w1"], { side: "right", gap: 3 });
+  const styled = drawing(doc, pack, { typeset, levelTags: true, levelTagPt: 20, levelTagColour: true }).labels[0];
+  assert(styled.transform !== standard.transform, "the anchor side, offset and size affect tag placement");
+  assert(JSON.stringify(styled.nodes).includes(roles.high), "the tag can use the level's theme colour");
+});
+
+Deno.test("element level tags accept a custom position and offset", () => {
+  let doc = addElement(newDoc(), pack, "and_gate", [0, 0]).doc;
+  doc = setLevel(doc, [], "0", ["and1"]);
+  doc = setLevelTagStyle(doc, ["and1"], { side: "left", gap: 2 });
+  const tag = drawing(doc, pack, { typeset, levelTags: true }).labels.find((label) => label.key === "tag:and1");
+  assert(tag && tag.transform.includes("translate("), "the selected element tag is drawn at its configured position");
 });
 
 Deno.test("the labelled sample's levels are the ones the logic gives for A=1, B=0, Cin=1", () => {

@@ -252,6 +252,32 @@ export const arrowHeadColourOf = (v, fallback) =>
   isHexColour(v?.config?.arrowHeadColour) ? v.config.arrowHeadColour : fallback;
 export const setEdgeLineColour = (v, colour) => setColour(v, "edgeLineColour", colour);
 export const setArrowHeadColour = (v, colour) => setColour(v, "arrowHeadColour", colour);
+export const EDGE_TYPES = ["straight", "curved", "square"];
+export const edgeStyleOf = (v, type) => {
+  const style = EDGE_TYPES.includes(type) ? v?.config?.edgeStyles?.[type] : null;
+  return {
+    colour: isHexColour(style?.colour) ? style.colour : null,
+    dotted: style?.dotted === true,
+  };
+};
+export function setEdgeStyle(v, type, patch) {
+  if (!EDGE_TYPES.includes(type)) throw new Error("arrow type must be straight, curved or square");
+  const d = clone(v);
+  d.config = { ...(d.config ?? {}) };
+  const styles = { ...(d.config.edgeStyles ?? {}) }, style = { ...(styles[type] ?? {}) };
+  if (patch.colour !== undefined) {
+    if (isHexColour(patch.colour)) style.colour = patch.colour.toUpperCase();
+    else delete style.colour;
+  }
+  if (patch.dotted !== undefined) {
+    if (patch.dotted === true) style.dotted = true;
+    else delete style.dotted;
+  }
+  if (Object.keys(style).length) styles[type] = style; else delete styles[type];
+  if (Object.keys(styles).length) d.config.edgeStyles = styles; else delete d.config.edgeStyles;
+  if (!Object.keys(d.config).length) delete d.config;
+  return d;
+}
 export function resetTimingColours(v) {
   const d = clone(v);
   if (d.config) {
@@ -259,6 +285,25 @@ export function resetTimingColours(v) {
     delete d.config.signalLineColour;
     delete d.config.edgeLineColour;
     delete d.config.arrowHeadColour;
+    if (d.config.edgeStyles) {
+      for (const type of EDGE_TYPES) {
+        const style = { ...d.config.edgeStyles[type] };
+        delete style.colour;
+        if (Object.keys(style).length) d.config.edgeStyles[type] = style; else delete d.config.edgeStyles[type];
+      }
+      if (!Object.keys(d.config.edgeStyles).length) delete d.config.edgeStyles;
+    }
+    if (!Object.keys(d.config).length) delete d.config;
+  }
+  return d;
+}
+
+export function resetTimingLook(v) {
+  const d = clone(v);
+  if (d.config) {
+    for (const key of ["hscale", "slant", "fontSize", "lineWidth", "showNames", "signalLineColour", "dataColours", "edgeLineWidth", "edgeLineColour", "arrowHeadSize", "arrowHeadColour", "edgeStyles"]) {
+      delete d.config[key];
+    }
     if (!Object.keys(d.config).length) delete d.config;
   }
   return d;

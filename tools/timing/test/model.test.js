@@ -158,3 +158,31 @@ Deno.test("signal-line colour persists and is cleared by the theme-colour reset"
   eq(toWaveDrom(styled).config.signalLineColour, "#123456");
   eq(signalLineColourOf(resetTimingColours(styled), fallback), fallback);
 });
+
+Deno.test("arrow shape colour and dotted state persist independently", async () => {
+  const { edgeStyleOf, empty, resetTimingColours, setEdgeStyle, toWaveDrom } = await import("../src/model.js");
+  let value = setEdgeStyle(empty(), "curved", { colour: "#123456", dotted: true });
+  eq(edgeStyleOf(value, "curved"), { colour: "#123456", dotted: true });
+  eq(toWaveDrom(value).config.edgeStyles.curved, { colour: "#123456", dotted: true });
+  value = setEdgeStyle(value, "curved", { dotted: false });
+  eq(edgeStyleOf(value, "curved"), { colour: "#123456", dotted: false });
+  const reset = resetTimingColours(setEdgeStyle(value, "straight", { colour: "#654321", dotted: true }));
+  eq(edgeStyleOf(reset, "straight"), { colour: null, dotted: true });
+});
+
+Deno.test("resetTimingLook removes visual overrides but preserves waveform content and unrelated config", async () => {
+  const { resetTimingLook } = await import("../src/model.js");
+  const value = {
+    signal: [{ name: "D", wave: "01xz" }], edge: ["a->b"], head: { text: "Title" },
+    config: {
+      steps: 4, keepThis: "yes", hscale: 2, slant: 0, fontSize: 18, lineWidth: 3, showNames: false,
+      signalLineColour: "#123456", dataColours: ["#234567"], edgeLineWidth: 2, edgeLineColour: "#345678",
+      arrowHeadSize: 10, arrowHeadColour: "#456789", edgeStyles: { straight: { colour: "#56789A", dotted: true } },
+    },
+  };
+  const reset = resetTimingLook(value);
+  eq(reset.signal, value.signal);
+  eq(reset.edge, value.edge);
+  eq(reset.head, value.head);
+  eq(reset.config, { steps: 4, keepThis: "yes" });
+});

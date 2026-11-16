@@ -90,7 +90,8 @@ export function gridShape(n, aspect) {
 export const wireLabelOf = (doc, id) => doc.groups?.wire_labels?.[id] ?? "";
 export function setWireLabels(doc, ids, text) {
   const d = clone(doc), map = { ...(d.groups?.wire_labels ?? {}) };
-  for (const id of ids) if (text) map[id] = text; else delete map[id];
+  const label = typeof text === "string" ? text.trim() : "";
+  for (const id of ids) if (label) map[id] = label; else delete map[id];
   const groups = { ...(d.groups ?? {}) };
   if (Object.keys(map).length) groups.wire_labels = map; else delete groups.wire_labels;
   if (Object.keys(groups).length) d.groups = groups; else delete d.groups;
@@ -116,6 +117,23 @@ export function setWireLabelStyle(doc, ids, patch) {
   return d;
 }
 
+// Level-tag placement uses the same sides and grid-step offset as net labels, for wires and elements.
+export const levelTagStyleOf = (doc, id) => doc.groups?.level_tag_style?.[id] ?? {};
+export function setLevelTagStyle(doc, ids, patch) {
+  const d = clone(doc), map = { ...(d.groups?.level_tag_style ?? {}) };
+  for (const id of ids) {
+    const style = { ...(map[id] ?? {}), ...patch };
+    if (!(style.side in SIDES)) delete style.side;
+    style.gap = Number.isFinite(+style.gap) ? Math.max(-10, Math.min(20, +style.gap)) : 0;
+    if (!style.gap) delete style.gap;
+    if (Object.keys(style).length) map[id] = style; else delete map[id];
+  }
+  const groups = { ...(d.groups ?? {}) };
+  if (Object.keys(map).length) groups.level_tag_style = map; else delete groups.level_tag_style;
+  if (Object.keys(groups).length) d.groups = groups; else delete d.groups;
+  return d;
+}
+
 // ---- frames from the timing diagram -------------------------------------------------------------
 // The timing tool sends signals as [{name, levels: ["0","1","X","Z",null, ...]}], one level per step. Step i becomes frame i.
 
@@ -123,6 +141,8 @@ export function setWireLabelStyle(doc, ids, patch) {
 export function targetsOf(doc, nets, name, pack = null) {
   const wires = new Set(), elements = new Set();
   const refs = new Set();
+  const labelText = (text) => typeof text === "string" ? text.trim() : "";
+  const signalName = labelText(name);
   for (const [key, members] of Object.entries(nets)) {
     const hit = key === name || members.some((m) => doc.ports.some((p) => p.id === m && (p.id === name || p.label === name)));
     if (hit) members.forEach((m) => refs.add(m));
@@ -130,13 +150,13 @@ export function targetsOf(doc, nets, name, pack = null) {
   for (const w of doc.wires) {
     const lab = doc.groups?.wire_labels?.[w.id];
     const onNet = [w.from, w.to].some((e) => typeof e === "string" && refs.has(e));
-    if (lab === name || onNet) wires.add(w.id);
+    if (labelText(lab) === signalName || onNet) wires.add(w.id);
   }
   if (pack) {
     for (const id of wiresForRefs(doc, pack, [...refs])) wires.add(id);
     for (const id of connectedWireIds(doc, pack, [...wires])) wires.add(id);
   }
-  for (const w of doc.wires) if (doc.groups?.wire_labels?.[w.id] === name) [w.from, w.to].forEach((e) => { if (typeof e === "string") refs.add(e); });
+  for (const w of doc.wires) if (labelText(doc.groups?.wire_labels?.[w.id]) === signalName) [w.from, w.to].forEach((e) => { if (typeof e === "string") refs.add(e); });
   for (const w of doc.wires) if ([w.from, w.to].some((e) => typeof e === "string" && refs.has(e))) wires.add(w.id);
   for (const e of doc.elements) if (e.id === name) elements.add(e.id);
   return { wires: [...wires], elements: [...elements] };

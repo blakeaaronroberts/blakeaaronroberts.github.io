@@ -608,6 +608,20 @@ scenarios.levels = async (ctx) => {
       await page.sleep(1500);
       const after = await page.eval(`document.querySelectorAll('.fe-scene [data-label="tag:blk1"]').length`);
       res.push([before === 0 && after === 1, `${scheme}: the level shows as text "1" beside the block when asked (${before} then ${after})`]);
+      await setField("levelTagSide", "left");
+      await setField("levelTagGap", "2");
+      await page.eval(`(() => {
+        const size = document.querySelector('[name="fe-tagpt"]');
+        size.value = "20"; size.dispatchEvent(new Event("change", { bubbles: true }));
+        const colour = document.querySelector('[name="fe-tagcolour"]');
+        colour.checked = true; colour.dispatchEvent(new Event("change", { bubbles: true }));
+      })()`);
+      const tagOptions = await page.eval(`(() => {
+        const saved = JSON.parse(window.figureEditor.save());
+        const options = JSON.parse(localStorage.getItem("figure-editor-beta/options") || "{}");
+        return { side: saved.groups?.level_tag_style?.blk1?.side, gap: saved.groups?.level_tag_style?.blk1?.gap, size: options.levelTagPt, colour: options.levelTagColour };
+      })()`);
+      res.push([tagOptions.side === "left" && tagOptions.gap === 2 && tagOptions.size === 20 && tagOptions.colour, `${scheme}: tag position, offset, size and level colour are configurable (${JSON.stringify(tagOptions)})`]);
       await page.shot(`${ctx.out}/beta-level-${scheme}.png`);
       const scene = await page.eval(SCENE);
       if (scheme === "dark") res.push([scene.black.length === 0, `dark: zero black strokes with a leveled block (${scene.black.length})`]);
@@ -786,20 +800,31 @@ scenarios.timing = async (ctx) => {
       const look = view.querySelector(".td-view-look"), chart = view.querySelector("#WaveDrom_Display_0");
       look.open = true;
       const chartBox = chart.getBoundingClientRect(), lookBox = look.getBoundingClientRect(), lookStyle = getComputedStyle(look);
-      return { shown: !view.hidden, look: !!look, below: chartBox.bottom <= lookBox.top, chartVisible: chartBox.height > 0, unboxed: lookStyle.borderLeftWidth === "0px" && lookStyle.borderRightWidth === "0px" && lookStyle.borderBottomWidth === "0px", showNames: view.querySelector('[data-look="showNames"]')?.checked, font: view.querySelector('[data-look="fontSize"]')?.value, width: view.querySelector('[data-look="lineWidth"]')?.value, signalColour: !!view.querySelector('[data-look="signalLineColour"]'), spacing: !!view.querySelector('[data-size="hscale"]'), size: !!view.querySelector('[data-size="w"]'), fit: !!view.querySelector('[data-do="fit"]'), dataColours: view.querySelectorAll('[data-look="dataColour"]').length, arrowLine: !!view.querySelector('[data-look="edgeLineWidth"]') && !!view.querySelector('[data-look="edgeLineColour"]'), arrowHead: !!view.querySelector('[data-look="arrowHeadSize"]') && !!view.querySelector('[data-look="arrowHeadColour"]'), spacerButton: !!document.querySelector('[data-do="add-spacer"]') };
+      return { shown: !view.hidden, look: !!look, below: chartBox.bottom <= lookBox.top, chartVisible: chartBox.height > 0, unboxed: lookStyle.borderLeftWidth === "0px" && lookStyle.borderRightWidth === "0px" && lookStyle.borderBottomWidth === "0px", showNames: view.querySelector('[data-look="showNames"]')?.checked, font: view.querySelector('[data-look="fontSize"]')?.value, width: view.querySelector('[data-look="lineWidth"]')?.value, signalColour: !!view.querySelector('[data-look="signalLineColour"]'), spacing: !!view.querySelector('[data-size="hscale"]'), size: !!view.querySelector('[data-size="w"]'), lockAspect: !!view.querySelector('[data-size="lockAspect"]'), fit: !!view.querySelector('[data-do="fit"]'), dataColours: view.querySelectorAll('[data-look="dataColour"]').length, arrowLine: !!view.querySelector('[data-look="edgeLineWidth"]'), arrowHead: !!view.querySelector('[data-look="arrowHeadSize"]'), arrowColours: view.querySelectorAll('[data-look="edgeColour"]').length, arrowDotted: view.querySelectorAll('[data-look="edgeDotted"]').length, resetLook: !!view.querySelector('[data-do="reset-look"]'), spacerButton: !!document.querySelector('[data-do="add-spacer"]') };
     })()`);
     res.push([controls.shown && controls.look && controls.below && controls.chartVisible && controls.unboxed && controls.showNames === true && controls.font === "12" && controls.width === "1.6" && controls.spacing && controls.size, `diagram sits above integrated look and size controls (${JSON.stringify(controls)})`]);
-    res.push([controls.dataColours === 7 && controls.arrowLine && controls.arrowHead && controls.spacerButton && controls.fit, `look controls include seven data colours, independent arrow styling, Fit and the WaveDrom spacer tool (${JSON.stringify(controls)})`]);
+    res.push([controls.dataColours === 7 && controls.arrowLine && controls.arrowHead && controls.arrowColours === 3 && controls.arrowDotted === 3 && controls.resetLook && controls.lockAspect && controls.spacerButton && controls.fit, `look controls include per-shape arrow styling, aspect lock, reset, Fit and the WaveDrom spacer tool (${JSON.stringify(controls)})`]);
+    const aspect = await page.eval(`(() => {
+      const view = document.querySelector(".td-view"), width = view.querySelector('[data-size="w"]'), height = view.querySelector('[data-size="h"]'), lock = view.querySelector('[data-size="lockAspect"]');
+      width.value = "240"; width.dispatchEvent(new Event("input", { bubbles: true }));
+      height.value = "100"; height.dispatchEvent(new Event("input", { bubbles: true }));
+      lock.checked = true; lock.dispatchEvent(new Event("change", { bubbles: true }));
+      width.value = "360"; width.dispatchEvent(new Event("input", { bubbles: true }));
+      const heightAfterWidth = Number(height.value);
+      height.value = "120"; height.dispatchEvent(new Event("input", { bubbles: true }));
+      return { heightAfterWidth, widthAfterHeight: Number(width.value) };
+    })()`);
+    res.push([aspect.heightAfterWidth === 150 && aspect.widthAfterHeight === 288, `locked sizing preserves its ratio in either direction (${JSON.stringify(aspect)})`]);
 
     await page.eval(`window.figureEditor.load(JSON.stringify({
       schema: "circuit/0.2", id: "timing_connected_wires", grid_cm: 0.25,
       elements: [], ports: [], nets: {},
-      wires: [{ id: "w1", from: [0, 0], to: [2, 0] }, { id: "w2", from: [2, 0], to: [4, 0] }],
-      groups: { wire_labels: { w1: "$Q_{0}$" } }
+      wires: [{ id: "w1", from: [0, 0], to: [2, 0] }, { id: "w2", from: [2, 0], to: [4, 0] }, { id: "w3", from: [8, 2], to: [10, 2] }],
+      groups: { wire_labels: { w1: "$Q_{0}$", w3: "$Q_{0}$" } }
     }))`);
     await page.waitFor(`Array.from(document.querySelectorAll(".td-chips [data-node]")).map((b) => b.dataset.node).join(",") === "$Q_{0}$"`, 10000);
     const connectedNames = await page.eval(`Array.from(document.querySelectorAll(".td-chips [data-node]")).map((b) => b.dataset.node)`);
-    res.push([connectedNames.length === 1 && connectedNames[0] === "$Q_{0}$", `connected wire segments become one TeX-named timing node (${JSON.stringify(connectedNames)})`]);
+    res.push([connectedNames.length === 1 && connectedNames[0] === "$Q_{0}$", `connected and disconnected wires with the same TeX label share one timing node (${JSON.stringify(connectedNames)})`]);
 
     await page.eval(`(() => {
       document.querySelector('[data-view="source"]').click();
@@ -831,9 +856,11 @@ scenarios.timing = async (ctx) => {
       set('[data-look="dataColour"][data-colour-index="0"]', "#123456");
       set('[data-look="signalLineColour"]', "#112233");
       set('[data-look="edgeLineWidth"]', "2.4");
-      set('[data-look="edgeLineColour"]', "#654321");
       set('[data-look="arrowHeadSize"]', "10");
-      set('[data-look="arrowHeadColour"]', "#ABCDEF");
+      set('[data-look="edgeColour"][data-edge-type="straight"]', "#654321");
+      const dotted = document.querySelector('[data-look="edgeDotted"][data-edge-type="straight"]');
+      dotted.checked = true; dotted.dispatchEvent(new Event("change", { bubbles: true }));
+      set('[data-look="edgeColour"][data-edge-type="curved"]', "#ABCDEF");
     })()`);
     await page.sleep(250);
     const svg = await page.eval(`(() => {
@@ -843,7 +870,7 @@ scenarios.timing = async (ctx) => {
         math: !!s?.querySelector(".td-name-math path"), editorMath: !!document.querySelector(".td-name .td-inline-math path"),
         edgeMath: !!s?.querySelector(".td-edge-label-math path"), textSized: !!s?.querySelector('.td-name-math[transform*="scale(0.018)"]'),
         thickLine: !!s?.querySelector('[stroke-width="2.6"]'), dataColour: !!s?.querySelector('[fill="#123456"]'),
-        signalLine: !!s?.querySelector('[stroke="#112233"]'), arrowLine: !!s?.querySelector('[stroke="#654321"][stroke-width="2.4"]'), arrowHead: !!s?.querySelector('[fill="#ABCDEF"]'),
+        signalLine: !!s?.querySelector('[stroke="#112233"]'), arrowLine: !!s?.querySelector('[stroke="#654321"][stroke-width="2.4"][stroke-dasharray]'), arrowHead: !!s?.querySelector('[fill="#654321"]'),
         widths: Array.from(s?.querySelectorAll("[stroke-width]") ?? []).map((t) => t.getAttribute("stroke-width")), config: source.config,
         sourceKey: !!localStorage.getItem("figure-editor-beta/timing-source"), stableKey: localStorage.getItem("timing-diagram/source"), legacySend: localStorage.getItem("timing-diagram/send"),
       };
@@ -852,13 +879,19 @@ scenarios.timing = async (ctx) => {
     res.push([svg.editorMath, "the Edit view also renders TeX signal names"]);
     res.push([svg.edgeMath, "WaveDrom edge titles render as TeX paths"]);
     res.push([svg.textSized && svg.thickLine, `text size and line width update the diagram (${JSON.stringify(svg)})`]);
-    res.push([svg.dataColour && svg.signalLine && svg.arrowLine && svg.arrowHead && svg.config?.dataColours?.[0] === "#123456" && svg.config.signalLineColour === "#112233" && svg.config.edgeLineWidth === 2.4 && svg.config.arrowHeadSize === 10, `signal, data and arrow line/head styles are independent and saved (${JSON.stringify(svg)})`]);
+    res.push([svg.dataColour && svg.signalLine && svg.arrowLine && svg.arrowHead && svg.config?.dataColours?.[0] === "#123456" && svg.config.signalLineColour === "#112233" && svg.config.edgeLineWidth === 2.4 && svg.config.arrowHeadSize === 10 && svg.config.edgeStyles?.straight?.colour === "#654321" && svg.config.edgeStyles?.straight?.dotted === true && svg.config.edgeStyles?.curved?.colour === "#ABCDEF", `data, signal and per-shape arrow styles save; arrow colour matches the head (${JSON.stringify(svg)})`]);
     const resetColours = await page.eval(`(() => {
       document.querySelector('[data-do="reset-look-colours"]').click();
       const source = JSON.parse(localStorage.getItem("figure-editor-beta/timing-source") ?? "{}");
-      return !source.config?.dataColours && !source.config?.signalLineColour && !source.config?.edgeLineColour && !source.config?.arrowHeadColour;
+      return !source.config?.dataColours && !source.config?.signalLineColour && !source.config?.edgeLineColour && !source.config?.arrowHeadColour && source.config?.edgeStyles?.straight?.colour === undefined && source.config?.edgeStyles?.straight?.dotted === true;
     })()`);
-    res.push([resetColours, "theme-colour reset clears only custom colour overrides"]);
+    res.push([resetColours, "theme-colour reset clears custom colours but keeps dotted arrow lines"]);
+    const resetLook = await page.eval(`(() => {
+      document.querySelector('[data-do="reset-look"]').click();
+      const source = JSON.parse(localStorage.getItem("figure-editor-beta/timing-source") ?? "{}");
+      return source.signal?.length === 3 && !source.config?.edgeStyles && !source.config?.fontSize && !source.config?.hscale && !document.querySelector('[data-size="lockAspect"]').checked;
+    })()`);
+    res.push([resetLook, "full look reset clears visual overrides without discarding the waveform"]);
     res.push([svg.sourceKey && svg.stableKey === null && svg.legacySend === null, "beta timing data stays in beta-only browser storage"]);
 
     await page.eval(`document.querySelector('[data-view="source"]').click()`);

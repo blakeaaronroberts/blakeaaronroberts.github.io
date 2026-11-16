@@ -72,12 +72,16 @@ const views = (B, sizeInLook = false, betaFeatures = false) => `
               <p class="fe-hint">WaveDrom data values 3 through 9.</p>
               <div class="td-colour-grid">${Array.from({ length: 7 }, (_, i) => `<label>Data ${i + 3}<input class="form-control form-control-color" type="color" data-look="dataColour" data-colour-index="${i}" aria-label="Colour for data signal ${i + 3}"></label>`).join("")}</div>
               <button type="button" class="${B}" data-do="reset-look-colours">Use theme colours</button>
+              <button type="button" class="${B}" data-do="reset-look">Reset look to defaults</button>
             </fieldset>
             <fieldset class="td-band"><legend class="label-mono">Arrow styling</legend>
               <label class="form-label">Arrow line width (px) <input class="form-control form-control-sm" type="number" min="0.25" max="4" step="0.05" data-look="edgeLineWidth"></label>
-              <label class="form-label">Arrow line colour <input class="form-control form-control-color" type="color" data-look="edgeLineColour"></label>
               <label class="form-label">Arrowhead size (px) <input class="form-control form-control-sm" type="number" min="2" max="16" step="0.5" data-look="arrowHeadSize"></label>
-              <label class="form-label">Arrowhead colour <input class="form-control form-control-color" type="color" data-look="arrowHeadColour"></label>
+              <div class="td-arrow-types">${[["straight", "Straight"], ["curved", "Curved"], ["square", "Square"]].map(([type, label]) => `
+                <fieldset class="td-band"><legend class="label-mono">${label} arrows</legend>
+                  <label class="form-label">Arrow colour <input class="form-control form-control-color" type="color" data-look="edgeColour" data-edge-type="${type}"></label>
+                  <label class="form-check"><input class="form-check-input" type="checkbox" data-look="edgeDotted" data-edge-type="${type}"> <span class="form-check-label">Dotted line</span></label>
+                </fieldset>`).join("")}</div>
             </fieldset>
             <fieldset class="td-band"><legend class="label-mono">Spacing</legend>
               <label class="form-label">Step width (WaveDrom hscale) <input class="form-control form-control-sm" type="number" min="0.25" max="8" step="0.25" data-size="hscale"></label>
@@ -100,6 +104,7 @@ const bandFields = () => ["head", "foot"].map((b) => `<fieldset class="td-band">
 const sizeFields = (B, showFit = false) => `<fieldset class="td-band"><legend class="label-mono">Export size</legend>
             <label class="form-label">Width (px) <input class="form-control form-control-sm" type="number" min="100" max="4000" step="10" data-size="w"></label>
             <label class="form-label">Height (px) <input class="form-control form-control-sm" type="number" min="40" max="4000" step="10" data-size="h"></label>
+            ${showFit ? '<label class="form-check"><input class="form-check-input" type="checkbox" data-size="lockAspect"> <span class="form-check-label">Lock aspect ratio</span></label>' : ""}
             <div class="fe-theme-buttons"><button type="button" class="${B}" data-do="natural">Natural size</button>${showFit ? `<button type="button" class="${B}" data-do="fit">Fit</button>` : ""}</div>
             <p class="fe-hint">Steps and lanes are laid out again to fit, never stretched.</p></fieldset>`;
 const sizePane = (B) => `

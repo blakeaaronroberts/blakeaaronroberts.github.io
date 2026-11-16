@@ -88,7 +88,7 @@ export function parseEdge(s) {
  * A source's config.dataColours can override the seven data fills.
  * Returns {svg, natural, geometry: {x0, stepW, laneH, steps, top}}.
  */
-export function drawTiming(value, { width, height, ink = "#000000", accent = "#0072B2", marker = null, levelColour = null, dataFills = [], levelFills = {}, signalLineColour = ink, paper = null, fontSize = FONT, lineWidth = 1.6, edgeLineWidth = lineWidth / 1.6, edgeLineColour = null, arrowHeadSize = 6, arrowHeadColour = null, nameTypeset = null, edgeLabelTypeset = nameTypeset, showNames = true } = {}) {
+export function drawTiming(value, { width, height, ink = "#000000", accent = "#0072B2", marker = null, levelColour = null, dataFills = [], levelFills = {}, signalLineColour = ink, paper = null, fontSize = FONT, lineWidth = 1.6, edgeLineWidth = lineWidth / 1.6, edgeLineColour = null, arrowHeadSize = 6, arrowHeadColour = null, edgeStyles = value?.config?.edgeStyles ?? {}, nameTypeset = null, edgeLabelTypeset = nameTypeset, showNames = true } = {}) {
   const lanes = lanesOf(value);
   const nat = naturalSize(value, Number(value?.config?.hscale) || 1, { fontSize, nameTypeset, showNames });
   const W = Math.max(100, width ?? nat.w), H = Math.max(40, height ?? nat.h);
@@ -101,8 +101,8 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
   const cfgSlant = value?.config?.slant, slant = cfgSlant === undefined ? 5 : Math.min(12, Math.max(0, Number(cfgSlant) || 0));   // config.slant: 0 is square edges, 5 is WaveDrom's look
   const slope = Math.min(slant, stepW * 0.15), lw = lineWidth, small = fontSize * 10 / FONT;
   const edgeWidth = Math.max(0.25, Math.min(4, Number(value?.config?.edgeLineWidth) || Number(edgeLineWidth) || lw / 1.6));
-  const edgeColour = isHexColour(value?.config?.edgeLineColour) ? value.config.edgeLineColour : edgeLineColour ?? ink;
-  const headColour = isHexColour(value?.config?.arrowHeadColour) ? value.config.arrowHeadColour : arrowHeadColour ?? ink;
+  const defaultEdgeColour = isHexColour(value?.config?.edgeLineColour) ? value.config.edgeLineColour : edgeLineColour ?? ink;
+  const defaultHeadColour = isHexColour(value?.config?.arrowHeadColour) ? value.config.arrowHeadColour : arrowHeadColour ?? ink;
   const signalColour = isHexColour(signalLineColour) ? signalLineColour : ink;
   const headSize = Math.max(2, Math.min(16, Number(value?.config?.arrowHeadSize) || Number(arrowHeadSize) || 6));
   const stroke = `clip-path="url(#plot)" fill="none" stroke="${signalColour}" stroke-width="${n2(lw)}" stroke-linecap="round" stroke-linejoin="round"`;
@@ -183,7 +183,11 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
     const flush = () => {
       if (!run) return;
       const xl = Math.max(x0, xAt(run.from)), xr = xAt(run.to), hatch = run.c === "x";
-      const pts = [[xl, ym], [xl + slope, yh], [xr - slope, yh], [xr, ym], [xr - slope, yl], [xl + slope, yl]];
+      const pts = run.entry === "lo"
+        ? [[xl, yl], [xl + slope, yh], [xr - slope, yh], [xr, ym], [xr - slope, yl], [xl + slope, yl]]
+        : run.entry === "hi"
+        ? [[xl, yh], [xl + slope, yl], [xr - slope, yl], [xr, ym], [xr - slope, yh], [xl + slope, yh]]
+        : [[xl, ym], [xl + slope, yh], [xr - slope, yh], [xr, ym], [xr - slope, yl], [xl + slope, yl]];
       const colourIndex = /[3-9]/.test(run.c) ? +run.c - 3 : -1;
       const colour = colourIndex >= 0
         ? (isHexColour(value?.config?.dataColours?.[colourIndex]) ? value.config.dataColours[colourIndex] : dataFills[colourIndex])
@@ -226,15 +230,22 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
       } else if (LEVEL[c]) {
         flush();
         const k = LEVEL[c], y = yOf[k], s = SHARP.has(c) ? 0 : WEAK.has(c) ? slope * 2 : slope;
-        if (isNew && level && yOf[level] !== y) { paint(level, dashed); line(xl, yOf[level]); paint(k, WEAK.has(c)); line(xl + s, y); }
+        if (isNew && level && yOf[level] !== y) {
+          paint(level, dashed); line(xl, yOf[level]); paint(k, WEAK.has(c));
+          if (c === "z" && (level === "lo" || level === "hi")) {
+            line(xl + s, yOf[level] === yOf.lo ? yh : yl);
+            line(xl + 2 * s, y);
+          } else line(xl + s, y);
+        }
         else { paint(k, WEAK.has(c)); if (isNew || !d.length) line(wasBox ? a - slope : a, y); }
         line(xr, y); level = k;
       } else if (BOX.test(c)) {
         if (isNew || !run) {
           flush();
-          if (level && d.length) { line(xl + (level === "mid" ? 0 : slope), yOf[level]); endPath(); }
+          const entry = level;
+          if (level && d.length) endPath();
           cur = null; dashed = false;
-          run = { from: i, to: i + 1, c, label: c === "x" ? "" : lane.data[di++] ?? "" };
+          run = { from: i, to: i + 1, c, entry, label: c === "x" ? "" : lane.data[di++] ?? "" };
         } else run.to = i + 1;
         level = null;
       } else level = null;
@@ -244,14 +255,19 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
   });
 
   // Edges between nodes: straight, curved or square, with heads and a label.
-  const head = (p, q) => {   // an arrowhead at p, pointing away from q
+  const head = (p, q, colour) => {   // an arrowhead at p, pointing away from q
     const dx = p[0] - q[0], dy = p[1] - q[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, s = headSize;
-    return `<path d="M ${n2(p[0])} ${n2(p[1])} L ${n2(p[0] - ux * s - uy * s * 0.45)} ${n2(p[1] - uy * s + ux * s * 0.45)} L ${n2(p[0] - ux * s + uy * s * 0.45)} ${n2(p[1] - uy * s - ux * s * 0.45)} Z" fill="${headColour}"/>`;
+    return `<path d="M ${n2(p[0])} ${n2(p[1])} L ${n2(p[0] - ux * s - uy * s * 0.45)} ${n2(p[1] - uy * s + ux * s * 0.45)} L ${n2(p[0] - ux * s + uy * s * 0.45)} ${n2(p[1] - uy * s - ux * s * 0.45)} Z" fill="${colour}"/>`;
   };
   for (const raw of Array.isArray(value?.edge) ? value.edge : []) {
     const e = parseEdge(raw), a = e && nodes.get(e.from), b = e && nodes.get(e.to);
     if (!a || !b) continue;
     const op = e.op.replace(/[<>]/g, "");
+    const type = op.includes("~") ? "curved" : op.includes("|") ? "square" : "straight";
+    const style = edgeStyles?.[type] ?? {};
+    const edgeColour = isHexColour(style.colour) ? style.colour : defaultEdgeColour;
+    const headColour = isHexColour(style.colour) ? style.colour : defaultHeadColour;
+    const dash = style.dotted === true ? ` stroke-dasharray="${n2(edgeWidth * 2)} ${n2(edgeWidth * 2)}"` : "";
     let dpath, mid, aDir = b, bDir = a;
     if (op.includes("~")) {
       const dx = Math.max(20, Math.abs(b[0] - a[0]) * 0.5);
@@ -273,9 +289,9 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
       dpath = `M ${n2(a[0])} ${n2(a[1])} L ${n2(b[0])} ${n2(b[1])}`;
       mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
     }
-    out.push(`<path d="${dpath}" fill="none" stroke="${edgeColour}" stroke-width="${n2(edgeWidth)}"/>`);
-    if (e.op.endsWith(">")) out.push(head(b, bDir));
-    if (e.op.startsWith("<")) out.push(head(a, aDir));
+    out.push(`<path d="${dpath}" fill="none" stroke="${edgeColour}" stroke-width="${n2(edgeWidth)}"${dash}/>`);
+    if (e.op.endsWith(">")) out.push(head(b, bDir, headColour));
+    if (e.op.startsWith("<")) out.push(head(a, aDir, headColour));
     if (e.label) {   // on a small patch of the paper colour, so it reads over the lines
       const parsed = edgeLabelTypeset?.get(e.label);
       const tw = (parsed?.ok ? parsed.width * small : e.label.length * small * 0.55) + 4;

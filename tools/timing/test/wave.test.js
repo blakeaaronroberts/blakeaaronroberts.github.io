@@ -37,6 +37,16 @@ Deno.test("nodes come from ports and net names; junk is dropped", () => {
   assertEquals(n.nodes.map((x) => x.name), ["A", "S", "n1", "Cout"]);
   assert(!nodesOf("not json").ok); assert(!nodesOf('{"schema":"other"}').ok);
 });
+Deno.test("disconnected wires with the same label become one timing node", () => {
+  const circuit = {
+    schema: "circuit/0.3", ports: [], nets: {},
+    wires: [{ id: "w1", from: [0, 0], to: [2, 0] }, { id: "w2", from: [8, 2], to: [10, 2] }],
+    groups: { wire_labels: { w1: "READY", w2: "READY" } },
+  };
+  const result = nodesOf(JSON.stringify(circuit), { mergeConnected: true });
+  assert(result.ok);
+  assertEquals(result.nodes.map((node) => node.name), ["READY"]);
+});
 Deno.test("starter lines and unknown names", () => {
   const n = nodesOf(JSON.stringify({ schema: "circuit/0.2", ports: [{ id: "A", dir: "in" }, { id: "clk", dir: "in" }] })).nodes;
   assertEquals(starterLines(n).map((l) => l.wave), ["0.1.0...", "p......."]);
@@ -136,4 +146,37 @@ Deno.test("theme level backgrounds coordinate X and Z fills with the signal line
   assert(svg.includes('fill="#CC79A7" fill-opacity="0.35"'));
   assert(svg.includes('fill="#0072B2" fill-opacity="0.35"'));
   assert(svg.includes('stroke="#123456"'));
+});
+
+Deno.test("arrow colour and dotted lines follow straight, curved and square arrow types", async () => {
+  const { drawTiming } = await import("../src/draw.js");
+  const svg = drawTiming({
+    signal: [{ name: "A", wave: "01", node: "ab" }, { name: "B", wave: "01", node: "cd" }],
+    edge: ["a->b", "a~>b", "a-|>b"],
+    config: { edgeStyles: {
+      straight: { colour: "#112233", dotted: true },
+      curved: { colour: "#223344" },
+      square: { colour: "#334455", dotted: true },
+    } },
+  }).svg;
+  assert(svg.includes('stroke="#112233"') && svg.includes('stroke-dasharray="2 2"'));
+  assert(svg.includes('stroke="#223344"') && !svg.includes('stroke="#223344" stroke-width="1" stroke-dasharray'));
+  assert(svg.includes('stroke="#334455"') && svg.includes('fill="#112233"') && svg.includes('fill="#223344"') && svg.includes('fill="#334455"'));
+});
+
+Deno.test("transitions from binary levels reach the full bounds of X, Z and data states", async () => {
+  const { drawTiming } = await import("../src/draw.js");
+  const wave = (start, next) => drawTiming({ signal: [{ name: "D", wave: `${start}${next}` }] }, { width: 300, height: 100 });
+  const fmt = (n) => String(Math.round(n * 100) / 100);
+  for (const next of ["x", "z", "="]) {
+    for (const start of ["0", "1"]) {
+      const { svg, geometry } = wave(start, next), { x0, stepW, laneH, top } = geometry;
+      const x = x0 + stepW, s = Math.min(5, stepW * 0.15), yh = top + laneH * 0.17, yl = top + laneH * 0.83, ym = (yh + yl) / 2;
+      const firstY = start === "0" ? yl : yh, farY = start === "0" ? yh : yl;
+      const path = next === "z"
+        ? `L ${fmt(x)} ${fmt(firstY)} L ${fmt(x + s)} ${fmt(farY)} L ${fmt(x + 2 * s)} ${fmt(ym)}`
+        : `M ${fmt(x)} ${fmt(firstY)} L ${fmt(x + s)} ${fmt(farY)}`;
+      assert(svg.includes(path), `${start} to ${next} reaches the opposite waveform bound`);
+    }
+  }
 });

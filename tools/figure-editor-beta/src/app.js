@@ -26,7 +26,7 @@ import { FORMATS } from "./frame.js";
 import { contentArea, defaultSlide, KINDS, layoutThumb, LAYOUTS as SLIDE_LAYOUTS, nudgeRegion, slideOf, slideSize, slideSvg, SPLITS, splitsOf, withLayout, withSlide, withSplit } from "./slide.js";
 import { orient } from "./geometry.js";
 import { truthTable } from "./demo.js";
-import { framesFromSignals, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame } from "./levelframes.js";
+import { framesFromSignals, levelTagStyleOf, setLevelTagStyle, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame } from "./levelframes.js";
 
 const AUTOSAVE = "figure-editor-beta/autosave";
 const SAVES = "figure-editor-beta/saves";               // the last 20 manual saves
@@ -178,7 +178,9 @@ export async function mount(root, options = {}) {
         <summary class="label-mono">Export</summary>
         <label class="form-label">Scale (%) <input class="form-control form-control-sm" type="number" name="fe-scale" min="10" max="1000" step="5"></label>
         <label class="form-label">Label size (pt) <input class="form-control form-control-sm" type="number" name="fe-labelpt" min="4" max="48" step="0.5"></label>
-        <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-tags"> <span class="form-check-label">Level tags (0, 1, X, Z) by each wire</span></label>
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-tags"> <span class="form-check-label">Level tags (0, 1, X, Z)</span></label>
+        <label class="form-label">Level tag size (pt) <input class="form-control form-control-sm" type="number" name="fe-tagpt" min="4" max="48" step="0.5"></label>
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-tagcolour"> <span class="form-check-label">Match tag colour to logic level</span></label>
         <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-netnames"> <span class="form-check-label">Show net names</span></label>
         <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-exportdark"> <span class="form-check-label">Export in dark theme</span></label>
         <p class="fe-size" aria-live="polite"></p>
@@ -246,7 +248,7 @@ export async function mount(root, options = {}) {
   const $ = (s) => root.querySelector(s);
   const svg = $(".fe-canvas"), statusEl = $(".fe-status"), fileInput = $(".fe-file"), themeInput = $(".fe-theme-file");
   const idInput = $('[name="fe-id"]'), titleInput = $('[name="fe-title"]'), propsEl = $(".fe-props"), helpEl = $(".fe-help");
-  const scaleInput = $('[name="fe-scale"]'), ptInput = $('[name="fe-labelpt"]'), tagsInput = $('[name="fe-tags"]'), netNamesInput = $('[name="fe-netnames"]'), draftsInput = { checked: false }, canvasInput = $('[name="fe-canvas"]'), exportDarkInput = $('[name="fe-exportdark"]');
+  const scaleInput = $('[name="fe-scale"]'), ptInput = $('[name="fe-labelpt"]'), tagPtInput = $('[name="fe-tagpt"]'), tagsInput = $('[name="fe-tags"]'), tagColourInput = $('[name="fe-tagcolour"]'), netNamesInput = $('[name="fe-netnames"]'), draftsInput = { checked: false }, canvasInput = $('[name="fe-canvas"]'), exportDarkInput = $('[name="fe-exportdark"]');
   const view = createView(svg, loaded);
   // The editor fills the window below the site header; measure the header so the two never overlap.
   const header = document.querySelector("#quarto-header");
@@ -276,11 +278,13 @@ export async function mount(root, options = {}) {
   let autosaveTimer = null;
   const typeset = new Map();         // TeX to parseTypeset's result (every label drawn is typeset once)
 
-  const opt = { frame: null, scale: 1, labelPt: null, levelTags: false, netNames: true, timingMarker: true, timingColour: false, drafts: false, grid: 1, canvas: "auto", exportDark: false, ...(() => { try { return JSON.parse(store.get(OPTIONS) ?? "{}"); } catch { return {}; } })() };
+  const opt = { frame: null, scale: 1, labelPt: null, levelTags: false, levelTagPt: null, levelTagColour: false, netNames: true, timingMarker: true, timingColour: false, drafts: false, grid: 1, canvas: "auto", exportDark: false, ...(() => { try { return JSON.parse(store.get(OPTIONS) ?? "{}"); } catch { return {}; } })() };
   if (opt.grid !== 2) opt.grid = 1;   // snap for parts, in grid steps: 1 is half a module (default), 2 is a whole module
   if (!["auto", "light", "dark"].includes(opt.canvas)) opt.canvas = "auto";
   opt.exportDark = opt.exportDark === true;
   opt.netNames = opt.netNames !== false;
+  opt.levelTagPt = Number.isFinite(+opt.levelTagPt) && +opt.levelTagPt >= 4 && +opt.levelTagPt <= 48 ? +opt.levelTagPt : null;
+  opt.levelTagColour = opt.levelTagColour === true;
   opt.drafts = false;   // draft elements are no longer offered
   delete opt.frame;   // the F10 frame option is replaced by the slide saved in the figure (F19)
   /** Snap a point (grid steps) to the part grid. Wires, ports and labels always snap to one step (half a module). */
@@ -341,7 +345,11 @@ export async function mount(root, options = {}) {
       }
     });
   }
-  const drawOpts = () => ({ typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags, netNames: opt.netNames, scale: opt.scale });
+  const drawOpts = () => ({
+    typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags,
+    levelTagPt: opt.levelTagPt ?? undefined, levelTagColour: opt.levelTagColour,
+    netNames: opt.netNames, scale: opt.scale,
+  });
 
   /** The status line. An error is bold and announced at once, and stays until the next message. */
   const status = (msg, error = false) => {
@@ -425,7 +433,8 @@ export async function mount(root, options = {}) {
     applyLevels();
     lastDrawing = view.render({
       doc, pack, selection, selectedJunction, ghost, rubber, hover, hoverWire, box: boxSel,
-      typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags, netNames: opt.netNames,
+      typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags,
+      levelTagPt: opt.levelTagPt ?? undefined, levelTagColour: opt.levelTagColour, netNames: opt.netNames,
     });
     if (lastDrawing.pending.length) queueTypeset();
     updateUI();
@@ -592,6 +601,13 @@ export async function mount(root, options = {}) {
       const what = els.length && wires.length ? "wires and elements" : els.length ? "elements" : "wires";
       html += `<p class="fe-level" data-text="levelText"></p>${choice(`Level (colours the body of an element, the line of a wire)`, "level", levelOpts())}`;
       key += "|level";
+      const tagStyles = [...wires, ...els].map((item) => levelTagStyleOf(doc, item.id));
+      const tagSides = new Set(tagStyles.map((style) => style.side ?? ""));
+      const tagGaps = new Set(tagStyles.map((style) => style.gap ?? 0));
+      html += choice("Level tag position", "levelTagSide", [["", "automatic"], ["up", "above"], ["down", "below"], ["left", "left"], ["right", "right"]]) +
+        field("Level tag offset (extra grid steps from its anchor)", "levelTagGap", 'type="number" min="-10" max="20" step="1"');
+      values.levelTagSide = tagSides.size === 1 ? [...tagSides][0] : "";
+      values.levelTagGap = tagGaps.size === 1 ? String([...tagGaps][0]) : "";
       if (wires.length) {
         const arrows = new Set(wires.map((w) => w.arrow ?? "none")), buses = new Set(wires.map((w) => w.bus ?? ""));
         const arrow = arrows.size === 1 ? [...arrows][0] : null;
@@ -674,6 +690,9 @@ export async function mount(root, options = {}) {
         commit(D.setJunctionConnected(doc, selectedJunction, connected), connected ? "Solder dot added: the junction is connected." : "Solder dot removed: the crossing paths are separate.");
       } else if (name === "wireNetSide" || name === "wireNetGap") {
         commit(setWireLabelStyle(doc, selection.wires, name === "wireNetSide" ? { side: v } : { gap: v }), "Net label placement changed.");
+      } else if (name === "levelTagSide" || name === "levelTagGap") {
+        const ids = [...selection.wires, ...selection.elements];
+        commit(setLevelTagStyle(doc, ids, name === "levelTagSide" ? { side: v } : { gap: v }), "Level tag placement changed.");
       } else if (name === "wireNet") {
         commit(setWireLabels(doc, selection.wires, v.trim()), v.trim() ? `Net label ${v.trim()} set.` : "Net label cleared.");
       } else if (name === "level") {
@@ -755,7 +774,7 @@ export async function mount(root, options = {}) {
     if (!selection.wires.length && !selection.elements.length) { status("Select one or more wires or elements first."); return; }
     if (level && !pack.levelColour(level)) { status(`This theme has no colour for level ${level}.`); return; }
     const name = LEVELS.find((l) => l.value === level)?.name;
-    const wires = D.connectedWireIds(doc, pack, selection.wires);
+    const wires = D.levelWireIds(doc, selection.wires, pack);
     const n = wires.length + selection.elements.length;
     const noun = selection.elements.length ? "item" : "wire";
     commit(D.setLevel(doc, selection.wires, level, selection.elements, pack), level ? `Level ${level} (${name}) set on ${count(n, noun)}.` : "Level cleared.");
@@ -1424,8 +1443,19 @@ export async function mount(root, options = {}) {
     opt.labelPt = v >= 4 && v <= 48 && v !== packLabelPt(pack) ? v : null;
     saveOptions();
     ptInput.value = String(opt.labelPt ?? packLabelPt(pack));
+    tagPtInput.value = String(opt.levelTagPt ?? opt.labelPt ?? packLabelPt(pack));
     render();
   });
+  tagPtInput.value = String(opt.levelTagPt ?? opt.labelPt ?? packLabelPt(pack));
+  tagPtInput.addEventListener("change", () => {
+    const v = +tagPtInput.value, fallback = opt.labelPt ?? packLabelPt(pack);
+    opt.levelTagPt = v >= 4 && v <= 48 && v !== fallback ? v : null;
+    saveOptions();
+    tagPtInput.value = String(opt.levelTagPt ?? fallback);
+    render();
+  });
+  tagColourInput.checked = opt.levelTagColour;
+  tagColourInput.addEventListener("change", () => { opt.levelTagColour = tagColourInput.checked; saveOptions(); render(); });
   canvasInput.value = opt.canvas;
   canvasInput.addEventListener("change", () => { opt.canvas = canvasInput.value; saveOptions(); applyCanvas(); render(); status(`Canvas: ${canvasInput.selectedOptions[0].text}.`); });
   exportDarkInput.checked = opt.exportDark;

@@ -86,7 +86,7 @@ export function createView(svg, basePack) {
 
   /**
    * state: {doc, pack (the active theme's), selection {elements, wires, ports, labels}, typeset, labelPt,
-   * levelTags, ghost, rubber, hover, box}. Returns the drawing.
+   * levelTags, levelTagPt, levelTagColour, ghost, rubber, hover, box}. Returns the drawing.
    */
   function render(state) {
     const { pack } = state;
@@ -95,7 +95,10 @@ export function createView(svg, basePack) {
     paper.setAttribute("fill", roles.background);
     gridDot.setAttribute("r", fmt(lw / 2)); gridDot.setAttribute("fill", roles.grid);
 
-    const d = drawing(state.doc, pack, { typeset: state.typeset, labelPt: state.labelPt, levelTags: state.levelTags, netNames: state.netNames });
+    const d = drawing(state.doc, pack, {
+      typeset: state.typeset, labelPt: state.labelPt, levelTags: state.levelTags,
+      levelTagPt: state.levelTagPt, levelTagColour: state.levelTagColour, netNames: state.netNames,
+    });
     const parts = [];
     parts.push(`<g stroke="${roles.ink}" stroke-width="${fmt(lw)}" stroke-linecap="${line.cap}" stroke-linejoin="${line.join}" fill="none">`);
     for (const w of d.wires) {

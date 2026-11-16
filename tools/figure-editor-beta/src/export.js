@@ -17,7 +17,7 @@ import { busMark, tagAnchor, withArrows } from "./marks.js";
 import { dots, joints } from "./junctions.js";
 import { colourNodes, emModules, labelItems, levelTagTex, packLabelPt, placeLabel, REFERENCE_TEX } from "./labels.js";
 import { attr, walk, writeXml } from "./xml.js";
-import { frameTex, gridShape } from "./levelframes.js";
+import { frameTex, gridShape, levelTagStyleOf, SIDES } from "./levelframes.js";
 
 export class ExportError extends Error {}
 
@@ -25,8 +25,8 @@ const sameColour = (a, b) => a.toUpperCase() === b.toUpperCase();
 
 /**
  * What is drawn. Options: `typeset` (a Map from TeX to parseTypeset's result: the labels),
- * `labelPt` (label size, default the pack's or the toolbox's 10 pt) and `levelTags` (a 0/1/X/Z
- * tag by each wire that has a level). `problems` lists labels that could not be drawn, and
+ * `labelPt` (label size, default the pack's or the toolbox's 10 pt), `levelTags`, `levelTagPt`,
+ * and `levelTagColour`. `problems` lists labels that could not be drawn, and
  * `pending` those still waiting to be typeset.
  */
 export function drawing(doc, pack, opts = {}) {
@@ -78,17 +78,18 @@ export function drawing(doc, pack, opts = {}) {
 
   // Labels and level tags: outlined paths from MathJax, placed by the pack's label gap and anchors.
   const em = emModules(pack, opts.labelPt ?? packLabelPt(pack));
+  const tagEm = emModules(pack, opts.levelTagPt ?? opts.labelPt ?? packLabelPt(pack));
   const gap = geometry.label_gap_cm / geometry.module_cm;
   const ref = typeset.get(REFERENCE_TEX);
   const labels = [], problems = [], pending = [];
-  const put = (item, describe) => {
+  const put = (item, describe, size = em, itemGap = gap) => {
     if (item.error) { problems.push(`${describe}: ${item.error}`); return; }
     const ts = typeset.get(item.tex);
     if (!ts) { pending.push(item.tex); problems.push(`${describe}: not typeset yet`); return; }
     if (!ts.ok) { problems.push(`${describe}: ${ts.error}`); return; }
     const dir = item.dir ? [item.dir[0], -item.dir[1]] : null;
-    const placed = placeLabel(ts, ref, toSvg(item.at), dir, em, gap);
-    const colour = ink;   // F15: level colour is for the body only; a block's title text keeps the ink role like element names
+    const placed = placeLabel(ts, ref, toSvg(item.at), dir, size, itemGap);
+    const colour = item.kind === "tag" && opts.levelTagColour ? pack.levelColour(item.level) ?? ink : ink;
     labels.push({ key: item.key, kind: item.kind, id: item.id, index: item.index, transform: placed.transform, box: placed.box, nodes: colourNodes(ts.nodes, colour) });
   };
   for (const item of labelItems(doc, pack, corners)) {
@@ -99,15 +100,26 @@ export function drawing(doc, pack, opts = {}) {
     for (const [id, c] of corners) {
       const level = levelOf.get(id);
       if (!level) continue;
-      const { at, dir } = tagAnchor(c);
-      put({ key: `tag:${id}`, kind: "tag", id, tex: levelTagTex(level), at, dir, error: null }, `level tag of ${id}`);
+      const anchor = tagAnchor(c), style = levelTagStyleOf(doc, id);
+      const dir = style.side ? SIDES[style.side] : anchor.dir, offset = Number(style.gap) || 0;
+      put({
+        key: `tag:${id}`, kind: "tag", id, level, tex: levelTagTex(level),
+        at: [anchor.at[0] + dir[0] * offset, anchor.at[1] + dir[1] * offset], dir, error: null,
+      }, `level tag of ${id}`, tagEm);
     }
   }
 
   if (opts.levelTags) {   // a leveled element's tag sits just right of its top-right corner
     for (const el of doc.elements) {
       if (!el.level || !pack.defFor(el)) continue;
-      put({ key: `tag:${el.id}`, kind: "tag", id: el.id, tex: levelTagTex(el.level), at: elementBox(el, pack.defFor(el)).max, dir: [1, 0], error: null }, `level tag of ${el.id}`);
+      const style = levelTagStyleOf(doc, el.id);
+      const dir = style.side ? SIDES[style.side] : [1, 0], offset = Number(style.gap) || 0;
+      const anchor = elementBox(el, pack.defFor(el)).max;
+      put({
+        key: `tag:${el.id}`, kind: "tag", id: el.id, level: el.level,
+        tex: levelTagTex(el.level), at: [anchor[0] + dir[0] * offset, anchor[1] + dir[1] * offset],
+        dir, error: null,
+      }, `level tag of ${el.id}`, tagEm);
     }
   }
 

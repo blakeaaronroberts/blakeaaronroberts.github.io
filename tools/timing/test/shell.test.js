@@ -17,4 +17,8 @@ Deno.test("the beta dock uses the concise source tab and adds viewer Fit", () =>
   assert(html.includes(">Source</button>"), "the beta source tab has its concise label");
   assert(!html.includes("Any WaveDrom diagram: paste one in and press Use this source."), "the beta source hint is removed");
   assert(html.includes('data-do="fit">Fit</button>'), "Fit is available in the beta viewer");
+  assert(html.includes('data-size="lockAspect"'), "the beta size controls can lock the aspect ratio");
+  assert(html.includes('data-look="edgeDotted"'), "arrow types can use dotted lines");
+  assert(html.includes('data-look="edgeColour"'), "each arrow type has a colour picker");
+  assert(html.includes('data-do="reset-look">Reset look to defaults</button>'), "the complete look can be reset");
 });
