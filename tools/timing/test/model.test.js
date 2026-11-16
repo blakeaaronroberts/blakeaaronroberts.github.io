@@ -138,11 +138,24 @@ Deno.test("data and arrow appearance overrides are saved, bounded and reset inde
   eq(dataColoursOf(value, defaults), ["#123456", ...defaults.slice(1, 6), "#ABCDEF"]);
   eq([edgeLineWidthOf(value), edgeLineColourOf(value), arrowHeadSizeOf(value), arrowHeadColourOf(value)], [2.4, "#654321", 9.5, "#FEDCBA"]);
   eq(setEdgeLineWidth(value, 20).config.edgeLineWidth, 4);
-  eq(setArrowHeadSize(value, 20).config.arrowHeadSize, 16);
+  eq(setArrowHeadSize(value, 40).config.arrowHeadSize, 32);
   const reset = resetTimingColours(value);
   eq([reset.config.edgeLineWidth, reset.config.arrowHeadSize, reset.config.dataColours, reset.config.edgeLineColour, reset.config.arrowHeadColour], [2.4, 9.5, undefined, undefined, undefined]);
-  eq(setEdgeLineWidth(reset, 1.25).config.edgeLineWidth, undefined);
-  eq(setArrowHeadSize(reset, 6).config.arrowHeadSize, undefined);
+  eq(setEdgeLineWidth(reset, 3).config.edgeLineWidth, undefined);
+  eq(setArrowHeadSize(reset, 16).config.arrowHeadSize, undefined);
+  eq([edgeLineWidthOf(empty()), arrowHeadSizeOf(empty())], [3, 16]);
+  eq([edgeLineWidthOf(fromWaveDrom(toWaveDrom(setEdgeLineWidth(empty(), 1.25)))), arrowHeadSizeOf(fromWaveDrom(toWaveDrom(setArrowHeadSize(empty(), 32))))], [1.25, 32]);
+});
+
+Deno.test("beta arrowhead maximum renders at 32 while the legacy renderer retains its limit", () => {
+  const source = { signal: [{ name: "A", wave: "01", node: ".a" }, { name: "B", wave: "01", node: ".b" }], edge: ["a->b"], config: { arrowHeadSize: 32 } };
+  const headLength = (svg) => {
+    const m = /<path d="M ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+) L [\d.]+ [\d.]+ Z" fill="#000000"/.exec(svg);
+    assert(m, "arrowhead exists");
+    return Math.abs(Number(m[2]) - Number(m[4]));
+  };
+  eq(headLength(drawTiming(source).svg), 16);
+  eq(headLength(drawTiming(source, { arrowHeadMax: 32 }).svg), 32);
 });
 
 Deno.test("data fills and arrow-line styling are independent of arrowhead styling", () => {

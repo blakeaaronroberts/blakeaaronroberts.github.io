@@ -279,22 +279,21 @@ export function setDataColour(v, index, colour) {
   else if (d.config) { delete d.config.dataColours; }
   return d;
 }
-export const edgeLineWidthOf = (v, lineWidth = lineWidthOf(v)) => {
+export const edgeLineWidthOf = (v) => {
   const width = Number(v?.config?.edgeLineWidth);
-  return Number.isFinite(width) ? Math.min(4, Math.max(0.25, width)) : lineWidth / 1.6;
+  return Number.isFinite(width) ? Math.min(4, Math.max(0.25, width)) : 3;
 };
 export function setEdgeLineWidth(v, x) {
-  const d = clone(v), k = Math.round(Math.max(0.25, Math.min(4, Number(x) || 1)) * 100) / 100;
+  const d = clone(v), k = Math.round(Math.max(0.25, Math.min(4, Number(x) || 3)) * 100) / 100;
   d.config = { ...(d.config ?? {}) };
-  const defaultWidth = Math.round((lineWidthOf(v) / 1.6) * 100) / 100;
-  if (k === defaultWidth) delete d.config.edgeLineWidth; else d.config.edgeLineWidth = k;
+  if (k === 3) delete d.config.edgeLineWidth; else d.config.edgeLineWidth = k;
   return d;
 }
-export const arrowHeadSizeOf = (v) => Math.min(16, Math.max(2, Number(v?.config?.arrowHeadSize) || 6));
+export const arrowHeadSizeOf = (v) => Math.min(32, Math.max(2, Number(v?.config?.arrowHeadSize) || 16));
 export function setArrowHeadSize(v, x) {
-  const d = clone(v), k = Math.round(Math.max(2, Math.min(16, Number(x) || 6)) * 10) / 10;
+  const d = clone(v), k = Math.round(Math.max(2, Math.min(32, Number(x) || 16)) * 10) / 10;
   d.config = { ...(d.config ?? {}) };
-  if (k === 6) delete d.config.arrowHeadSize; else d.config.arrowHeadSize = k;
+  if (k === 16) delete d.config.arrowHeadSize; else d.config.arrowHeadSize = k;
   return d;
 }
 export const edgeLineColourOf = (v, fallback) =>

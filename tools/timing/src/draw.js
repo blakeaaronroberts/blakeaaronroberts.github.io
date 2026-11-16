@@ -120,7 +120,7 @@ export function parseEdge(s) {
  * A source's config.dataColours can override the seven data fills.
  * Returns {svg, natural, geometry: {x0, stepW, laneH, steps, top}}.
  */
-export function drawTiming(value, { width, height, ink = "#000000", accent = "#0072B2", marker = null, levelColour = null, dataFills = [], levelFills = {}, signalLineColour = ink, paper = null, fontSize = FONT, signalNameSize = fontSize, arrowLabelSize = fontSize * 10 / FONT, fitText = false, lineWidth = 1.6, edgeLineWidth = lineWidth / 1.6, edgeLineColour = null, arrowHeadSize = 6, arrowHeadColour = null, edgeStyles = value?.config?.edgeStyles ?? {}, nameTypeset = null, edgeLabelTypeset = nameTypeset, showNames = true, centerTransitions = false, idPrefix = "" } = {}) {
+export function drawTiming(value, { width, height, ink = "#000000", accent = "#0072B2", marker = null, levelColour = null, dataFills = [], levelFills = {}, signalLineColour = ink, paper = null, fontSize = FONT, signalNameSize = fontSize, arrowLabelSize = fontSize * 10 / FONT, fitText = false, lineWidth = 1.6, edgeLineWidth = lineWidth / 1.6, edgeLineColour = null, arrowHeadSize = 6, arrowHeadMax = 16, arrowHeadColour = null, edgeStyles = value?.config?.edgeStyles ?? {}, nameTypeset = null, edgeLabelTypeset = nameTypeset, showNames = true, centerTransitions = false, idPrefix = "" } = {}) {
   if (typeof idPrefix !== "string" || !/^[A-Za-z0-9_-]*$/.test(idPrefix)) throw new Error("invalid timing diagram ID prefix");
   const plotId = `${idPrefix}plot`, hatchId = `${idPrefix}hatch`;
   const lanes = lanesOf(value);
@@ -141,7 +141,7 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
   const defaultEdgeColour = isHexColour(value?.config?.edgeLineColour) ? value.config.edgeLineColour : edgeLineColour ?? ink;
   const defaultHeadColour = isHexColour(value?.config?.arrowHeadColour) ? value.config.arrowHeadColour : arrowHeadColour ?? ink;
   const signalColour = isHexColour(signalLineColour) ? signalLineColour : ink;
-  const headSize = Math.max(2, Math.min(16, Number(value?.config?.arrowHeadSize) || Number(arrowHeadSize) || 6));
+  const headSize = Math.max(2, Math.min(arrowHeadMax, Number(value?.config?.arrowHeadSize) || Number(arrowHeadSize) || 6));
   const stroke = `clip-path="url(#${plotId})" fill="none" stroke="${signalColour}" stroke-width="${n2(lw)}" stroke-linecap="round" stroke-linejoin="round"`;
   const out = [], nodes = new Map();
   const text = (x, y, s, anchor = "middle", size = fontSize, extra = "") => `<text x="${n2(x)}" y="${n2(y)}" text-anchor="${anchor}" font-size="${n2(size)}" font-family="${FAMILY}" fill="${ink}"${extra}>${esc(s)}</text>`;

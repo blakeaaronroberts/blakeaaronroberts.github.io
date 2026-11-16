@@ -95,8 +95,8 @@ export function mount(root, {
         levelFills: { unknown: role(dark ? "--fig-dark-unknown" : "--fig-unknown"), floating: role(dark ? "--fig-dark-floating" : "--fig-floating") },
         nameTypeset: nameTypesets, edgeLabelTypeset: nameTypesets, showNames: showNamesOf(value),
         edgeStyles: edgeStylesFor(value, accent),
-        edgeLineWidth: edgeLineWidthOf(value, lineWidthOf(value)), edgeLineColour: edgeLineColourOf(value, ink),
-        arrowHeadSize: arrowHeadSizeOf(value), arrowHeadColour: arrowHeadColourOf(value, ink),
+        edgeLineWidth: edgeLineWidthOf(value), edgeLineColour: edgeLineColourOf(value, ink),
+        arrowHeadSize: arrowHeadSizeOf(value), arrowHeadMax: 32, arrowHeadColour: arrowHeadColourOf(value, ink),
       } : {}),
     }).svg;
   };
@@ -156,7 +156,7 @@ export function mount(root, {
     const namesIn = $("[data-look=showNames]");
     if (namesIn && document.activeElement !== namesIn) namesIn.checked = showNamesOf(value);
     const edgeWidthIn = $("[data-look=edgeLineWidth]"), headSizeIn = $("[data-look=arrowHeadSize]");
-    if (edgeWidthIn && document.activeElement !== edgeWidthIn) edgeWidthIn.value = edgeLineWidthOf(value, lineWidthOf(value)).toFixed(2);
+    if (edgeWidthIn && document.activeElement !== edgeWidthIn) edgeWidthIn.value = edgeLineWidthOf(value).toFixed(2);
     if (headSizeIn && document.activeElement !== headSizeIn) headSizeIn.value = String(arrowHeadSizeOf(value));
     for (const input of $$('[data-look="edgeColour"]')) {
       const accent = figureRole(dark ? "--fig-dark-accent" : "--fig-accent");
@@ -350,7 +350,7 @@ export function mount(root, {
     if (i.dataset?.look === "showNames") commit(setShowNames(value, i.checked));
     if (i.dataset?.look === "dataColour") commit(setDataColour(value, Number(i.dataset.colourIndex), i.value));
     if (i.dataset?.look === "edgeLineWidth") commit(setEdgeLineWidth(value, i.value));
-    if (i.dataset?.look === "arrowHeadSize") commit(setArrowHeadSize(value, i.value));
+    if (i.dataset?.look === "arrowHeadSize") { commit(setArrowHeadSize(value, i.value)); i.value = String(arrowHeadSizeOf(value)); }
     if (i.dataset?.look === "edgeColour") commit(setEdgeStyle(value, i.dataset.edgeType, { colour: i.value }));
     if (i.dataset?.look === "edgeDotted") commit(setEdgeStyle(value, i.dataset.edgeType, { dotted: i.checked }));
     if (i === aspectLockIn) {

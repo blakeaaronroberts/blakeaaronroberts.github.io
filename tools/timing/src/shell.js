@@ -81,7 +81,7 @@ const views = (B, sizeInLook = false, betaFeatures = false, externalControls = f
             </fieldset>
             <fieldset class="td-band"><legend class="label-mono">Arrow styling</legend>
               <label class="form-label">Arrow line width (px) <input class="form-control form-control-sm" type="number" min="0.25" max="4" step="0.05" data-look="edgeLineWidth"></label>
-              <label class="form-label">Arrowhead size (px) <input class="form-control form-control-sm" type="number" min="2" max="16" step="0.5" data-look="arrowHeadSize"></label>
+              <label class="form-label">Arrowhead size (px) <input class="form-control form-control-sm" type="number" min="2" max="32" step="0.5" data-look="arrowHeadSize"></label>
               <div class="td-arrow-types">${[["straight", "Straight"], ["curved", "Curved"], ["square", "Square"]].map(([type, label]) => `
                 <fieldset class="td-band"><legend class="label-mono">${label} arrows</legend>
                   <label class="form-label">Arrow colour <input class="form-control form-control-color" type="color" data-look="edgeColour" data-edge-type="${type}"></label>
@@ -194,7 +194,7 @@ export const dockSettings = (B) => `
             </fieldset>
             <fieldset class="td-band"><legend class="label-mono">Arrow styling</legend>
               <label class="form-label">Arrow line width (px) <input class="form-control form-control-sm" type="number" min="0.25" max="4" step="0.05" data-look="edgeLineWidth"></label>
-              <label class="form-label">Arrowhead size (px) <input class="form-control form-control-sm" type="number" min="2" max="16" step="0.5" data-look="arrowHeadSize"></label>
+              <label class="form-label">Arrowhead size (px) <input class="form-control form-control-sm" type="number" min="2" max="32" step="0.5" data-look="arrowHeadSize"></label>
               <div class="td-arrow-types">${[["straight", "Straight"], ["curved", "Curved"], ["square", "Square"]].map(([type, label]) => `
                 <fieldset class="td-band"><legend class="label-mono">${label} arrows</legend>
                   <label class="form-label">Arrow colour <input class="form-control form-control-color" type="color" data-look="edgeColour" data-edge-type="${type}"></label>

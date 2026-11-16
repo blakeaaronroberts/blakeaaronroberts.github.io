@@ -1086,24 +1086,36 @@ scenarios.timingDefaults = async (ctx) => {
         accent, line: line?.outerHTML, name: svg.querySelector(".td-name-math").getAttribute("transform"),
         label: svg.querySelector(".td-edge-label-math").getAttribute("transform"),
         signalWidth: !!svg.querySelector('path[clip-path][stroke-width="2"]'),
-        head: !![...svg.querySelectorAll("path[fill]")].find(p => p.getAttribute("fill")?.toLowerCase() === accent)
+        head: [...svg.querySelectorAll("path[fill]")].find(p => p.getAttribute("fill")?.toLowerCase() === accent)?.getAttribute("d"),
+        arrowWidth: document.querySelector('[data-look="edgeLineWidth"]').value,
+        headSize: document.querySelector('[data-look="arrowHeadSize"]').value,
+        headMax: document.querySelector('[data-look="arrowHeadSize"]').max,
+        lineWidth: line?.getAttribute("stroke-width"),
       };
     })()`);
-    res.push([defaults.sizes.join(",") === "32,30,2" && defaults.dotted && defaults.picker === defaults.accent && defaults.line && defaults.head && defaults.signalWidth && defaults.name.includes("scale(0.032)") && defaults.label.includes("scale(0.03)"), `default sizes and dotted accent arrows render in the timing viewer (${JSON.stringify(defaults)})`]);
+    res.push([defaults.sizes.join(",") === "32,30,2" && defaults.dotted && defaults.picker === "#0072b2" && defaults.picker === defaults.accent && defaults.lineWidth === "3" && Number(defaults.arrowWidth) === 3 && defaults.headSize === "16" && defaults.headMax === "32" && defaults.head && defaults.signalWidth && defaults.name.includes("scale(0.032)") && defaults.label.includes("scale(0.03)"), `default sizes and blue dotted arrows render in the timing viewer (${JSON.stringify(defaults)})`]);
     await page.shot(`${ctx.out}/beta-timing-defaults.png`);
     await page.eval(`(() => {
       const dotted = document.querySelector('[data-look="edgeDotted"][data-edge-type="straight"]');
       dotted.checked = false; dotted.dispatchEvent(new Event("change", { bubbles: true }));
+      const head = document.querySelector('[data-look="arrowHeadSize"]');
+      head.focus(); head.value = "50"; head.dispatchEvent(new Event("change", { bubbles: true }));
     })()`);
+    const clamped = await page.eval(`document.querySelector('[data-look="arrowHeadSize"]').value === "32"`);
+    res.push([clamped, "arrowhead size is clamped to 32 even while the field is focused"]);
     await page.goto(`${ctx.url}?view=timing`);
     await page.waitFor(`!!document.querySelector(".td-tabs")`);
     const solid = await page.eval(`(() => {
       const source = JSON.parse(localStorage.getItem("figure-editor-beta/timing-source"));
-      return source.config.edgeStyles.straight.dotted === false && !document.querySelector('[data-look="edgeDotted"][data-edge-type="straight"]').checked;
+      const svg = document.querySelector("#WaveDrom_Display_0 svg");
+      const accent = getComputedStyle(document.documentElement).getPropertyValue("--fig-accent").trim().toLowerCase();
+      const path = [...svg.querySelectorAll("path[fill]")].find(p => p.getAttribute("fill")?.toLowerCase() === accent)?.getAttribute("d");
+      const match = path?.match(/^M ([\\d.]+) ([\\d.]+) L ([\\d.]+) ([\\d.]+)/);
+      return source.config.edgeStyles.straight.dotted === false && !document.querySelector('[data-look="edgeDotted"][data-edge-type="straight"]').checked && source.config.arrowHeadSize === 32 && match && Math.abs(Number(match[2]) - Number(match[4])) === 32;
     })()`);
-    res.push([solid, "choosing a solid straight arrow persists after reload"]);
+    res.push([solid, "solid straight arrows and 32 px arrowheads persist and render after reload"]);
     await page.eval(`document.querySelector('[data-do="reset-look"]').click()`);
-    const reset = await page.eval(`document.querySelector('[data-look="edgeDotted"][data-edge-type="straight"]').checked && document.querySelector('[data-look="signalNameSize"]').value === "32" && document.querySelector('[data-look="arrowLabelSize"]').value === "30" && document.querySelector('[data-look="lineWidth"]').value === "2"`);
+    const reset = await page.eval(`document.querySelector('[data-look="edgeDotted"][data-edge-type="straight"]').checked && document.querySelector('[data-look="signalNameSize"]').value === "32" && document.querySelector('[data-look="arrowLabelSize"]').value === "30" && document.querySelector('[data-look="lineWidth"]').value === "2" && Number(document.querySelector('[data-look="edgeLineWidth"]').value) === 3 && document.querySelector('[data-look="arrowHeadSize"]').value === "16"`);
     res.push([reset, "Reset look restores the new defaults"]);
     res.push([page.errors.length === 0, `no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
   } finally { await page.close(); }

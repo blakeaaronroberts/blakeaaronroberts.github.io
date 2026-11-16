@@ -83,7 +83,16 @@ Deno.test("slide timing uses the beta default sizes, line width and dotted accen
   const source = { signal: [{ name: "A", wave: "01", node: ".a" }, { name: "B", wave: "01", node: ".b" }], edge: ["a->b delay"] };
   const svg = slideSvg(doc(), pack, s, { only: region.id, timing: { source } });
   assert(/font-size="32"[^>]*>A<\/text>/.test(svg) && /font-size="30"[^>]*>delay<\/text>/.test(svg), "default label sizes reach the slide");
-  assert(svg.includes('stroke-width="2"') && svg.includes(`stroke="${pack.theme.roles.accent}" stroke-width="1.25" stroke-dasharray="2.5 2.5"`), "default lines and arrows reach the slide");
+  assert(svg.includes('stroke-width="2"') && svg.includes(`stroke="${pack.theme.roles.accent}" stroke-width="3" stroke-dasharray="6 6"`), "default lines and arrows reach the slide");
+  const headLength = (markup) => {
+    const m = new RegExp(`<path d="M ([\\d.]+) ([\\d.]+) L ([\\d.]+) ([\\d.]+) L [\\d.]+ [\\d.]+ Z" fill="${pack.theme.roles.accent}"`).exec(markup);
+    assert(m, "slide arrowhead exists");
+    return Math.abs(Number(m[2]) - Number(m[4]));
+  };
+  assertEquals(headLength(svg), 16);
+  const larger = slideSvg(doc(), pack, s, { only: region.id, timing: { source: { ...source, config: { arrowHeadSize: 32, edgeLineWidth: 1.25 } } } });
+  assertEquals(headLength(larger), 32);
+  assert(larger.includes(`stroke="${pack.theme.roles.accent}" stroke-width="1.25"`), "saved arrow line width is preserved");
 });
 
 Deno.test("slide timing aligns arrows and grid with centered transitions", () => {

@@ -14,7 +14,7 @@ import { exportSvg } from "./export.js";
 import { MODULE_CM, fmt } from "./geometry.js";
 import { applyFrame, framesOf } from "./levelframes.js";
 import { drawTiming } from "../../timing/src/draw.js";
-import { arrowLabelSizeOf, edgeStylesFor, lineWidthOf, signalNameSizeOf, textSizeOf } from "../../timing/src/model.js";
+import { arrowHeadSizeOf, arrowLabelSizeOf, edgeLineWidthOf, edgeStylesFor, lineWidthOf, signalNameSizeOf, textSizeOf } from "../../timing/src/model.js";
 
 export { FORMATS };
 export const KINDS = { schematic: "Schematic", timing: "Timing diagram", text: "Text (PowerPoint)" };
@@ -174,7 +174,7 @@ function timingIn(r, t, index) {
     marker: t.marker ?? null, levelColour: t.levelColour ?? null, dataFills: t.dataFills ?? [], levelFills: t.levelFills ?? {}, signalLineColour: t.signalLineColour ?? t.ink, paper: t.paper ?? null,
     fontSize: t.fontSize ?? textSizeOf(t.source), signalNameSize: t.signalNameSize ?? signalNameSizeOf(t.source), arrowLabelSize: t.arrowLabelSize ?? arrowLabelSizeOf(t.source),
     lineWidth: t.lineWidth ?? lineWidthOf(t.source), showNames: t.showNames ?? true, nameTypeset: t.nameTypeset ?? null, edgeLabelTypeset: t.edgeLabelTypeset ?? t.nameTypeset ?? null,
-    edgeStyles: edgeStylesFor(t.source, t.accent),
+    edgeStyles: edgeStylesFor(t.source, t.accent), edgeLineWidth: edgeLineWidthOf(t.source), arrowHeadSize: arrowHeadSizeOf(t.source), arrowHeadMax: 32,
   });
   const svg = drawn.svg;
   const inner = svg.slice(svg.indexOf(">") + 1, svg.lastIndexOf("</svg>"));
