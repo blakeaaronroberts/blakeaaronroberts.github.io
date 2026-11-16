@@ -77,6 +77,17 @@ Deno.test("the slide timing region keeps the viewer's text and line settings and
   assert(svg.includes('class="td-name-math"') && svg.includes('class="td-edge-label-math"') && svg.includes('font-size="18"') && svg.includes('stroke-width="2.4"'));
 });
 
+Deno.test("slide timing aligns arrows and grid with centered transitions", () => {
+  const s = withLayout(defaultSlide(), "over"), timingRegion = s.regions.find((r) => r.kind === "timing");
+  const svg = slideSvg(doc(), pack, s, { only: timingRegion.id, timing: { source: {
+    signal: [{ name: "A", wave: "01", node: ".a" }, { name: "B", wave: "0h", node: ".b" }],
+    edge: ["a->b"], head: { tick: 0 }, config: { edgeLineColour: "#123456" },
+  } } });
+  const edge = /<path d="M ([\d.]+) [\d.]+ L ([\d.]+) [\d.]+" fill="none" stroke="#123456"/.exec(svg);
+  assert(edge && edge[1] === edge[2], "simultaneous transitions have a vertical arrow");
+  assert(svg.includes(`<line x1="${edge[1]}"`) && svg.includes(`x2="${edge[1]}"`), "the grid shares the transition center");
+});
+
 Deno.test("a 2 by 2 grid draws each frame's own levels", () => {
   let d = doc();
   for (const n of ["a", "b", "c", "d"]) d = captureFrame(d, n);

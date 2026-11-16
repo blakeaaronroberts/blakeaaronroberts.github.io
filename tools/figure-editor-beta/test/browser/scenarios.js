@@ -1025,6 +1025,40 @@ scenarios.timing = async (ctx) => {
   return res;
 };
 
+scenarios.timingAlignment = async (ctx) => {
+  const res = [], page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(`${ctx.url}?view=timing`);
+    await page.waitFor(`!!document.querySelector(".td-tabs")`);
+    await page.eval(`(() => {
+      document.querySelector('[data-view="source"]').click();
+      document.querySelector(".td-srctext").value = JSON.stringify({
+        signal: [
+          { name: "Clock", wave: "p...", node: ".a.." },
+          { name: "Signal", wave: "01.0", node: ".b.." },
+          { name: "Sharp", wave: "0h.l", node: ".c.." },
+          { name: "Data", wave: "0x.1", node: ".d.." }
+        ],
+        head: { tick: 0 }, edge: ["a->b", "b->c", "c->d"], config: { slant: 10, edgeLineColour: "#123456" }
+      });
+      document.querySelector('[data-do="src-apply"]').click();
+      document.querySelector('[data-view="diagram"]').click();
+    })()`);
+    await page.waitFor(`document.querySelectorAll('#WaveDrom_Display_0 path[stroke="#123456"]').length === 3`);
+    const geometry = await page.eval(`(() => {
+      const svg = document.querySelector("#WaveDrom_Display_0 svg");
+      const edges = Array.from(svg.querySelectorAll('path[stroke="#123456"]')).map(p => p.getAttribute("d").match(/^M ([\\d.]+) [\\d.]+ L ([\\d.]+) [\\d.]+/).slice(1).map(Number));
+      const grid = Array.from(svg.querySelectorAll('line[stroke-dasharray="2 3"]')).map(l => [Number(l.getAttribute("x1")), Number(l.getAttribute("x2"))]);
+      return { edges, grid };
+    })()`);
+    const x = geometry.edges[0][0];
+    res.push([geometry.edges.every(([a, b]) => a === x && b === x) && geometry.grid.some(([a, b]) => a === x && b === x), `rendered grid and arrows share the transition center (${JSON.stringify(geometry)})`]);
+    await page.shot(`${ctx.out}/beta-timing-alignment.png`);
+    res.push([page.errors.length === 0, `no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};
+
 scenarios.netnames = async (ctx) => {
   const res = [];
   const page = await ctx.launch({ scheme: "light", port: nextPort++ });

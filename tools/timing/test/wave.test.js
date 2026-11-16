@@ -197,3 +197,65 @@ Deno.test("edge nodes retain their legacy slanted positions", async () => {
     assertEquals(edgeX(result.svg), [legacyX, legacyX]);
   }
 });
+
+Deno.test("beta grid and arrows meet the centers of simultaneous transitions", async () => {
+  const { drawTiming } = await import("../src/draw.js");
+  const cases = ["01", "10", "0h", "1l", "0u", "1d", "0x", "1=", "x1", "=0", "0z", "1z", "z1", "z0", "p.", "n.", "P.", "N.", "zp"];
+  for (const slant of [0, 5, 12]) for (const wave of cases) {
+    const result = drawTiming({
+      signal: [{ name: "A", wave: "01", node: ".a" }, { name: "B", wave, node: ".b" }],
+      head: { tick: 0 }, edge: ["a->b"], config: { slant, edgeLineColour: "#123456" },
+    }, { width: 300, height: 100, centerTransitions: true });
+    const x = Math.round((result.geometry.x0 + result.geometry.stepW) * 100) / 100;
+    const edge = /<path d="M ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+)" fill="none" stroke="#123456"/.exec(result.svg);
+    assert(edge, `${wave}: arrow exists`);
+    assertEquals([+edge[1], +edge[3]], [x, x]);
+    assert(result.svg.includes(`<line x1="${x}"`) && result.svg.includes(`x2="${x}"`), `${wave}: grid is vertical at the transition`);
+    const target = [+edge[3], +edge[4]], top = result.geometry.top + result.geometry.laneH, bottom = top + result.geometry.laneH;
+    const paths = [...result.svg.matchAll(/<path\b[^>]*clip-path="url\(#plot\)"[^>]*>/g)];
+    const onSegment = (a, b) => {
+      if (a[1] < top - 0.02 || b[1] < top - 0.02 || a[1] > bottom + 0.02 || b[1] > bottom + 0.02) return false;
+      const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy);
+      if (!len) return Math.hypot(target[0] - a[0], target[1] - a[1]) < 0.03;
+      const t = ((target[0] - a[0]) * dx + (target[1] - a[1]) * dy) / (len * len);
+      return t >= -0.01 && t <= 1.01 && Math.abs((target[0] - a[0]) * dy - (target[1] - a[1]) * dx) / len < 0.03;
+    };
+    const touches = paths.some(([tag]) => {
+      const d = /\bd="([^"]+)"/.exec(tag)?.[1] ?? "";
+      const points = [...d.matchAll(/[ML]\s+(-?[\d.]+)\s+(-?[\d.]+)/g)].map((m) => [+m[1], +m[2]]);
+      if (d.endsWith("Z") && points.length) points.push(points[0]);
+      return points.some((p, i) => i > 0 && onSegment(points[i - 1], p));
+    });
+    assert(touches, `${wave}, slant ${slant}: arrow ends at the waveform transition (${target})`);
+  }
+});
+
+Deno.test("beta transition centers retain phase, delay, and period offsets", async () => {
+  const { drawTiming } = await import("../src/draw.js");
+  const value = {
+    signal: [
+      { name: "A", wave: "01", node: ".a" },
+      { name: "B", wave: "01", node: ".b", phase: 0.25, delay: 0.5, period: 2 },
+    ],
+    edge: ["a->b"], config: { edgeLineColour: "#123456" },
+  };
+  const result = drawTiming(value, { width: 400, centerTransitions: true });
+  const edge = /<path d="M ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+)" fill="none" stroke="#123456"/.exec(result.svg);
+  assert(edge, "offset arrow exists");
+  const rounded = (x) => Math.round(x * 100) / 100;
+  assertEquals([+edge[1], +edge[3]], [rounded(result.geometry.x0 + result.geometry.stepW), rounded(result.geometry.x0 + 2.5 * result.geometry.stepW)]);
+});
+
+Deno.test("beta centered transitions remain ordered at short periods and near the plot edge", async () => {
+  const { drawTiming } = await import("../src/draw.js");
+  const clock = drawTiming({ signal: [{ name: "C", wave: "p..", period: 0.25 }], config: { slant: 12 } }, { width: 100, centerTransitions: true });
+  const path = /<path d="(M [^"]+)" clip-path="url\(#plot\)"/.exec(clock.svg)[1];
+  const xs = [...path.matchAll(/[ML]\s+(-?[\d.]+)\s+(-?[\d.]+)/g)].map((m) => +m[1]);
+  assert(xs.every((x, i) => i === 0 || x >= xs[i - 1]), "clock edges do not run backwards");
+
+  const box = drawTiming({ signal: [{ name: "B", wave: "0x", phase: 0.9 }], config: { slant: 12 } }, { width: 100, centerTransitions: true });
+  const shape = /<path clip-path="url\(#plot\)" d="M ([\d.]+) [\d.]+ L ([\d.]+) [\d.]+/.exec(box.svg);
+  assert(shape, "unknown-state box exists");
+  const center = box.geometry.x0 + 0.1 * box.geometry.stepW;
+  assert(Math.abs((+shape[1] + +shape[2]) / 2 - center) < 0.01, "partially clipped box still centers at its timing boundary");
+});

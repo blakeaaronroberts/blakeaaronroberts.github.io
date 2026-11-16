@@ -83,11 +83,11 @@ export function parseEdge(s) {
  * The SVG for a source at width x height px. Options include ink, accent (the step marker), marker (a step index or null),
  * levelColour (lines coloured by level, like the schematic nets), dataFills (theme fills for data 3 to 9), levelFills
  * (theme backgrounds for X and Z), signalLineColour, edge-line and arrowhead styles, nameTypeset and edgeLabelTypeset
- * (outlined TeX), and paper (behind edge labels; none if not given).
+ * (outlined TeX), paper (behind edge labels; none if not given), and centerTransitions (align transitions to step boundaries).
  * A source's config.dataColours can override the seven data fills.
  * Returns {svg, natural, geometry: {x0, stepW, laneH, steps, top}}.
  */
-export function drawTiming(value, { width, height, ink = "#000000", accent = "#0072B2", marker = null, levelColour = null, dataFills = [], levelFills = {}, signalLineColour = ink, paper = null, fontSize = FONT, lineWidth = 1.6, edgeLineWidth = lineWidth / 1.6, edgeLineColour = null, arrowHeadSize = 6, arrowHeadColour = null, edgeStyles = value?.config?.edgeStyles ?? {}, nameTypeset = null, edgeLabelTypeset = nameTypeset, showNames = true } = {}) {
+export function drawTiming(value, { width, height, ink = "#000000", accent = "#0072B2", marker = null, levelColour = null, dataFills = [], levelFills = {}, signalLineColour = ink, paper = null, fontSize = FONT, lineWidth = 1.6, edgeLineWidth = lineWidth / 1.6, edgeLineColour = null, arrowHeadSize = 6, arrowHeadColour = null, edgeStyles = value?.config?.edgeStyles ?? {}, nameTypeset = null, edgeLabelTypeset = nameTypeset, showNames = true, centerTransitions = false } = {}) {
   const lanes = lanesOf(value);
   const nat = naturalSize(value, Number(value?.config?.hscale) || 1, { nameTypeset, showNames });
   const W = Math.max(100, width ?? nat.w), H = Math.max(40, height ?? nat.h);
@@ -98,7 +98,7 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
   const top0 = 5 + headH;
   const laneH = Math.max(12, (H - 10 - headH - footH) / Math.max(1, lanes.length));
   const cfgSlant = value?.config?.slant, slant = cfgSlant === undefined ? 5 : Math.min(12, Math.max(0, Number(cfgSlant) || 0));   // config.slant: 0 is square edges, 5 is WaveDrom's look
-  const slope = Math.min(slant, stepW * 0.15), lw = lineWidth, small = fontSize * 10 / FONT;
+  const baseSlope = Math.min(slant, stepW * 0.15), lw = lineWidth, small = fontSize * 10 / FONT;
   const edgeWidth = Math.max(0.25, Math.min(4, Number(value?.config?.edgeLineWidth) || Number(edgeLineWidth) || lw / 1.6));
   const defaultEdgeColour = isHexColour(value?.config?.edgeLineColour) ? value.config.edgeLineColour : edgeLineColour ?? ink;
   const defaultHeadColour = isHexColour(value?.config?.arrowHeadColour) ? value.config.arrowHeadColour : arrowHeadColour ?? ink;
@@ -160,11 +160,32 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
     }
     if (lane.spacer) return;
     const st = stepsOf(lane.wave), w = stepW * lane.period;
+    const slope = centerTransitions ? Math.min(baseSlope, w / 4) : baseSlope;
     const xAt = (i) => x0 + (i - lane.phase + lane.delay) * w;   // phase shifts left, delay (fine, in steps) shifts right
     for (let i = 0; i < lane.node.length; i++) {
       const ch = lane.node[i];
-      if (ch !== "." && ch !== " " && !nodes.has(ch)) nodes.set(ch, [xAt(i) + (st[i]?.isNew && i > 0 ? slope / 2 : 0), ym]);
+      if (ch !== "." && ch !== " " && !nodes.has(ch)) {
+        let nodeY = ym;
+        if (centerTransitions && i > 0 && st[i]?.isNew && LEVEL[st[i].c] && LEVEL[st[i - 1]?.c] === "mid" && LEVEL[st[i].c] !== "mid") {
+          nodeY = (ym + yOf[LEVEL[st[i].c]]) / 2;
+        } else if (centerTransitions && i > 0 && /^[pPnN]$/.test(st[i]?.c ?? "") && LEVEL[st[i - 1]?.c] === "mid") {
+          nodeY = (ym + (/^[pP]$/.test(st[i].c) ? yh : yl)) / 2;
+        }
+        nodes.set(ch, [xAt(i) + (!centerTransitions && st[i]?.isNew && i > 0 ? slope / 2 : 0), nodeY]);
+      }
     }
+    const levelEnd = (i, k, xr) => {
+      if (!centerTransitions) return xr;
+      const next = st[i + 1];
+      if (!next) return xr;
+      if (/^[pPnN]$/.test(next.c)) return xr - slope / 2;
+      if (next.isNew && LEVEL[next.c] && LEVEL[next.c] !== k) {
+        const s = SHARP.has(next.c) ? 0 : WEAK.has(next.c) ? slope * 2 : slope;
+        return xr - s / 2;
+      }
+      if (next.isNew && BOX.test(next.c) && k !== "mid") return xr - slope;
+      return xr;
+    };
     const d = [];
     let level = null, run = null, di = 0, prevBox = false;
     let cur = null, dashed = false, last = [0, 0];   // the colour and dash of the path being built
@@ -182,12 +203,14 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
     };
     const flush = () => {
       if (!run) return;
-      const xl = Math.max(x0, xAt(run.from)), xr = xAt(run.to), hatch = run.c === "x";
+      const centeredEntry = centerTransitions && (run.entry === "lo" || run.entry === "hi");
+      const xl = centeredEntry ? xAt(run.from) - slope : Math.max(x0, xAt(run.from)), xr = xAt(run.to), hatch = run.c === "x";
+      const entryWidth = centeredEntry ? slope * 2 : slope;
       const pts = run.entry === "lo"
-        ? [[xl, yl], [xl + slope, yh], [xr - slope, yh], [xr, ym], [xr - slope, yl], [xl + slope, yl]]
+        ? [[xl, yl], [xl + entryWidth, yh], [xr - slope, yh], [xr, ym], [xr - slope, yl], [xl + entryWidth, yl]]
         : run.entry === "hi"
-          ? [[xl, yh], [xl + slope, yl], [xr - slope, yl], [xr, ym], [xr - slope, yh], [xl + slope, yh]]
-          : [[xl, ym], [xl + slope, yh], [xr - slope, yh], [xr, ym], [xr - slope, yl], [xl + slope, yl]];
+          ? [[xl, yh], [xl + entryWidth, yl], [xr - slope, yl], [xr, ym], [xr - slope, yh], [xl + entryWidth, yh]]
+          : [[xl, ym], [xl + entryWidth, yh], [xr - slope, yh], [xr, ym], [xr - slope, yl], [xl + entryWidth, yl]];
       const colourIndex = /[3-9]/.test(run.c) ? +run.c - 3 : -1;
       const colour = colourIndex >= 0
         ? (isHexColour(value?.config?.dataColours?.[colourIndex]) ? value.config.dataColours[colourIndex] : dataFills[colourIndex])
@@ -223,23 +246,25 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
         flush();
         paint(null);
         const hi = c === "p" || c === "P", y1 = hi ? yh : yl, y2 = hi ? yl : yh, mid = (xl + xr) / 2;
-        line(xl, level ? yOf[level] : y2); line(xl + slope, y1); line(mid, y1); line(mid + slope, y2); line(xr, y2);
-        if (c === "P") arrow(xl + slope / 2, ym, true);
-        if (c === "N") arrow(xl + slope / 2, ym, false);
+        const shift = centerTransitions ? slope / 2 : 0;
+        line(xl - shift, level ? yOf[level] : y2); line(xl + slope - shift, y1); line(mid - shift, y1); line(mid + slope - shift, y2); line(levelEnd(i, hi ? "lo" : "hi", xr), y2);
+        if (c === "P") arrow(xl + slope / 2 - shift, ym, true);
+        if (c === "N") arrow(xl + slope / 2 - shift, ym, false);
         level = hi ? "lo" : "hi";
       } else if (LEVEL[c]) {
         flush();
         const k = LEVEL[c], y = yOf[k], s = SHARP.has(c) ? 0 : WEAK.has(c) ? slope * 2 : slope;
         if (isNew && level && yOf[level] !== y) {
           paint(level, dashed);
-          line(xl, yOf[level]); paint(k, WEAK.has(c));
+          const shift = centerTransitions ? s / 2 : 0;
+          line(xl - shift, yOf[level]); paint(k, WEAK.has(c));
           if (c === "z" && (level === "lo" || level === "hi")) {
-            line(xl + s, yOf[level] === yOf.lo ? yh : yl);
-            line(xl + 2 * s, y);
-          } else line(xl + s, y);
+            line(xl + s - shift, yOf[level] === yOf.lo ? yh : yl);
+            line(xl + 2 * s - shift, y);
+          } else line(xl + s - shift, y);
         }
-        else { paint(k, WEAK.has(c)); if (isNew || !d.length) line(wasBox ? a - slope : a, y); }
-        line(xr, y); level = k;
+        else { paint(k, WEAK.has(c)); if (isNew || !d.length) line(wasBox && (!centerTransitions || k !== "mid") ? a - slope : a, y); }
+        line(levelEnd(i, k, xr), y); level = k;
       } else if (BOX.test(c)) {
         if (isNew || !run) {
           flush();
