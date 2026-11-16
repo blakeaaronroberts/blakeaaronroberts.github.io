@@ -72,12 +72,22 @@ export function mount(root, {
 
   // ---- the three views: Edit, Diagram, WaveDrom source ----
   const srcText = $(".td-srctext");
+  const srcLineNumbers = $(".td-line-numbers");
+  function syncSourceLines() {
+    if (!srcLineNumbers) return;
+    const lines = srcText.value.split("\n").length;
+    srcLineNumbers.textContent = Array.from({ length: lines }, (_, i) => String(i + 1)).join("\n");
+    srcLineNumbers.style.minWidth = `${Math.max(3, String(lines).length + 1)}ch`;
+    srcLineNumbers.scrollTop = srcText.scrollTop;
+  }
+  srcText.addEventListener("input", syncSourceLines);
+  srcText.addEventListener("scroll", () => { if (srcLineNumbers) srcLineNumbers.scrollTop = srcText.scrollTop; });
   const showView = (m) => {
     for (const t of root.querySelectorAll("[data-view]")) t.setAttribute("aria-selected", String(t.dataset.view === m));
     $(".td-edit").hidden = m !== "edit";
     $(".td-view").hidden = m !== "diagram";
     $(".td-source").hidden = m !== "source";
-    if (m === "source") srcText.value = JSON.stringify(toWaveDrom(value), null, 2);
+    if (m === "source") { srcText.value = JSON.stringify(toWaveDrom(value), null, 2); syncSourceLines(); }
     if (m === "diagram") render();   // its width follows the view, which has a size only when shown
   };
   root.addEventListener("click", (e) => { const t = e.target.closest("[data-view]"); if (t && root.contains(t)) showView(t.dataset.view); });   // only this tool's own tabs
@@ -282,6 +292,7 @@ export function mount(root, {
     if (act === "add-custom") { const name = window.prompt("Name of the signal"); if (name?.trim()) commit(addSignal(value, name.trim(), { clock: CLOCK.test(name.trim()) })); }
     if (act === "add-spacer") commit(addSpacer(value), "Added a spacer.");
     if (act === "src-apply") { const r = parseSource(srcText.value); if (!r.ok) return say(r.error, true); commit(fromWaveDrom(r.value), "Using the pasted source."); showView("edit"); }
+    if (act === "src-save") { save(new Blob([srcText.value], { type: "application/json" }), "timing-diagram.json"); say("Saved WaveDrom source as timing-diagram.json."); }
     if (act === "src-copy") { navigator.clipboard?.writeText(srcText.value).then(() => say("Copied the WaveDrom source."), () => say("The browser would not copy; select the text and copy it.", true)); }
   });
   for (const i of [wIn, hIn]) i.addEventListener("input", () => { custom = true; render(); });

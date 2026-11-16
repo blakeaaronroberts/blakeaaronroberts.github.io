@@ -17,6 +17,7 @@ import { packLabelPt, texNeeded, texOf } from "./labels.js";
 import { typesetAll } from "./mathjax.js";
 import { nearestOnPolyline, route } from "./router.js";
 import { createView, thumbnail, blockThumbnail } from "./view.js";
+import { junctionCounts } from "./junctions.js";
 import { BLOCK, formatPins, handlesOf, parsePins, SHAPES, geometryOf } from "./block.js";
 import { PRESETS, presetById } from "./presets.js";
 import { sections } from "./categories.js";
@@ -254,6 +255,7 @@ export async function mount(root, options = {}) {
   let doc = D.newDoc();
   const history = new History();
   let selection = none();
+  let selectedJunction = null;
   let tool = "select";               // select | wire | port | label | place
   let placing = null;                // {type, rotation, params?}: params for a block
   let wiring = null;                 // {from: target, fromAt, via: [...]}
@@ -365,7 +367,7 @@ export async function mount(root, options = {}) {
   function render() {
     applyLevels();
     lastDrawing = view.render({
-      doc, pack, selection, ghost, rubber, hover, hoverWire, box: boxSel,
+      doc, pack, selection, selectedJunction, ghost, rubber, hover, hoverWire, box: boxSel,
       typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags, netNames: opt.netNames,
     });
     if (lastDrawing.pending.length) queueTypeset();
@@ -461,6 +463,7 @@ export async function mount(root, options = {}) {
   const choice = (label, name, opts) => `<label class="form-label">${label} <select class="form-select form-select-sm" data-field="${name}">${opts.map(([v, t, off]) => `<option value="${v}"${off ? " disabled" : ""}>${esc(t)}</option>`).join("")}</select></label>`;
   const SIDE_OPTS = [["", "centred on the point"], ["left", "left of the point"], ["right", "right of the point"], ["up", "above the point"], ["down", "below the point"]];
   const levelOpts = () => [["", "none (default colour)"], ...LEVELS.map((l) => [l.value, `${l.value}: ${l.name}`, !pack.levelColour(l.value)])];
+  const junctionIsFourWay = (id) => (junctionCounts(doc).get(id) ?? 0) >= pack.theme.junction.min_wires;
 
   const BLOCK_PIN_FIELDS = { blkLeft: "left", blkRight: "right", blkTop: "top", blkBottom: "bottom" };
   const blockFields = () => `<p class="fe-hint">Size is in whole modules; a side needs one more module than it has pins.</p>` +
@@ -478,6 +481,13 @@ export async function mount(root, options = {}) {
     if (pendingLabel) {
       key = "pending";
       html = `<p>New label at [${pendingLabel.at.join(", ")}]</p>${field("Label text (TeX, such as $A_0$)", "pendingText")}<p class="fe-hint">Press Enter to add it, Esc to cancel.</p>`;
+    } else if (selectedJunction && junctionIsFourWay(selectedJunction)) {
+      const j = doc.junctions.find((x) => x.id === selectedJunction);
+      key = `junction:${selectedJunction}`;
+      html = `<p><strong>Four-way junction</strong> at [${j.at.join(", ")}]</p>` +
+        choice("Solder dot", "junctionConnected", [["true", "Present - connected"], ["false", "Absent - paths stay separate"]]) +
+        `<p class="fe-hint">Without a solder dot, the crossing paths are not electrically connected.</p>`;
+      values.junctionConnected = String(D.junctionConnected(doc, selectedJunction));
     } else if (only(selection.elements)) {
       const el = doc.elements.find((e) => e.id === selection.elements[0]);
       const def = el && pack.defFor(el);
@@ -602,6 +612,9 @@ export async function mount(root, options = {}) {
         const field = { labelText: "text", labelSide: "side" }[name];
         if (name === "labelText" && !v.trim()) { status("A label needs some text; delete it to remove it."); return; }
         commit(D.setLabel(doc, selection.labels[0], { [field]: v.trim() }), "Label changed.");
+      } else if (name === "junctionConnected") {
+        const connected = v === "true";
+        commit(D.setJunctionConnected(doc, selectedJunction, connected), connected ? "Solder dot added: the junction is connected." : "Solder dot removed: the crossing paths are separate.");
       } else if (name === "wireNetSide" || name === "wireNetGap") {
         commit(setWireLabelStyle(doc, selection.wires, name === "wireNetSide" ? { side: v } : { gap: v }), "Net label placement changed.");
       } else if (name === "wireNet") {
@@ -659,6 +672,7 @@ export async function mount(root, options = {}) {
       elements: selection.elements.filter((id) => els.has(id)), wires: selection.wires.filter((id) => ws.has(id)),
       ports: selection.ports.filter((id) => ps.has(id)), labels: selection.labels.filter((i) => i < doc.labels.length),
     };
+    if (selectedJunction && (!doc.junctions.some((j) => j.id === selectedJunction) || !junctionIsFourWay(selectedJunction))) selectedJunction = null;
   }
 
   /** Make `next` the document, recorded as one undo step. */
@@ -1109,6 +1123,7 @@ export async function mount(root, options = {}) {
     else { doc = next; history.clear(); }
     unsaved = false;   // what was just opened matches a file
     selection = none();
+    selectedJunction = null;
     render();
     queueTypeset().then(() => view.fit(lastDrawing?.box ?? null));
     view.fit(lastDrawing?.box ?? null);
@@ -1452,6 +1467,18 @@ export async function mount(root, options = {}) {
       return;
     }
     const hits = targets(p);
+    const junction = hits.find((h) => h.kind === "junction" && junctionIsFourWay(h.id));
+    if (junction) {
+      selection = none();
+      selectedJunction = junction.id;
+      hoverWire = null;
+      drag = null;
+      const pane = root.querySelector('.fe-side details[data-views="figure"]');
+      if (pane) pane.open = true;
+      render();
+      return;
+    }
+    selectedJunction = null;
     let target = hits.find((h) => ["port", "wire", "label", "element"].includes(h.kind));
     if (!target) { const pin = hits.find((h) => h.kind === "pin"); if (pin) target = { kind: "element", id: pin.ref.split(".")[0] }; }
     if (target) {
@@ -1587,7 +1614,7 @@ export async function mount(root, options = {}) {
       e.preventDefault();
       if (wiring) { wiring = null; rubber = null; status("Wire cancelled."); render(); }
       else if (tool !== "select") commands.select();
-      else { selection = none(); render(); }
+      else { selection = none(); selectedJunction = null; render(); }
       return;
     }
     if (e.key === "Enter" && wiring) {

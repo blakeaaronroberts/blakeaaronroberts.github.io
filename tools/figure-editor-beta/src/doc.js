@@ -2,7 +2,7 @@
 //
 // Every edit takes a document and returns a new one (the input is never changed),
 // which is what makes snapshot undo (history.js) safe. Wire corners, junction
-// counts, joints and nets are derived, never stored (proposal section 1).
+// counts, joints and nets are derived; per-junction solder-dot choices live in groups.
 
 import { elementBox, orient, pinOf } from "./geometry.js";
 import { BLOCK, canonicalParams, geometryOf, minSize, normalizeBlock } from "./block.js";
@@ -12,6 +12,7 @@ export const SCHEMA = "circuit/0.3";
 const LEGACY_SCHEMA = "circuit/0.2";
 const ID = /^[A-Za-z][A-Za-z0-9_]*$/;
 const REF = /^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z0-9_+-]+)?$/;
+const SOLDER_DOTS = "solder_dots";
 
 export const clone = (doc) => structuredClone(doc);
 export const isPoint = (end) => Array.isArray(end);
@@ -95,6 +96,13 @@ export function normalize(doc, pack) {
   }
   const used = new Set(doc.wires.flatMap((w) => [w.from, w.to]).filter((e) => !isPoint(e)));
   doc.junctions = doc.junctions.filter((j) => used.has(j.id));
+  if (doc.groups?.[SOLDER_DOTS]) {
+    const states = { ...doc.groups[SOLDER_DOTS] };
+    for (const id of Object.keys(states)) if (!doc.junctions.some((j) => j.id === id)) delete states[id];
+    const groups = { ...doc.groups };
+    if (Object.keys(states).length) groups[SOLDER_DOTS] = states; else delete groups[SOLDER_DOTS];
+    if (Object.keys(groups).length) doc.groups = groups; else delete doc.groups;
+  }
   return doc;
 }
 
@@ -349,12 +357,14 @@ export function extractFragment(doc, pack, sel) {
     for (const side of ["from", "to"]) if (!isPoint(c[side]) && !inside(c[side])) c[side] = [...endpoint(doc, pack, c[side]).at];
     return c;
   });
+  const solderDots = Object.fromEntries(doc.junctions.filter((j) => js.has(j.id) && !junctionConnected(doc, j.id)).map((j) => [j.id, false]));
   return {
     elements: doc.elements.filter((e) => els.has(e.id)).map(clone),
     wires,
     junctions: doc.junctions.filter((j) => js.has(j.id)).map(clone),
     ports: doc.ports.filter((p) => ports.has(p.id)).map(clone),
     labels: (sel.labels ?? []).filter((i) => doc.labels[i]).map((i) => clone(doc.labels[i])),
+    ...(Object.keys(solderDots).length ? { solderDots } : {}),
   };
 }
 
@@ -381,6 +391,10 @@ export function pasteFragment(doc, pack, frag, d) {
   }
   if (doc.wires.some((w) => w.route?.includes("straight"))) doc.schema = SCHEMA;
   for (const j of frag.junctions) doc.junctions.push({ id: map.get(j.id), on: map.get(j.on), at: add(j.at, d) });
+  for (const id of Object.keys(frag.solderDots ?? {})) {
+    const pastedId = map.get(id);
+    if (pastedId) doc = setJunctionConnected(doc, pastedId, false);
+  }
   for (const p of frag.ports ?? []) doc.ports.push({ ...clone(p), id: map.get(p.id), at: add(p.at, d) });
   const firstLabel = doc.labels.length;
   for (const l of frag.labels ?? []) doc.labels.push({ ...clone(l), at: add(l.at, d) });
@@ -509,6 +523,24 @@ export function setLevel(doc, wireIds, level, elementIds = [], pack = null) {
   return doc;
 }
 
+/** Whether a junction carries a solder dot; older figures default to connected. */
+export function junctionConnected(doc, id) {
+  return doc.groups?.[SOLDER_DOTS]?.[id] !== false;
+}
+
+/** Set whether a junction is connected. A missing state means connected for compatibility. */
+export function setJunctionConnected(doc, id, connected) {
+  if (!doc.junctions.some((j) => j.id === id)) throw new Error(`no junction ${id}`);
+  if (typeof connected !== "boolean") throw new Error("junction connection must be true or false");
+  doc = clone(doc);
+  const states = { ...(doc.groups?.[SOLDER_DOTS] ?? {}) };
+  if (connected) delete states[id]; else states[id] = false;
+  const groups = { ...(doc.groups ?? {}) };
+  if (Object.keys(states).length) groups[SOLDER_DOTS] = states; else delete groups[SOLDER_DOTS];
+  if (Object.keys(groups).length) doc.groups = groups; else delete doc.groups;
+  return doc;
+}
+
 // ---- nets (derived on save, never edited) --------------------------------------------
 
 /**
@@ -555,7 +587,14 @@ function netGraph(doc, pack) {
     union(`~${w.id}`, refNode(w.to));
     wired.add(`~${w.id}`);
   }
-  for (const j of doc.junctions) union(`#${j.id}`, `~${j.on}`);
+  const ends = new Map(doc.junctions.map((j) => [j.id, 2]));
+  for (const w of doc.wires) for (const end of [w.from, w.to]) {
+    if (!isPoint(end) && ends.has(end)) ends.set(end, ends.get(end) + 1);
+  }
+  for (const j of doc.junctions) {
+    const min = pack.theme.junction.min_wires;
+    if (ends.get(j.id) < min || junctionConnected(doc, j.id)) union(`#${j.id}`, `~${j.on}`);
+  }
   return { find, node, members, wired };
 }
 

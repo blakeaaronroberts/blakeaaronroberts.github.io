@@ -7,7 +7,7 @@ const views = (B, sizeInLook = false, betaFeatures = false) => `
       <div class="td-tabs" role="tablist" aria-label="View">
         <button type="button" class="${B}" role="tab" data-view="edit" aria-selected="true">Edit</button>
         <button type="button" class="${B}" role="tab" data-view="diagram" aria-selected="false">Diagram</button>
-        <button type="button" class="${B}" role="tab" data-view="source" aria-selected="false" title="The diagram as WaveDrom source: copy it out, or paste one in">WaveDrom source</button>
+        <button type="button" class="${B}" role="tab" data-view="source" aria-selected="false" title="${betaFeatures ? "Save or copy the WaveDrom source, or paste one in" : "The diagram as WaveDrom source: copy it out, or paste one in"}">WaveDrom source</button>
       </div>
       <div class="td-edit" role="tabpanel" aria-label="Edit the diagram">
         <div class="td-subtabs" role="tablist" aria-label="What to edit">
@@ -74,8 +74,8 @@ const views = (B, sizeInLook = false, betaFeatures = false) => `
         </details>` : ""}
       </div>
       <div class="td-source" role="tabpanel" aria-label="WaveDrom source" hidden>
-        <textarea class="form-control td-srctext" spellcheck="false"${betaFeatures ? ' autocomplete="off" autocapitalize="off" wrap="off"' : ""} aria-label="WaveDrom source"></textarea>
-        <div class="fe-theme-buttons"><button type="button" class="${B}" data-do="src-apply">Use this source</button><button type="button" class="${B}" data-do="src-copy">Copy</button><span class="fe-hint">Any WaveDrom diagram: paste one in and press Use this source.</span></div>
+        ${betaFeatures ? '<div class="td-code-editor"><pre class="td-line-numbers" aria-hidden="true">1</pre><textarea class="form-control td-srctext" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off" aria-label="WaveDrom source"></textarea></div>' : '<textarea class="form-control td-srctext" spellcheck="false" aria-label="WaveDrom source"></textarea>'}
+        <div class="fe-theme-buttons"><button type="button" class="${B}" data-do="src-apply">Use this source</button>${betaFeatures ? `<button type="button" class="${B}" data-do="src-save">Save source</button>` : ""}<button type="button" class="${B}" data-do="src-copy">Copy</button><span class="fe-hint">Any WaveDrom diagram: paste one in and press Use this source.</span></div>
       </div>`;
 
 const bandFields = () => ["head", "foot"].map((b) => `<fieldset class="td-band"><legend class="label-mono">${b === "head" ? "Title above the signals (head)" : "Title below the signals (foot)"}</legend>

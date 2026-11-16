@@ -1,9 +1,9 @@
 // Junction dots and line-end joints, as the toolbox draws them. No DOM.
 //
-// Dots (toolbox wire.py, Junction): a tap counts 2 (the tapped wire continues on both
-// sides) and each wire that ends on the junction adds 1. The dot is drawn at
-// theme.json junction.min_wires (4) or more, so a T-junction (3) has none. Wires that
-// merely cross share no junction, so they are not connected and get no dot.
+// A tap counts 2 (the tapped wire continues on both sides) and each wire that ends
+// on the junction adds 1. At theme.json's junction.min_wires (4), a solder-dot choice
+// controls whether the junction is connected and drawn with a dot. A T-junction (3)
+// stays connected without a dot; wires that merely cross share no junction.
 //
 // Joints (toolbox circuit.py, Circuit._line_end): lines have flat ends. Where two line
 // ends meet at an angle, a round joint one line width across fills the notch; where
@@ -12,7 +12,7 @@
 // has no size of its own.
 
 import { pinOf } from "./geometry.js";
-import { isPoint } from "./doc.js";
+import { isPoint, junctionConnected } from "./doc.js";
 
 /** Wires meeting at each junction: 2 for the tap plus one per wire end on it. */
 export function junctionCounts(doc) {
@@ -26,7 +26,7 @@ export function junctionCounts(doc) {
 export function dots(doc, pack) {
   const min = pack.theme.junction.min_wires;
   const counts = junctionCounts(doc);
-  return doc.junctions.filter((j) => counts.get(j.id) >= min).map((j) => ({ id: j.id, at: j.at, wires: counts.get(j.id) }));
+  return doc.junctions.filter((j) => counts.get(j.id) >= min && junctionConnected(doc, j.id)).map((j) => ({ id: j.id, at: j.at, wires: counts.get(j.id) }));
 }
 
 const unit = (v) => { const n = Math.hypot(v[0], v[1]); return [v[0] / n, v[1] / n]; };
@@ -62,6 +62,10 @@ export function lineEnds(doc, pack, corners) {
  * there: wire ids, and "element.pin" for a pin's lead.
  */
 export function joints(doc, pack, corners) {
+  const counts = junctionCounts(doc);
+  const unconnected = new Set(doc.junctions
+    .filter((j) => counts.get(j.id) >= pack.theme.junction.min_wires && !junctionConnected(doc, j.id))
+    .map((j) => `${j.at[0]},${j.at[1]}`));
   const byPoint = new Map();
   for (const e of lineEnds(doc, pack, corners)) {
     const k = `${e.at[0]},${e.at[1]}`;
@@ -70,6 +74,7 @@ export function joints(doc, pack, corners) {
   }
   const out = [];
   for (const ends of byPoint.values()) {
+    if (unconnected.has(`${ends[0].at[0]},${ends[0].at[1]}`)) continue;
     if (ends.length < 2) continue;
     const d0 = ends[0].into;
     const dot = (e) => e.into[0] * d0[0] + e.into[1] * d0[1];

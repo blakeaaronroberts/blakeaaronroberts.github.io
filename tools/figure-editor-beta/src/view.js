@@ -133,6 +133,11 @@ export function createView(svg, basePack) {
       const on = (sel.ports ?? []).includes(p.id);
       o.push(`<circle ${accent} stroke-opacity="${on ? 1 : 0.5}" ${on ? "" : dash} cx="${fmt(x)}" cy="${fmt(y)}" r="${fmt(junction.radius_module * 1.8)}"/>`);
     }
+    const selectedJunction = state.doc.junctions.find((j) => j.id === state.selectedJunction);
+    if (selectedJunction) {
+      const [x, y] = toSvg(selectedJunction.at);
+      o.push(`<circle ${accent} fill="none" cx="${fmt(x)}" cy="${fmt(y)}" r="${fmt(junction.radius_module * 2.2)}"/>`);
+    }
     for (const l of d.labels) {
       const on = l.kind === "label" ? (sel.labels ?? []).includes(l.index) : l.kind === "port" ? (sel.ports ?? []).includes(l.id) : false;
       if (on) o.push(rect({ min: [l.box.min[0] - lw, l.box.min[1] - lw], max: [l.box.max[0] + lw, l.box.max[1] + lw] }, dash));

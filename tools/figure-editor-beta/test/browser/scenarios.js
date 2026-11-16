@@ -874,3 +874,101 @@ scenarios.netnames = async (ctx) => {
   } finally { await page.close(); }
   return res;
 };
+
+scenarios.solderdots = async (ctx) => {
+  const res = [];
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(ctx.url);
+    await page.waitFor(ready);
+    await page.eval(`window.figureEditor.load(JSON.stringify({
+      schema: "circuit/0.2", id: "solder_dot_check", grid_cm: 0.25, elements: [],
+      ports: [
+        { id: "L", dir: "in", at: [-10, 0] }, { id: "R", dir: "in", at: [10, 0] },
+        { id: "T", dir: "in", at: [0, 8] }, { id: "B", dir: "in", at: [0, -8] }
+      ],
+      wires: [
+        { id: "w1", from: [-10, 0], to: [10, 0] },
+        { id: "w2", from: [0, 8], to: "j1" },
+        { id: "w3", from: "j1", to: [0, -8] }
+      ],
+      junctions: [{ id: "j1", on: "w1", at: [0, 0] }], nets: { B: ["B", "L", "R", "T"] }
+    }))`);
+    await page.sleep(300);
+    const center = await page.eval(`(() => {
+      const svg = document.querySelector("svg.fe-canvas"), p = svg.createSVGPoint();
+      p.x = 0; p.y = 0;
+      const c = p.matrixTransform(svg.getScreenCTM());
+      return [c.x, c.y];
+    })()`);
+    await page.click(center[0], center[1]);
+    const initial = await page.eval(`(() => ({
+      value: document.querySelector('[data-field="junctionConnected"]')?.value ?? null,
+      open: document.querySelector('.fe-side details[data-views="figure"]')?.open ?? false
+    }))()`);
+    res.push([initial.value === "true" && initial.open, "selecting a four-way junction opens its solder-dot selector"]);
+    await page.eval(`(() => {
+      const s = document.querySelector('[data-field="junctionConnected"]');
+      if (!s) return false;
+      s.value = "false";
+      s.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    })()`);
+    await page.sleep(200);
+    const isolated = await page.eval(`(() => {
+      const d = window.figureEditor.doc;
+      return { state: d.groups?.solder_dots?.j1, nets: JSON.parse(window.figureEditor.save()).nets };
+    })()`);
+    await page.shot(`${ctx.out}/beta-solder-dot.png`);
+    res.push([isolated.state === false, "removing the dot saves the junction as disconnected"]);
+    res.push([Object.keys(isolated.nets).sort().join(",") === "B,L", "the saved nets remain separate without the dot"]);
+    await page.eval(`(() => {
+      const s = document.querySelector('[data-field="junctionConnected"]');
+      s.value = "true";
+      s.dispatchEvent(new Event("change", { bubbles: true }));
+    })()`);
+    await page.sleep(200);
+    const connected = await page.eval(`(() => JSON.parse(window.figureEditor.save()).nets)()`);
+    res.push([Object.keys(connected).join(",") === "B", "adding the dot joins the crossing nets again"]);
+    res.push([page.errors.length === 0, `solder-dot control: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};
+
+scenarios.sourceEditor = async (ctx) => {
+  const res = [];
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(`${ctx.url}?view=timing`);
+    await page.waitFor(`!!document.querySelector(".td-tabs")`);
+    await page.eval(`document.querySelector('[data-view="source"]').click()`);
+    const text = await page.eval(`(() => {
+      const source = document.querySelector(".td-srctext");
+      source.value = Array.from({ length: 60 }, (_, i) => "line " + (i + 1)).join("\\n");
+      source.dispatchEvent(new Event("input", { bubbles: true }));
+      source.scrollTop = 200;
+      source.dispatchEvent(new Event("scroll"));
+      return source.value;
+    })()`);
+    const editor = await page.eval(`(() => ({
+      lastLine: document.querySelector(".td-line-numbers").textContent.split("\\n").at(-1),
+      synced: document.querySelector(".td-line-numbers").scrollTop === document.querySelector(".td-srctext").scrollTop,
+      striped: getComputedStyle(document.querySelector(".td-srctext")).backgroundImage.includes("repeating-linear-gradient")
+    }))()`);
+    res.push([editor.lastLine === "60", "source editor numbers every line"]);
+    res.push([editor.synced, "line numbers stay aligned while the source scrolls"]);
+    res.push([editor.striped, "source lines use alternating theme backgrounds"]);
+
+    await page.eval(`(() => {
+      URL.createObjectURL = (blob) => { window.__sourceBlob = blob; return "blob:source-test"; };
+      URL.revokeObjectURL = () => {};
+      HTMLAnchorElement.prototype.click = function() { window.__sourceFilename = this.download; };
+      document.querySelector('[data-do="src-save"]').click();
+    })()`);
+    const download = await page.eval(`(async () => ({ filename: window.__sourceFilename, text: await window.__sourceBlob.text() }))()`);
+    res.push([download.filename === "timing-diagram.json" && download.text === text, "Save source downloads the editor text as timing-diagram.json"]);
+    await page.shot(`${ctx.out}/beta-source-editor.png`);
+    res.push([page.errors.length === 0, `source editor: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};
