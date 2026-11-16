@@ -4,6 +4,7 @@ import { contentArea, cleanSlide, defaultSlide, LAYOUTS, nudgeRegion, slideOf, s
 import { parse, serialize } from "../src/doc.js";
 import { captureFrame } from "../src/levelframes.js";
 import { buildClaChevron } from "../examples/cla-chevron.js";
+import { drawTiming } from "../../timing/src/draw.js";
 import { assert, assertClose, assertEquals, pack, typeset } from "./helpers.js";
 
 const doc = () => buildClaChevron(pack);
@@ -86,6 +87,22 @@ Deno.test("slide timing aligns arrows and grid with centered transitions", () =>
   const edge = /<path d="M ([\d.]+) [\d.]+ L ([\d.]+) [\d.]+" fill="none" stroke="#123456"/.exec(svg);
   assert(edge && edge[1] === edge[2], "simultaneous transitions have a vertical arrow");
   assert(svg.includes(`<line x1="${edge[1]}"`) && svg.includes(`x2="${edge[1]}"`), "the grid shares the transition center");
+});
+
+Deno.test("slide timing keeps independent large label sizes and fits the region", () => {
+  const s = withLayout(defaultSlide(), "over"), region = s.regions.find((r) => r.kind === "timing");
+  const source = { signal: [{ name: "A", wave: "01", node: ".a" }, { name: "B", wave: "01", node: ".b" }], edge: ["a->b delay"] };
+  const svg = slideSvg(doc(), pack, s, { only: region.id, timing: {
+    source, fontSize: 18, signalNameSize: 40, arrowLabelSize: 64,
+  } });
+  assert(/font-size="40"[^>]*>A<\/text>/.test(svg) && /font-size="64"[^>]*>delay<\/text>/.test(svg), "slide retains both label sizes");
+  const transform = /<g transform="translate\(([\d.]+) ([\d.]+)\) scale\(([\d.]+)\)">/.exec(svg);
+  assert(transform, "timing region has a transform");
+  const pxPerModule = (0.5 / 2.54) * 96;
+  const drawing = drawTiming(source, { width: region.w * pxPerModule, height: region.h * pxPerModule, fontSize: 18, signalNameSize: 40, arrowLabelSize: 64, fitText: true, centerTransitions: true });
+  const [x, y, scale] = transform.slice(1).map(Number);
+  assert(scale < 1 / pxPerModule, "oversized text is scaled to fit");
+  assert(x >= region.x - 0.001 && y >= region.y - 0.001 && x + drawing.geometry.width * scale <= region.x + region.w + 0.01 && y + drawing.geometry.height * scale <= region.y + region.h + 0.01, "the entire timing drawing fits inside the region");
 });
 
 Deno.test("a 2 by 2 grid draws each frame's own levels", () => {

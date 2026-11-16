@@ -190,7 +190,7 @@ Deno.test("resetTimingLook removes visual overrides but preserves waveform conte
   const value = {
     signal: [{ name: "D", wave: "01xz" }], edge: ["a->b"], head: { text: "Title" },
     config: {
-      steps: 4, keepThis: "yes", hscale: 2, slant: 0, fontSize: 18, lineWidth: 3, showNames: false,
+      steps: 4, keepThis: "yes", hscale: 2, slant: 0, fontSize: 18, signalNameSize: 40, arrowLabelSize: 64, lineWidth: 3, showNames: false,
       signalLineColour: "#123456", dataColours: ["#234567"], edgeLineWidth: 2, edgeLineColour: "#345678",
       arrowHeadSize: 10, arrowHeadColour: "#456789", edgeStyles: { straight: { colour: "#56789A", dotted: true } },
     },

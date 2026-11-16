@@ -4,7 +4,7 @@
 import { parseSource, tidy } from "./wave.js";
 import { drawTiming, naturalSize, lanesOf, stepsOf } from "./draw.js";
 import { nodesOf, unknownNames, framesIn } from "./nodes.js";
-import { addEdge, addSignal, addSpacer, arrowHeadColourOf, arrowHeadSizeOf, cellsOf, dataAt, dataColoursOf, EDGE_OPS, edgeLineColourOf, edgeLineWidthOf, edgeStyleOf, edgesOf, empty, fromWaveDrom, isCalculatedCell, isClock, LABEL, lineWidthOf, moveSignal, nextLetter, nextValue, nodeLetters, removeEdge, removeSignal, resetTimingColours, resetTimingLook, setArrowHeadSize, setBand, setCalculatedLevels, setCell, setClock, setDataColour, setDelay, setEdge, setEdgeLineWidth, setEdgeStyle, setHscale, setLineWidth, setNode, setProp, setShowNames, setSignalLineColour, setSlant, setSteps, setTextSize, showNamesOf, signalLineColourOf, slantOf, stepCount, textSizeOf, toWaveDrom, WAVE } from "./model.js";
+import { addEdge, addSignal, addSpacer, arrowHeadColourOf, arrowHeadSizeOf, arrowLabelSizeOf, cellsOf, dataAt, dataColoursOf, EDGE_OPS, edgeLineColourOf, edgeLineWidthOf, edgeStyleOf, edgesOf, empty, fromWaveDrom, isCalculatedCell, isClock, LABEL, lineWidthOf, moveSignal, nextLetter, nextValue, nodeLetters, removeEdge, removeSignal, resetTimingColours, resetTimingLook, setArrowHeadSize, setArrowLabelSize, setBand, setCalculatedLevels, setCell, setClock, setDataColour, setDelay, setEdge, setEdgeLineWidth, setEdgeStyle, setHscale, setLineWidth, setNode, setProp, setShowNames, setSignalLineColour, setSignalNameSize, setSlant, setSteps, setTextSize, showNamesOf, signalLineColourOf, signalNameSizeOf, slantOf, stepCount, textSizeOf, toWaveDrom, WAVE } from "./model.js";
 import { dockSettings, dockShell, pageShell } from "./shell.js";
 
 const store = {
@@ -77,7 +77,7 @@ export function mount(root, {
   const inlineMath = (text) => {
     const parsed = betaFeatures ? nameTypesets.get(text) : null;
     if (!parsed?.ok) return esc(text);
-    const size = textSizeOf(value), x = parsed.left * 1000, y = -parsed.height * 1000;
+    const size = signalNameSizeOf(value), x = parsed.left * 1000, y = -parsed.height * 1000;
     const width = parsed.width * 1000, height = (parsed.height + parsed.depth) * 1000;
     return `<svg class="td-inline-math" role="img" aria-label="${esc(text)}" viewBox="${x} ${y} ${width} ${height}" width="${parsed.width * size}" height="${(parsed.height + parsed.depth) * size}" style="vertical-align:-${parsed.depth * size}px"><g color="currentColor">${nodesMarkup(parsed.nodes)}</g></svg>`;
   };
@@ -90,7 +90,8 @@ export function mount(root, {
       dataFills: dataColoursOf(value, dataDefaults(dark)), paper: role(dark ? "--fig-dark-background" : "--fig-background"), marker: frame >= 0 && frame < frameNames.length ? frame : null,
       ...(betaFeatures ? {
         centerTransitions: true,
-        fontSize: textSizeOf(value), lineWidth: lineWidthOf(value), signalLineColour: signalLineColourOf(value, ink),
+        fontSize: textSizeOf(value), signalNameSize: signalNameSizeOf(value), arrowLabelSize: arrowLabelSizeOf(value), fitText: true,
+        lineWidth: lineWidthOf(value), signalLineColour: signalLineColourOf(value, ink),
         levelFills: { unknown: role(dark ? "--fig-dark-unknown" : "--fig-unknown"), floating: role(dark ? "--fig-dark-floating" : "--fig-floating") },
         nameTypeset: nameTypesets, edgeLabelTypeset: nameTypesets, showNames: showNamesOf(value),
         edgeLineWidth: edgeLineWidthOf(value, lineWidthOf(value)), edgeLineColour: edgeLineColourOf(value, ink),
@@ -134,15 +135,19 @@ export function mount(root, {
     if (!status.hasAttribute("data-error")) say(n ? `${n} signal${n === 1 ? "" : "s"}, ${stepCount(value)} steps.` : "Empty: add a node from the circuit to start.");
   }
   function drawDiagram() {
-    natural = naturalSize(toWaveDrom(value), Number(value.config?.hscale) || 1, betaFeatures ? { nameTypeset: nameTypesets, showNames: showNamesOf(value) } : {});
+    natural = naturalSize(toWaveDrom(value), Number(value.config?.hscale) || 1, betaFeatures ? { nameTypeset: nameTypesets, showNames: showNamesOf(value), fontSize: textSizeOf(value), signalNameSize: signalNameSizeOf(value), arrowLabelSize: arrowLabelSizeOf(value), fitText: true } : {});
     if (!custom) {   // on screen the diagram fills the view's width (laid out again, not stretched); Natural size gives WaveDrom's own proportions
       const room = view.parentElement.clientWidth;
-      wIn.value = Math.round(Math.max(natural.w, room > 0 ? room : 0)); hIn.value = Math.round(natural.h * (room > natural.w ? Math.min(2, room / natural.w) : 1));
+      const largeText = betaFeatures && Math.max(textSizeOf(value), signalNameSizeOf(value), arrowLabelSizeOf(value)) > 24;
+      wIn.value = Math.round(Math.max(natural.w, room > 0 ? room : 0)); hIn.value = Math.round(natural.h * (!largeText && room > natural.w ? Math.min(2, room / natural.w) : 1));
     }
     if (document.activeElement !== hsIn) hsIn.value = String(value.config?.hscale ?? 1);
     if (document.activeElement !== slantIn) slantIn.value = String(slantOf(value));
     const fontIn = $("[data-look=fontSize]"), lineIn = $("[data-look=lineWidth]");
     if (fontIn && document.activeElement !== fontIn) fontIn.value = String(textSizeOf(value));
+    const signalNameIn = $("[data-look=signalNameSize]"), arrowLabelIn = $("[data-look=arrowLabelSize]");
+    if (signalNameIn && document.activeElement !== signalNameIn) signalNameIn.value = String(signalNameSizeOf(value));
+    if (arrowLabelIn && document.activeElement !== arrowLabelIn) arrowLabelIn.value = String(Math.round(arrowLabelSizeOf(value) * 100) / 100);
     if (lineIn && document.activeElement !== lineIn) lineIn.value = String(lineWidthOf(value));
     const dark = !!root.closest('[data-canvas="dark"]'), ink = figureRole(dark ? "--fig-dark-ink" : "--fig-ink");
     const signalColourIn = $("[data-look=signalLineColour]");
@@ -166,6 +171,11 @@ export function mount(root, {
     if (!docked) root.dataset.canvas = siteIsDark() ? "dark" : "light";   // standalone: follow the site's look, as the editor's canvas does
     // The size is a layout input: steps and lanes are re-spaced to fit it, nothing is stretched.
     view.innerHTML = value.signal.length ? drawNow(!!root.closest('[data-canvas="dark"]')) : `<p class="fe-hint td-emptynote">No signals yet: add a node in the Edit view.</p>`;
+    const svg = betaFeatures ? view.querySelector("svg") : null;
+    if (svg) {
+      wIn.value = svg.getAttribute("width");
+      hIn.value = svg.getAttribute("height");
+    }
     ensureNameTypesets();
   }
   async function ensureNameTypesets() {
@@ -330,7 +340,9 @@ export function mount(root, {
     if (i.dataset?.band) commit(setBand(value, i.dataset.band, { [i.dataset.key]: i.type === "checkbox" ? i.checked : i.value }));
     if (i === hsIn) commit(setHscale(value, i.value));
     if (i === slantIn) commit(setSlant(value, i.value));
-    if (i.dataset?.look === "fontSize") commit(setTextSize(value, i.value));
+    if (i.dataset?.look === "fontSize") { commit(setTextSize(value, i.value)); i.value = String(textSizeOf(value)); }
+    if (i.dataset?.look === "signalNameSize") { commit(setSignalNameSize(value, i.value)); i.value = String(signalNameSizeOf(value)); }
+    if (i.dataset?.look === "arrowLabelSize") { commit(setArrowLabelSize(value, i.value)); i.value = String(Math.round(arrowLabelSizeOf(value) * 100) / 100); }
     if (i.dataset?.look === "lineWidth") commit(setLineWidth(value, i.value));
     if (i.dataset?.look === "signalLineColour") commit(setSignalLineColour(value, i.value));
     if (i.dataset?.look === "showNames") commit(setShowNames(value, i.checked));
@@ -555,7 +567,8 @@ export function mount(root, {
   root.addEventListener("click", (e) => {
     if (!e.target.closest("[data-do=send]")) return;
     if (!value.signal.length) return say("Nothing to send yet.", true);
-    store.set(sendKey, JSON.stringify({ svg: drawNow(false), w: Number(wIn.value) || natural.w, h: Number(hIn.value) || natural.h, signals: signalLevels(), source: toWaveDrom(value), at: Date.now() }));
+    const svg = drawNow(false), dimensions = /<svg[^>]* width="([\d.]+)" height="([\d.]+)"/.exec(svg);
+    store.set(sendKey, JSON.stringify({ svg, w: Number(dimensions[1]), h: Number(dimensions[2]), signals: signalLevels(), source: toWaveDrom(value), at: Date.now() }));
     onSend?.();
     say("Sent: the slide's timing regions show this diagram, and the editor's frames are filled from its steps.");
   });

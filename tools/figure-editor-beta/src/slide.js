@@ -166,14 +166,19 @@ function schematicIn(doc, pack, r, opts) {
 /** The timing diagram laid out at the region's size (px at 96 dpi), placed in modules. */
 function timingIn(r, t) {
   if (!t?.source) return "";
-  const svg = drawTiming(t.source, {
-    centerTransitions: true,
+  const targetW = r.w * PX_PER_MODULE, targetH = r.h * PX_PER_MODULE;
+  const drawn = drawTiming(t.source, {
+    centerTransitions: true, fitText: true,
     width: r.w * PX_PER_MODULE, height: r.h * PX_PER_MODULE, ink: t.ink, accent: t.accent,
     marker: t.marker ?? null, levelColour: t.levelColour ?? null, dataFills: t.dataFills ?? [], levelFills: t.levelFills ?? {}, signalLineColour: t.signalLineColour ?? t.ink, paper: t.paper ?? null,
-    fontSize: t.fontSize ?? 12, lineWidth: t.lineWidth ?? 1.6, showNames: t.showNames ?? true, nameTypeset: t.nameTypeset ?? null, edgeLabelTypeset: t.edgeLabelTypeset ?? t.nameTypeset ?? null,
-  }).svg;
+    fontSize: t.fontSize ?? 12, signalNameSize: t.signalNameSize ?? t.fontSize ?? 12, arrowLabelSize: t.arrowLabelSize ?? (t.fontSize ?? 12) * 10 / 12,
+    lineWidth: t.lineWidth ?? 1.6, showNames: t.showNames ?? true, nameTypeset: t.nameTypeset ?? null, edgeLabelTypeset: t.edgeLabelTypeset ?? t.nameTypeset ?? null,
+  });
+  const svg = drawn.svg;
   const inner = svg.slice(svg.indexOf(">") + 1, svg.lastIndexOf("</svg>"));
-  return `  <g transform="translate(${fmt(r.x)} ${fmt(r.y)}) scale(${fmt(1 / PX_PER_MODULE)})">${inner}</g>`;
+  const fit = Math.min(1, targetW / drawn.geometry.width, targetH / drawn.geometry.height);
+  const tx = r.x + (targetW - drawn.geometry.width * fit) / (2 * PX_PER_MODULE), ty = r.y + (targetH - drawn.geometry.height * fit) / (2 * PX_PER_MODULE);
+  return `  <g transform="translate(${fmt(tx)} ${fmt(ty)}) scale(${fmt(fit / PX_PER_MODULE)})">${inner}</g>`;
 }
 
 /**

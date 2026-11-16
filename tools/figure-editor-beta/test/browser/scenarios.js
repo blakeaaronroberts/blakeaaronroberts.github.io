@@ -1059,6 +1059,64 @@ scenarios.timingAlignment = async (ctx) => {
   return res;
 };
 
+scenarios.timingTextSizes = async (ctx) => {
+  const res = [], page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(`${ctx.url}?view=timing`);
+    await page.waitFor(`!!document.querySelector(".td-tabs")`);
+    await page.eval(`(() => {
+      document.querySelector('[data-view="source"]').click();
+      document.querySelector(".td-srctext").value = JSON.stringify({
+        signal: [{ name: "$Q_{0}$", wave: "01", node: ".a" }, { name: "$Q_{1}$", wave: "01", node: ".b" }],
+        edge: ["a->b $t_{pd}$"], head: { text: "Timing", tick: 0 }, foot: { text: "End" }
+      });
+      document.querySelector('[data-do="src-apply"]').click();
+      document.querySelector('[data-view="diagram"]').click();
+      document.querySelector(".td-side-look").open = true;
+      for (const [key, value] of [["fontSize", 64], ["signalNameSize", 40], ["arrowLabelSize", 64]]) {
+        const input = document.querySelector('[data-look="' + key + '"]');
+        input.value = value; input.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    })()`);
+    await page.waitFor(`document.querySelector("#WaveDrom_Display_0 .td-name-math path") && document.querySelector("#WaveDrom_Display_0 .td-edge-label-math path")`, 30000);
+    const clamped = await page.eval(`(() => {
+      const input = document.querySelector('[data-look="signalNameSize"]');
+      input.focus(); input.value = "100"; input.dispatchEvent(new Event("change", { bubbles: true }));
+      const result = input.value === "64" && document.querySelector("#WaveDrom_Display_0 .td-name-math").getAttribute("transform").includes("scale(0.064)");
+      input.value = "40"; input.dispatchEvent(new Event("change", { bubbles: true })); input.blur();
+      return result;
+    })()`);
+    res.push([clamped, "a focused size field displays its applied 64 px maximum"]);
+    await page.goto(`${ctx.url}?view=timing`);
+    await page.waitFor(`!!document.querySelector(".td-tabs")`);
+    await page.eval(`document.querySelector('[data-view="diagram"]').click(); document.querySelector(".td-side-look").open = true;`);
+    await page.waitFor(`document.querySelector("#WaveDrom_Display_0 .td-name-math path") && document.querySelector("#WaveDrom_Display_0 .td-edge-label-math path")`, 30000);
+    const sizes = await page.eval(`(() => {
+      const svg = document.querySelector("#WaveDrom_Display_0 svg"), outer = svg.getBoundingClientRect();
+      const text = [...svg.querySelectorAll("text, .td-name-math, .td-edge-label-math")];
+      const outside = text.filter(el => {
+        const b = el.getBoundingClientRect();
+        return b.left < outer.left - 1 || b.right > outer.right + 1 || b.top < outer.top - 1 || b.bottom > outer.bottom + 1;
+      }).map(el => el.textContent || el.getAttribute("aria-label"));
+      return {
+        saved: JSON.parse(localStorage.getItem("figure-editor-beta/timing-source")).config,
+        controls: ["fontSize", "signalNameSize", "arrowLabelSize"].map(k => [document.querySelector('[data-look="' + k + '"]').value, document.querySelector('[data-look="' + k + '"]').max]),
+        name: svg.querySelector(".td-name-math").getAttribute("transform"),
+        arrow: svg.querySelector(".td-edge-label-math").getAttribute("transform"),
+        outside
+      };
+    })()`);
+    res.push([sizes.saved.fontSize === 64 && sizes.saved.signalNameSize === 40 && sizes.saved.arrowLabelSize === 64 && sizes.controls.every(([, max]) => max === "64") && sizes.controls.map(([value]) => value).join(",") === "64,40,64", `separate sizes persist after reload, with a 64 px maximum (${JSON.stringify(sizes)})`]);
+    res.push([sizes.name.includes("scale(0.04)") && sizes.arrow.includes("scale(0.064)") && sizes.outside.length === 0, `large outlined labels render at their selected sizes inside the SVG (${JSON.stringify(sizes.outside)})`]);
+    await page.shot(`${ctx.out}/beta-timing-text-sizes.png`);
+    await page.eval(`document.querySelector('[data-do="reset-look"]').click()`);
+    const reset = await page.eval(`JSON.parse(localStorage.getItem("figure-editor-beta/timing-source")).config`);
+    res.push([!reset?.fontSize && !reset?.signalNameSize && !reset?.arrowLabelSize, "Reset look restores inherited default sizes"]);
+    res.push([page.errors.length === 0, `no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};
+
 scenarios.netnames = async (ctx) => {
   const res = [];
   const page = await ctx.launch({ scheme: "light", port: nextPort++ });

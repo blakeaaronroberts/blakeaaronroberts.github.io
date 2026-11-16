@@ -11,6 +11,7 @@ import { contrast, levelRoles, warnings as levelWarnings, withLevelColour } from
 import * as D from "./doc.js";
 import { History } from "./history.js";
 import { drawTiming, parseEdge } from "../../timing/src/draw.js";
+import { arrowLabelSizeOf, signalNameSizeOf, textSizeOf } from "../../timing/src/model.js";
 import { drawing, exportDocument, exportSize, exportSvg, exportGridSvg, labelBoxes, timingGroup } from "./export.js";
 import { hitTest, inBox } from "./hit.js";
 import { packLabelPt, texNeeded, texOf } from "./labels.js";
@@ -1428,7 +1429,9 @@ export async function mount(root, options = {}) {
         signalLineColour: sent.source.config?.signalLineColour ?? r.ink,
         marker: opt.timingMarker && step > 0 ? step - 1 : null,
         levelColour: opt.timingColour ? (l) => pk.levelColour(l) ?? null : null,
-        fontSize: Math.min(24, Math.max(8, Number(sent.source.config?.fontSize) || 12)),
+        fontSize: textSizeOf(sent.source),
+        signalNameSize: signalNameSizeOf(sent.source),
+        arrowLabelSize: arrowLabelSizeOf(sent.source),
         lineWidth: Math.min(4, Math.max(0.5, Number(sent.source.config?.lineWidth) || 1.6)),
         showNames: sent.source.config?.showNames !== false,
         nameTypeset, edgeLabelTypeset: nameTypeset,

@@ -66,11 +66,42 @@ const stepCount = (lanes) => Math.max(1, ...lanes.map((l) => Math.ceil(l.wave.le
 const textOf = (t) => (typeof t === "string" ? t : Array.isArray(t) ? t.filter((x) => typeof x === "string" || Array.isArray(x)).map(textOf).join(" ") : "");
 const bandHeight = (b, fontSize = FONT) => (b && textOf(b.text) ? fontSize * 1.5 : 0) + (b && (b.tick !== undefined || b.tock !== undefined) ? fontSize * 14 / FONT : 0);
 
+const textLayout = (value, lanes, { nameTypeset, edgeLabelTypeset, showNames, fontSize, signalNameSize, arrowLabelSize, fitText }) => {
+  const normalLabelW = showNames ? labelWidth(lanes, nameTypeset, signalNameSize) : groupDepth(lanes) * GROUP_W;
+  if (!fitText || Math.max(fontSize, signalNameSize, arrowLabelSize) <= 24) return { labelW: normalLabelW, right: 10, plotMin: 4 * stepCount(lanes), topExtra: 0, laneMin: 12 };
+  const arrowWidth = Math.max(0, ...(Array.isArray(value?.edge) ? value.edge : []).map((raw) => {
+    const label = parseEdge(raw)?.label ?? "", parsed = edgeLabelTypeset?.get(label);
+    return parsed?.ok ? parsed.width * arrowLabelSize : label.length * arrowLabelSize * 0.7;
+  }));
+  const tickWidth = Math.max(0, ...[value?.head, value?.foot].flatMap((band) => ["tick", "tock"].map((key) => {
+    const v = band?.[key];
+    if (v === undefined) return 0;
+    const labels = typeof v === "string" && /\s/.test(v.trim()) ? v.trim().split(/\s+/) : [String(Number(v) || 0), String((Number(v) || 0) + stepCount(lanes))];
+    return Math.max(...labels.map((label) => label.length)) * fontSize * 10 / FONT * 0.7;
+  })));
+  const sidePad = Math.max(arrowWidth, tickWidth) / 2 + 4;
+  const titleWidth = Math.max(textOf(value?.head?.text).length, textOf(value?.foot?.text).length) * fontSize * 0.7;
+  const dataWidth = Math.max(0, ...lanes.flatMap((lane) => lane.data.map((label) => label.length * fontSize * 0.7)));
+  return {
+    labelW: Math.max(normalLabelW, sidePad - 12),
+    right: Math.max(10, sidePad),
+    plotMin: Math.max(4 * stepCount(lanes), titleWidth + 4, (dataWidth + 4) * stepCount(lanes)),
+    topExtra: Math.max(0, arrowLabelSize - 10),
+    laneMin: Math.max(12, fontSize * 1.3, showNames ? signalNameSize * 1.3 : 0, arrowLabelSize * 1.3),
+  };
+};
+
 /** The size a source gets by default: 40 px a step (times hscale), 30 px a lane, plus the head and foot. */
-export function naturalSize(value, hscale = Number(value?.config?.hscale) || 1, { nameTypeset = null, showNames = true } = {}) {
+export function naturalSize(value, hscale = Number(value?.config?.hscale) || 1, { nameTypeset = null, edgeLabelTypeset = nameTypeset, showNames = true, fontSize = FONT, signalNameSize = fontSize, arrowLabelSize = fontSize * 10 / FONT, fitText = false } = {}) {
   const lanes = lanesOf(value);
-  const labelW = showNames ? labelWidth(lanes, nameTypeset) : groupDepth(lanes) * GROUP_W;
-  return { w: Math.round(labelW + 12 + stepCount(lanes) * 40 * hscale + 10), h: Math.max(1, lanes.length) * 30 + 10 + bandHeight(value?.head) + bandHeight(value?.foot) };
+  const baseLabelW = showNames ? labelWidth(lanes, nameTypeset) : groupDepth(lanes) * GROUP_W;
+  const base = { w: Math.round(baseLabelW + 12 + stepCount(lanes) * 40 * hscale + 10), h: Math.max(1, lanes.length) * 30 + 10 + bandHeight(value?.head) + bandHeight(value?.foot) };
+  if (!fitText || Math.max(fontSize, signalNameSize, arrowLabelSize) <= 24) return base;
+  const t = textLayout(value, lanes, { nameTypeset, edgeLabelTypeset, showNames, fontSize, signalNameSize, arrowLabelSize, fitText });
+  return {
+    w: Math.ceil(Math.max(base.w, t.labelW + 12 + Math.max(t.plotMin, stepCount(lanes) * 40 * hscale) + t.right)),
+    h: Math.ceil(Math.max(base.h, 10 + t.topExtra + bandHeight(value?.head, fontSize) + bandHeight(value?.foot, fontSize) + Math.max(1, lanes.length) * t.laneMin)),
+  };
 }
 
 /** Parse one edge string: "a->b label". Returns {from, to, op, label} or null. */
@@ -83,20 +114,25 @@ export function parseEdge(s) {
  * The SVG for a source at width x height px. Options include ink, accent (the step marker), marker (a step index or null),
  * levelColour (lines coloured by level, like the schematic nets), dataFills (theme fills for data 3 to 9), levelFills
  * (theme backgrounds for X and Z), signalLineColour, edge-line and arrowhead styles, nameTypeset and edgeLabelTypeset
- * (outlined TeX), paper (behind edge labels; none if not given), and centerTransitions (align transitions to step boundaries).
+ * (outlined TeX), independent signalNameSize and arrowLabelSize, fitText (reserve room for large text),
+ * paper (behind edge labels; none if not given), and centerTransitions (align transitions to step boundaries).
  * A source's config.dataColours can override the seven data fills.
  * Returns {svg, natural, geometry: {x0, stepW, laneH, steps, top}}.
  */
-export function drawTiming(value, { width, height, ink = "#000000", accent = "#0072B2", marker = null, levelColour = null, dataFills = [], levelFills = {}, signalLineColour = ink, paper = null, fontSize = FONT, lineWidth = 1.6, edgeLineWidth = lineWidth / 1.6, edgeLineColour = null, arrowHeadSize = 6, arrowHeadColour = null, edgeStyles = value?.config?.edgeStyles ?? {}, nameTypeset = null, edgeLabelTypeset = nameTypeset, showNames = true, centerTransitions = false } = {}) {
+export function drawTiming(value, { width, height, ink = "#000000", accent = "#0072B2", marker = null, levelColour = null, dataFills = [], levelFills = {}, signalLineColour = ink, paper = null, fontSize = FONT, signalNameSize = fontSize, arrowLabelSize = fontSize * 10 / FONT, fitText = false, lineWidth = 1.6, edgeLineWidth = lineWidth / 1.6, edgeLineColour = null, arrowHeadSize = 6, arrowHeadColour = null, edgeStyles = value?.config?.edgeStyles ?? {}, nameTypeset = null, edgeLabelTypeset = nameTypeset, showNames = true, centerTransitions = false } = {}) {
   const lanes = lanesOf(value);
-  const nat = naturalSize(value, Number(value?.config?.hscale) || 1, { nameTypeset, showNames });
-  const W = Math.max(100, width ?? nat.w), H = Math.max(40, height ?? nat.h);
-  const labelW = showNames ? labelWidth(lanes, nameTypeset, fontSize) : groupDepth(lanes) * GROUP_W, x0 = labelW + 12, gw = groupDepth(lanes) * GROUP_W;
-  const steps = stepCount(lanes);
-  const stepW = Math.max(4, (W - x0 - 10) / steps);
+  const textOptions = { nameTypeset, edgeLabelTypeset, showNames, fontSize, signalNameSize, arrowLabelSize, fitText };
+  const nat = naturalSize(value, Number(value?.config?.hscale) || 1, textOptions);
+  const t = textLayout(value, lanes, textOptions);
   const headH = bandHeight(value?.head, fontSize), footH = bandHeight(value?.foot, fontSize);
-  const top0 = 5 + headH;
-  const laneH = Math.max(12, (H - 10 - headH - footH) / Math.max(1, lanes.length));
+  const largeText = fitText && Math.max(fontSize, signalNameSize, arrowLabelSize) > 24;
+  const W = Math.max(100, width ?? nat.w, largeText ? t.labelW + 12 + t.plotMin + t.right : 0);
+  const H = Math.max(40, height ?? nat.h, largeText ? 10 + t.topExtra + headH + footH + Math.max(1, lanes.length) * t.laneMin : 0);
+  const labelW = t.labelW, x0 = labelW + 12, gw = groupDepth(lanes) * GROUP_W;
+  const steps = stepCount(lanes);
+  const stepW = Math.max(4, (W - x0 - t.right) / steps);
+  const top0 = 5 + headH + t.topExtra;
+  const laneH = Math.max(12, (H - 10 - t.topExtra - headH - footH) / Math.max(1, lanes.length));
   const cfgSlant = value?.config?.slant, slant = cfgSlant === undefined ? 5 : Math.min(12, Math.max(0, Number(cfgSlant) || 0));   // config.slant: 0 is square edges, 5 is WaveDrom's look
   const baseSlope = Math.min(slant, stepW * 0.15), lw = lineWidth, small = fontSize * 10 / FONT;
   const edgeWidth = Math.max(0.25, Math.min(4, Number(value?.config?.edgeLineWidth) || Number(edgeLineWidth) || lw / 1.6));
@@ -156,7 +192,7 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
     const yOf = { hi: yh, lo: yl, mid: ym };
     if (showNames && lane.name) {
       const parsed = nameTypeset?.get(lane.name);
-      out.push(parsed?.ok ? mathText(labelW, ym + fontSize * 0.35, parsed) : text(labelW, ym + fontSize * 0.35, lane.name, "end"));
+      out.push(parsed?.ok ? mathText(labelW, ym + signalNameSize * 0.35, parsed, "end", signalNameSize) : text(labelW, ym + signalNameSize * 0.35, lane.name, "end", signalNameSize));
     }
     if (lane.spacer) return;
     const st = stepsOf(lane.wave), w = stepW * lane.period;
@@ -222,7 +258,7 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
       } else {
         out.push(`<path clip-path="url(#plot)" d="${shape}" fill="${hatch ? "url(#hatch)" : colour ?? signalColour}" fill-opacity="${hatch ? 1 : colour ? 0.35 : 0.08}" stroke="${signalColour}" stroke-width="${lw}" stroke-linejoin="round"/>`);
       }
-      if (!hatch && run.label) out.push(text((xl + xr) / 2, ym + FONT * 0.35, run.label));
+      if (!hatch && run.label) out.push(text((xl + xr) / 2, ym + fontSize * 0.35, run.label));
       run = null;
     };
     const gapMark = (x) => out.push(`<path clip-path="url(#plot)" d="M ${n2(x - 3)} ${n2(yl + 2)} L ${n2(x + 1)} ${n2(yh - 2)} M ${n2(x + 1)} ${n2(yl + 2)} L ${n2(x + 5)} ${n2(yh - 2)}" fill="none" stroke="${ink}" stroke-width="${n2(lw / 1.6)}"/>`);
@@ -320,11 +356,11 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
     if (e.op.startsWith("<")) out.push(head(a, aDir, headColour));
     if (e.label) {   // on a small patch of the paper colour, so it reads over the lines
       const parsed = edgeLabelTypeset?.get(e.label);
-      const tw = (parsed?.ok ? parsed.width * small : e.label.length * small * 0.55) + 4;
-      if (paper) out.push(`<rect x="${n2(mid[0] - tw / 2)}" y="${n2(mid[1] - 4 - small)}" width="${n2(tw)}" height="${n2(small + 3)}" fill="${paper}"/>`);
+      const tw = (parsed?.ok ? parsed.width * arrowLabelSize : e.label.length * arrowLabelSize * 0.55) + 4;
+      if (paper) out.push(`<rect x="${n2(mid[0] - tw / 2)}" y="${n2(mid[1] - 4 - arrowLabelSize)}" width="${n2(tw)}" height="${n2(arrowLabelSize + 3)}" fill="${paper}"/>`);
       out.push(parsed?.ok
-        ? mathText(mid[0], mid[1] - 4, parsed, "middle", small, "td-edge-label-math", e.label)
-        : text(mid[0], mid[1] - 4, e.label, "middle", small));
+        ? mathText(mid[0], mid[1] - 4, parsed, "middle", arrowLabelSize, "td-edge-label-math", e.label)
+        : text(mid[0], mid[1] - 4, e.label, "middle", arrowLabelSize));
     }
   }
 
@@ -334,5 +370,5 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${n2(W)}" height="${n2(H)}" viewBox="0 0 ${n2(W)} ${n2(H)}">` +
     `<defs><clipPath id="plot"><rect x="${n2(x0 - 2)}" y="0" width="${n2(W - x0 - 8)}" height="${n2(H)}"/></clipPath><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${signalColour}" stroke-width="${n2(lw / 1.6)}"/></pattern></defs>` +
     out.join("") + `</svg>`;
-  return { svg, natural: nat, geometry: { x0, stepW, laneH, steps, top: top0, groupWidth: gw } };
+  return { svg, natural: nat, geometry: { x0, stepW, laneH, steps, top: top0, groupWidth: gw, width: W, height: H } };
 }

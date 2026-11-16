@@ -131,6 +131,35 @@ Deno.test("beta look settings persist in WaveDrom config with unchanged defaults
   value = setTextSize(setLineWidth(value, 1.6), 12);
   assertEquals([textSizeOf(value), lineWidthOf(value), value.config.fontSize, value.config.lineWidth], [12, 1.6, undefined, undefined]);
 });
+Deno.test("signal names and arrow labels have independently saved sizes up to 64", async () => {
+  const { empty, textSizeOf, setTextSize, signalNameSizeOf, setSignalNameSize, arrowLabelSizeOf, setArrowLabelSize, resetTimingLook, fromWaveDrom, toWaveDrom } = await import("../src/model.js");
+  let value = setTextSize(empty(), 64);
+  assertEquals([textSizeOf(value), signalNameSizeOf(value), arrowLabelSizeOf(value)], [64, 64, 64 * 10 / 12]);
+  value = setArrowLabelSize(setSignalNameSize(value, 40), 64);
+  value = setTextSize(value, 18);
+  assertEquals([textSizeOf(value), signalNameSizeOf(value), arrowLabelSizeOf(value)], [18, 40, 64]);
+  assertEquals([signalNameSizeOf(fromWaveDrom(toWaveDrom(value))), arrowLabelSizeOf(fromWaveDrom(toWaveDrom(value)))], [40, 64]);
+  assertEquals([signalNameSizeOf(setSignalNameSize(value, 100)), arrowLabelSizeOf(setArrowLabelSize(value, 2)), textSizeOf(setTextSize(value, 100))], [64, 6, 64]);
+  assertEquals([signalNameSizeOf(setSignalNameSize(value, "")), arrowLabelSizeOf(setArrowLabelSize(value, ""))], [18, 15]);
+  const reset = resetTimingLook(value);
+  assertEquals([textSizeOf(reset), signalNameSizeOf(reset), arrowLabelSizeOf(reset)], [12, 12, 10]);
+});
+
+Deno.test("independent name and arrow sizes apply to plain and outlined labels, including large layouts", async () => {
+  const { drawTiming } = await import("../src/draw.js");
+  const parsed = { ok: true, left: 0, width: 0.9, height: 0.7, depth: 0.2, nodes: [{ tag: "path", attrs: [["d", "M0 0L1 1"]], children: [] }] };
+  const value = { signal: [{ name: "$Q$", wave: "01", node: ".a" }, { name: "D", wave: "01", node: ".b" }], edge: ["a->b $t$"], head: { text: "Title", tick: 0 }, foot: { text: "Foot" } };
+  const names = new Map([["$Q$", parsed], ["$t$", parsed]]);
+  const result = drawTiming(value, { width: 100, height: 40, fontSize: 64, signalNameSize: 40, arrowLabelSize: 32, nameTypeset: names, edgeLabelTypeset: names, fitText: true });
+  assert(result.svg.includes('class="td-name-math"') && result.svg.includes("scale(0.04)"), "outlined names use their own size");
+  assert(result.svg.includes('class="td-edge-label-math"') && result.svg.includes("scale(0.032)"), "outlined arrow labels use their own size");
+  assert(result.svg.includes('font-size="40"') && result.svg.includes('font-size="64"'), "plain names and other text have independent sizes");
+  assert(result.geometry.laneH >= 64 * 1.3 && result.geometry.height > 40 && result.geometry.width > 100, "large text expands a constrained layout");
+  const plain = drawTiming({ ...value, signal: [{ name: "A", wave: "01", node: ".a" }, { name: "B", wave: "01", node: ".b" }], edge: ["a->b delay"] }, { signalNameSize: 20, arrowLabelSize: 64, fitText: true });
+  assert(/font-size="20"[^>]*>A<\/text>/.test(plain.svg) && /font-size="64"[^>]*>delay<\/text>/.test(plain.svg), "plain names and arrow labels use separate sizes");
+  const maximumName = drawTiming(value, { signalNameSize: 64, arrowLabelSize: 10, nameTypeset: names, edgeLabelTypeset: names, fitText: true });
+  assert(maximumName.svg.includes('class="td-name-math"') && maximumName.svg.includes("scale(0.064)"), "outlined signal names reach 64 px");
+});
 Deno.test("net-name visibility persists in WaveDrom config and defaults to visible", async () => {
   const { empty, setShowNames, showNamesOf, toWaveDrom } = await import("../src/model.js");
   const value = empty(), hidden = setShowNames(value, false), shown = setShowNames(hidden, true);

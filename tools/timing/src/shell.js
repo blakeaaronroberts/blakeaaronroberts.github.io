@@ -3,6 +3,11 @@ import { navHtml } from "./nav.js";
 // pageShell: the standalone Timing Diagram page (the Figure Editor's shell, editor.css). dockShell: the pane docked in the
 // Figure Editor. In both, the middle is two swappable views: Edit (the step editor) and Diagram (the drawing).
 
+const textSizeFields = () => `
+              <label class="form-label">Text size (px) <input class="form-control form-control-sm" type="number" min="8" max="64" step="1" data-look="fontSize"></label>
+              <label class="form-label">Signal name size (px) <input class="form-control form-control-sm" type="number" min="8" max="64" step="1" data-look="signalNameSize"></label>
+              <label class="form-label">Arrow label size (px) <input class="form-control form-control-sm" type="number" min="6" max="64" step="any" data-look="arrowLabelSize"></label>`;
+
 const views = (B, sizeInLook = false, betaFeatures = false, externalControls = false) => `
       <div class="td-tabs" role="tablist" aria-label="View">
         <button type="button" class="${B}" role="tab" data-view="edit" aria-selected="true">Edit</button>
@@ -64,7 +69,7 @@ const views = (B, sizeInLook = false, betaFeatures = false, externalControls = f
             </fieldset>
             <fieldset class="td-band"><legend class="label-mono">Text and lines</legend>
               <label class="form-check"><input class="form-check-input" type="checkbox" data-look="showNames"> <span class="form-check-label">Show net names</span></label>
-              <label class="form-label">Text size (px) <input class="form-control form-control-sm" type="number" min="8" max="24" step="1" data-look="fontSize"></label>
+              ${textSizeFields()}
               <label class="form-label">Line width (px) <input class="form-control form-control-sm" type="number" min="0.5" max="4" step="0.1" data-look="lineWidth"></label>
               <label class="form-label">Signal line colour <input class="form-control form-control-color" type="color" data-look="signalLineColour"></label>
             </fieldset>
@@ -178,7 +183,7 @@ export const dockSettings = (B) => `
             </fieldset>
             <fieldset class="td-band"><legend class="label-mono">Text and signal lines</legend>
               <label class="form-check"><input class="form-check-input" type="checkbox" data-look="showNames"> <span class="form-check-label">Show net names</span></label>
-              <label class="form-label">Text size (px) <input class="form-control form-control-sm" type="number" min="8" max="24" step="1" data-look="fontSize"></label>
+              ${textSizeFields()}
               <label class="form-label">Line width (px) <input class="form-control form-control-sm" type="number" min="0.5" max="4" step="0.1" data-look="lineWidth"></label>
               <label class="form-label">Signal line colour <input class="form-control form-control-color" type="color" data-look="signalLineColour"></label>
             </fieldset>

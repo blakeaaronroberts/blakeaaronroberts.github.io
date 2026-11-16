@@ -228,13 +228,25 @@ export function setHscale(v, x) {
   return d;
 }
 
-export const textSizeOf = (v) => Math.min(24, Math.max(8, Number(v?.config?.fontSize) || 12));
+export const textSizeOf = (v) => Math.min(64, Math.max(8, Number(v?.config?.fontSize) || 12));
 export function setTextSize(v, x) {
-  const d = clone(v), k = Math.round(Math.max(8, Math.min(24, Number(x) || 12)));
+  const d = clone(v), k = Math.round(Math.max(8, Math.min(64, Number(x) || 12)));
   d.config = { ...(d.config ?? {}) };
   if (k === 12) delete d.config.fontSize; else d.config.fontSize = k;
   return d;
 }
+
+export const signalNameSizeOf = (v) => v?.config?.signalNameSize === undefined ? textSizeOf(v) : Math.min(64, Math.max(8, Number(v.config.signalNameSize) || 12));
+export const arrowLabelSizeOf = (v) => v?.config?.arrowLabelSize === undefined ? textSizeOf(v) * 10 / 12 : Math.min(64, Math.max(6, Number(v.config.arrowLabelSize) || 10));
+const setLabelSize = (v, key, x, min) => {
+  const d = clone(v);
+  d.config = { ...(d.config ?? {}) };
+  if (x === "" || x === null) delete d.config[key];
+  else d.config[key] = Math.round(Math.max(min, Math.min(64, Number(x) || 12)));
+  return d;
+};
+export const setSignalNameSize = (v, x) => setLabelSize(v, "signalNameSize", x, 8);
+export const setArrowLabelSize = (v, x) => setLabelSize(v, "arrowLabelSize", x, 6);
 
 export const lineWidthOf = (v) => Math.min(4, Math.max(0.5, Number(v?.config?.lineWidth) || 1.6));
 export function setLineWidth(v, x) {
@@ -340,7 +352,7 @@ export function resetTimingColours(v) {
 export function resetTimingLook(v) {
   const d = clone(v);
   if (d.config) {
-    for (const key of ["hscale", "slant", "fontSize", "lineWidth", "showNames", "signalLineColour", "dataColours", "edgeLineWidth", "edgeLineColour", "arrowHeadSize", "arrowHeadColour", "edgeStyles"]) {
+    for (const key of ["hscale", "slant", "fontSize", "signalNameSize", "arrowLabelSize", "lineWidth", "showNames", "signalLineColour", "dataColours", "edgeLineWidth", "edgeLineColour", "arrowHeadSize", "arrowHeadColour", "edgeStyles"]) {
       delete d.config[key];
     }
     if (!Object.keys(d.config).length) delete d.config;
