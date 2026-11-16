@@ -19,6 +19,26 @@ function gate(type, inputs, params = null) {
   return { doc: output.doc, output: output.id, gate: el.id };
 }
 
+function nandLatch(set, reset) {
+  let doc = addElement(newDoc(), pack, "nand_gate", [0, 0]).doc;
+  doc = addElement(doc, pack, "nand_gate", [0, 16]).doc;
+  const [q, qbar] = doc.elements;
+  const qInputs = Object.keys(pack.defFor(q).pins).filter((name) => name !== "Y").sort();
+  const qbarInputs = Object.keys(pack.defFor(qbar).pins).filter((name) => name !== "Y").sort();
+  const setWire = addWire(doc, pack, point([-12, 0]), pin(`${q.id}.${qInputs[0]}`));
+  doc = setLevel(setWire.doc, [setWire.id], set, [], pack);
+  const resetWire = addWire(doc, pack, point([-12, 16]), pin(`${qbar.id}.${qbarInputs[0]}`));
+  doc = setLevel(resetWire.doc, [resetWire.id], reset, [], pack);
+  const qWire = addWire(doc, pack, pin(`${q.id}.Y`), pin(`${qbar.id}.${qbarInputs[1]}`));
+  const qbarWire = addWire(qWire.doc, pack, pin(`${qbar.id}.Y`), pin(`${q.id}.${qInputs[1]}`));
+  return { doc: qbarWire.doc, setWire: setWire.id, resetWire: resetWire.id, qWire: qWire.id, qbarWire: qbarWire.id };
+}
+
+function latchLevels(doc, latch) {
+  const resolved = resolveLogic(doc, pack);
+  return [resolved.wires.find((wire) => wire.id === latch.qWire)?.level, resolved.wires.find((wire) => wire.id === latch.qbarWire)?.level];
+}
+
 Deno.test("basic gates calculate their output from the input nets", () => {
   const cases = [
     ["and_gate", ["1", "1"], "1"],
@@ -69,6 +89,26 @@ Deno.test("gate outputs update with changed inputs and clear when the driver is 
   const removed = deleteSelection(resolved, pack, { elements: [scene.gate], wires: [], ports: [], labels: [] });
   resolved = resolveLogic(removed, pack);
   assertEquals(resolved.wires.find((wire) => wire.id === scene.output).level, undefined);
+});
+
+Deno.test("cross-coupled NAND latches set, reset, hold, and expose the invalid input state", () => {
+  const latch = nandLatch("0", "1");
+  let resolved = resolveLogic(latch.doc, pack);
+  assertEquals(latchLevels(resolved, latch), ["1", "0"]);
+
+  resolved = resolveLogic(setLevel(resolved, [latch.setWire], "1", [], pack), pack);
+  assertEquals(latchLevels(resolved, latch), ["1", "0"]);
+
+  resolved = resolveLogic(setLevel(resolved, [latch.resetWire], "0", [], pack), pack);
+  assertEquals(latchLevels(resolved, latch), ["0", "1"]);
+
+  resolved = resolveLogic(setLevel(resolved, [latch.setWire], "0", [], pack), pack);
+  assertEquals(latchLevels(resolved, latch), ["1", "1"]);
+});
+
+Deno.test("an uninitialized NAND latch with both controls inactive is unknown", () => {
+  const latch = nandLatch("1", "1");
+  assertEquals(latchLevels(latch.doc, latch), ["X", "X"]);
 });
 
 Deno.test("computed output levels survive save and are recalculated when reopened", () => {

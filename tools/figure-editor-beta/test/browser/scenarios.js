@@ -685,8 +685,43 @@ scenarios.logic = async (ctx) => {
     })()`);
     await page.click(output[0], output[1]);
     await page.sleep(200);
-    const hint = await page.eval(`document.querySelector(".fe-props .fe-hint")?.textContent ?? ""`);
-    res.push([hint.includes("calculated from its inputs"), "the selection panel explains that gate outputs are calculated"]);
+    const levelTitle = await page.eval(`document.querySelector('[data-field="level"]')?.title ?? ""`);
+    res.push([levelTitle.includes("calculated from its input levels"), "the selection panel explains that gate outputs are calculated"]);
+
+    const latch = {
+      schema: "circuit/0.2", id: "nand_latch_test", grid_cm: 0.25,
+      elements: [
+        { id: "nand1", type: "nand_gate", at: [0, 0] },
+        { id: "nand2", type: "nand_gate", at: [0, 16] },
+      ],
+      nets: { set: ["nand1.A"], reset: ["nand2.A"], q: ["nand1.Y", "nand2.B"], qbar: ["nand2.Y", "nand1.B"] },
+      wires: [
+        { id: "set", from: [-12, 0], to: "nand1.A", level: "0" },
+        { id: "reset", from: [-12, 16], to: "nand2.A", level: "1" },
+        { id: "q", from: "nand1.Y", to: "nand2.B" },
+        { id: "qbar", from: "nand2.Y", to: "nand1.B" },
+      ],
+    };
+    await page.eval(`window.figureEditor.load(${JSON.stringify(JSON.stringify(latch))})`);
+    const readLatch = `(() => Object.fromEntries(["q", "qbar"].map((id) => [id, window.figureEditor.doc.wires.find((wire) => wire.id === id)?.level])))()`;
+    const setState = await page.eval(readLatch);
+    res.push([setState.q === "1" && setState.qbar === "0", `NAND latch set resolves Q/Q̅ to 1/0 (${JSON.stringify(setState)})`]);
+
+    const heldState = await page.eval(`(() => {
+      const doc = window.figureEditor.doc;
+      doc.wires.find((wire) => wire.id === "set").level = "1";
+      window.figureEditor.load(JSON.stringify(doc));
+      return Object.fromEntries(["q", "qbar"].map((id) => [id, window.figureEditor.doc.wires.find((wire) => wire.id === id)?.level]));
+    })()`);
+    res.push([heldState.q === "1" && heldState.qbar === "0", `inactive NAND latch holds its prior state (${JSON.stringify(heldState)})`]);
+
+    const resetState = await page.eval(`(() => {
+      const doc = window.figureEditor.doc;
+      doc.wires.find((wire) => wire.id === "reset").level = "0";
+      window.figureEditor.load(JSON.stringify(doc));
+      return Object.fromEntries(["q", "qbar"].map((id) => [id, window.figureEditor.doc.wires.find((wire) => wire.id === id)?.level]));
+    })()`);
+    res.push([resetState.q === "0" && resetState.qbar === "1", `NAND latch reset resolves Q/Q̅ to 0/1 (${JSON.stringify(resetState)})`]);
     await page.shot(`${ctx.out}/beta-logic.png`);
     res.push([page.errors.length === 0, `logic: no page errors${page.errors.length ? `: ${page.errors[0]}` : ""}`]);
   } finally { await page.close(); }

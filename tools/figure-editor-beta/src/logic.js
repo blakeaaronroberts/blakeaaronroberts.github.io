@@ -1,4 +1,4 @@
-// Combinational logic for the basic gates in the symbol pack.
+// Four-valued gate logic and state retention for cross-coupled NAND latches.
 
 import { clone, deriveNets, wiresForRefs } from "./doc.js";
 
@@ -101,10 +101,64 @@ function networkOf(doc, pack) {
   return { keyForRef, wireNet, wiresByKey };
 }
 
+function nandLatchPairs(drivers, keyForRef) {
+  const candidates = new Map();
+  for (const [output, gates] of drivers) {
+    if (gates.length !== 1 || gates[0].el.type !== "nand_gate" || gates[0].inputs.length !== 2) continue;
+    candidates.set(output, gates[0].inputs.map((name) => keyForRef(`${gates[0].el.id}.${name}`)));
+  }
+
+  const pairs = [], used = new Set();
+  for (const [a, inputsA] of candidates) {
+    if (used.has(a)) continue;
+    const b = inputsA.find((key) => key !== null && key !== a && candidates.has(key) && candidates.get(key).includes(a));
+    if (b === undefined || used.has(b)) continue;
+    const inputsB = candidates.get(b);
+    const feedbackA = inputsA.indexOf(b), feedbackB = inputsB.indexOf(a);
+    if (feedbackA < 0 || feedbackB < 0) continue;
+    const inputA = inputsA[1 - feedbackA], inputB = inputsB[1 - feedbackB];
+    if (inputA === a || inputA === b || inputB === a || inputB === b) continue;
+    pairs.push({ a, b, inputA, inputB });
+    used.add(a);
+    used.add(b);
+  }
+  return pairs;
+}
+
+function priorLevelsByNet(doc, wireNet) {
+  const levels = new Map();
+  for (const wire of doc.wires) {
+    if (!["0", "1", "X", "Z"].includes(wire.level)) continue;
+    const key = wireNet.get(wire.id);
+    if (key === undefined) continue;
+    if (!levels.has(key)) levels.set(key, wire.level);
+    else if (levels.get(key) !== wire.level) levels.set(key, "X");
+  }
+  return levels;
+}
+
+function latchOutputs(inputA, inputB, previousA, previousB) {
+  if (inputA === null && inputB === null && previousA === null && previousB === null) return [null, null];
+  const values = (level) => level === "0" ? [0] : level === "1" ? [1] : [0, 1];
+  const prior = previousA === "0" && previousB === "1" ? [[0, 1]]
+    : previousA === "1" && previousB === "0" ? [[1, 0]]
+      : [[1, 0], [0, 1]];
+  const outcomes = [];
+  for (const a of values(inputA)) for (const b of values(inputB)) {
+    if (a === 0 && b === 0) outcomes.push([1, 1]);
+    else if (a === 0) outcomes.push([1, 0]);
+    else if (b === 0) outcomes.push([0, 1]);
+    else outcomes.push(...prior);
+  }
+  const resolveBit = (index) => outcomes.every((outcome) => outcome[index] === outcomes[0][index])
+    ? String(outcomes[0][index]) : "X";
+  return [resolveBit(0), resolveBit(1)];
+}
+
 /** Recalculate gate-driven nets; undriven inputs stay visually unset until a value is known. */
 export function resolveLogic(doc, pack) {
   const base = clearGenerated(doc);
-  const { keyForRef, wiresByKey } = networkOf(base, pack);
+  const { keyForRef, wireNet, wiresByKey } = networkOf(base, pack);
   const drivers = new Map();
 
   for (const el of base.elements) {
@@ -123,6 +177,9 @@ export function resolveLogic(doc, pack) {
   }
   if (!drivers.size) return base;
 
+  const latches = nandLatchPairs(drivers, keyForRef);
+  const latchKeys = new Set(latches.flatMap(({ a, b }) => [a, b]));
+  const previous = priorLevelsByNet(doc, wireNet);
   const values = new Map();
   for (const [key, wireIds] of wiresByKey) {
     if (drivers.has(key)) continue;
@@ -131,7 +188,7 @@ export function resolveLogic(doc, pack) {
       .filter((level) => ["0", "1", "X", "Z"].includes(level)))];
     if (levels.length) values.set(key, levels.length === 1 ? levels[0] : "X");
   }
-  for (const key of drivers.keys()) values.set(key, null);
+  for (const key of drivers.keys()) values.set(key, latchKeys.has(key) ? previous.get(key) ?? null : null);
 
   const state = () => JSON.stringify([...drivers.keys()].map((key) => values.get(key) ?? null));
   const seen = new Set();
@@ -141,6 +198,7 @@ export function resolveLogic(doc, pack) {
     seen.add(before);
     const outputs = new Map();
     for (const [key, gates] of drivers) {
+      if (latchKeys.has(key)) continue;
       const results = gates.map(({ el, operation, inputs }) => {
         const levels = inputs.map((name) => {
           const inputKey = keyForRef(`${el.id}.${name}`);
@@ -151,6 +209,12 @@ export function resolveLogic(doc, pack) {
         return operation(levels.map((level) => level ?? "X"));
       });
       outputs.set(key, results.every((level) => level === results[0]) ? results[0] : "X");
+    }
+    for (const { a, b, inputA, inputB } of latches) {
+      const read = (key) => key === null ? null : values.get(key) ?? null;
+      const [levelA, levelB] = latchOutputs(read(inputA), read(inputB), previous.get(a) ?? null, previous.get(b) ?? null);
+      outputs.set(a, levelA);
+      outputs.set(b, levelB);
     }
     for (const [key, level] of outputs) values.set(key, level);
     const after = state();
