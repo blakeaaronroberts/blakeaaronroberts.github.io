@@ -24,6 +24,8 @@
 /* The step editor: each step drawn as a small piece of waveform (a high line, a low line, a middle line, hatching or a box) */
 .td-grid { display: grid; gap: 2px; }
 .td-row { display: grid; grid-template-columns: 10rem minmax(0, 1fr) 4.5rem; align-items: center; gap: .5rem; }
+.td-row.is-node-selected { position: relative; }
+.td-row.is-node-selected::after { content: ""; position: absolute; inset: 0; border: 2px solid var(--role-accent); pointer-events: none; }
 .td-name { display: flex; align-items: center; gap: 2px; min-width: 0; }
 .td-name > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--bs-font-monospace); font-size: .8rem; }
 .td-mini { padding: 0 .25rem; border: 1px solid transparent; background: transparent; color: var(--role-muted); font: inherit; font-size: .7rem; line-height: 1.4; cursor: pointer; }
@@ -100,6 +102,8 @@
 .td-truth { min-height: 0; overflow: auto; display: grid; align-content: start; gap: .75rem; padding: .75rem; }
 .td-truth-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: .75rem; }
 .td-truth-input { min-height: 9rem; resize: vertical; font-family: var(--bs-font-monospace); line-height: 1.45; }
+.td-truth-latex { min-height: 9rem; resize: vertical; font-family: var(--bs-font-monospace); line-height: 1.45; }
+.td-truth-latex-status { margin: 0; }
 .td-truth-actions { margin-top: 0; }
 .td-truth-results ul { margin: .4rem 0 0; padding-left: 1.4rem; display: grid; gap: .2rem; }
 .td-truth-results [data-pass="false"] { font-weight: 700; color: var(--role-accent); }

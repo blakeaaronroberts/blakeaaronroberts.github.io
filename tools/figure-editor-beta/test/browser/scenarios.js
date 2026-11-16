@@ -1273,6 +1273,22 @@ scenarios.logicSync = async (ctx) => {
     })()`);
     await page.click(point[0], point[1]);
     await page.waitFor(`!!document.querySelector('[data-field="level"]')`, 10000);
+    await page.waitFor(`!!document.querySelector('.fe-status svg[aria-label="n1"]')`, 15000);
+    const nodeStatus = await page.eval(`({
+      latexName: document.querySelector('.fe-status svg[aria-label="n1"]')?.getAttribute("aria-label"),
+      html: document.querySelector(".fe-status").innerHTML,
+    })`);
+    res.push([nodeStatus.latexName === "n1", `the bottom status renders the internal net name as LaTeX (${nodeStatus.latexName})`]);
+    res.push([!nodeStatus.html.includes("Wire w1"), "the bottom status does not expose the selected wire id"]);
+    await page.eval(`document.querySelector('[data-sec-bar="timing"]').click()`);
+    await page.waitFor(`!!document.querySelector(".td-row.is-node-selected")`, 10000);
+    const linkedSelection = await page.eval(`({
+      row: document.querySelector(".td-row.is-node-selected")?.dataset.s,
+      marked: !!document.querySelector(".td-cell.is-marked"),
+    })`);
+    res.push([linkedSelection.row === "0" && linkedSelection.marked, `selecting a schematic net highlights its timing row and frame (${JSON.stringify(linkedSelection)})`]);
+    await page.eval(`document.querySelector('[data-sec-bar="figure"]').click()`);
+    await page.waitFor(`document.querySelector('[data-frame="1"][aria-pressed="true"]')`, 10000);
     await page.eval(`(() => {
       const input = document.querySelector('[data-field="level"]');
       input.value = "0";
@@ -1318,7 +1334,8 @@ scenarios.logicSync = async (ctx) => {
 
     await page.eval(`(() => {
       document.querySelector('[data-cmd="framesfromtiming"]').click();
-      window.prompt = (message) => { window.__timingPrompt = message; return "2"; };
+      document.querySelector('[data-cmd="framecapture"]').click();
+      document.querySelector('[data-frame="2"]').click();
       document.querySelector('[data-cmd="frametosignal"]').click();
     })()`);
     await page.waitFor(`JSON.parse(localStorage.getItem("figure-editor-beta/timing-source") || "{}").signal?.every((signal) => signal.wave.length === 2)`, 10000);
@@ -1326,6 +1343,37 @@ scenarios.logicSync = async (ctx) => {
     await page.waitFor(`document.querySelectorAll(".fe-frame-item").length === 3`, 10000);
     const slideFrames = await page.eval(`({ count: document.querySelectorAll(".fe-frame-item").length, height: document.querySelector('[data-sec="slide"]').getBoundingClientRect().height })`);
     res.push([slideFrames.count === 3 && slideFrames.height > 0, `returning to Slide refreshes its frames from the current timing diagram (${JSON.stringify(slideFrames)})`]);
+    await page.eval(`localStorage.removeItem("figure-editor-beta/timing-send")`);
+    await page.goto(`${ctx.url}?view=slide`);
+    await page.waitFor(ready);
+    await page.sleep(500);
+    const slideTiming = await page.eval(`(() => {
+      const groups = [...document.querySelectorAll(".fe-slideview > g:not([data-region])")];
+      const source = JSON.parse(localStorage.getItem("figure-editor-beta/timing-source") || "null");
+      const sent = JSON.parse(localStorage.getItem("figure-editor-beta/timing-send") || "null");
+      return {
+        groupCount: groups.length,
+        timingShapes: groups[1]?.querySelectorAll("path, line, rect").length ?? 0,
+        sendRestored: !!localStorage.getItem("figure-editor-beta/timing-send"),
+        sourceNames: source?.signal?.map((signal) => signal.name) ?? [],
+        sentNames: sent?.source?.signal?.map((signal) => signal.name) ?? [],
+      };
+    })()`);
+    res.push([slideTiming.groupCount === 2 && slideTiming.timingShapes > 0 && slideTiming.sendRestored && ["A", "B", "Y"].every((name) => slideTiming.sentNames.includes(name)), `a fresh Slide view loads the saved timing source into its diagram (${JSON.stringify(slideTiming)})`]);
+    await page.shot(`${ctx.out}/beta-slide-timing.png`);
+    await page.eval(`(() => {
+      document.querySelector('[data-sec-bar="timing"]').click();
+      document.querySelector('[data-view="edit"]').click();
+      document.querySelector('[data-brush="1"]').click();
+      document.querySelector('.td-row[data-s="2"] [data-step="0"]').click();
+    })()`);
+    await page.waitFor(`JSON.parse(localStorage.getItem("figure-editor-beta/timing-source") || "{}").signal?.[2]?.wave?.[0] === "1"`, 10000);
+    const timingPriority = await page.eval(`(() => ({
+      marked: !!document.querySelector('.td-row[data-s="2"] [data-step="0"].is-marked'),
+      frame: document.querySelector('.fe-frame-item[aria-pressed="true"]')?.dataset.frame,
+      wire: JSON.parse(window.figureEditor.save()).wires.find((item) => item.id === "w3")?.level,
+    }))()`);
+    res.push([timingPriority.marked && timingPriority.frame === "1" && timingPriority.wire === "1", `a timing edit wins a conflict and the same frame remains selected on return (${JSON.stringify(timingPriority)})`]);
     res.push([page.errors.length === 0, `logic-to-timing sync: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
   } finally { await page.close(); }
   return res;
@@ -1404,12 +1452,20 @@ scenarios.truth = async (ctx) => {
     await page.goto(`${ctx.url}?view=timing`);
     await page.waitFor(ready);
     await page.waitFor(`!!document.querySelector("[data-truth-table]")`, 10000);
+    await page.eval(`(() => {
+      const doc = window.figureEditor.doc;
+      window.figureEditor.load(JSON.stringify({
+        ...doc,
+        groups: { ...(doc.groups ?? {}), wire_labels: { ...(doc.groups?.wire_labels ?? {}), w12: "carry_ab" } },
+      }));
+    })()`);
     await page.eval(`document.querySelector('[data-view="truth"]').click()`);
     const ports = await page.eval(`({
       inputs: document.querySelector("[data-truth-inputs]").value,
       outputs: document.querySelector("[data-truth-outputs]").value,
+      header: document.querySelector("[data-truth-table]").value.trim(),
     })`);
-    res.push([ports.inputs === "A, B, Cin" && ports.outputs === "S, Cout", `truth-table view lists the current circuit's ports (${JSON.stringify(ports)})`]);
+    res.push([ports.inputs === "A, B, Cin" && ports.outputs === "S, Cout, carry_ab" && ports.header === "A,B,Cin,S,Cout,carry_ab", `truth-table view starts with the circuit's named nets (${JSON.stringify(ports)})`]);
     await page.eval(`document.querySelector('[data-truth-action="generate"]').click()`);
     await page.waitFor(`document.querySelectorAll(".fe-frame-item").length === 9`, 10000);
     const generated = await page.eval(`(() => {
@@ -1417,14 +1473,15 @@ scenarios.truth = async (ctx) => {
       const timing = JSON.parse(localStorage.getItem("figure-editor-beta/timing-source"));
       return { rows: table.length - 1, names: timing.signal.filter((signal) => signal.name).map((signal) => signal.name), frames: document.querySelectorAll(".fe-frame-item").length };
     })()`);
-    res.push([generated.rows === 8 && generated.frames === 9 && generated.names.join(",") === "A,B,Cin,S,Cout", `generate creates all eight cases, timing rows and Frame 0 (${JSON.stringify(generated)})`]);
+    res.push([generated.rows === 8 && generated.frames === 9 && generated.names.join(",") === "A,B,Cin,S,Cout,carry_ab", `generate creates all eight cases, timing rows and Frame 0 (${JSON.stringify(generated)})`]);
 
     await page.eval(`(() => {
       document.querySelector('[data-view="truth"]').click();
       const input = document.querySelector("[data-truth-table]");
       const rows = input.value.trim().split("\\n");
-      rows[1] = "0,0,0,1,0";
+      rows[1] = "0,0,0,1,0,0";
       input.value = rows.join("\\n");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
       document.querySelector('[data-truth-action="check"]').click();
     })()`);
     await page.waitFor(`document.querySelector(".td-truth-results").textContent.includes("7 of 8 cases match")`, 10000);
@@ -1435,6 +1492,32 @@ scenarios.truth = async (ctx) => {
       return { text, mismatch: sum, sWave: timing.signal.find((signal) => signal.name === "S").wave[0] };
     })()`);
     res.push([checked.mismatch.includes("expected 1, got 0") && checked.sWave === "0", `checking reports the bad row and keeps the circuit's computed output in the timing diagram (${JSON.stringify(checked)})`]);
+    const latex = await page.eval(`document.querySelector("[data-truth-latex]").value`);
+    res.push([latex.includes("\\begin{tabular}") && latex.includes("\\textbf{A}"), "the truth-table pane converts its CSV table to LaTeX"]);
+    const savedCopy = await page.eval(`(() => {
+      document.querySelector('[data-truth-action="save-copy"]').click();
+      const key = 'figure-editor-beta/truth-table:' + encodeURIComponent(window.figureEditor.doc.id);
+      return { copy: JSON.parse(localStorage.getItem(key) || "null"), table: document.querySelector("[data-truth-table]").value };
+    })()`);
+    res.push([savedCopy.copy?.schema === "figure-editor-truth-table/1" && savedCopy.copy.csv === savedCopy.table && savedCopy.copy.latex === latex, "Save a copy persists the current table and LaTeX with this project"]);
+    await page.eval(`(() => {
+      const create = URL.createObjectURL.bind(URL);
+      URL.createObjectURL = (blob) => { window.__latexBlob = blob; return create(blob); };
+      HTMLAnchorElement.prototype.click = function() { window.__latexFilename = this.download; };
+      document.querySelector('[data-truth-action="export-copy"]').click();
+    })()`);
+    const exportedLatex = await page.eval(`(async () => ({ name: window.__latexFilename, text: await window.__latexBlob.text() }))()`);
+    res.push([exportedLatex.name.endsWith("-truth-table.tex") && exportedLatex.text === latex, "Export a copy downloads the generated .tex file"]);
+    await page.goto(`${ctx.url}?view=timing`);
+    await page.waitFor(ready);
+    await page.waitFor(`!!document.querySelector('[data-view="truth"]')`, 10000);
+    await page.eval(`document.querySelector('[data-view="truth"]').click()`);
+    const restored = await page.eval(`({
+      table: document.querySelector("[data-truth-table]").value,
+      latex: document.querySelector("[data-truth-latex]").value,
+      status: document.querySelector("[data-truth-latex-status]").textContent,
+    })`);
+    res.push([restored.latex === latex && restored.table === savedCopy.copy?.csv && restored.status.includes("Loaded"), "the saved table copy and generated LaTeX survive a reload"]);
     await page.shot(`${ctx.out}/beta-truth-table.png`);
     res.push([page.errors.length === 0, `truth table: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
   } finally { await page.close(); }
@@ -1473,12 +1556,18 @@ scenarios.projectZip = async (ctx) => {
       const input = document.querySelector(".td-srctext");
       input.value = ${JSON.stringify(source)};
       document.querySelector('[data-do="src-apply"]').click();
+      document.querySelector('[data-view="truth"]').click();
+      document.querySelector("[data-truth-inputs]").value = "A, B, Cin";
+      document.querySelector("[data-truth-outputs]").value = "S, Cout";
+      const table = document.querySelector("[data-truth-table]");
+      table.value = "A,B,Cin,S,Cout\\n0,0,0,0,0\\n0,0,1,1,0\\n0,1,0,1,0\\n0,1,1,0,1\\n1,0,0,1,0\\n1,0,1,0,1\\n1,1,0,0,1\\n1,1,1,1,1";
+      table.dispatchEvent(new Event("input", { bubbles: true }));
       document.querySelector('[data-sec-bar="figure"]').click();
     })()`);
     await page.sleep(300);
     await page.shot(`${ctx.out}/beta-project-zip.png`);
     await page.eval(`document.querySelector('[data-cmd="projectzip"]').click()`);
-    await page.waitFor(`document.querySelector(".fe-status").textContent.includes("with 7 project files")`, 30000);
+    await page.waitFor(`document.querySelector(".fe-status").textContent.includes("with 9 project files")`, 30000);
     const contents = await page.eval(`(async () => {
       const blob = window.__projectZip, bytes = new Uint8Array(await blob.arrayBuffer());
       const view = new DataView(bytes.buffer), decoder = new TextDecoder(), files = new Map();
@@ -1509,12 +1598,14 @@ scenarios.projectZip = async (ctx) => {
         timingPng: png("timing-diagram.png"),
         sourceSchema: source.schema,
         sourceMatchesFiles: JSON.stringify(source.schematic) === JSON.stringify(schematic) && JSON.stringify(source.timing) === JSON.stringify(timing),
+        truthTableMatchesFiles: source.truthTable?.csv === text("truth-table.csv") && source.truthTable?.latex === text("truth-table.tex"),
       };
     })()`);
-    const expected = "schematic.png,schematic.svg,schematic.json,timing-diagram.png,timing-diagram.svg,timing-diagram.json,source.json";
-    res.push([contents.name.endsWith("-project.zip") && contents.files.join(",") === expected && contents.zipEnd, `Project ZIP contains all seven named files (${contents.files.join(", ")})`]);
+    const expected = "schematic.png,schematic.svg,schematic.json,timing-diagram.png,timing-diagram.svg,timing-diagram.json,truth-table.csv,truth-table.tex,source.json";
+    res.push([contents.name.endsWith("-project.zip") && contents.files.join(",") === expected && contents.zipEnd, `Project ZIP contains all nine named files (${contents.files.join(", ")})`]);
     res.push([contents.schematicJson && contents.schematicSvg && contents.schematicPng && contents.timingJson && contents.timingSvg && contents.timingPng, `ZIP contains valid JSON, SVG and PNG assets for both views (${JSON.stringify(contents)})`]);
     res.push([contents.sourceSchema === "figure-editor-project/1" && contents.sourceMatchesFiles, `source.json combines the same schematic and timing source (${contents.sourceSchema})`]);
+    res.push([contents.truthTableMatchesFiles, "the ZIP includes the truth-table CSV and matching LaTeX in source.json"]);
 
     await page.eval(`document.querySelector('[data-cmd="new"]').click()`);
     await page.eval(`document.querySelector('[data-cmd="projectzip"]').click()`);

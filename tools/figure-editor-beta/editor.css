@@ -58,6 +58,7 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 .fe-pane { border-bottom: 1px solid var(--role-rule); }
 .fe-palette.fe-pane { border-bottom: 1px solid var(--role-rule); }
 .fe-pane > summary { margin: 0; padding: .35rem .75rem; font-size: .8rem; font-weight: 600; color: var(--role-muted, inherit); cursor: pointer; border-top: 1px solid var(--role-rule); list-style: none; user-select: none; }
+.fe-left .fe-pane > summary { position: sticky; top: 0; z-index: 1; background: var(--role-background); }
 .fe-pane > summary::-webkit-details-marker { display: none; }
 .fe-pane > summary:hover { color: var(--role-accent); }
 .fe-pane.fe-palette > summary { border-top: 0; }

@@ -18,7 +18,7 @@ const CLOCK = /^(clk|clock|ck|phi\d?)$/i;
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 export function mount(root, {
-  docked = false, onSend = null, onStatus = null, onChange = null, betaFeatures = false,
+  docked = false, onSend = null, onStatus = null, onChange = null, onFrameChange = null, betaFeatures = false,
   controlsRoot = null, storageKey = KEY, sendKey = SEND_KEY, editorKey = EDITOR_KEY, mergeConnectedNodes = false, allowTexSignalNames = false, typesetSignalNames = null, texSignalName = null,
 } = {}) {
   root.classList.add(docked ? "td-dock" : "fe");   // standalone: the Figure Editor's shell (editor.css); docked: a pane inside the editor
@@ -53,7 +53,7 @@ export function mount(root, {
     return waves.length === 3 && waves.every((w, i) => w === LEGACY[i]) ? empty() : fromWaveDrom(r.value);
   })();
   let natural = null, custom = false;   // custom: the reader set the size by hand
-  let nodes = [], frameNames = [], frame = -1;
+  let nodes = [], frameNames = [], frame = -1, selectedNodes = new Set();
   const nameTypesets = new Map();
   let nameTypesetting = false;
   let brush = "cycle";                  // what a click on a step sets: "cycle", a wave character, or "node"
@@ -133,8 +133,7 @@ export function mount(root, {
     if (!status.hasAttribute("data-error")) say(n ? `${n} signal${n === 1 ? "" : "s"}, ${stepCount(value)} steps.` : "Empty: add a node from the circuit to start.");
   }
   function drawDiagram() {
-    const fontSize = betaFeatures ? textSizeOf(value) : 12;
-    natural = naturalSize(toWaveDrom(value), Number(value.config?.hscale) || 1, betaFeatures ? { fontSize, nameTypeset: nameTypesets, showNames: showNamesOf(value) } : {});
+    natural = naturalSize(toWaveDrom(value), Number(value.config?.hscale) || 1, betaFeatures ? { nameTypeset: nameTypesets, showNames: showNamesOf(value) } : {});
     if (!custom) {   // on screen the diagram fills the view's width (laid out again, not stretched); Natural size gives WaveDrom's own proportions
       const room = view.parentElement.clientWidth;
       wIn.value = Math.round(Math.max(natural.w, room > 0 ? room : 0)); hIn.value = Math.round(natural.h * (room > natural.w ? Math.min(2, room / natural.w) : 1));
@@ -241,7 +240,7 @@ export function mount(root, {
           <label>Phase <input class="form-control form-control-sm" type="number" step="0.05" data-prop="phase" value="${Number(s.phase) || 0}"></label>
           <label>Group <input class="form-control form-control-sm" data-prop="group" value="${esc(s.group ?? "")}" placeholder="none"></label>
           <label class="form-check"><input class="form-check-input" type="checkbox" data-act="clock"${isClock(s) ? " checked" : ""}> clock</label></div>` : "";
-      return `<div class="td-row" data-s="${si}">
+      return `<div class="td-row${selectedNodes.has(s.name) ? " is-node-selected" : ""}" data-s="${si}">
         <div class="td-name"><span title="${esc(s.name)}">${inlineMath(s.name)}</span>
           <button type="button" class="td-mini" data-act="more" aria-expanded="${open.has(si)}" title="Period, phase, group, clock">⚙</button>${tools}</div>
         <div class="td-cells" style="--n:${n}">${cells}</div>
@@ -252,11 +251,18 @@ export function mount(root, {
     grid.innerHTML = value.signal.length ? head + rows : "";
   }
   const sigIndex = (e) => Number(e.target.closest("[data-s]")?.dataset.s);
+  function selectFrameAtStep(step) {
+    if (!Number.isInteger(step) || step < 0 || step >= stepCount(value)) return;
+    frame = step;
+    frameSel.value = frameNames[step] === undefined ? "" : String(step);
+    onFrameChange?.(step);
+  }
   grid.addEventListener("click", (e) => {
     const si = sigIndex(e);
     const cell = e.target.closest("[data-step]");
     if (cell) {
       const step = Number(cell.dataset.step), cur = cellsOf(value.signal[si], stepCount(value))[step];
+      selectFrameAtStep(step);
       if (e.shiftKey) return commit(setCell(value, si, step, "."));
       if (brush === "node") {
         const has = (value.signal[si].node ?? "")[step];
@@ -276,12 +282,14 @@ export function mount(root, {
     if (!cell) return;
     e.preventDefault();
     const si = sigIndex(e), step = Number(cell.dataset.step), cur = cellsOf(value.signal[si], stepCount(value))[step];
+    selectFrameAtStep(step);
     commit(setCell(value, si, step, nextValue(cur.value, true)));
   });
   grid.addEventListener("dblclick", (e) => {
     const cell = e.target.closest("[data-step]");
     if (!cell) return;
     const si = sigIndex(e), step = Number(cell.dataset.step), s = value.signal[si], c = cellsOf(s, stepCount(value))[step].value;
+    selectFrameAtStep(step);
     if (!/^[=3-9]$/.test(c)) return;
     const label = window.prompt("Label of this data value", dataAt(s, step));
     if (label !== null) commit(setCell(value, si, step, c, label.trim()));
@@ -497,7 +505,11 @@ export function mount(root, {
     if (frame >= 0) frameSel.value = String(frame);
     render();
   }
-  frameSel.addEventListener("change", () => { frame = Number(frameSel.value); render(); });
+  frameSel.addEventListener("change", () => {
+    frame = Number(frameSel.value);
+    render();
+    onFrameChange?.(frame);
+  });
   root.addEventListener("click", async (e) => {
     if (!e.target.closest("[data-do=frames-export]") || !frameNames.length) return;
     const keep = frame;
@@ -575,5 +587,19 @@ export function mount(root, {
   return { render, setCircuit, clear, fit: fitToView, exportSvg, exportFrame,
     exportAssets: async () => { const svg = svgText(); return { source: tidy(toWaveDrom(value)), svg, png: await pngBlob(svg) }; },
     exportPng: async () => { try { save(await pngBlob(svgText()), "timing-diagram.png"); say("Exported timing-diagram.png at 300 dpi."); } catch (err) { say(err.message, true); } },
-    setFrame(i) { frame = i; render(); }, setSignalLevels, get source() { return tidy(toWaveDrom(value)); }, set source(v) { const r = parseSource(v); if (r.ok) commit(fromWaveDrom(r.value)); }, get value() { return value; } };
+    setFrame(i) {
+      frame = Number.isInteger(i) && i >= 0 && i < frameNames.length ? i : -1;
+      frameSel.value = frame >= 0 ? String(frame) : "";
+      render();
+    },
+    setSelectedNodes(names) {
+      const next = new Set(Array.isArray(names) ? names.filter((name) => typeof name === "string") : []);
+      if (next.size === selectedNodes.size && [...next].every((name) => selectedNodes.has(name))) return;
+      selectedNodes = next;
+      renderGrid();
+    },
+    setSignalLevels, get frame() { return frame; },
+    get source() { return tidy(toWaveDrom(value)); },
+    set source(v) { const r = parseSource(v); if (r.ok) commit(fromWaveDrom(r.value)); },
+    get value() { return value; } };
 }

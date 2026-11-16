@@ -58,20 +58,19 @@ const SHARP = new Set(["h", "l"]), WEAK = new Set(["u", "d"]);
 const BOX = /^[=2-9x]$/;
 const isHexColour = (value) => typeof value === "string" && /^#[\da-f]{6}$/i.test(value);
 const groupDepth = (lanes) => Math.max(0, ...lanes.map((l) => l.groups.length));
-const labelWidth = (lanes, fontSize = FONT, nameTypeset = null) => Math.ceil(Math.max(0, ...lanes.map((l) => {
+const labelWidth = (lanes, nameTypeset = null) => Math.ceil(Math.max(0, ...lanes.map((l) => {
   const parsed = nameTypeset?.get(l.name);
-  return parsed?.ok ? parsed.width * fontSize : l.name.length * fontSize * 0.6;
+  return parsed?.ok ? parsed.width * FONT : l.name.length * FONT * 0.6;
 }))) + 8 + groupDepth(lanes) * GROUP_W;
 const stepCount = (lanes) => Math.max(1, ...lanes.map((l) => Math.ceil(l.wave.length * l.period)));
 const textOf = (t) => (typeof t === "string" ? t : Array.isArray(t) ? t.filter((x) => typeof x === "string" || Array.isArray(x)).map(textOf).join(" ") : "");
 const bandHeight = (b, fontSize = FONT) => (b && textOf(b.text) ? fontSize * 1.5 : 0) + (b && (b.tick !== undefined || b.tock !== undefined) ? fontSize * 14 / FONT : 0);
 
 /** The size a source gets by default: 40 px a step (times hscale), 30 px a lane, plus the head and foot. */
-export function naturalSize(value, hscale = Number(value?.config?.hscale) || 1, { fontSize = FONT, nameTypeset = null, showNames = true } = {}) {
+export function naturalSize(value, hscale = Number(value?.config?.hscale) || 1, { nameTypeset = null, showNames = true } = {}) {
   const lanes = lanesOf(value);
-  const laneHeight = Math.max(30, fontSize * 2.5);
-  const labelW = showNames ? labelWidth(lanes, fontSize, nameTypeset) : groupDepth(lanes) * GROUP_W;
-  return { w: Math.round(labelW + 12 + stepCount(lanes) * 40 * hscale + 10), h: Math.max(1, lanes.length) * laneHeight + 10 + bandHeight(value?.head, fontSize) + bandHeight(value?.foot, fontSize) };
+  const labelW = showNames ? labelWidth(lanes, nameTypeset) : groupDepth(lanes) * GROUP_W;
+  return { w: Math.round(labelW + 12 + stepCount(lanes) * 40 * hscale + 10), h: Math.max(1, lanes.length) * 30 + 10 + bandHeight(value?.head) + bandHeight(value?.foot) };
 }
 
 /** Parse one edge string: "a->b label". Returns {from, to, op, label} or null. */
@@ -90,12 +89,12 @@ export function parseEdge(s) {
  */
 export function drawTiming(value, { width, height, ink = "#000000", accent = "#0072B2", marker = null, levelColour = null, dataFills = [], levelFills = {}, signalLineColour = ink, paper = null, fontSize = FONT, lineWidth = 1.6, edgeLineWidth = lineWidth / 1.6, edgeLineColour = null, arrowHeadSize = 6, arrowHeadColour = null, edgeStyles = value?.config?.edgeStyles ?? {}, nameTypeset = null, edgeLabelTypeset = nameTypeset, showNames = true } = {}) {
   const lanes = lanesOf(value);
-  const nat = naturalSize(value, Number(value?.config?.hscale) || 1, { fontSize, nameTypeset, showNames });
+  const nat = naturalSize(value, Number(value?.config?.hscale) || 1, { nameTypeset, showNames });
   const W = Math.max(100, width ?? nat.w), H = Math.max(40, height ?? nat.h);
-  const labelW = showNames ? labelWidth(lanes, fontSize, nameTypeset) : groupDepth(lanes) * GROUP_W, x0 = labelW + 12, gw = groupDepth(lanes) * GROUP_W;
+  const labelW = showNames ? labelWidth(lanes, nameTypeset) : groupDepth(lanes) * GROUP_W, x0 = labelW + 12, gw = groupDepth(lanes) * GROUP_W;
   const steps = stepCount(lanes);
   const stepW = Math.max(4, (W - x0 - 10) / steps);
-  const headH = bandHeight(value?.head, fontSize), footH = bandHeight(value?.foot, fontSize);
+  const headH = bandHeight(value?.head), footH = bandHeight(value?.foot);
   const top0 = 5 + headH;
   const laneH = Math.max(12, (H - 10 - headH - footH) / Math.max(1, lanes.length));
   const cfgSlant = value?.config?.slant, slant = cfgSlant === undefined ? 5 : Math.min(12, Math.max(0, Number(cfgSlant) || 0));   // config.slant: 0 is square edges, 5 is WaveDrom's look
@@ -132,9 +131,9 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
       for (let i = 0; i < steps; i += every) out.push(text(x0 + (i + 0.5) * stepW, yNum, ls[i] ?? "", "middle", small));
     }
   };
-  if (value?.head) band(value.head, 5 + fontSize * 13 / FONT, 5 + (textOf(value.head.text) ? fontSize * 18 / FONT : 0) + small);
+  if (value?.head) band(value.head, 18, 5 + (textOf(value.head.text) ? 18 : 0) + 10);
   const lanesBottom = top0 + lanes.length * laneH;
-  if (value?.foot) band(value.foot, lanesBottom + (value.foot.tick !== undefined || value.foot.tock !== undefined ? small * 1.4 : 0) + small * 1.4, lanesBottom + small * 1.1);
+  if (value?.foot) band(value.foot, lanesBottom + (value.foot.tick !== undefined || value.foot.tock !== undefined ? 14 : 0) + 14, lanesBottom + 11);
 
   // Group brackets, outermost at the left, with the group's name turned up the bracket.
   for (let depth = 0; depth < groupDepth(lanes); depth++) {
@@ -157,7 +156,7 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
     const yOf = { hi: yh, lo: yl, mid: ym };
     if (showNames && lane.name) {
       const parsed = nameTypeset?.get(lane.name);
-      out.push(parsed?.ok ? mathText(labelW, ym + fontSize * 0.35, parsed) : text(labelW, ym + fontSize * 0.35, lane.name, "end"));
+      out.push(parsed?.ok ? mathText(labelW, ym + FONT * 0.35, parsed) : text(labelW, ym + FONT * 0.35, lane.name, "end"));
     }
     if (lane.spacer) return;
     const st = stepsOf(lane.wave), w = stepW * lane.period;
@@ -200,7 +199,7 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
       } else {
         out.push(`<path clip-path="url(#plot)" d="${shape}" fill="${hatch ? "url(#hatch)" : colour ?? signalColour}" fill-opacity="${hatch ? 1 : colour ? 0.35 : 0.08}" stroke="${signalColour}" stroke-width="${lw}" stroke-linejoin="round"/>`);
       }
-      if (!hatch && run.label) out.push(text((xl + xr) / 2, ym + fontSize * 0.35, run.label));
+      if (!hatch && run.label) out.push(text((xl + xr) / 2, ym + FONT * 0.35, run.label));
       run = null;
     };
     const gapMark = (x) => out.push(`<path clip-path="url(#plot)" d="M ${n2(x - 3)} ${n2(yl + 2)} L ${n2(x + 1)} ${n2(yh - 2)} M ${n2(x + 1)} ${n2(yl + 2)} L ${n2(x + 5)} ${n2(yh - 2)}" fill="none" stroke="${ink}" stroke-width="${n2(lw / 1.6)}"/>`);

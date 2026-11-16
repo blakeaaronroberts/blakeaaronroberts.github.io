@@ -1,7 +1,7 @@
 // The starting full adder: levels computed from its gates match the truth table, for every frame and in the timing waves.
 
 import { parse } from "../src/doc.js";
-import { parseTruthTable, truthTable } from "../src/demo.js";
+import { namedNetNames, parseTruthTable, truthTable } from "../src/demo.js";
 import { assert, assertEquals, pack } from "./helpers.js";
 
 const fa = parse(await Deno.readTextFile(new URL("../examples/full-adder.json", import.meta.url))).doc;
@@ -35,6 +35,24 @@ Deno.test("pasted full-adder table creates timing waves and checks every output 
     { name: "S", expected: "0", actual: "0", pass: true },
     { name: "Cout", expected: "0", actual: "0", pass: true },
   ]);
+});
+
+Deno.test("labelled internal wire nets are included in generated and checked truth tables", () => {
+  const labelled = structuredClone(fa);
+  labelled.groups = { ...labelled.groups, wire_labels: { ...labelled.groups?.wire_labels, w12: "carry_ab" } };
+  assert(namedNetNames(labelled).includes("carry_ab"));
+  const generated = truthTable(labelled, pack, ["A", "B", "Cin"], ["S", "carry_ab"]);
+  const expand = (wave) => { let previous = ""; return [...wave].map((value) => value === "." ? previous : (previous = value)).join(""); };
+  const wave = (name) => expand(generated.timing.signal.find((signal) => signal.name === name).wave).toUpperCase();
+  const table = [
+    "A,B,Cin,S,carry_ab",
+    ...Array.from({ length: 8 }, (_, k) => {
+      const inputs = [(k >> 2) & 1, (k >> 1) & 1, k & 1].map(String);
+      return [...inputs, wave("S")[k], wave("carry_ab")[k]].join(",");
+    }),
+  ].join("\n");
+  const checked = parseTruthTable(table, labelled, pack);
+  assert(checked.checks.every((item) => item.pass), "computed values for the labelled internal net match");
 });
 
 Deno.test("pasted truth tables report mismatches and reject incomplete or malformed cases", () => {

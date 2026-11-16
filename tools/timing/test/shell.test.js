@@ -29,7 +29,10 @@ Deno.test("the beta dock includes a truth-table panel without changing the stand
   assert(beta.includes('data-view="truth"'), "the beta timing pane has a truth-table view");
   assert(beta.includes('data-truth-action="generate"'), "all input cases can be generated");
   assert(beta.includes('data-truth-action="check"'), "a pasted table can be checked");
+  assert(beta.includes('data-truth-action="save-copy"'), "a table and its LaTeX can be saved with the project");
+  assert(beta.includes('data-truth-action="export-copy"'), "the generated LaTeX can be exported");
   assert(beta.includes('data-truth-table'), "the table can be edited in the pane");
+  assert(beta.includes('data-truth-latex'), "the converted LaTeX is shown in the pane");
   assert(!page.includes('data-view="truth"'), "the standalone timing page is unchanged");
 });
 

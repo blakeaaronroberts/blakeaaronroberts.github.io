@@ -96,13 +96,19 @@ const views = (B, sizeInLook = false, betaFeatures = false, externalControls = f
       ${betaFeatures ? `<div class="td-truth" role="tabpanel" aria-label="Truth table to timing diagram" hidden>
         <div class="td-truth-fields">
           <label class="form-label">Input ports<input class="form-control form-control-sm" data-truth-inputs list="td-truth-ports" placeholder="A, B, Cin"></label>
-          <label class="form-label">Output ports<input class="form-control form-control-sm" data-truth-outputs list="td-truth-ports" placeholder="S, Cout"></label>
+          <label class="form-label">Output nets<input class="form-control form-control-sm" data-truth-outputs list="td-truth-ports" placeholder="S, Cout"></label>
           <datalist id="td-truth-ports"></datalist>
         </div>
-        <label class="form-label">Truth table (CSV or tab-separated)<textarea class="form-control td-truth-input" data-truth-table spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="A,B,Cin,S,Cout&#10;0,0,0,0,0" aria-label="Editable truth table"></textarea></label>
+        <label class="form-label">Truth table (named nets, CSV or tab-separated)<textarea class="form-control td-truth-input" data-truth-table spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="A,B,Cin,S,Cout&#10;0,0,0,0,0" aria-label="Editable truth table"></textarea></label>
         <div class="fe-theme-buttons td-truth-actions" role="group" aria-label="Truth table actions">
-          <button type="button" class="${B}" data-truth-action="generate">Generate every input case</button>
+          <button type="button" class="${B}" data-truth-action="generate">Autofill values</button>
           <button type="button" class="${B}" data-truth-action="check">Check table against circuit</button>
+        </div>
+        <label class="form-label">LaTeX table<textarea class="form-control td-truth-latex" data-truth-latex readonly spellcheck="false" aria-label="Generated LaTeX table"></textarea></label>
+        <p class="fe-hint td-truth-latex-status" data-truth-latex-status role="status" aria-live="polite"></p>
+        <div class="fe-theme-buttons td-truth-actions" role="group" aria-label="LaTeX table actions">
+          <button type="button" class="${B}" data-truth-action="save-copy">Save a copy</button>
+          <button type="button" class="${B}" data-truth-action="export-copy">Export .tex</button>
         </div>
         <div class="td-truth-results" role="status" aria-live="polite"></div>
       </div>` : ""}

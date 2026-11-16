@@ -25,7 +25,8 @@ import { circuitFromSvg, sanitizeSvg, MAX_SVG_BYTES } from "./svgimport.js";
 import { FORMATS } from "./frame.js";
 import { contentArea, defaultSlide, KINDS, layoutThumb, LAYOUTS as SLIDE_LAYOUTS, nudgeRegion, slideOf, slideSize, slideSvg, SPLITS, splitsOf, withLayout, withSlide, withSplit } from "./slide.js";
 import { orient } from "./geometry.js";
-import { parseTruthTable, truthTable } from "./demo.js";
+import { namedNetNames, parseTruthTable, truthTable } from "./demo.js";
+import { latexTable } from "./latex-table.js";
 import { framesFromSignals, levelTagStyleOf, setLevelTagStyle, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, ensureFrameZero, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame, targetsOf } from "./levelframes.js";
 import { resolveLogic } from "./logic.js";
 import { zipStore } from "./zip.js";
@@ -36,6 +37,7 @@ const OPTIONS = "figure-editor-beta/options";           // scale, label size, ta
 const THEME = "figure-editor-beta/private-theme";       // a private theme: kept in this browser only, never sent anywhere
 const TIMING_SOURCE = "figure-editor-beta/timing-source";
 const TIMING_SEND = "figure-editor-beta/timing-send";
+const TRUTH_TABLE = "figure-editor-beta/truth-table";
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } },
@@ -285,9 +287,11 @@ export async function mount(root, options = {}) {
   let spaceHeld = false;
   let lastDrawing = null;
   let selectedFrame = -1;            // the frame chosen in the Frames list (level frames, F11.2)
-  let timingTool = null, timingTimer = 0, fitTimingWhenReady = false, refreshFramesWhenTimingReady = false;
+  let timingTool = null, fitTimingWhenReady = false, refreshFramesWhenTimingReady = false;
   const pendingTimingSteps = new Set();
   let refreshTruthPortList = () => {};
+  let truthTableProjectChanged = () => {};
+  let truthTableSnapshot = () => null;
   const framesWhat = $('[name="fe-frames-what"]');
   let pendingExport = null;
   let autosaveTimer = null;
@@ -417,11 +421,34 @@ export async function mount(root, options = {}) {
   });
 
   /** The status line. An error is bold and announced at once, and stays until the next message. */
+  let statusRevision = 0;
   const status = (msg, error = false) => {
+    statusRevision++;
     statusEl.textContent = msg;
     statusEl.toggleAttribute("data-error", error);
     statusEl.setAttribute("role", error ? "alert" : "status");
   };
+  const statusNodesMarkup = (nodes) => nodes.map((node) =>
+    `<${node.tag}${node.attrs.map(([key, value]) => ` ${key}="${esc(value)}"`).join("")}>${statusNodesMarkup(node.children)}</${node.tag}>`).join("");
+  function statusWithNodes(names, detail) {
+    const label = names.length === 1 ? "Node " : "Nodes ";
+    status(`${label}${names.join(", ")} ${detail}`);
+    const revision = statusRevision;
+    const pairs = names.map((name) => {
+      try { return [name, texOf(name)]; } catch { return [name, null]; }
+    });
+    typesetAll(pairs.map(([, tex]) => tex).filter(Boolean), typeset).then(() => {
+      if (revision !== statusRevision) return;
+      const math = (name, tex) => {
+        const parsed = tex && typeset.get(tex);
+        if (!parsed?.ok) return esc(name);
+        const x = parsed.left * 1000, y = -parsed.height * 1000;
+        const width = parsed.width * 1000, height = (parsed.height + parsed.depth) * 1000;
+        return `<svg role="img" aria-label="${esc(name)}" viewBox="${x} ${y} ${width} ${height}" width="${parsed.width}em" height="${parsed.height + parsed.depth}em" style="vertical-align:-${parsed.depth}em"><g color="currentColor">${statusNodesMarkup(parsed.nodes)}</g></svg>`;
+      };
+      statusEl.innerHTML = `${esc(label)}${pairs.map(([name, tex]) => math(name, tex)).join(", ")} ${esc(detail)}`;
+    });
+  }
 
   // ---- the private theme (kept in this browser only) ----------------------------------------
   let privateRoles = null;                             // a loaded private theme's roles, or null
@@ -503,6 +530,7 @@ export async function mount(root, options = {}) {
     });
     if (lastDrawing.pending.length) queueTypeset();
     updateUI();
+    syncTimingSelection();
   }
 
   function renderPalette() {
@@ -817,23 +845,43 @@ export async function mount(root, options = {}) {
     try { ok = store.set(AUTOSAVE, D.serialize(doc, pack)); } catch { ok = false; }
     if (!ok && !autosaveWarned) { autosaveWarned = true; status("Autosave is off: this browser will not store the figure. Use Save to keep it.", true); }
   }
-  /** The timing pane follows the circuit live: its node buttons and frames update shortly after each edit. */
+  /** The timing pane follows the circuit immediately: its node buttons and frames update after each edit. */
+  function internalNodesForWires(wireIds) {
+    const selected = new Set(wireIds), nets = D.deriveNets(doc, pack);
+    return Object.entries(nets).filter(([, refs]) => D.wiresForRefs(doc, pack, refs).some((id) => selected.has(id))).map(([name]) => name);
+  }
+  function timingNodesForSelection() {
+    const selectedWires = new Set(selection.wires), selectedPorts = new Set(selection.ports);
+    if (!selectedWires.size && !selectedPorts.size) return [];
+    const nets = D.deriveNets(doc, pack);
+    const internalNames = Object.entries(nets).filter(([, refs]) =>
+      refs.some((ref) => selectedPorts.has(ref)) || D.wiresForRefs(doc, pack, refs).some((id) => selectedWires.has(id)))
+      .map(([name]) => name);
+    const timingNames = (timingTool?.value.signal ?? []).filter((signal) => typeof signal?.name === "string" && signal.name)
+      .filter((signal) => {
+        const targets = targetsOf(doc, nets, signal.name, pack);
+        return targets.wires.some((id) => selectedWires.has(id)) || targets.elements.some((id) => selectedPorts.has(id));
+      }).map((signal) => signal.name);
+    return timingNames.length ? timingNames : internalNames;
+  }
+  function syncTimingSelection() {
+    timingTool?.setSelectedNodes(timingNodesForSelection());
+  }
   function followTiming() {
     if (!timingTool) return;
-    clearTimeout(timingTimer);
-    timingTimer = setTimeout(() => {
-      timingTool.setCircuit(D.serialize(doc, pack));
-      timingTool.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
-    }, 250);
+    timingTool.setCircuit(D.serialize(doc, pack));
+    timingTool.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
+    syncTimingSelection();
   }
 
   function logicLevels(doc) {
     return JSON.stringify([...doc.wires, ...doc.elements].map((item) => [item.id, item.level ?? null]));
   }
-  function changed(msg, previous = doc) {
-    doc = ensureFrameZero(resolveLogic(doc, pack));
+  function changed(msg, previous = doc, { preserveLevels = false } = {}) {
+    if (!preserveLevels) doc = ensureFrameZero(resolveLogic(doc, pack));
     refreshTruthPortList();
-    if (selectedFrame > 0 && logicLevels(previous) !== logicLevels(doc)) syncCircuitLevelsToTiming(selectedFrame - 1);
+    if (previous.id !== doc.id) truthTableProjectChanged();
+    if (!preserveLevels && selectedFrame > 0 && logicLevels(previous) !== logicLevels(doc)) syncCircuitLevelsToTiming(selectedFrame - 1);
     followTiming();
     unsaved = true;
     render();
@@ -854,14 +902,14 @@ export async function mount(root, options = {}) {
   }
 
   /** Make `next` the document, recorded as one undo step. */
-  function commit(next, msg) {
-    next = ensureFrameZero(resolveLogic(next, pack));
+  function commit(next, msg, { preserveLevels = false } = {}) {
+    next = ensureFrameZero(preserveLevels ? next : resolveLogic(next, pack));
     if (JSON.stringify(next) === JSON.stringify(doc)) return false;
     const previous = doc;
     history.record(doc);
     doc = next;
     prune();
-    changed(msg, previous);
+    changed(msg, previous, { preserveLevels });
     return true;
   }
 
@@ -1086,22 +1134,29 @@ export async function mount(root, options = {}) {
         const schematicJson = D.serialize(doc, pack);
         const schematicSvg = await svgNow();
         const timing = await timingTool.exportAssets();
+        const truthTable = truthTableSnapshot();
         const projectJson = `${JSON.stringify({
           schema: "figure-editor-project/1",
           schematic: JSON.parse(schematicJson),
           timing: JSON.parse(timing.source),
+          ...(truthTable ? { truthTable } : {}),
         }, null, 2)}\n`;
-        const zip = await zipStore([
+        const files = [
           { name: "schematic.png", data: await pngOf(schematicSvg) },
           { name: "schematic.svg", data: schematicSvg },
           { name: "schematic.json", data: schematicJson },
           { name: "timing-diagram.png", data: timing.png },
           { name: "timing-diagram.svg", data: timing.svg },
           { name: "timing-diagram.json", data: timing.source },
-          { name: "source.json", data: projectJson },
-        ]);
+        ];
+        if (truthTable) {
+          files.push({ name: "truth-table.csv", data: truthTable.csv });
+          if (truthTable.latex) files.push({ name: "truth-table.tex", data: truthTable.latex });
+        }
+        files.push({ name: "source.json", data: projectJson });
+        const zip = await zipStore(files);
         download(new Blob([zip], { type: "application/zip" }), `${doc.id}-project.zip`, "application/zip");
-        status(`Exported ${doc.id}-project.zip with 7 project files.`);
+        status(`Exported ${doc.id}-project.zip with ${files.length} project files.`);
       } catch (error) { status(`Project ZIP failed: ${error.message}`, true); }
     },
     viewfigure: () => setView("figure"),
@@ -1144,10 +1199,7 @@ export async function mount(root, options = {}) {
       }
       const result = timingTool.setSignalLevels(step, circuitLevelsForTiming());
       if (!result.updated) { status(result.error ?? "No matching timing signals to update.", true); return; }
-      const keepFrame = selectedFrame;
-      populateFromTiming(true);
-      selectedFrame = keepFrame < 0 ? -1 : Math.min(keepFrame, framesOf(doc).length - 1);
-      renderFrames();
+      populateFromTiming({ auto: true, quiet: true });
       timingTool.setFrame(step);
       status(`Sent the current schematic levels to timing step ${step + 1}.`);
     },
@@ -1232,7 +1284,6 @@ export async function mount(root, options = {}) {
           else if (typeof item?.name === "string" && item.name) names.add(item.name);
         }
       };
-      refreshTruthPortList = refreshPorts;
       collect(sent.source.signal);
       for (const raw of sent.source.edge ?? []) {
         const label = parseEdge(raw)?.label;
@@ -1337,7 +1388,7 @@ export async function mount(root, options = {}) {
     render();
     const f = framesOf(doc)[selectedFrame];
     const message = selectedFrame === 0 ? "Frame 0 has no logic levels highlighted." : `Showing frame "${f.name}": its levels are on the canvas.`;
-    commit(applyFrame(doc, f), message);
+    commit(applyFrame(doc, f), message, { preserveLevels: true });
     timingTool?.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
     renderFrames();
   });
@@ -1366,17 +1417,35 @@ export async function mount(root, options = {}) {
     if (result.updated) status(`Updated timing step ${step + 1} from the schematic logic levels.`);
     else status(result.error ?? "No matching timing signals to update.", true);
   }
-  function populateFromTiming(auto = false) {
+  function populateFromTiming({ auto = false, quiet = false, clearWhenEmpty = false } = {}) {
     let sent = null;
     try { sent = JSON.parse(store.get(TIMING_SEND) ?? "null"); } catch { sent = null; }
-    if (!sent?.signals?.length && !auto) { status("Nothing sent yet: in the timing tool, press Send to schematic."); return; }
+    if (!sent?.signals?.length && !clearWhenEmpty) {
+      if (!auto) status("Nothing sent yet: in the timing tool, press Send to schematic.");
+      return;
+    }
+    const previousFrame = selectedFrame;
     const r = framesFromSignals(doc, D.deriveNets(doc, pack), sent?.signals ?? [], pack);
-    selectedFrame = -1;
-    commit(r.doc, null);
+    const step = timingTool?.frame ?? -1;
+    selectedFrame = step >= 0 ? Math.min(step + 1, r.steps) : previousFrame < 0 ? -1 : Math.min(previousFrame, r.steps);
+    const frames = framesOf(r.doc);
+    const next = selectedFrame >= 0 && frames[selectedFrame] ? applyFrame(r.doc, frames[selectedFrame]) : r.doc;
+    commit(next, null, { preserveLevels: true });
     renderFrames();
-    status(`Frame 0 and ${r.steps} timing steps are now synced. Drives: ${r.matched.join(", ") || "nothing"}.${r.unmatched.length ? ` No wire, port or element named: ${r.unmatched.join(", ")} (name a wire with its Net label).` : ""}`, !!r.steps && !r.matched.length);
+    timingTool?.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
+    if (!quiet) status(`Frame 0 and ${r.steps} timing steps are now synced. Drives: ${r.matched.join(", ") || "nothing"}.${r.unmatched.length ? ` No wire, port or element named: ${r.unmatched.join(", ")} (name a wire with its Net label).` : ""}`, !!r.steps && !r.matched.length);
   }
-  window.addEventListener("storage", (e) => { if (e.key === TIMING_SEND) populateFromTiming(true); });
+  function selectTimingFrame(step) {
+    if (!Number.isInteger(step) || step < 0) return;
+    const index = step + 1, frame = framesOf(doc)[index];
+    if (!frame) return;
+    selectedFrame = index;
+    commit(applyFrame(doc, frame), null, { preserveLevels: true });
+    renderFrames();
+  }
+  window.addEventListener("storage", (e) => {
+    if (e.key === TIMING_SEND) populateFromTiming({ auto: true, quiet: true, clearWhenEmpty: true });
+  });
 
   /** One slide with every frame as a small figure, labelled with its name. */
   async function gridNow(frames) {
@@ -1445,17 +1514,24 @@ export async function mount(root, options = {}) {
       },
       texSignalName: (name) => texOf(name),
       onStatus: (m, err) => { if (opt.view === "timing") status(m, err); },
-      onChange: () => { if (opt.slideView) syncSlide(); },
+      onFrameChange: selectTimingFrame,
+      onChange: () => {
+        populateFromTiming({ auto: true, quiet: true, clearWhenEmpty: true });
+        if (opt.slideView) syncSlide();
+      },
     });
     timingTool.setCircuit(D.serialize(doc, pack));
+    timingTool.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
+    syncTimingSelection();
     if (refreshFramesWhenTimingReady) {
       refreshFramesWhenTimingReady = false;
-      populateFromTiming(true);
+      populateFromTiming({ auto: true, quiet: true });
     }
     for (const step of pendingTimingSteps) syncCircuitLevelsToTiming(step);
     pendingTimingSteps.clear();
     if (fitTimingWhenReady) { fitTimingWhenReady = false; timingTool.fit(); }
     setupTruthTable();
+    if (opt.slideView) syncSlide();
   }
 
   function setupTruthTable() {
@@ -1465,24 +1541,57 @@ export async function mount(root, options = {}) {
     const inputNames = pane.querySelector("[data-truth-inputs]");
     const outputNames = pane.querySelector("[data-truth-outputs]");
     const tableInput = pane.querySelector("[data-truth-table]");
+    const latexOutput = pane.querySelector("[data-truth-latex]");
+    const latexStatus = pane.querySelector("[data-truth-latex-status]");
     const portList = pane.querySelector("#td-truth-ports");
     const results = pane.querySelector(".td-truth-results");
     const parseNames = (input) => input.value.split(/[,\s;]+/).filter(Boolean);
+    const storageKey = () => `${TRUTH_TABLE}:${encodeURIComponent(doc.id)}`;
+    let lastDefaultHeader = "";
+    let lastDefaultInputs = "";
+    let lastDefaultOutputs = "";
     const refreshPorts = () => {
-      portList.innerHTML = doc.ports.map((port) => `<option value="${esc(port.id)}">${esc(port.dir === "in" ? "Input" : port.dir === "out" ? "Output" : "Port")}</option>`).join("");
-      for (const [field, direction] of [[inputNames, "in"], [outputNames, "out"]]) {
-        const available = doc.ports.filter((port) => port.dir === direction).map((port) => port.id);
-        const chosen = parseNames(field);
-        if (!chosen.length || chosen.some((name) => !available.includes(name))) field.value = available.join(", ");
-      }
-    };
-    const validatePorts = (names, direction) => {
-      if (!names.length) throw new Error(`Choose at least one ${direction === "in" ? "input" : "output"} port.`);
-      if (new Set(names).size !== names.length) throw new Error("Choose each port only once.");
-      for (const name of names) {
+      const inputs = doc.ports.filter((port) => port.dir === "in").map((port) => port.id);
+      const outputs = namedNetNames(doc).filter((name) => !inputs.includes(name));
+      portList.innerHTML = namedNetNames(doc).map((name) => {
         const port = doc.ports.find((item) => item.id === name);
-        if (!port) throw new Error(`"${name}" is not a port id in this circuit.`);
-        if (port.dir !== direction) throw new Error(`Port "${name}" must be an ${direction === "in" ? "input" : "output"}.`);
+        const kind = port?.dir === "in" ? "Input" : port?.dir === "out" ? "Output" : "Net";
+        return `<option value="${esc(name)}">${kind}</option>`;
+      }).join("");
+      for (const [field, direction] of [[inputNames, "in"], [outputNames, "out"]]) {
+        const available = direction === "in" ? inputs : outputs;
+        const previousDefault = direction === "in" ? lastDefaultInputs : lastDefaultOutputs;
+        const chosen = parseNames(field);
+        if (!chosen.length || field.value.trim() === previousDefault || chosen.some((name) => !available.includes(name))) {
+          field.value = available.join(", ");
+        }
+      }
+      lastDefaultInputs = inputNames.value.trim();
+      lastDefaultOutputs = outputNames.value.trim();
+    };
+    const validateInputs = (names) => {
+      if (!names.length) throw new Error("Choose at least one input port.");
+      if (new Set(names).size !== names.length) throw new Error("Choose each input port only once.");
+      const available = new Set(doc.ports.filter((port) => port.dir === "in").map((port) => port.id));
+      for (const name of names) if (!available.has(name)) throw new Error(`"${name}" is not an input port in this circuit.`);
+    };
+    const validateOutputs = (names) => {
+      if (!names.length) throw new Error("Choose at least one output net.");
+      if (new Set(names).size !== names.length) throw new Error("Choose each output net only once.");
+      const available = new Set(namedNetNames(doc));
+      for (const name of names) if (!available.has(name)) throw new Error(`"${name}" is not a named net in this circuit.`);
+    };
+    const csvCell = (value) => /[",\t\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+    const defaultHeader = () => [...new Set([...parseNames(inputNames), ...parseNames(outputNames)])].map(csvCell).join(",");
+    const refreshTableHeader = (force = false) => {
+      const current = tableInput.value.trim();
+      const lines = current.split(/\r?\n/);
+      const next = defaultHeader();
+      const replace = force || !current || (lines.length === 1 && current === lastDefaultHeader);
+      lastDefaultHeader = next;
+      if (replace) {
+        tableInput.value = next;
+        refreshLatex();
       }
     };
     const showResults = (result) => {
@@ -1497,6 +1606,65 @@ export async function mount(root, options = {}) {
       results.dataset.error = "true";
       results.innerHTML = `<p data-error>${esc(error.message)}</p>`;
     };
+    const buildLatex = () => {
+      if (!tableInput.value.trim()) throw new Error("Enter a header row and truth-table cases.");
+      return latexTable(tableInput.value);
+    };
+    const refreshLatex = () => {
+      if (!tableInput.value.trim()) {
+        latexOutput.value = "";
+        latexStatus.textContent = "";
+        latexStatus.removeAttribute("data-error");
+        return null;
+      }
+      try {
+        latexOutput.value = buildLatex();
+        latexStatus.textContent = "";
+        latexStatus.removeAttribute("data-error");
+        return latexOutput.value;
+      } catch (error) {
+        latexOutput.value = "";
+        latexStatus.textContent = error.message;
+        latexStatus.setAttribute("data-error", "");
+        return null;
+      }
+    };
+    const restoreProjectCopy = () => {
+      tableInput.value = "";
+      const saved = store.get(storageKey());
+      if (!saved) { refreshTableHeader(true); refreshLatex(); return; }
+      try {
+        if (saved.length > 100000) throw new Error("the saved copy is too large");
+        const copy = JSON.parse(saved);
+        if (copy?.schema !== "figure-editor-truth-table/1" || typeof copy.inputs !== "string" ||
+            typeof copy.outputs !== "string" || typeof copy.csv !== "string") {
+          throw new Error("the saved copy has an unsupported format");
+        }
+        inputNames.value = copy.inputs;
+        outputNames.value = copy.outputs;
+        lastDefaultInputs = inputNames.value.trim();
+        lastDefaultOutputs = outputNames.value.trim();
+        lastDefaultHeader = defaultHeader();
+        tableInput.value = copy.csv;
+        refreshLatex();
+        latexStatus.textContent = "Loaded this project's saved copy.";
+      } catch (error) {
+        refreshTableHeader(true);
+        refreshLatex();
+        latexStatus.textContent = `Could not load the saved copy: ${error.message}`;
+        latexStatus.setAttribute("data-error", "");
+      }
+    };
+    const snapshot = () => {
+      const csv = tableInput.value;
+      if (!csv.trim()) return null;
+      let latex = null, error = null;
+      try { latex = latexTable(csv); } catch (e) { error = e.message; }
+      return { schema: "figure-editor-truth-table/1", inputs: inputNames.value, outputs: outputNames.value, csv, latex, ...(error ? { error } : {}) };
+    };
+    truthTableSnapshot = snapshot;
+    refreshTruthPortList = () => { refreshPorts(); refreshTableHeader(); };
+    truthTableProjectChanged = () => { refreshPorts(); restoreProjectCopy(); };
     const applyResult = (result, message, showDiagram) => {
       timingTool.source = JSON.stringify(result.timing);
       selectedFrame = 0;
@@ -1507,13 +1675,16 @@ export async function mount(root, options = {}) {
       if (showDiagram) tpBody.querySelector('[data-view="diagram"]').click();
     };
     refreshPorts();
+    restoreProjectCopy();
+    for (const field of [inputNames, outputNames]) field.addEventListener("input", () => refreshTableHeader());
+    tableInput.addEventListener("input", refreshLatex);
     pane.addEventListener("click", (event) => {
       const action = event.target.closest("[data-truth-action]")?.dataset.truthAction;
       if (!action) return;
       try {
         if (action === "generate") {
           const inputs = parseNames(inputNames), outputs = parseNames(outputNames);
-          validatePorts(inputs, "in"); validatePorts(outputs, "out");
+          validateInputs(inputs); validateOutputs(outputs);
           const generated = truthTable(doc, pack, inputs, outputs);
           const signals = new Map(generated.timing.signal.filter((signal) => signal.name).map((signal) => [signal.name, signal.wave]));
           const expand = (wave) => {
@@ -1521,9 +1692,14 @@ export async function mount(root, options = {}) {
             return [...wave].map((value) => value === "." ? previous : (previous = value)).join("");
           };
           const waves = new Map([...signals].map(([name, wave]) => [name, expand(wave)]));
-          tableInput.value = [ [...inputs, ...outputs].join(","),
-            ...Array.from({ length: generated.frames.length }, (_, step) => [...inputs, ...outputs].map((name) => waves.get(name)[step]).join(",")),
+          const columns = [...inputs, ...outputs];
+          tableInput.value = [columns.map(csvCell).join(","),
+            ...Array.from({ length: generated.frames.length }, (_, step) => columns.map((name) => {
+              const value = waves.get(name)[step];
+              return inputs.includes(name) ? value : value.toUpperCase();
+            }).map(csvCell).join(",")),
           ].join("\n");
+          refreshLatex();
           results.removeAttribute("data-error");
           results.innerHTML = `<p>Generated ${generated.frames.length} cases. Edit the table, then check it against the circuit.</p>`;
           applyResult(generated, `Generated ${generated.frames.length} input cases.`, true);
@@ -1532,6 +1708,19 @@ export async function mount(root, options = {}) {
           showResults(checked);
           const passed = checked.checks.filter((item) => item.pass).length;
           applyResult(checked, `${passed} of ${checked.checks.length} truth-table cases match the circuit.`, false);
+        } else if (action === "save-copy") {
+          const latex = refreshLatex();
+          if (!latex) throw new Error(latexStatus.textContent || "Enter a valid truth table before saving a copy.");
+          const copy = JSON.stringify({ schema: "figure-editor-truth-table/1", inputs: inputNames.value, outputs: outputNames.value, csv: tableInput.value, latex });
+          if (!store.set(storageKey(), copy)) throw new Error("Could not save the truth table copy in this browser (storage may be unavailable or full).");
+          latexStatus.textContent = "Saved the table and LaTeX with this project in this browser.";
+          status("Saved a truth-table copy with this project.");
+        } else if (action === "export-copy") {
+          const latex = refreshLatex();
+          if (!latex) throw new Error(latexStatus.textContent || "Enter a valid truth table before exporting a copy.");
+          download(new Blob([latex], { type: "application/x-tex" }), `${doc.id}-truth-table.tex`, "application/x-tex");
+          latexStatus.textContent = `Exported ${doc.id}-truth-table.tex.`;
+          status(`Exported ${doc.id}-truth-table.tex.`);
         }
       } catch (error) { displayError(error); status(error.message, true); }
     });
@@ -1548,8 +1737,12 @@ export async function mount(root, options = {}) {
     setWorkspacePanes({ figure: v === "figure" ? 100 : 0, timing: v === "timing" ? 100 : 0, slide: v === "slide" ? 100 : 0 });
     saveOptions();
     if (v === "figure" || v === "slide") {
-      if (timingTool) populateFromTiming(true);
+      if (timingTool) populateFromTiming({ auto: true, quiet: true });
       else refreshFramesWhenTimingReady = true;
+    }
+    if (v === "timing" && timingTool) {
+      timingTool.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
+      syncTimingSelection();
     }
     mountTiming(); syncSlide();
   }
@@ -1559,7 +1752,7 @@ export async function mount(root, options = {}) {
     if (!frames.length || !Number.isFinite(n)) return;
     selectedFrame = Math.max(0, Math.min(frames.length - 1, Math.round(n)));
     const message = selectedFrame === 0 ? "Frame 0 has no logic levels highlighted." : `Frame ${selectedFrame} of ${frames.length - 1}: ${frames[selectedFrame].name}`;
-    commit(applyFrame(doc, frames[selectedFrame]), message);
+    commit(applyFrame(doc, frames[selectedFrame]), message, { preserveLevels: true });
     timingTool?.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
     renderFrames();
   }
@@ -1888,10 +2081,16 @@ export async function mount(root, options = {}) {
       if (c && !doc.wires.find((w) => w.id === k)?.route?.includes("straight")) {   // a lone orthogonal wire: drag slides the run sideways
         const index = nearestOnPolyline(p, c).segment;
         drag = { kind: "segment", id: k, index, horizontal: c[index][1] === c[index + 1][1], start: p, base: doc, d: 0 };
-        status(`Wire ${k} selected. Drag it sideways to move this run; Delete removes the wire.`);
+        const names = internalNodesForWires(selection.wires);
+        if (names.length) statusWithNodes(names, `selected. Drag sideways to move this run; Delete removes it.`);
+        else status("Unconnected node selected. Drag sideways to move this run; Delete removes it.");
       } else {
         drag = { kind: "move", start: p, base: doc, sel: structuredClone(selection), delta: [0, 0] };
-        if (c) status(`Wire ${k} selected. Drag to move the whole wire; Delete removes it.`);
+        if (c) {
+          const names = internalNodesForWires(selection.wires);
+          if (names.length) statusWithNodes(names, "selected. Drag to move it; Delete removes it.");
+          else status("Unconnected node selected. Drag to move it; Delete removes it.");
+        }
       }
     } else {
       if (!e.shiftKey) selection = none();

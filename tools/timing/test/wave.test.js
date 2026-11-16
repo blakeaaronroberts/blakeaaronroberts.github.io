@@ -99,11 +99,14 @@ Deno.test("text size, line width and outlined TeX names are drawing inputs", asy
   const { drawTiming, naturalSize } = await import("../src/draw.js");
   const name = "$Q_0$", parsed = { ok: true, left: 0, width: 0.9, height: 0.7, depth: 0.2, nodes: [{ tag: "path", attrs: [["d", "M0 0L1 1"], ["fill", "currentColor"]], children: [] }] };
   const value = { signal: [{ name, wave: "01" }, { name: "D", wave: "01" }] }, names = new Map([[name, parsed]]);
-  const plain = drawTiming(value, {}), tuned = drawTiming(value, { fontSize: 18, lineWidth: 3.2, nameTypeset: names });
+  const plain = drawTiming(value, { nameTypeset: names }), tuned = drawTiming(value, { fontSize: 18, lineWidth: 3.2, nameTypeset: names });
   assert(tuned.svg.includes('class="td-name-math"') && tuned.svg.includes("<path d=") && tuned.svg.includes("scale(0.018)"));
   assert(!tuned.svg.includes(`${name}</text>`));
   assert(tuned.svg.includes('font-size="18"') && tuned.svg.includes('stroke-width="3.2"'));
-  assert(naturalSize(value, 1, { fontSize: 18, nameTypeset: names }).h > naturalSize(value).h);
+  assertEquals(naturalSize(value, 1, { fontSize: 18, nameTypeset: names }), naturalSize(value, 1, { fontSize: 12, nameTypeset: names }));
+  assertEquals(tuned.natural, plain.natural);
+  assertEquals(tuned.geometry, plain.geometry);
+  assertEquals(tuned.svg.match(/width="([^"]+)" height="([^"]+)"/).slice(1), plain.svg.match(/width="([^"]+)" height="([^"]+)"/).slice(1));
   assert(plain.svg.includes('font-size="12"') && plain.svg.includes('stroke-width="1.6"'));
   const hidden = drawTiming(value, { showNames: false });
   assert(!hidden.svg.includes(`${name}</text>`) && !hidden.svg.includes(">D</text>"));
