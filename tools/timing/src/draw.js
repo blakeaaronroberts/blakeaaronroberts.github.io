@@ -86,9 +86,10 @@ export function parseEdge(s) {
  * (theme backgrounds for X and Z), signalLineColour, edge-line and arrowhead styles, nameTypeset and edgeLabelTypeset
  * (outlined TeX), and paper (behind edge labels; none if not given).
  * A source's config.dataColours can override the seven data fills.
+ * centerTransitions (beta only) keeps edge nodes centred and extends binary-to-X/Z/data transitions to lane bounds.
  * Returns {svg, natural, geometry: {x0, stepW, laneH, steps, top}}.
  */
-export function drawTiming(value, { width, height, ink = "#000000", accent = "#0072B2", marker = null, levelColour = null, dataFills = [], levelFills = {}, signalLineColour = ink, paper = null, fontSize = FONT, lineWidth = 1.6, edgeLineWidth = lineWidth / 1.6, edgeLineColour = null, arrowHeadSize = 6, arrowHeadColour = null, edgeStyles = value?.config?.edgeStyles ?? {}, nameTypeset = null, edgeLabelTypeset = nameTypeset, showNames = true } = {}) {
+export function drawTiming(value, { width, height, ink = "#000000", accent = "#0072B2", marker = null, levelColour = null, dataFills = [], levelFills = {}, signalLineColour = ink, paper = null, fontSize = FONT, lineWidth = 1.6, edgeLineWidth = lineWidth / 1.6, edgeLineColour = null, arrowHeadSize = 6, arrowHeadColour = null, edgeStyles = value?.config?.edgeStyles ?? {}, nameTypeset = null, edgeLabelTypeset = nameTypeset, showNames = true, centerTransitions = false } = {}) {
   const lanes = lanesOf(value);
   const nat = naturalSize(value, Number(value?.config?.hscale) || 1, { fontSize, nameTypeset, showNames });
   const W = Math.max(100, width ?? nat.w), H = Math.max(40, height ?? nat.h);
@@ -153,6 +154,7 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
 
   lanes.forEach((lane, li) => {
     const top = top0 + li * laneH, yh = top + laneH * 0.17, yl = top + laneH * 0.83, ym = (yh + yl) / 2;
+    const bottom = top + laneH;
     const yOf = { hi: yh, lo: yl, mid: ym };
     if (showNames && lane.name) {
       const parsed = nameTypeset?.get(lane.name);
@@ -163,7 +165,7 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
     const xAt = (i) => x0 + (i - lane.phase + lane.delay) * w;   // phase shifts left, delay (fine, in steps) shifts right
     for (let i = 0; i < lane.node.length; i++) {
       const ch = lane.node[i];
-      if (ch !== "." && ch !== " " && !nodes.has(ch)) nodes.set(ch, [xAt(i) + (st[i]?.isNew && i > 0 ? slope / 2 : 0), ym]);
+      if (ch !== "." && ch !== " " && !nodes.has(ch)) nodes.set(ch, [xAt(i) + (!centerTransitions && st[i]?.isNew && i > 0 ? slope / 2 : 0), ym]);
     }
     const d = [];
     let level = null, run = null, di = 0, prevBox = false;
@@ -183,11 +185,18 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
     const flush = () => {
       if (!run) return;
       const xl = Math.max(x0, xAt(run.from)), xr = xAt(run.to), hatch = run.c === "x";
-      const pts = run.entry === "lo"
-        ? [[xl, yl], [xl + slope, yh], [xr - slope, yh], [xr, ym], [xr - slope, yl], [xl + slope, yl]]
-        : run.entry === "hi"
-        ? [[xl, yh], [xl + slope, yl], [xr - slope, yl], [xr, ym], [xr - slope, yh], [xl + slope, yh]]
-        : [[xl, ym], [xl + slope, yh], [xr - slope, yh], [xr, ym], [xr - slope, yl], [xl + slope, yl]];
+      const entryStart = xl - slope / 2, entryCenter = xl + slope / 2, boxStart = xl + slope * 1.5;
+      const pts = centerTransitions
+        ? run.entry === "lo"
+          ? [[entryStart, yl], [entryCenter, top], [boxStart, yh], [xr - slope, yh], [xr, ym], [xr - slope, yl], [boxStart, yl]]
+          : run.entry === "hi"
+            ? [[entryStart, yh], [entryCenter, bottom], [boxStart, yl], [xr - slope, yl], [xr, ym], [xr - slope, yh], [boxStart, yh]]
+            : [[xl, ym], [xl + slope, yh], [xr - slope, yh], [xr, ym], [xr - slope, yl], [xl + slope, yl]]
+        : run.entry === "lo"
+          ? [[xl, yl], [xl + slope, yh], [xr - slope, yh], [xr, ym], [xr - slope, yl], [xl + slope, yl]]
+          : run.entry === "hi"
+            ? [[xl, yh], [xl + slope, yl], [xr - slope, yl], [xr, ym], [xr - slope, yh], [xl + slope, yh]]
+            : [[xl, ym], [xl + slope, yh], [xr - slope, yh], [xr, ym], [xr - slope, yl], [xl + slope, yl]];
       const colourIndex = /[3-9]/.test(run.c) ? +run.c - 3 : -1;
       const colour = colourIndex >= 0
         ? (isHexColour(value?.config?.dataColours?.[colourIndex]) ? value.config.dataColours[colourIndex] : dataFills[colourIndex])
@@ -223,19 +232,35 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
         flush();
         paint(null);
         const hi = c === "p" || c === "P", y1 = hi ? yh : yl, y2 = hi ? yl : yh, mid = (xl + xr) / 2;
-        line(xl, level ? yOf[level] : y2); line(xl + slope, y1); line(mid, y1); line(mid + slope, y2); line(xr, y2);
-        if (c === "P") arrow(xl + slope / 2, ym, true);
-        if (c === "N") arrow(xl + slope / 2, ym, false);
+        if (centerTransitions) {
+          line(xl - slope / 2, level ? yOf[level] : y2); line(xl + slope / 2, y1);
+          line(mid - slope / 2, y1); line(mid + slope / 2, y2); line(xr, y2);
+          if (c === "P") arrow(xl, ym, true);
+          if (c === "N") arrow(xl, ym, false);
+        } else {
+          line(xl, level ? yOf[level] : y2); line(xl + slope, y1); line(mid, y1); line(mid + slope, y2); line(xr, y2);
+          if (c === "P") arrow(xl + slope / 2, ym, true);
+          if (c === "N") arrow(xl + slope / 2, ym, false);
+        }
         level = hi ? "lo" : "hi";
       } else if (LEVEL[c]) {
         flush();
         const k = LEVEL[c], y = yOf[k], s = SHARP.has(c) ? 0 : WEAK.has(c) ? slope * 2 : slope;
         if (isNew && level && yOf[level] !== y) {
-          paint(level, dashed); line(xl, yOf[level]); paint(k, WEAK.has(c));
-          if (c === "z" && (level === "lo" || level === "hi")) {
-            line(xl + s, yOf[level] === yOf.lo ? yh : yl);
-            line(xl + 2 * s, y);
-          } else line(xl + s, y);
+          paint(level, dashed);
+          if (centerTransitions) {
+            line(xl - s / 2, yOf[level]); paint(k, WEAK.has(c));
+            if (c === "z" && (level === "lo" || level === "hi")) {
+              line(xl + s / 2, level === "lo" ? top : bottom);
+              line(xl + 1.5 * s, y);
+            } else line(xl + s / 2, y);
+          } else {
+            line(xl, yOf[level]); paint(k, WEAK.has(c));
+            if (c === "z" && (level === "lo" || level === "hi")) {
+              line(xl + s, yOf[level] === yOf.lo ? yh : yl);
+              line(xl + 2 * s, y);
+            } else line(xl + s, y);
+          }
         }
         else { paint(k, WEAK.has(c)); if (isNew || !d.length) line(wasBox ? a - slope : a, y); }
         line(xr, y); level = k;

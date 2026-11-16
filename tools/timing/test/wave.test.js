@@ -164,19 +164,46 @@ Deno.test("arrow colour and dotted lines follow straight, curved and square arro
   assert(svg.includes('stroke="#334455"') && svg.includes('fill="#112233"') && svg.includes('fill="#223344"') && svg.includes('fill="#334455"'));
 });
 
-Deno.test("transitions from binary levels reach the full bounds of X, Z and data states", async () => {
+Deno.test("edge nodes stay at transition centres as the lean changes", async () => {
   const { drawTiming } = await import("../src/draw.js");
-  const wave = (start, next) => drawTiming({ signal: [{ name: "D", wave: `${start}${next}` }] }, { width: 300, height: 100 });
+  const positions = [0, 5, 12].map((slant) => {
+    const value = {
+      signal: [{ name: "A", wave: "01", node: ".a" }, { name: "B", wave: "01", node: ".b" }],
+      edge: ["a->b"], config: { slant, edgeLineColour: "#123456" },
+    };
+    const legacy = drawTiming(value, { width: 300, height: 100 });
+    const beta = drawTiming(value, { width: 300, height: 100, centerTransitions: true });
+    const edgeX = (svg) => {
+      const edgePath = svg.match(/<path d="M ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+)" fill="none" stroke="#123456"/);
+      assert(edgePath, "the edge between nodes is drawn");
+      return [edgePath[1], edgePath[3]];
+    };
+    const transitionX = (result, offset = 0) => String(Math.round((result.geometry.x0 + result.geometry.stepW + offset) * 100) / 100);
+    const slope = Math.min(slant, legacy.geometry.stepW * 0.15);
+    assertEquals(edgeX(legacy.svg), [transitionX(legacy, slope / 2), transitionX(legacy, slope / 2)]);
+    assertEquals(edgeX(beta.svg), [transitionX(beta), transitionX(beta)]);
+    return edgeX(beta.svg)[0];
+  });
+  assert(positions.every((x) => x === positions[0]), "beta lean changes do not move the edge nodes");
+});
+
+Deno.test("binary-to-X, Z and data transitions reach the lane edge", async () => {
+  const { drawTiming } = await import("../src/draw.js");
+  const slants = [0, 5, 12];
   const fmt = (n) => String(Math.round(n * 100) / 100);
-  for (const next of ["x", "z", "="]) {
-    for (const start of ["0", "1"]) {
-      const { svg, geometry } = wave(start, next), { x0, stepW, laneH, top } = geometry;
-      const x = x0 + stepW, s = Math.min(5, stepW * 0.15), yh = top + laneH * 0.17, yl = top + laneH * 0.83, ym = (yh + yl) / 2;
-      const firstY = start === "0" ? yl : yh, farY = start === "0" ? yh : yl;
-      const path = next === "z"
-        ? `L ${fmt(x)} ${fmt(firstY)} L ${fmt(x + s)} ${fmt(farY)} L ${fmt(x + 2 * s)} ${fmt(ym)}`
-        : `M ${fmt(x)} ${fmt(firstY)} L ${fmt(x + s)} ${fmt(farY)}`;
-      assert(svg.includes(path), `${start} to ${next} reaches the opposite waveform bound`);
+  for (const slant of slants) {
+    for (const next of ["x", "z", "="]) {
+      for (const start of ["0", "1"]) {
+        const { svg, geometry } = drawTiming({ signal: [{ name: "D", wave: `${start}${next}` }], config: { slant } }, { width: 300, height: 100, centerTransitions: true });
+        const { x0, stepW, laneH, top } = geometry, x = x0 + stepW, slope = Math.min(slant, stepW * 0.15);
+        const sourceY = start === "0" ? top + laneH * 0.83 : top + laneH * 0.17;
+        const targetY = start === "0" ? top : top + laneH;
+        const path = next === "z"
+          ? new RegExp(`[ML] ${fmt(x - slope / 2)} ${fmt(sourceY)} L ${fmt(x + slope / 2)} ${fmt(targetY)}`)
+          : new RegExp(`M ${fmt(x - slope / 2)} ${fmt(sourceY)} L ${fmt(x + slope / 2)} ${fmt(targetY)}`);
+        const pathData = (svg.match(/<path d="[^"]+"/g) ?? []).join(" ");
+        assert(path.test(svg), `${start} to ${next} reaches the lane edge at lean ${slant}: expected ${path}; got ${pathData}`);
+      }
     }
   }
 });

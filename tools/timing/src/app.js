@@ -118,6 +118,7 @@ export function mount(root, {
       width: Number(wIn.value) || natural.w, height: Number(hIn.value) || natural.h,
       ink, accent: role(dark ? "--fig-dark-accent" : "--fig-accent"),
       dataFills: dataColoursOf(value, dataDefaults(dark)), paper: role(dark ? "--fig-dark-background" : "--fig-background"), marker: frame >= 0 && frame < frameNames.length ? frame : null,
+      centerTransitions: betaFeatures,
       ...(betaFeatures ? {
         fontSize: textSizeOf(value), lineWidth: lineWidthOf(value), signalLineColour: signalLineColourOf(value, ink),
         levelFills: { unknown: role(dark ? "--fig-dark-unknown" : "--fig-unknown"), floating: role(dark ? "--fig-dark-floating" : "--fig-floating") },
