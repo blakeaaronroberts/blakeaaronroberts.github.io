@@ -144,7 +144,7 @@ function timingIn(r, t) {
   const svg = drawTiming(t.source, {
     width: r.w * PX_PER_MODULE, height: r.h * PX_PER_MODULE, ink: t.ink, accent: t.accent,
     marker: t.marker ?? null, levelColour: t.levelColour ?? null, dataFills: t.dataFills ?? [], paper: t.paper ?? null,
-    fontSize: t.fontSize ?? 12, lineWidth: t.lineWidth ?? 1.6, showNames: t.showNames ?? true, nameTypeset: t.nameTypeset ?? null,
+    fontSize: t.fontSize ?? 12, lineWidth: t.lineWidth ?? 1.6, showNames: t.showNames ?? true, nameTypeset: t.nameTypeset ?? null, edgeLabelTypeset: t.edgeLabelTypeset ?? t.nameTypeset ?? null,
   }).svg;
   const inner = svg.slice(svg.indexOf(">") + 1, svg.lastIndexOf("</svg>"));
   return `  <g transform="translate(${fmt(r.x)} ${fmt(r.y)}) scale(${fmt(1 / PX_PER_MODULE)})">${inner}</g>`;

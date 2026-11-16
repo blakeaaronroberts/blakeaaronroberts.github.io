@@ -4,7 +4,7 @@
 import { parseSource, tidy } from "./wave.js";
 import { drawTiming, naturalSize, lanesOf, stepsOf } from "./draw.js";
 import { nodesOf, unknownNames, framesIn } from "./nodes.js";
-import { addEdge, addSignal, addSpacer, cellsOf, dataAt, EDGE_OPS, edgesOf, empty, fromWaveDrom, isClock, LABEL, lineWidthOf, moveSignal, nextLetter, nextValue, nodeLetters, removeEdge, removeSignal, setBand, setCell, setClock, setDelay, setEdge, setHscale, setLineWidth, setNode, setProp, setShowNames, setSlant, setSteps, setTextSize, showNamesOf, slantOf, stepCount, textSizeOf, toWaveDrom, WAVE } from "./model.js";
+import { addEdge, addSignal, addSpacer, arrowHeadColourOf, arrowHeadSizeOf, cellsOf, dataAt, dataColoursOf, EDGE_OPS, edgeLineColourOf, edgeLineWidthOf, edgesOf, empty, fromWaveDrom, isClock, LABEL, lineWidthOf, moveSignal, nextLetter, nextValue, nodeLetters, removeEdge, removeSignal, resetTimingColours, setArrowHeadColour, setArrowHeadSize, setBand, setCell, setClock, setDataColour, setDelay, setEdge, setEdgeLineColour, setEdgeLineWidth, setHscale, setLineWidth, setNode, setProp, setShowNames, setSlant, setSteps, setTextSize, showNamesOf, slantOf, stepCount, textSizeOf, toWaveDrom, WAVE } from "./model.js";
 import { dockShell, pageShell } from "./shell.js";
 
 const store = {
@@ -59,14 +59,29 @@ export function mount(root, {
   };
   /** The figure roles for data colours 3 to 9, light or dark. */
   const dataRoles = (dark) => (dark ? ["--fig-dark-high", "--fig-dark-flow", "--fig-dark-accent", "--fig-dark-highlight", "--fig-dark-floating", "--fig-dark-unknown", "--fig-dark-low"] : ["--fig-high", "--fig-flow", "--fig-accent", "--fig-highlight", "--fig-shade", "--fig-muted", "--fig-rule"]);
+  const figureRole = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || undefined;
+  const dataDefaults = (dark) => dataRoles(dark).map(figureRole);
+  const pickerColour = (colour) => /^#[\da-f]{6}$/i.test(colour ?? "") ? colour : "#000000";
+  const nodesMarkup = (nodes) => nodes.map((node) => `<${node.tag}${node.attrs.map(([k, v]) => ` ${k}="${esc(v)}"`).join("")}>${nodesMarkup(node.children)}</${node.tag}>`).join("");
+  const inlineMath = (text) => {
+    const parsed = betaFeatures ? nameTypesets.get(text) : null;
+    if (!parsed?.ok) return esc(text);
+    const size = textSizeOf(value), x = parsed.left * 1000, y = -parsed.height * 1000;
+    const width = parsed.width * 1000, height = (parsed.height + parsed.depth) * 1000;
+    return `<svg class="td-inline-math" role="img" aria-label="${esc(text)}" viewBox="${x} ${y} ${width} ${height}" width="${parsed.width * size}" height="${(parsed.height + parsed.depth) * size}" style="vertical-align:-${parsed.depth * size}px"><g color="currentColor">${nodesMarkup(parsed.nodes)}</g></svg>`;
+  };
   /** The diagram as SVG text in the figure roles: light unless `dark` (exports always ask for light). */
   const drawNow = (dark) => {
-    const css = getComputedStyle(document.documentElement), role = (n) => css.getPropertyValue(n).trim() || undefined;
+    const role = figureRole, ink = role(dark ? "--fig-dark-ink" : "--fig-ink");
     return drawTiming(toWaveDrom(value), {
       width: Number(wIn.value) || natural.w, height: Number(hIn.value) || natural.h,
-      ink: role(dark ? "--fig-dark-ink" : "--fig-ink"), accent: role(dark ? "--fig-dark-accent" : "--fig-accent"),
-      dataFills: dataRoles(dark).map(role), paper: role(dark ? "--fig-dark-background" : "--fig-background"), marker: frame >= 0 && frame < frameNames.length ? frame : null,
-      ...(betaFeatures ? { fontSize: textSizeOf(value), lineWidth: lineWidthOf(value), nameTypeset: nameTypesets, showNames: showNamesOf(value) } : {}),
+      ink, accent: role(dark ? "--fig-dark-accent" : "--fig-accent"),
+      dataFills: dataColoursOf(value, dataDefaults(dark)), paper: role(dark ? "--fig-dark-background" : "--fig-background"), marker: frame >= 0 && frame < frameNames.length ? frame : null,
+      ...(betaFeatures ? {
+        fontSize: textSizeOf(value), lineWidth: lineWidthOf(value), nameTypeset: nameTypesets, edgeLabelTypeset: nameTypesets, showNames: showNamesOf(value),
+        edgeLineWidth: edgeLineWidthOf(value, lineWidthOf(value)), edgeLineColour: edgeLineColourOf(value, ink),
+        arrowHeadSize: arrowHeadSizeOf(value), arrowHeadColour: arrowHeadColourOf(value, ink),
+      } : {}),
     }).svg;
   };
 
@@ -115,6 +130,17 @@ export function mount(root, {
     if (lineIn && document.activeElement !== lineIn) lineIn.value = String(lineWidthOf(value));
     const namesIn = $("[data-look=showNames]");
     if (namesIn && document.activeElement !== namesIn) namesIn.checked = showNamesOf(value);
+    const dark = !!root.closest('[data-canvas="dark"]'), ink = figureRole(dark ? "--fig-dark-ink" : "--fig-ink");
+    const edgeWidthIn = $("[data-look=edgeLineWidth]"), headSizeIn = $("[data-look=arrowHeadSize]");
+    if (edgeWidthIn && document.activeElement !== edgeWidthIn) edgeWidthIn.value = edgeLineWidthOf(value, lineWidthOf(value)).toFixed(2);
+    if (headSizeIn && document.activeElement !== headSizeIn) headSizeIn.value = String(arrowHeadSizeOf(value));
+    const edgeColourIn = $("[data-look=edgeLineColour]"), headColourIn = $("[data-look=arrowHeadColour]");
+    if (edgeColourIn && document.activeElement !== edgeColourIn) edgeColourIn.value = pickerColour(edgeLineColourOf(value, ink));
+    if (headColourIn && document.activeElement !== headColourIn) headColourIn.value = pickerColour(arrowHeadColourOf(value, ink));
+    const colourDefaults = dataDefaults(dark);
+    for (const input of root.querySelectorAll('[data-look="dataColour"]')) {
+      if (document.activeElement !== input) input.value = pickerColour(dataColoursOf(value, colourDefaults)[Number(input.dataset.colourIndex)]);
+    }
     for (const p of root.querySelectorAll("[data-slant]")) p.setAttribute("aria-pressed", String(Number(p.dataset.slant) === slantOf(value)));
     if (!docked) root.dataset.canvas = siteIsDark() ? "dark" : "light";   // standalone: follow the site's look, as the editor's canvas does
     // The size is a layout input: steps and lanes are re-spaced to fit it, nothing is stretched.
@@ -123,7 +149,8 @@ export function mount(root, {
   }
   async function ensureNameTypesets() {
     if (!betaFeatures || !typesetSignalNames || nameTypesetting) return;
-    const pending = [...new Set(value.signal.map((s) => s?.name).filter((n) => n && !nameTypesets.has(n)))];
+    const labels = [...value.signal.map((s) => s?.name), ...edgesOf(value).map((e) => e.label)];
+    const pending = [...new Set(labels.filter((label) => label && !nameTypesets.has(label)))];
     if (!pending.length) return;
     nameTypesetting = true;
     try {
@@ -134,12 +161,13 @@ export function mount(root, {
         nameTypesets.set(name, parsed);
         if (!parsed.ok) failures.push(parsed.error ? `${name}: ${parsed.error}` : name);
       }
-      if (failures.length) say(`Some signal names remain plain text: ${failures.join(", ")}.`, true);
+      if (failures.length) say(`Some timing labels remain plain text: ${failures.join(", ")}.`, true);
     } catch (e) {
       for (const name of pending) nameTypesets.set(name, { ok: false });
       say(`Could not typeset signal names: ${e.message}`, true);
     } finally {
       nameTypesetting = false;
+      renderGrid();
       drawDiagram();
     }
   }
@@ -192,7 +220,7 @@ export function mount(root, {
           <label>Group <input class="form-control form-control-sm" data-prop="group" value="${esc(s.group ?? "")}" placeholder="none"></label>
           <label class="form-check"><input class="form-check-input" type="checkbox" data-act="clock"${isClock(s) ? " checked" : ""}> clock</label></div>` : "";
       return `<div class="td-row" data-s="${si}">
-        <div class="td-name"><span title="${esc(s.name)}">${esc(s.name)}</span>
+        <div class="td-name"><span title="${esc(s.name)}">${inlineMath(s.name)}</span>
           <button type="button" class="td-mini" data-act="more" aria-expanded="${open.has(si)}" title="Period, phase, group, clock">⚙</button>${tools}</div>
         <div class="td-cells" style="--n:${n}">${cells}</div>
         <input class="form-control form-control-sm td-delay" type="number" step="0.05" data-act="delay" value="${Number(s.delay) || 0}" aria-label="Delay of ${esc(s.name)} in steps" title="Delay in steps (fractions allowed)">
@@ -274,10 +302,16 @@ export function mount(root, {
     if (i.dataset?.look === "fontSize") commit(setTextSize(value, i.value));
     if (i.dataset?.look === "lineWidth") commit(setLineWidth(value, i.value));
     if (i.dataset?.look === "showNames") commit(setShowNames(value, i.checked));
+    if (i.dataset?.look === "dataColour") commit(setDataColour(value, Number(i.dataset.colourIndex), i.value));
+    if (i.dataset?.look === "edgeLineWidth") commit(setEdgeLineWidth(value, i.value));
+    if (i.dataset?.look === "edgeLineColour") commit(setEdgeLineColour(value, i.value));
+    if (i.dataset?.look === "arrowHeadSize") commit(setArrowHeadSize(value, i.value));
+    if (i.dataset?.look === "arrowHeadColour") commit(setArrowHeadColour(value, i.value));
   });
 
   root.addEventListener("click", (e) => {
     const act = e.target.closest("[data-do]")?.dataset.do;
+    if (act === "reset-look-colours") commit(resetTimingColours(value), "Restored theme colours.");
     if (act === "steps-") commit(setSteps(value, stepCount(value) - 1));
     if (act === "steps+") commit(setSteps(value, stepCount(value) + 1));
     if (act === "natural" && natural) { custom = true; wIn.value = natural.w; hIn.value = natural.h; render(); }

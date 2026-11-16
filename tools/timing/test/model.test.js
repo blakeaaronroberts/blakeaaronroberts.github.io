@@ -53,7 +53,7 @@ Deno.test("the click cycle goes 0, 1, X, Z, data and back", () => {
   eq(nextValue("0", true), "=");
 });
 
-import { addEdge, addSpacer, edgesOf, fromWaveDrom, nextLetter, nodeLetters, removeEdge, setBand, setEdge, setHscale, setNode, setProp, toWaveDrom } from "../src/model.js";
+import { addEdge, addSpacer, arrowHeadColourOf, arrowHeadSizeOf, dataColoursOf, edgesOf, edgeLineColourOf, edgeLineWidthOf, fromWaveDrom, nextLetter, nodeLetters, removeEdge, resetTimingColours, setArrowHeadColour, setArrowHeadSize, setBand, setDataColour, setEdge, setEdgeLineColour, setEdgeLineWidth, setHscale, setNode, setProp, toWaveDrom } from "../src/model.js";
 import { drawTiming, lanesOf, parseEdge } from "../src/draw.js";
 
 Deno.test("period, phase, group; nodes and edges; spacers; head and foot; hscale", () => {
@@ -110,4 +110,42 @@ Deno.test("edge slant: 0 gives square vertical edges, 5 (the default) the slante
   assert(vertical(sq), "square: the edge is vertical");
   assert(!vertical(sl), "slanted: the edge leans");
   assert(xs(sq).length > 0);
+});
+
+Deno.test("data and arrow appearance overrides are saved, bounded and reset independently", () => {
+  const defaults = Array.from({ length: 7 }, (_, i) => `#00000${i}`);
+  let value = empty();
+  value = setDataColour(setDataColour(value, 0, "#123456"), 6, "#ABCDEF");
+  value = setEdgeLineWidth(setEdgeLineWidth(value, 2.4), 2.4);
+  value = setEdgeLineColour(value, "#654321");
+  value = setArrowHeadSize(value, 9.5);
+  value = setArrowHeadColour(value, "#FEDCBA");
+  eq(dataColoursOf(value, defaults), ["#123456", ...defaults.slice(1, 6), "#ABCDEF"]);
+  eq([edgeLineWidthOf(value), edgeLineColourOf(value), arrowHeadSizeOf(value), arrowHeadColourOf(value)], [2.4, "#654321", 9.5, "#FEDCBA"]);
+  eq(setEdgeLineWidth(value, 20).config.edgeLineWidth, 4);
+  eq(setArrowHeadSize(value, 20).config.arrowHeadSize, 16);
+  const reset = resetTimingColours(value);
+  eq([reset.config.edgeLineWidth, reset.config.arrowHeadSize, reset.config.dataColours, reset.config.edgeLineColour, reset.config.arrowHeadColour], [2.4, 9.5, undefined, undefined, undefined]);
+  eq(setEdgeLineWidth(reset, 1).config.edgeLineWidth, undefined);
+  eq(setArrowHeadSize(reset, 6).config.arrowHeadSize, undefined);
+});
+
+Deno.test("data fills and arrow-line styling are independent of arrowhead styling", () => {
+  const value = {
+    signal: [{ name: "D", wave: "3.", node: "a." }, { name: "Q", wave: "0.1", node: ".b" }],
+    edge: ["a->b $t_{pd}$"],
+  };
+  const parsed = { ok: true, left: 0, width: 0.9, height: 0.7, depth: 0.2, nodes: [{ tag: "path", attrs: [["d", "M0 0L1 1"], ["fill", "currentColor"]], children: [] }] };
+  const defaults = drawTiming(value, { lineWidth: 3.2 }).svg;
+  assert(defaults.includes('stroke="#000000" stroke-width="2"'), "the default edge width follows the existing line-width ratio");
+  const styled = drawTiming(value, {
+    lineWidth: 3.2, edgeLineWidth: 2.2, edgeLineColour: "#112233", arrowHeadSize: 11,
+    arrowHeadColour: "#445566", dataFills: ["#111111"], edgeLabelTypeset: new Map([["$t_{pd}$", parsed]]),
+  }).svg;
+  const headPath = (svg, colour) => new RegExp(`<path d="([^"]+)" fill="${colour}"/>`).exec(svg)?.[1];
+  assert(styled.includes('fill="#111111"'), "the selected data-signal fill is used");
+  assert(styled.includes('stroke="#112233" stroke-width="2.2"'), "the arrow line has its own colour and width");
+  assert(styled.includes('fill="#445566"'), "the arrowhead has its own colour");
+  assert(headPath(styled, "#445566") !== headPath(defaults, "#000000"), "the arrowhead size is independent of line width");
+  assert(styled.includes('class="td-edge-label-math"') && styled.includes('scale(0.01)'), "the edge title is drawn from the typeset paths at label size");
 });

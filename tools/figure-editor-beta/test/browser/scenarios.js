@@ -786,9 +786,10 @@ scenarios.timing = async (ctx) => {
       const look = view.querySelector(".td-view-look"), chart = view.querySelector("#WaveDrom_Display_0");
       look.open = true;
       const chartBox = chart.getBoundingClientRect(), lookBox = look.getBoundingClientRect(), lookStyle = getComputedStyle(look);
-      return { shown: !view.hidden, look: !!look, below: chartBox.bottom <= lookBox.top, unboxed: lookStyle.borderLeftWidth === "0px" && lookStyle.borderRightWidth === "0px" && lookStyle.borderBottomWidth === "0px", showNames: view.querySelector('[data-look="showNames"]')?.checked, font: view.querySelector('[data-look="fontSize"]')?.value, width: view.querySelector('[data-look="lineWidth"]')?.value, spacing: !!view.querySelector('[data-size="hscale"]'), size: !!view.querySelector('[data-size="w"]') };
+      return { shown: !view.hidden, look: !!look, below: chartBox.bottom <= lookBox.top, chartVisible: chartBox.height > 0, unboxed: lookStyle.borderLeftWidth === "0px" && lookStyle.borderRightWidth === "0px" && lookStyle.borderBottomWidth === "0px", showNames: view.querySelector('[data-look="showNames"]')?.checked, font: view.querySelector('[data-look="fontSize"]')?.value, width: view.querySelector('[data-look="lineWidth"]')?.value, spacing: !!view.querySelector('[data-size="hscale"]'), size: !!view.querySelector('[data-size="w"]'), dataColours: view.querySelectorAll('[data-look="dataColour"]').length, arrowLine: !!view.querySelector('[data-look="edgeLineWidth"]') && !!view.querySelector('[data-look="edgeLineColour"]'), arrowHead: !!view.querySelector('[data-look="arrowHeadSize"]') && !!view.querySelector('[data-look="arrowHeadColour"]'), spacerButton: !!document.querySelector('[data-do="add-spacer"]') };
     })()`);
-    res.push([controls.shown && controls.look && controls.below && controls.unboxed && controls.showNames === true && controls.font === "12" && controls.width === "1.6" && controls.spacing && controls.size, `diagram sits above integrated look and size controls (${JSON.stringify(controls)})`]);
+    res.push([controls.shown && controls.look && controls.below && controls.chartVisible && controls.unboxed && controls.showNames === true && controls.font === "12" && controls.width === "1.6" && controls.spacing && controls.size, `diagram sits above integrated look and size controls (${JSON.stringify(controls)})`]);
+    res.push([controls.dataColours === 7 && controls.arrowLine && controls.arrowHead && controls.spacerButton, `look controls include seven data colours, independent arrow styling and the WaveDrom spacer tool (${JSON.stringify(controls)})`]);
 
     await page.eval(`window.figureEditor.load(JSON.stringify({
       schema: "circuit/0.2", id: "timing_connected_wires", grid_cm: 0.25,
@@ -803,11 +804,16 @@ scenarios.timing = async (ctx) => {
     await page.eval(`(() => {
       document.querySelector('[data-view="source"]').click();
       const source = document.querySelector(".td-srctext");
-      source.value = JSON.stringify({ signal: [{ name: "$Q_{0}$", wave: "01" }, { name: "D", wave: "0.1" }] });
+      source.value = JSON.stringify({
+        signal: [{ name: "$Q_{0}$", wave: "3.", data: ["payload"], node: "a." }, {}, { name: "D", wave: "0.1", node: ".b" }],
+        edge: ["a->b $t_{pd}$"],
+      });
       document.querySelector('[data-do="src-apply"]').click();
       document.querySelector('[data-view="diagram"]').click();
     })()`);
-    await page.waitFor(`!!document.querySelector(".td-name-math")`, 30000);
+    await page.waitFor(`!!document.querySelector("#WaveDrom_Display_0 .td-name-math path") && !!document.querySelector("#WaveDrom_Display_0 .td-edge-label-math path") && !!document.querySelector(".td-name .td-inline-math path")`, 30000);
+    const spacer = await page.eval(`!!document.querySelector(".td-row.td-spacer")`);
+    res.push([spacer, "an empty WaveDrom signal imports as a blank spacer lane"]);
     const nameToggle = await page.eval(`(() => {
       const input = document.querySelector('[data-look="showNames"]');
       input.checked = false; input.dispatchEvent(new Event("change", { bubbles: true }));
@@ -815,20 +821,43 @@ scenarios.timing = async (ctx) => {
       input.checked = true; input.dispatchEvent(new Event("change", { bubbles: true }));
       return hidden;
     })()`);
-    await page.waitFor(`!!document.querySelector(".td-name-math")`, 10000);
+    await page.waitFor(`!!document.querySelector("#WaveDrom_Display_0 .td-name-math path")`, 10000);
     res.push([nameToggle, "the timing viewer can hide and restore net names"]);
     await page.eval(`(() => {
       const font = document.querySelector('[data-look="fontSize"]'), width = document.querySelector('[data-look="lineWidth"]');
       font.value = "18"; font.dispatchEvent(new Event("change", { bubbles: true }));
       width.value = "2.6"; width.dispatchEvent(new Event("change", { bubbles: true }));
+      const set = (selector, value) => { const input = document.querySelector(selector); input.value = value; input.dispatchEvent(new Event("change", { bubbles: true })); };
+      set('[data-look="dataColour"][data-colour-index="0"]', "#123456");
+      set('[data-look="edgeLineWidth"]', "2.4");
+      set('[data-look="edgeLineColour"]', "#654321");
+      set('[data-look="arrowHeadSize"]', "10");
+      set('[data-look="arrowHeadColour"]', "#ABCDEF");
     })()`);
     await page.sleep(250);
     const svg = await page.eval(`(() => {
       const s = document.querySelector("#WaveDrom_Display_0 svg");
-      return { math: !!s?.querySelector(".td-name-math path"), textSized: !!s?.querySelector('.td-name-math[transform*="scale(0.018)"]'), thickLine: !!s?.querySelector('[stroke-width="2.6"]'), widths: Array.from(s?.querySelectorAll("[stroke-width]") ?? []).map((t) => t.getAttribute("stroke-width")), config: window.figureEditor.doc.schema, sourceKey: !!localStorage.getItem("figure-editor-beta/timing-source"), stableKey: localStorage.getItem("timing-diagram/source"), legacySend: localStorage.getItem("timing-diagram/send") };
+      const source = JSON.parse(localStorage.getItem("figure-editor-beta/timing-source") ?? "{}");
+      return {
+        math: !!s?.querySelector(".td-name-math path"), editorMath: !!document.querySelector(".td-name .td-inline-math path"),
+        edgeMath: !!s?.querySelector(".td-edge-label-math path"), textSized: !!s?.querySelector('.td-name-math[transform*="scale(0.018)"]'),
+        thickLine: !!s?.querySelector('[stroke-width="2.6"]'), dataColour: !!s?.querySelector('[fill="#123456"]'),
+        arrowLine: !!s?.querySelector('[stroke="#654321"][stroke-width="2.4"]'), arrowHead: !!s?.querySelector('[fill="#ABCDEF"]'),
+        widths: Array.from(s?.querySelectorAll("[stroke-width]") ?? []).map((t) => t.getAttribute("stroke-width")), config: source.config,
+        sourceKey: !!localStorage.getItem("figure-editor-beta/timing-source"), stableKey: localStorage.getItem("timing-diagram/source"), legacySend: localStorage.getItem("timing-diagram/send"),
+      };
     })()`);
     res.push([svg.math, "a TeX signal name is typeset as SVG paths"]);
+    res.push([svg.editorMath, "the Edit view also renders TeX signal names"]);
+    res.push([svg.edgeMath, "WaveDrom edge titles render as TeX paths"]);
     res.push([svg.textSized && svg.thickLine, `text size and line width update the diagram (${JSON.stringify(svg)})`]);
+    res.push([svg.dataColour && svg.arrowLine && svg.arrowHead && svg.config?.dataColours?.[0] === "#123456" && svg.config.edgeLineWidth === 2.4 && svg.config.arrowHeadSize === 10, `data colours and arrow line/head styles are independent and saved (${JSON.stringify(svg)})`]);
+    const resetColours = await page.eval(`(() => {
+      document.querySelector('[data-do="reset-look-colours"]').click();
+      const source = JSON.parse(localStorage.getItem("figure-editor-beta/timing-source") ?? "{}");
+      return !source.config?.dataColours && !source.config?.edgeLineColour && !source.config?.arrowHeadColour;
+    })()`);
+    res.push([resetColours, "theme-colour reset clears only custom colour overrides"]);
     res.push([svg.sourceKey && svg.stableKey === null && svg.legacySend === null, "beta timing data stays in beta-only browser storage"]);
 
     await page.eval(`document.querySelector('[data-view="source"]').click()`);

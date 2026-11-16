@@ -56,6 +56,7 @@ export function stepsOf(wave) {
 const LEVEL = { 0: "lo", l: "lo", d: "lo", 1: "hi", h: "hi", u: "hi", z: "mid" };
 const SHARP = new Set(["h", "l"]), WEAK = new Set(["u", "d"]);
 const BOX = /^[=2-9x]$/;
+const isHexColour = (value) => typeof value === "string" && /^#[\da-f]{6}$/i.test(value);
 const groupDepth = (lanes) => Math.max(0, ...lanes.map((l) => l.groups.length));
 const labelWidth = (lanes, fontSize = FONT, nameTypeset = null) => Math.ceil(Math.max(0, ...lanes.map((l) => {
   const parsed = nameTypeset?.get(l.name);
@@ -80,12 +81,13 @@ export function parseEdge(s) {
 }
 
 /**
- * The SVG for a source at width x height px. Options: ink, accent (the step marker), marker (a step index or null),
- * levelColour (lines coloured by level, like the schematic nets), dataFills (colours for data 3 to 9, in order), paper
- * (the background colour, behind edge labels; none if not given).
+ * The SVG for a source at width x height px. Options include ink, accent (the step marker), marker (a step index or null),
+ * levelColour (lines coloured by level, like the schematic nets), dataFills (theme fills for data 3 to 9), edge-line and
+ * arrowhead styles, nameTypeset and edgeLabelTypeset (outlined TeX), and paper (behind edge labels; none if not given).
+ * A source's config.dataColours can override the seven data fills.
  * Returns {svg, natural, geometry: {x0, stepW, laneH, steps, top}}.
  */
-export function drawTiming(value, { width, height, ink = "#000000", accent = "#0072B2", marker = null, levelColour = null, dataFills = [], paper = null, fontSize = FONT, lineWidth = 1.6, nameTypeset = null, showNames = true } = {}) {
+export function drawTiming(value, { width, height, ink = "#000000", accent = "#0072B2", marker = null, levelColour = null, dataFills = [], paper = null, fontSize = FONT, lineWidth = 1.6, edgeLineWidth = lineWidth / 1.6, edgeLineColour = null, arrowHeadSize = 6, arrowHeadColour = null, nameTypeset = null, edgeLabelTypeset = nameTypeset, showNames = true } = {}) {
   const lanes = lanesOf(value);
   const nat = naturalSize(value, Number(value?.config?.hscale) || 1, { fontSize, nameTypeset, showNames });
   const W = Math.max(100, width ?? nat.w), H = Math.max(40, height ?? nat.h);
@@ -97,13 +99,17 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
   const laneH = Math.max(12, (H - 10 - headH - footH) / Math.max(1, lanes.length));
   const cfgSlant = value?.config?.slant, slant = cfgSlant === undefined ? 5 : Math.min(12, Math.max(0, Number(cfgSlant) || 0));   // config.slant: 0 is square edges, 5 is WaveDrom's look
   const slope = Math.min(slant, stepW * 0.15), lw = lineWidth, small = fontSize * 10 / FONT;
+  const edgeWidth = Math.max(0.25, Math.min(4, Number(value?.config?.edgeLineWidth) || Number(edgeLineWidth) || lw / 1.6));
+  const edgeColour = isHexColour(value?.config?.edgeLineColour) ? value.config.edgeLineColour : edgeLineColour ?? ink;
+  const headColour = isHexColour(value?.config?.arrowHeadColour) ? value.config.arrowHeadColour : arrowHeadColour ?? ink;
+  const headSize = Math.max(2, Math.min(16, Number(value?.config?.arrowHeadSize) || Number(arrowHeadSize) || 6));
   const stroke = `clip-path="url(#plot)" fill="none" stroke="${ink}" stroke-width="${n2(lw)}" stroke-linecap="round" stroke-linejoin="round"`;
   const out = [], nodes = new Map();
   const text = (x, y, s, anchor = "middle", size = fontSize, extra = "") => `<text x="${n2(x)}" y="${n2(y)}" text-anchor="${anchor}" font-size="${n2(size)}" font-family="${FAMILY}" fill="${ink}"${extra}>${esc(s)}</text>`;
-  const mathText = (x, y, parsed, anchor = "end") => {
-    const width = parsed.width * fontSize, left = anchor === "end" ? x - width : anchor === "middle" ? x - width / 2 : x;
+  const mathText = (x, y, parsed, anchor = "end", size = fontSize, className = "td-name-math", ariaLabel = "typeset label") => {
+    const width = parsed.width * size, left = anchor === "end" ? x - width : anchor === "middle" ? x - width / 2 : x;
     const nodesSvg = (nodes) => nodes.map((node) => `<${node.tag}${node.attrs.map(([k, v]) => ` ${k}="${esc(v)}"`).join("")}>${nodesSvg(node.children)}</${node.tag}>`).join("");
-    return `<g class="td-name-math" aria-label="typeset signal name" color="${ink}" transform="translate(${n2(left)} ${n2(y)}) scale(${n4(fontSize / 1000)}) translate(${n2(-parsed.left * 1000)} 0)">${nodesSvg(parsed.nodes)}</g>`;
+    return `<g class="${className}" aria-label="${esc(ariaLabel)}" color="${ink}" transform="translate(${n2(left)} ${n2(y)}) scale(${n4(size / 1000)}) translate(${n2(-parsed.left * 1000)} 0)">${nodesSvg(parsed.nodes)}</g>`;
   };
 
   // Head and foot: text, then numbered step edges (tick) or step middles (tock), every Nth.
@@ -176,7 +182,10 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
       if (!run) return;
       const xl = Math.max(x0, xAt(run.from)), xr = xAt(run.to), hatch = run.c === "x";
       const pts = [[xl, ym], [xl + slope, yh], [xr - slope, yh], [xr, ym], [xr - slope, yl], [xl + slope, yl]];
-      const colour = /[3-9]/.test(run.c) ? dataFills[+run.c - 3] : null;
+      const colourIndex = /[3-9]/.test(run.c) ? +run.c - 3 : -1;
+      const colour = colourIndex >= 0
+        ? (isHexColour(value?.config?.dataColours?.[colourIndex]) ? value.config.dataColours[colourIndex] : dataFills[colourIndex])
+        : null;
       out.push(`<path clip-path="url(#plot)" d="M ${pts.map((p) => `${n2(p[0])} ${n2(p[1])}`).join(" L ")} Z" fill="${hatch ? "url(#hatch)" : colour ?? ink}" fill-opacity="${hatch ? 1 : colour ? 0.35 : 0.08}" stroke="${ink}" stroke-width="${lw}" stroke-linejoin="round"/>`);
       if (!hatch && run.label) out.push(text((xl + xr) / 2, ym + fontSize * 0.35, run.label));
       run = null;
@@ -223,8 +232,8 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
 
   // Edges between nodes: straight, curved or square, with heads and a label.
   const head = (p, q) => {   // an arrowhead at p, pointing away from q
-    const dx = p[0] - q[0], dy = p[1] - q[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, s = 6;
-    return `<path d="M ${n2(p[0])} ${n2(p[1])} L ${n2(p[0] - ux * s - uy * s * 0.45)} ${n2(p[1] - uy * s + ux * s * 0.45)} L ${n2(p[0] - ux * s + uy * s * 0.45)} ${n2(p[1] - uy * s - ux * s * 0.45)} Z" fill="${ink}"/>`;
+    const dx = p[0] - q[0], dy = p[1] - q[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, s = headSize;
+    return `<path d="M ${n2(p[0])} ${n2(p[1])} L ${n2(p[0] - ux * s - uy * s * 0.45)} ${n2(p[1] - uy * s + ux * s * 0.45)} L ${n2(p[0] - ux * s + uy * s * 0.45)} ${n2(p[1] - uy * s - ux * s * 0.45)} Z" fill="${headColour}"/>`;
   };
   for (const raw of Array.isArray(value?.edge) ? value.edge : []) {
     const e = parseEdge(raw), a = e && nodes.get(e.from), b = e && nodes.get(e.to);
@@ -251,13 +260,16 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
       dpath = `M ${n2(a[0])} ${n2(a[1])} L ${n2(b[0])} ${n2(b[1])}`;
       mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
     }
-    out.push(`<path d="${dpath}" fill="none" stroke="${ink}" stroke-width="${n2(lw / 1.6)}"/>`);
+    out.push(`<path d="${dpath}" fill="none" stroke="${edgeColour}" stroke-width="${n2(edgeWidth)}"/>`);
     if (e.op.endsWith(">")) out.push(head(b, bDir));
     if (e.op.startsWith("<")) out.push(head(a, aDir));
     if (e.label) {   // on a small patch of the paper colour, so it reads over the lines
-      const tw = e.label.length * small * 0.55 + 4;
+      const parsed = edgeLabelTypeset?.get(e.label);
+      const tw = (parsed?.ok ? parsed.width * small : e.label.length * small * 0.55) + 4;
       if (paper) out.push(`<rect x="${n2(mid[0] - tw / 2)}" y="${n2(mid[1] - 4 - small)}" width="${n2(tw)}" height="${n2(small + 3)}" fill="${paper}"/>`);
-      out.push(text(mid[0], mid[1] - 4, e.label, "middle", small));
+      out.push(parsed?.ok
+        ? mathText(mid[0], mid[1] - 4, parsed, "middle", small, "td-edge-label-math", e.label)
+        : text(mid[0], mid[1] - 4, e.label, "middle", small));
     }
   }
 

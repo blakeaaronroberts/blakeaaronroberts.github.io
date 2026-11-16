@@ -18,6 +18,20 @@ Deno.test("tidy keeps the data and puts one signal per line", () => {
   assertEquals(parseSource(t).value, v);
   assert(t.split("\n").length > 5);
 });
+Deno.test("WaveDrom empty-object signals round-trip as blank spacer lanes", async () => {
+  const source = '{signal: [{name: "A", wave: "0"}, {}, {name: "B", wave: "1"}]}';
+  const parsed = parseSource(source);
+  assert(parsed.ok);
+  const { fromWaveDrom, toWaveDrom } = await import("../src/model.js");
+  const flat = fromWaveDrom(parsed.value);
+  assertEquals(flat.signal[1], {});
+  assertEquals(toWaveDrom(flat).signal, parsed.value.signal);
+  const { drawTiming, lanesOf } = await import("../src/draw.js");
+  const spacer = drawTiming(parsed.value, {}), noSpacer = drawTiming({ signal: [parsed.value.signal[0], parsed.value.signal[2]] }, {});
+  assert(lanesOf(parsed.value)[1].spacer);
+  assert(spacer.natural.h > noSpacer.natural.h, "the spacer reserves a blank lane");
+  assert((spacer.svg.match(/<path /g) ?? []).length === (noSpacer.svg.match(/<path /g) ?? []).length, "the spacer adds no visible waveform");
+});
 Deno.test("nodes come from ports and net names; junk is dropped", () => {
   const n = nodesOf(JSON.stringify({ schema: "circuit/0.2", ports: [{ id: "A", dir: "in" }, { id: "S", dir: "out" }, { id: "<b>x</b>" }], nets: { n1: [], Cout: [] } }));
   assertEquals(n.nodes.map((x) => x.name), ["A", "S", "n1", "Cout"]);

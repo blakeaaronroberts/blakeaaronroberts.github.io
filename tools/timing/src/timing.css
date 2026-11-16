@@ -87,6 +87,7 @@
 .td-more .form-control { width: 6rem; }
 .td-more .form-check { display: flex; gap: .3rem; align-items: center; }
 .td-spacer .td-name span { font-style: italic; }
+.td-inline-math { display: inline-block; max-width: 100%; color: inherit; overflow: visible; }
 .td-edges { display: grid; gap: .3rem; }
 .td-edgehead { display: flex; align-items: center; gap: .5rem; }
 .td-edge { display: grid; grid-template-columns: 4rem 13rem 4rem minmax(6rem, 1fr) auto; gap: .3rem; align-items: center; }
@@ -95,12 +96,15 @@
 .fe .td-srctext { height: 100%; min-height: 12rem; resize: none; border-radius: 0; font-family: var(--bs-font-monospace); font-size: .8rem; line-height: 1.4; background: var(--role-surface); color: inherit; border-color: var(--role-rule); }
 
 /* Beta timing controls stay with the diagram; the source editor fills its entire pane. */
-.td-beta .td-view { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: .5rem; }
-.td-beta #WaveDrom_Display_0 { min-width: 0; min-height: 0; overflow: auto; line-height: 1.4; }
-.td-view-look { min-width: 0; border-top: 1px solid var(--role-rule); color: var(--role-ink); line-height: 1.4; }
+.td-beta .td-view { display: flex; flex-direction: column; gap: .5rem; }
+.td-beta #WaveDrom_Display_0 { flex: 1 1 0; min-width: 0; min-height: 0; overflow: auto; line-height: 1.4; }
+.td-view-look { flex: 0 1 auto; min-width: 0; min-height: 0; max-height: 45%; overflow: auto; border-top: 1px solid var(--role-rule); color: var(--role-ink); line-height: 1.4; }
 .td-view-look > summary { padding: .5rem .25rem .25rem; color: var(--role-accent); cursor: pointer; font-family: var(--bs-font-monospace); font-size: .75rem; }
 .td-view-look-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: .5rem; padding: .5rem .25rem 0; }
 .td-view-look .form-control { max-width: 10rem; }
+.td-colour-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(4.5rem, 1fr)); gap: .4rem; }
+.td-colour-grid label { display: flex; align-items: center; justify-content: space-between; gap: .3rem; font-size: .75rem; }
+.td-view-look input[type="color"] { width: 2.5rem; height: 1.8rem; padding: .1rem; }
 .td-beta .td-source { min-width: 0; min-height: 0; overflow: hidden; }
 .td-beta .td-code-editor { min-width: 0; min-height: 0; height: 100%; display: grid; grid-template-columns: max-content minmax(0, 1fr); overflow: hidden; border: 1px solid var(--role-rule); background: var(--role-background); }
 .td-beta .td-line-numbers { box-sizing: border-box; min-width: 3ch; margin: 0; padding: 1rem .7rem; overflow: hidden; border-right: 1px solid var(--role-rule); background: var(--role-surface); color: var(--role-muted); font: .85rem/1.55 var(--bs-font-monospace); text-align: right; user-select: none; }

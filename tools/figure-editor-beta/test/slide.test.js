@@ -64,9 +64,14 @@ Deno.test("a part exports at exactly its slot size; a timing part is laid out at
 
 Deno.test("the slide timing region keeps the viewer's text and line settings and TeX names", () => {
   const s = withLayout(defaultSlide(), "over"), timingRegion = s.regions.find((r) => r.kind === "timing");
-  const name = "$Q_0$", parsed = { ok: true, left: 0, width: 0.9, height: 0.7, depth: 0.2, nodes: [{ tag: "path", attrs: [["d", "M0 0L1 1"], ["fill", "currentColor"]], children: [] }] };
-  const svg = slideSvg(doc(), pack, s, { typeset, only: timingRegion.id, timing: { source: { signal: [{ name, wave: "01" }, { name: "D", wave: "01" }] }, fontSize: 18, lineWidth: 2.4, nameTypeset: new Map([[name, parsed]]) } });
-  assert(svg.includes('class="td-name-math"') && svg.includes('font-size="18"') && svg.includes('stroke-width="2.4"'));
+  const name = "$Q_0$", edgeLabel = "$t_{pd}$";
+  const parsed = { ok: true, left: 0, width: 0.9, height: 0.7, depth: 0.2, nodes: [{ tag: "path", attrs: [["d", "M0 0L1 1"], ["fill", "currentColor"]], children: [] }] };
+  const labels = new Map([[name, parsed], [edgeLabel, parsed]]);
+  const svg = slideSvg(doc(), pack, s, { typeset, only: timingRegion.id, timing: {
+    source: { signal: [{ name, wave: "01", node: "a." }, { name: "D", wave: "01", node: ".b" }], edge: [`a->b ${edgeLabel}`] },
+    fontSize: 18, lineWidth: 2.4, nameTypeset: labels, edgeLabelTypeset: labels,
+  } });
+  assert(svg.includes('class="td-name-math"') && svg.includes('class="td-edge-label-math"') && svg.includes('font-size="18"') && svg.includes('stroke-width="2.4"'));
 });
 
 Deno.test("a 2 by 2 grid draws each frame's own levels", () => {

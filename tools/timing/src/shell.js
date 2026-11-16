@@ -66,6 +66,17 @@ const views = (B, sizeInLook = false, betaFeatures = false) => `
               <label class="form-label">Text size (px) <input class="form-control form-control-sm" type="number" min="8" max="24" step="1" data-look="fontSize"></label>
               <label class="form-label">Line width (px) <input class="form-control form-control-sm" type="number" min="0.5" max="4" step="0.1" data-look="lineWidth"></label>
             </fieldset>
+            <fieldset class="td-band"><legend class="label-mono">Data-signal colours</legend>
+              <p class="fe-hint">WaveDrom data values 3 through 9.</p>
+              <div class="td-colour-grid">${Array.from({ length: 7 }, (_, i) => `<label>Data ${i + 3}<input class="form-control form-control-color" type="color" data-look="dataColour" data-colour-index="${i}" aria-label="Colour for data signal ${i + 3}"></label>`).join("")}</div>
+              <button type="button" class="${B}" data-do="reset-look-colours">Use theme colours</button>
+            </fieldset>
+            <fieldset class="td-band"><legend class="label-mono">Arrow styling</legend>
+              <label class="form-label">Arrow line width (px) <input class="form-control form-control-sm" type="number" min="0.25" max="4" step="0.05" data-look="edgeLineWidth"></label>
+              <label class="form-label">Arrow line colour <input class="form-control form-control-color" type="color" data-look="edgeLineColour"></label>
+              <label class="form-label">Arrowhead size (px) <input class="form-control form-control-sm" type="number" min="2" max="16" step="0.5" data-look="arrowHeadSize"></label>
+              <label class="form-label">Arrowhead colour <input class="form-control form-control-color" type="color" data-look="arrowHeadColour"></label>
+            </fieldset>
             <fieldset class="td-band"><legend class="label-mono">Spacing</legend>
               <label class="form-label">Step width (WaveDrom hscale) <input class="form-control form-control-sm" type="number" min="0.25" max="8" step="0.25" data-size="hscale"></label>
             </fieldset>

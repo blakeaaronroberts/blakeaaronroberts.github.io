@@ -10,7 +10,7 @@ import { LEVELS, loadPack, parsePrivateTheme } from "./pack.js";
 import { contrast, levelRoles, warnings as levelWarnings, withLevelColour } from "./levelcolours.js";
 import * as D from "./doc.js";
 import { History } from "./history.js";
-import { drawTiming } from "../../timing/src/draw.js";
+import { drawTiming, parseEdge } from "../../timing/src/draw.js";
 import { drawing, exportSize, exportSvg, exportGridSvg, labelBoxes, timingGroup } from "./export.js";
 import { hitTest, inBox } from "./hit.js";
 import { packLabelPt, texNeeded, texOf } from "./labels.js";
@@ -995,6 +995,10 @@ export async function mount(root, options = {}) {
         }
       };
       collect(sent.source.signal);
+      for (const raw of sent.source.edge ?? []) {
+        const label = parseEdge(raw)?.label;
+        if (label) names.add(label);
+      }
       const nameTypeset = new Map([...names].map((name) => [name, timingNameTex(name)]).filter(([, tex]) => tex).map(([name, tex]) => [name, typeset.get(tex)]).filter(([, parsed]) => parsed));
       return {
         source: sent.source, ink: r.ink, accent: r.accent, paper: r.background,
@@ -1004,7 +1008,7 @@ export async function mount(root, options = {}) {
         fontSize: Math.min(24, Math.max(8, Number(sent.source.config?.fontSize) || 12)),
         lineWidth: Math.min(4, Math.max(0.5, Number(sent.source.config?.lineWidth) || 1.6)),
         showNames: sent.source.config?.showNames !== false,
-        nameTypeset,
+        nameTypeset, edgeLabelTypeset: nameTypeset,
       };
     } catch { return null; }
   }
@@ -1028,6 +1032,10 @@ export async function mount(root, options = {}) {
         else if (typeof item?.name === "string" && item.name) { const tex = timingNameTex(item.name); if (tex) timingTex.push(tex); }
       } };
       collect(timing.source.signal);
+      for (const raw of timing.source.edge ?? []) {
+        const label = parseEdge(raw)?.label, tex = label && timingNameTex(label);
+        if (tex) timingTex.push(tex);
+      }
     }
     await typesetAll([...new Set([...docs.flatMap((d) => texNeeded(d, pk, { levelTags: opt.levelTags })), ...timingTex])], typeset);
     return slideSvg(doc, pk, s, { ...drawOpts(), only, frame, timing: timingFor(pk, frame ?? selectedFrame) });

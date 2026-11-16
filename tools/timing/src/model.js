@@ -205,6 +205,61 @@ export function setLineWidth(v, x) {
   return d;
 }
 
+const isHexColour = (value) => typeof value === "string" && /^#[\da-f]{6}$/i.test(value);
+const setColour = (v, key, colour) => {
+  const d = clone(v);
+  d.config = { ...(d.config ?? {}) };
+  if (isHexColour(colour)) d.config[key] = colour.toUpperCase(); else delete d.config[key];
+  if (!Object.keys(d.config).length) delete d.config;
+  return d;
+};
+/** The seven user-overridable fills for WaveDrom's data values 3 through 9. */
+export const dataColoursOf = (v, defaults = []) => Array.from({ length: 7 }, (_, i) =>
+  isHexColour(v?.config?.dataColours?.[i]) ? v.config.dataColours[i] : defaults[i] ?? null);
+export function setDataColour(v, index, colour) {
+  const d = clone(v);
+  if (!Number.isInteger(index) || index < 0 || index > 6) return d;
+  const colours = [...(d.config?.dataColours ?? [])];
+  if (isHexColour(colour)) colours[index] = colour.toUpperCase(); else delete colours[index];
+  if (colours.some(isHexColour)) d.config = { ...(d.config ?? {}), dataColours: colours };
+  else if (d.config) { delete d.config.dataColours; }
+  return d;
+}
+export const edgeLineWidthOf = (v, lineWidth = lineWidthOf(v)) => {
+  const width = Number(v?.config?.edgeLineWidth);
+  return Number.isFinite(width) ? Math.min(4, Math.max(0.25, width)) : lineWidth / 1.6;
+};
+export function setEdgeLineWidth(v, x) {
+  const d = clone(v), k = Math.round(Math.max(0.25, Math.min(4, Number(x) || 1)) * 100) / 100;
+  d.config = { ...(d.config ?? {}) };
+  const defaultWidth = Math.round((lineWidthOf(v) / 1.6) * 100) / 100;
+  if (k === defaultWidth) delete d.config.edgeLineWidth; else d.config.edgeLineWidth = k;
+  return d;
+}
+export const arrowHeadSizeOf = (v) => Math.min(16, Math.max(2, Number(v?.config?.arrowHeadSize) || 6));
+export function setArrowHeadSize(v, x) {
+  const d = clone(v), k = Math.round(Math.max(2, Math.min(16, Number(x) || 6)) * 10) / 10;
+  d.config = { ...(d.config ?? {}) };
+  if (k === 6) delete d.config.arrowHeadSize; else d.config.arrowHeadSize = k;
+  return d;
+}
+export const edgeLineColourOf = (v, fallback) =>
+  isHexColour(v?.config?.edgeLineColour) ? v.config.edgeLineColour : fallback;
+export const arrowHeadColourOf = (v, fallback) =>
+  isHexColour(v?.config?.arrowHeadColour) ? v.config.arrowHeadColour : fallback;
+export const setEdgeLineColour = (v, colour) => setColour(v, "edgeLineColour", colour);
+export const setArrowHeadColour = (v, colour) => setColour(v, "arrowHeadColour", colour);
+export function resetTimingColours(v) {
+  const d = clone(v);
+  if (d.config) {
+    delete d.config.dataColours;
+    delete d.config.edgeLineColour;
+    delete d.config.arrowHeadColour;
+    if (!Object.keys(d.config).length) delete d.config;
+  }
+  return d;
+}
+
 export const showNamesOf = (v) => v?.config?.showNames !== false;
 export function setShowNames(v, show) {
   const d = clone(v);
