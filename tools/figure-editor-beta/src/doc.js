@@ -7,6 +7,7 @@
 import { elementBox, orient, pinOf } from "./geometry.js";
 import { BLOCK, canonicalParams, geometryOf, minSize, normalizeBlock } from "./block.js";
 import { directionProblems, onPolyline, onSegment, route, snapOntoPolyline } from "./router.js";
+import { checkedBackdrop } from "./svgimport.js";
 
 export const SCHEMA = "circuit/0.3";
 const LEGACY_SCHEMA = "circuit/0.2";
@@ -219,6 +220,9 @@ export function moveSelection(doc, pack, sel, d) {
     if (isPoint(w.to)) w.to = add(w.to, d);
   }
   for (const j of doc.junctions) if (whole.has(j.on)) j.at = add(j.at, d);
+  for (const crossing of doc.groups?.solder_crossings ?? []) {
+    if (crossing.wires.every((id) => whole.has(id))) crossing.at = add(crossing.at, d);
+  }
   return normalize(doc, pack);
 }
 
@@ -265,6 +269,17 @@ export function deleteSelection(doc, pack, sel) {
   doc.ports = doc.ports.filter((p) => !ports.has(p.id));
   doc.labels = doc.labels.filter((_, i) => !labels.has(i));
   doc.wires = doc.wires.filter((w) => !ws.has(w.id));
+  if (doc.groups?.port_taps) {
+    for (const [port, wire] of Object.entries(doc.groups.port_taps)) {
+      if (ports.has(port) || ws.has(wire)) delete doc.groups.port_taps[port];
+    }
+    if (!Object.keys(doc.groups.port_taps).length) delete doc.groups.port_taps;
+  }
+  if (doc.groups?.solder_crossings) {
+    for (const crossing of doc.groups.solder_crossings) crossing.wires = crossing.wires.filter((id) => !ws.has(id));
+    doc.groups.solder_crossings = doc.groups.solder_crossings.filter((crossing) => crossing.wires.length >= 2);
+    if (!doc.groups.solder_crossings.length) delete doc.groups.solder_crossings;
+  }
   return normalize(doc, pack);
 }
 
@@ -334,6 +349,21 @@ export function addWire(doc, pack, from, to, via = [], routeModes = []) {
   return { doc: normalize(doc, pack), id };
 }
 
+/** Reconnect one wire endpoint to a pin, port, junction, wire or free grid point. */
+export function moveWireEnd(doc, pack, id, side, target) {
+  if (!["from", "to"].includes(side)) throw new Error("wire end must be from or to");
+  if (target.kind === "wire" && target.id === id) throw new Error("a wire end cannot connect to itself");
+  const next = clone(doc), wire = next.wires.find((item) => item.id === id);
+  if (!wire) throw new Error(`no wire ${id}`);
+  const end = endFor(next, pack, target);
+  const at = endpoint(next, pack, end)?.at;
+  const other = endpoint(next, pack, wire[side === "from" ? "to" : "from"])?.at;
+  if (!at || !other) throw new Error("the wire endpoint does not exist");
+  if (same(at, other) && !wire.via?.length) throw new Error("a wire needs some length");
+  wire[side] = end;
+  return normalize(next, pack);
+}
+
 // ---- copy and paste --------------------------------------------------------------------
 
 /** The selected elements, the wires between them (or selected), and their junctions. Ends leaving the fragment become free ends. */
@@ -358,6 +388,8 @@ export function extractFragment(doc, pack, sel) {
     return c;
   });
   const solderDots = Object.fromEntries(doc.junctions.filter((j) => js.has(j.id) && !junctionConnected(doc, j.id)).map((j) => [j.id, false]));
+  const portTaps = Object.fromEntries(Object.entries(doc.groups?.port_taps ?? {}).filter(([port, wire]) => ports.has(port) && ws.has(wire)));
+  const crossings = (doc.groups?.solder_crossings ?? []).map((crossing) => ({ ...crossing, wires: crossing.wires.filter((id) => ws.has(id)) })).filter((crossing) => crossing.wires.length >= 2);
   return {
     elements: doc.elements.filter((e) => els.has(e.id)).map(clone),
     wires,
@@ -365,6 +397,8 @@ export function extractFragment(doc, pack, sel) {
     ports: doc.ports.filter((p) => ports.has(p.id)).map(clone),
     labels: (sel.labels ?? []).filter((i) => doc.labels[i]).map((i) => clone(doc.labels[i])),
     ...(Object.keys(solderDots).length ? { solderDots } : {}),
+    ...(Object.keys(portTaps).length ? { portTaps } : {}),
+    ...(crossings.length ? { crossings } : {}),
   };
 }
 
@@ -396,6 +430,13 @@ export function pasteFragment(doc, pack, frag, d) {
     if (pastedId) doc = setJunctionConnected(doc, pastedId, false);
   }
   for (const p of frag.ports ?? []) doc.ports.push({ ...clone(p), id: map.get(p.id), at: add(p.at, d) });
+  for (const [port, wire] of Object.entries(frag.portTaps ?? {})) {
+    if (map.has(port) && map.has(wire)) doc.groups = { ...(doc.groups ?? {}), port_taps: { ...(doc.groups?.port_taps ?? {}), [map.get(port)]: map.get(wire) } };
+  }
+  for (const crossing of frag.crossings ?? []) {
+    const remapped = { at: add(crossing.at, d), wires: crossing.wires.map((id) => map.get(id)).filter(Boolean) };
+    if (remapped.wires.length >= 2) doc.groups = { ...(doc.groups ?? {}), solder_crossings: [...(doc.groups?.solder_crossings ?? []), remapped] };
+  }
   const firstLabel = doc.labels.length;
   for (const l of frag.labels ?? []) doc.labels.push({ ...clone(l), at: add(l.at, d) });
   return {
@@ -439,10 +480,16 @@ export function exitSide(doc, pack, at) {
 }
 
 /** An input or output port at a grid point. Its id is also its net's name. */
-export function addPort(doc, pack, at, dir = "in") {
+export function addPort(doc, pack, at, dir = "in", wireId = null) {
   doc = clone(doc);
+  if (wireId !== null) {
+    const wire = doc.wires.find((item) => item.id === wireId);
+    const corners = wire && wireCorners(doc, pack, wire);
+    if (!corners || !onPolyline(at, corners)) throw new Error("the port must be on the selected wire");
+  }
   const id = nextId(doc, dir === "in" ? "in" : "out");
   doc.ports.push({ id, dir, at: [...at] });
+  if (wireId !== null) doc.groups = { ...(doc.groups ?? {}), port_taps: { ...(doc.groups?.port_taps ?? {}), [id]: wireId } };
   return { doc: normalize(doc, pack), id };
 }
 
@@ -464,6 +511,10 @@ export function setPort(doc, pack, id, fields) {
     if (!ID.test(fields.id)) throw new Error(`"${fields.id}" is not an id: start with a letter, then letters, digits and _`);
     if (allIds(doc).has(fields.id)) throw new Error(`the id ${fields.id} is already used`);
     for (const w of doc.wires) { if (w.from === id) w.from = fields.id; if (w.to === id) w.to = fields.id; }
+    if (doc.groups?.port_taps?.[id]) {
+      doc.groups.port_taps[fields.id] = doc.groups.port_taps[id];
+      delete doc.groups.port_taps[id];
+    }
     p.id = fields.id;
   }
   return normalize(doc, pack);
@@ -541,6 +592,23 @@ export function setJunctionConnected(doc, id, connected) {
   return doc;
 }
 
+/** Join crossing wires at a grid point without joining their other crossings. */
+export function connectWiresAt(doc, pack, at, wireIds) {
+  const ids = [...new Set(wireIds)];
+  if (ids.length < 2) throw new Error("choose a crossing of at least two wires");
+  for (const id of ids) {
+    const wire = doc.wires.find((item) => item.id === id);
+    const corners = wire && wireCorners(doc, pack, wire);
+    if (!corners || !onPolyline(at, corners)) throw new Error(`wire ${id} does not cross the chosen point`);
+  }
+  const next = clone(doc), crossings = next.groups?.solder_crossings ?? [];
+  const existing = crossings.find((crossing) => same(crossing.at, at));
+  if (existing) existing.wires = [...new Set([...existing.wires, ...ids])];
+  else crossings.push({ at: [...at], wires: ids });
+  next.groups = { ...(next.groups ?? {}), solder_crossings: crossings };
+  return next;
+}
+
 // ---- nets (derived on save, never edited) --------------------------------------------
 
 /**
@@ -586,6 +654,19 @@ function netGraph(doc, pack) {
     union(`~${w.id}`, refNode(w.from));
     union(`~${w.id}`, refNode(w.to));
     wired.add(`~${w.id}`);
+  }
+  for (const p of doc.ports) {
+    const id = doc.groups?.port_taps?.[p.id], wire = doc.wires.find((w) => w.id === id);
+    const corners = wire && wireCorners(doc, pack, wire);
+    if (corners && onPolyline(p.at, corners)) union(`#${p.id}`, `~${id}`);
+  }
+  for (const crossing of doc.groups?.solder_crossings ?? []) {
+    const ids = crossing.wires.filter((id) => {
+      const wire = doc.wires.find((item) => item.id === id);
+      const corners = wire && wireCorners(doc, pack, wire);
+      return corners && onPolyline(crossing.at, corners);
+    });
+    for (const id of ids.slice(1)) union(`~${ids[0]}`, `~${id}`);
   }
   const ends = new Map(doc.junctions.map((j) => [j.id, 2]));
   for (const w of doc.wires) for (const end of [w.from, w.to]) {
@@ -828,7 +909,35 @@ export function parse(text) {
     junctions: raw.junctions ?? [], labels: raw.labels ?? [],
   };
   if (raw.title !== undefined) doc.title = String(raw.title);
-  if (raw.groups !== undefined) doc.groups = raw.groups;
+  if (raw.groups !== undefined) {
+    if (!raw.groups || typeof raw.groups !== "object" || Array.isArray(raw.groups)) fail("groups must be an object");
+    const taps = raw.groups.port_taps;
+    if (taps !== undefined) {
+      if (!taps || typeof taps !== "object" || Array.isArray(taps)) fail("groups.port_taps must be an object");
+      for (const [port, wire] of Object.entries(taps)) { id(port, "groups.port_taps"); id(wire, `groups.port_taps.${port}`); }
+    }
+    const portLevels = raw.groups.port_levels;
+    if (portLevels !== undefined) {
+      if (!portLevels || typeof portLevels !== "object" || Array.isArray(portLevels)) fail("groups.port_levels must be an object");
+      for (const [port, level] of Object.entries(portLevels)) {
+        id(port, "groups.port_levels");
+        if (!LEVEL_VALUES.includes(level)) fail(`groups.port_levels.${port}: invalid level`);
+      }
+    }
+    const crossings = raw.groups.solder_crossings;
+    if (crossings !== undefined) {
+      if (!Array.isArray(crossings)) fail("groups.solder_crossings must be a list");
+      crossings.forEach((crossing, i) => {
+        const where = `groups.solder_crossings[${i}]`;
+        if (!crossing || typeof crossing !== "object" || Array.isArray(crossing)) fail(`${where} must be an object`);
+        point(crossing.at, `${where}.at`);
+        if (!Array.isArray(crossing.wires) || crossing.wires.length < 2) fail(`${where}.wires must contain at least two wire ids`);
+        crossing.wires.forEach((wire) => id(wire, `${where}.wires`));
+      });
+    }
+    doc.groups = { ...raw.groups };
+    if (raw.groups.backdrop !== undefined) doc.groups.backdrop = checkedBackdrop(raw.groups.backdrop);
+  }
   if (raw.style !== undefined) doc.style = checkStyle(raw.style, fail);
   const seen = new Set();
   const unique = (v, where) => { if (seen.has(v)) fail(`${where}: id "${v}" used twice`); seen.add(v); };

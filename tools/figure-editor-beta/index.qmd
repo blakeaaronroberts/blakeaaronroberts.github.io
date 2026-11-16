@@ -1,5 +1,5 @@
 ---
-title: "Figure Editor (beta)"
+title: "Schematic Editor (beta)"
 page-layout: full
 css:
   - editor.css
@@ -8,7 +8,7 @@ css:
 
 ```{=html}
 <div id="figure-editor" class="fe-mount"></div>
-<noscript><p>The Figure Editor needs JavaScript.</p></noscript>
+<noscript><p>The Schematic Editor needs JavaScript.</p></noscript>
 <script type="module">
   import { mount } from "./src/app.js";
   window.figureEditor = await mount(document.getElementById("figure-editor"), {

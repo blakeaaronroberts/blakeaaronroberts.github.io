@@ -1,7 +1,7 @@
 // Four-way solder dots are selectable; T-junctions and crossings remain undotted.
 
 import {
-  addWire, allCorners, connectedWireIds, deleteSelection, deriveNets, extractFragment, junctionConnected,
+  addWire, allCorners, connectWiresAt, connectedWireIds, deleteSelection, deriveNets, extractFragment, junctionConnected,
   moveSelection, newDoc, parse, pasteFragment, serialize, setJunctionConnected, setLevel,
 } from "../src/doc.js";
 import { dots, joints, junctionCounts } from "../src/junctions.js";
@@ -28,6 +28,30 @@ function fourWay() {
   );
   return doc;
 }
+
+Deno.test("a solder dot joins crossing wires and persists without joining other crossings", () => {
+  let { doc } = cross();
+  doc = addWire(doc, pack, P([0, -8]), P([0, 8])).doc;
+  doc.ports.push({ id: "L", dir: "in", at: [-10, 0] }, { id: "T", dir: "out", at: [0, 8] });
+  assertEquals(Object.keys(deriveNets(doc, pack)).length, 2);
+  const joined = connectWiresAt(doc, pack, [0, 0], ["w1", "w2"]);
+  const reopened = parse(serialize(joined, pack)).doc;
+  assertEquals(Object.keys(deriveNets(reopened, pack)).length, 1);
+  assertEquals(dots(reopened, pack).length, 1);
+  assertThrows(() => connectWiresAt(doc, pack, [1, 0], ["w1", "w2"]), /does not cross/);
+  const fragment = extractFragment(joined, pack, { wires: ["w1", "w2"] });
+  const pasted = pasteFragment(joined, pack, fragment, [20, 0]).doc;
+  assertEquals(pasted.groups.solder_crossings.length, 2);
+  assertEquals(pasted.groups.solder_crossings[1].at, [20, 0]);
+  const deleted = deleteSelection(joined, pack, { wires: ["w1"] });
+  assertEquals(deleted.groups?.solder_crossings, undefined);
+  const moved = moveSelection(joined, pack, { wires: ["w1", "w2"] }, [4, 2]);
+  assertEquals(moved.groups.solder_crossings[0].at, [4, 2]);
+  assertEquals(dots(moved, pack).length, 1);
+  const invalid = JSON.parse(serialize(joined, pack));
+  invalid.groups.solder_crossings[0].wires = null;
+  assertThrows(() => parse(JSON.stringify(invalid)), /solder_crossings.*wires/);
+});
 
 Deno.test("T-junction: a wire ending on another wire makes a junction with 3 wires and no dot", () => {
   let { doc, h } = cross();

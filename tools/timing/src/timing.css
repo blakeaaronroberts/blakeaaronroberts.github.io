@@ -87,7 +87,7 @@
 .td-cell.v-9, .td-brush.v-9 { background: color-mix(in srgb, var(--fig-rule) 35%, transparent); }
 .td-cell:is(.v-3, .v-4, .v-5, .v-6, .v-7, .v-8, .v-9) { box-shadow: inset 0 2px 0 currentColor, inset 0 -2px 0 currentColor; }
 .td-cell:is(.v-p, .v-n, .v-P, .v-N) { background-image: linear-gradient(90deg, transparent 0 48%, currentColor 48% 52%, transparent 52%); box-shadow: inset 0 2px 0 var(--role-muted), inset 0 -2px 0 var(--role-muted); color: var(--role-muted); }
-.td-node { position: absolute; top: 1px; right: 2px; font-size: .6rem; color: var(--role-accent); font-weight: 700; }
+.td-node { position: absolute; top: 0; right: 0; min-width: 1.1rem; padding: 0 .2rem; font-size: .8rem; line-height: 1.2; text-align: center; background: var(--role-accent); color: var(--role-background); font-weight: 700; }
 .td-more { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; padding: .3rem 0 .5rem 10.5rem; font-size: .75rem; }
 .td-more label { display: grid; gap: .1rem; }
 .td-more .form-control { width: 6rem; }
@@ -99,8 +99,13 @@
 .td-edge { display: grid; grid-template-columns: 4rem 13rem 4rem minmax(6rem, 1fr) auto; gap: .3rem; align-items: center; }
 .td-band { border: 0; padding: 0; margin: 0 0 .5rem; display: grid; gap: .3rem; }
 .td-source { min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: .5rem; padding: .5rem .75rem; }
-.td-truth { min-height: 0; overflow: auto; display: grid; align-content: start; gap: .75rem; padding: .75rem; }
+.td-truth { min-height: 0; overflow: auto; display: grid; grid-auto-rows: max-content; align-content: start; gap: .75rem; padding: .75rem; }
 .td-truth-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: .75rem; }
+.td-truth-grid { max-width: 100%; max-height: 28rem; overflow: auto; }
+.td-truth-grid table { border-collapse: collapse; width: max-content; min-width: 100%; }
+.td-truth-grid th, .td-truth-grid td { border: 1px solid var(--role-rule); padding: .3rem; text-align: center; }
+.td-truth-grid th { position: sticky; top: 0; background: var(--role-background); z-index: 1; }
+.td-truth-grid input { width: 5rem; text-align: center; }
 .td-truth-input { min-height: 9rem; resize: vertical; font-family: var(--bs-font-monospace); line-height: 1.45; }
 .td-truth-latex { min-height: 9rem; resize: vertical; font-family: var(--bs-font-monospace); line-height: 1.45; }
 .td-truth-latex-status { margin: 0; }

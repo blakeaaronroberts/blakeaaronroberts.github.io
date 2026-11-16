@@ -5,6 +5,7 @@
 // theme's roles over it); the editor sets none of its own.
 
 import { fmt, fromSvg, STEPS_PER_MODULE, svgTransform, toSvg } from "./geometry.js";
+import { endpoint } from "./doc.js";
 import { drawing, headPath, hex, pathData } from "./export.js";
 import { writeXml } from "./xml.js";
 import { BLOCK, blockDef, blockNodes, handlesOf } from "./block.js";
@@ -97,7 +98,7 @@ export function createView(svg, basePack) {
 
     const d = drawing(state.doc, pack, {
       typeset: state.typeset, labelPt: state.labelPt, levelTags: state.levelTags,
-      levelTagPt: state.levelTagPt, levelTagColour: state.levelTagColour, netNames: state.netNames,
+      levelTagPt: state.levelTagPt, levelTagColour: state.levelTagColour, netNames: state.netNames, preserveLevels: true,
     });
     const parts = [];
     parts.push(`<g stroke="${roles.ink}" stroke-width="${fmt(lw)}" stroke-linecap="${line.cap}" stroke-linejoin="${line.join}" fill="none">`);
@@ -125,6 +126,15 @@ export function createView(svg, basePack) {
     for (const e of d.elements) if (sel.elements.includes(e.el.id)) o.push(rect(e.box, dash));
     for (const w of d.wires) {
       if (sel.wires.includes(w.id)) o.push(`<path stroke="${roles.accent}" stroke-opacity="0.45" stroke-width="${fmt(lw * 4)}" stroke-linejoin="round" stroke-linecap="round" d="${pathData(w.points)}"/>`);
+    }
+    if (sel.wires.length === 1 && total(sel) === 1) {
+      const wire = state.doc.wires.find((item) => item.id === sel.wires[0]);
+      for (const side of ["from", "to"]) {
+        const end = wire && endpoint(state.doc, pack, wire[side]);
+        if (!end) continue;
+        const [x, y] = toSvg(end.at);
+        o.push(`<circle data-wire-end="${side}" fill="${roles.background}" ${accent} cx="${fmt(x)}" cy="${fmt(y)}" r="${fmt(junction.radius_module * 2.2)}"/>`);
+      }
     }
     if (state.hoverWire && !sel.wires.includes(state.hoverWire)) {
       const w = d.wires.find((x) => x.id === state.hoverWire);

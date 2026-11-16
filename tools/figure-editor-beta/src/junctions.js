@@ -12,7 +12,8 @@
 // has no size of its own.
 
 import { pinOf } from "./geometry.js";
-import { isPoint, junctionConnected } from "./doc.js";
+import { isPoint, junctionConnected, wireCorners } from "./doc.js";
+import { onPolyline } from "./router.js";
 
 /** Wires meeting at each junction: 2 for the tap plus one per wire end on it. */
 export function junctionCounts(doc) {
@@ -26,7 +27,18 @@ export function junctionCounts(doc) {
 export function dots(doc, pack) {
   const min = pack.theme.junction.min_wires;
   const counts = junctionCounts(doc);
-  return doc.junctions.filter((j) => counts.get(j.id) >= min && junctionConnected(doc, j.id)).map((j) => ({ id: j.id, at: j.at, wires: counts.get(j.id) }));
+  const result = doc.junctions.filter((j) => counts.get(j.id) >= min && junctionConnected(doc, j.id)).map((j) => ({ id: j.id, at: j.at, wires: counts.get(j.id) }));
+  for (const crossing of doc.groups?.solder_crossings ?? []) {
+    const ids = crossing.wires.filter((id) => {
+      const wire = doc.wires.find((item) => item.id === id);
+      const corners = wire && wireCorners(doc, pack, wire);
+      return corners && onPolyline(crossing.at, corners);
+    });
+    if (ids.length >= 2 && !result.some((dot) => dot.at[0] === crossing.at[0] && dot.at[1] === crossing.at[1])) {
+      result.push({ at: crossing.at, wires: ids.length, on: ids[0] });
+    }
+  }
+  return result;
 }
 
 const unit = (v) => { const n = Math.hypot(v[0], v[1]); return [v[0] / n, v[1] / n]; };

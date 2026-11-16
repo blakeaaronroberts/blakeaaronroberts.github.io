@@ -19,6 +19,7 @@ const views = (B, sizeInLook = false, betaFeatures = false, externalControls = f
         </div>
         <section class="td-sub" data-sub="signals">
           ${betaFeatures ? "" : '<p class="td-help">Add the signals, then click the steps to set them.</p>'}
+          ${betaFeatures ? '<label class="form-check"><input class="form-check-input" type="checkbox" data-logic-calculation> <span class="form-check-label">Calculate schematic logic levels</span></label>' : ""}
           <div class="td-addbar"><span class="label-mono">Add a node</span><span class="td-chips"></span><button type="button" class="td-chip" data-do="add-all">All</button><button type="button" class="td-chip" data-do="add-custom">Other…</button><button type="button" class="td-chip" data-do="add-spacer" title="An empty lane between signals">Spacer</button></div>
           <p class="td-flag" role="status"></p>
           <div class="td-brushes" role="toolbar" aria-label="What a click on a step sets"></div>
@@ -94,13 +95,16 @@ const views = (B, sizeInLook = false, betaFeatures = false, externalControls = f
         <div class="fe-theme-buttons"><button type="button" class="${B}" data-do="src-apply">Use this source</button>${betaFeatures ? `<button type="button" class="${B}" data-do="src-upload">Upload source</button><input class="td-source-file" type="file" accept=".json,application/json" hidden><button type="button" class="${B}" data-do="src-clear">Clear</button><button type="button" class="${B}" data-do="src-save">Save source</button>` : ""}<button type="button" class="${B}" data-do="src-copy">Copy</button>${betaFeatures ? "" : '<span class="fe-hint">Any WaveDrom diagram: paste one in and press Use this source.</span>'}</div>
       </div>
       ${betaFeatures ? `<div class="td-truth" role="tabpanel" aria-label="Truth table to timing diagram" hidden>
+        <label class="form-label">Table source <select class="form-select form-select-sm" data-truth-mode><option value="circuit">Schematic nets</option><option value="arbitrary">Arbitrary inputs and outputs</option></select></label>
         <div class="td-truth-fields">
           <label class="form-label">Input ports<input class="form-control form-control-sm" data-truth-inputs list="td-truth-ports" placeholder="A, B, Cin"></label>
           <label class="form-label">Output nets<input class="form-control form-control-sm" data-truth-outputs list="td-truth-ports" placeholder="S, Cout"></label>
           <datalist id="td-truth-ports"></datalist>
         </div>
-        <label class="form-label">Truth table (named nets, CSV or tab-separated)<textarea class="form-control td-truth-input" data-truth-table spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="A,B,Cin,S,Cout&#10;0,0,0,0,0" aria-label="Editable truth table"></textarea></label>
+        <div class="td-truth-grid" data-truth-grid></div>
+        <details><summary>CSV or tab-separated source</summary><label class="form-label">Truth table source<textarea class="form-control td-truth-input" data-truth-table spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="A,B,Cin,S,Cout&#10;0,0,0,0,0" aria-label="Editable truth table"></textarea></label></details>
         <div class="fe-theme-buttons td-truth-actions" role="group" aria-label="Truth table actions">
+          <button type="button" class="${B}" data-truth-action="create">Generate empty table</button>
           <button type="button" class="${B}" data-truth-action="generate">Autofill values</button>
           <button type="button" class="${B}" data-truth-action="check">Check table against circuit</button>
         </div>

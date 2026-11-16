@@ -767,8 +767,12 @@ scenarios.import = async (ctx) => {
     res.push([bd.pwned === null && bd.events === "none", "no script ran, and the backdrop takes no pointer events (locked)"]);
     const decoded = await page.eval(`decodeURIComponent(document.querySelector(".fe-backdrop").getAttribute("href").split(",").slice(1).join(","))`);
     res.push([!/script|onclick|onload|http:/.test(decoded.replace("http://www.w3.org/2000/svg", "")) && /<circle/.test(decoded), "the stored image has no script, handler or external reference, and keeps the drawing"]);
-    res.push([(await page.eval(`window.figureEditor.save()`)) === original, "the backdrop is not part of the saved circuit"]);
-    res.push([!(await page.eval(`window.figureEditor.exportSvg()`)).includes("circle cx"), "and not part of the SVG export"]);
+    const savedBackdrop = await page.eval(`window.figureEditor.save()`);
+    res.push([!!JSON.parse(savedBackdrop).groups?.backdrop, "the backdrop is saved with the circuit"]);
+    res.push([!(await page.eval(`window.figureEditor.exportSvg()`)).includes("<image "), "the default SVG export omits the backdrop"]);
+    res.push([(await page.eval(`window.figureEditor.exportSvg(false, window.figureEditor.doc, true)`)).includes("<image "), "the SVG export can include the backdrop"]);
+    await page.eval(`window.figureEditor.load(${JSON.stringify(savedBackdrop)})`);
+    res.push([await page.eval(`document.querySelector(".fe-backdrop").getAttribute("visibility") === "visible"`), "the backdrop returns when the circuit is reopened"]);
 
     // Opacity and scale from the panel.
     await page.eval(`(() => { for (const [n, v] of [["fe-bd-opacity", "20"], ["fe-bd-scale", "50"]]) { const i = document.querySelector('[name="' + n + '"]'); i.value = v; i.dispatchEvent(new Event("change", { bubbles: true })); } })()`);
@@ -1319,7 +1323,7 @@ scenarios.logicSync = async (ctx) => {
       unchanged: window.__timingBeforeFrameZero === JSON.stringify(JSON.parse(localStorage.getItem("figure-editor-beta/timing-source"))),
       status: document.querySelector(".fe-status").textContent,
     })`);
-    res.push([!frameZero.prompted && frameZero.unchanged && frameZero.status.includes("Frame 0 has no logic levels"), `Frame 0 has no logic levels to send (${JSON.stringify(frameZero)})`]);
+    res.push([!frameZero.prompted && frameZero.unchanged && frameZero.status.includes("Frame 0 is the initial state"), `Frame 0 is not a timing step (${JSON.stringify(frameZero)})`]);
 
     await page.eval(`(() => {
       document.querySelector('[data-frame="1"]').click();
@@ -1555,6 +1559,33 @@ scenarios.frameNavigation = async (ctx) => {
   return res;
 };
 
+scenarios.frameNavigationTiming = async (ctx) => {
+  const res = [];
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(`${ctx.url}?view=timing`);
+    await page.waitFor(ready);
+    await page.waitFor(`!!document.querySelector('[data-view="truth"]')`, 10000);
+    await page.eval(`document.querySelector('[data-view="truth"]').click()`);
+    await page.eval(`document.querySelector('[data-truth-action="generate"]').click()`);
+    await page.waitFor(`document.querySelector(".fe-stepinput")?.max === "8"`, 10000);
+    const before = await page.eval(`localStorage.getItem("figure-editor-beta/timing-source")`);
+    const steps = [];
+    for (const command of ["framenext", "framenext", "frameprev"]) {
+      await page.eval(`document.querySelector('[data-cmd="${command}"]').click()`);
+      steps.push(await page.eval(`document.querySelector(".fe-stepinput").value`));
+    }
+    await page.eval(`document.querySelector('[data-sec-bar="figure"]').click()`);
+    await page.eval(`document.querySelector('[data-cmd="framenext"]').click()`);
+    steps.push(await page.eval(`document.querySelector(".fe-stepinput").value`));
+    const after = await page.eval(`localStorage.getItem("figure-editor-beta/timing-source")`);
+    res.push([steps.join(",") === "1,2,1,2", `frame arrows advance and reverse across timing and schematic views (${steps.join(",")})`]);
+    res.push([before === after, "frame navigation does not overwrite timing waveforms"]);
+    res.push([page.errors.length === 0, `frame/timing navigation: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};
+
 scenarios.sourceAlignment = async (ctx) => {
   const res = [];
   const page = await ctx.launch({ scheme: "light", port: nextPort++ });
@@ -1681,6 +1712,62 @@ scenarios.logicMode = async (ctx) => {
     res.push([!states.reopened.checked && states.reopened.mode === "manual", "manual mode is restored from the saved figure"]);
     res.push([states.calculated.checked && states.calculated.mode === "calculated" && states.calculated.generated > 0, "calculation can be turned back on and recomputes levels"]);
     res.push([page.errors.length === 0, `logic mode: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};
+
+scenarios.truthGrid = async (ctx) => {
+  const res = [];
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(`${ctx.url}?view=timing`);
+    await page.waitFor(ready);
+    await page.waitFor(`!!document.querySelector("[data-truth-mode]")`, 10000);
+    const state = await page.eval(`(() => {
+      document.querySelector('[data-view="truth"]').click();
+      const mode = document.querySelector("[data-truth-mode]");
+      mode.value = "arbitrary"; mode.dispatchEvent(new Event("change", { bubbles: true }));
+      document.querySelector("[data-truth-inputs]").value = "A, B";
+      document.querySelector("[data-truth-outputs]").value = "Y";
+      document.querySelector('[data-truth-action="generate"]').click();
+      const before = document.querySelector("[data-truth-table]").value;
+      const output = document.querySelector('[data-table-row="1"][data-table-col="2"]');
+      output.value = "1"; output.dispatchEvent(new Event("input", { bubbles: true }));
+      return { before, after: document.querySelector("[data-truth-table]").value, cells: document.querySelectorAll("[data-table-row]").length,
+        gridHeight: document.querySelector("[data-truth-grid]").getBoundingClientRect().height };
+    })()`);
+    res.push([state.before === "A,B,Y\n0,0,\n0,1,\n1,0,\n1,1," && state.cells === 12, `arbitrary autofill generates inputs and blank outputs (${JSON.stringify(state)})`]);
+    res.push([state.after.includes("0,0,1"), "editing a grid cell updates the table source"]);
+    res.push([state.gridHeight > 100, `the generated grid is visible (${state.gridHeight}px)`]);
+    await page.sleep(600);
+    await page.shot(`${ctx.out}/beta-truth-grid.png`);
+    res.push([page.errors.length === 0, `truth grid: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};
+
+scenarios.initialNodeLevels = async (ctx) => {
+  const res = [];
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(`${ctx.url}?view=figure`);
+    await page.waitFor(ready);
+    await page.eval(`document.querySelector(".fe-node-levels").open = true`);
+    await page.waitFor(`!!document.querySelector('[data-node-level="0"]')`, 10000);
+    const state = await page.eval(`(() => {
+      const field = document.querySelector('[data-node-level="0"]');
+      field.value = "1"; field.dispatchEvent(new Event("change", { bubbles: true }));
+      const initial = JSON.parse(window.figureEditor.save());
+      document.querySelector('[data-cmd="framenext"]').click();
+      const later = JSON.parse(window.figureEditor.save());
+      document.querySelector('[data-cmd="frameprev"]').click();
+      const restored = JSON.parse(window.figureEditor.save());
+      return { initial: initial.groups.frames[0].levels, later: later.groups.frames[1].levels,
+        restored: restored.groups.frames[0].levels, port: initial.ports[0].id };
+    })()`);
+    res.push([state.initial[state.port] === "1" && state.restored[state.port] === "1", `initial port level survives frame navigation (${JSON.stringify(state)})`]);
+    res.push([state.later[state.port] !== "1", "setting the initial frame does not change the later frame"]);
+    res.push([page.errors.length === 0, `node levels: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
   } finally { await page.close(); }
   return res;
 };

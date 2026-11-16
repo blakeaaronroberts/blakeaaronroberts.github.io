@@ -6,7 +6,7 @@ import { exportSvg } from "../src/export.js";
 import { buildFullAdderLevels } from "../examples/full-adder-levels.js";
 import { buildClaChevron } from "../examples/cla-chevron.js";
 import { buildRippleCarryBlocks } from "../examples/ripple-carry-blocks.js";
-import { circuitFromSvg, metadataOf, sanitizeSvg } from "../src/svgimport.js";
+import { checkedBackdrop, circuitFromSvg, metadataOf, sanitizeSvg } from "../src/svgimport.js";
 import { assert, assertEquals, assertThrows, pack, typeset } from "./helpers.js";
 
 Deno.test("an exported SVG carries its circuit, and the circuit comes back byte for byte", () => {
@@ -54,6 +54,21 @@ const dirty = `<?xml version="1.0"?>
   <text x="2" y="3">Hello &amp; <![CDATA[<b>not markup</b>]]></text>
   <circle r="3" ink:foo="1" xml:base="http://evil.example/"/>
 </svg>`;
+
+Deno.test("backdrops are sanitized on load and included only when requested", () => {
+  const backdrop = { href: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(dirty)}`, width: 20, height: 10, cx: 0, cy: 0, scale: 1, opacity: 0.5 };
+  const doc = { ...newDoc(), groups: { backdrop } };
+  const loaded = parse(serialize(doc, pack)).doc;
+  assert(!decodeURIComponent(loaded.groups.backdrop.href).includes("script"));
+  const omitted = exportSvg(loaded, pack);
+  assert(!omitted.includes("<image "));
+  assertEquals(parse(circuitFromSvg(omitted)).doc.groups?.backdrop, undefined);
+  const included = exportSvg(loaded, pack, { includeBackdrop: true });
+  assert(included.includes("<image "));
+  assertEquals(parse(circuitFromSvg(included)).doc.groups.backdrop.width, 20);
+  assertThrows(() => checkedBackdrop({ ...backdrop, href: "https://example.test/a.svg" }), /data image/);
+  assertThrows(() => checkedBackdrop({ ...backdrop, href: "data:image/png;base64,AAAA" }), /PNG is invalid/);
+});
 
 Deno.test("sanitising removes scripts, handlers, external references, foreign content and fetching CSS", () => {
   const { svg } = sanitizeSvg(dirty);

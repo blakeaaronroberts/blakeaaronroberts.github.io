@@ -120,3 +120,16 @@ Deno.test("a port at an element's pin tip joins that pin's net", async () => {
   doc = addPort(doc, pack, [-4, 1], "in").doc;
   assertEquals(deriveNets(doc, pack), { in1: ["and1.A", "in1"] });
 });
+
+Deno.test("a port placed on the middle of a wire attaches to its net and survives rename", async () => {
+  const { deriveNets, serialize, parse } = await import("../src/doc.js");
+  let doc = addElement(newDoc(), pack, "and_gate", [0, 0]).doc;
+  doc = addWire(doc, pack, { kind: "pin", ref: "and1.A" }, P([-12, 1])).doc;
+  doc = addPort(doc, pack, [-8, 1], "in", "w1").doc;
+  assertEquals(deriveNets(doc, pack), { in1: ["and1.A", "in1"] });
+  doc = setPort(doc, pack, "in1", { id: "A" });
+  const reopened = parse(serialize(doc, pack)).doc;
+  assertEquals(deriveNets(reopened, pack), { A: ["A", "and1.A"] });
+  const moved = moveSelection(reopened, pack, { ports: ["A"] }, [0, 4]);
+  assertEquals(deriveNets(moved, pack), { n1: ["and1.A"] });
+});

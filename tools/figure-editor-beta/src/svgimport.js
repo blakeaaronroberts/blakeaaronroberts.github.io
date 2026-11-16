@@ -1,7 +1,7 @@
 // SVG import (F12). No DOM, so the tests run it as the browser does.
 //
 // Our own exports carry their circuit in <metadata>: circuitFromSvg() gives it back, and the figure opens
-// exactly as it was. Any other SVG becomes a backdrop to trace over: sanitizeSvg() rewrites it from an
+// exactly as it was. Any other SVG becomes a saved backdrop to trace over: sanitizeSvg() rewrites it from an
 // allow-list, so scripts, event handlers, external references, foreign content and CSS that fetches
 // anything never get through. (The editor also shows the result through an <image>, where a browser runs
 // no script and loads nothing, so there are two walls.)
@@ -9,6 +9,30 @@
 import { MODULE_CM } from "./geometry.js";
 
 export const MAX_SVG_BYTES = 5e6;
+
+/** Validate a saved backdrop and sanitize SVG again when opening an untrusted project. */
+export function checkedBackdrop(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("backdrop must be an object");
+  for (const key of ["width", "height", "cx", "cy", "scale", "opacity"]) {
+    if (!Number.isFinite(value[key])) throw new Error(`backdrop ${key} must be a number`);
+  }
+  if (value.width <= 0 || value.height <= 0 || value.width > 10000 || value.height > 10000 ||
+      value.scale < 0.05 || value.scale > 20 || value.opacity < 0 || value.opacity > 1) throw new Error("backdrop dimensions, scale or opacity are out of range");
+  if (typeof value.href !== "string" || value.href.length > MAX_SVG_BYTES * 4) throw new Error("backdrop image is invalid or too large");
+  let href;
+  const svgPrefix = "data:image/svg+xml;charset=utf-8,";
+  const pngPrefix = "data:image/png;base64,";
+  if (value.href.startsWith(svgPrefix)) {
+    const text = decodeURIComponent(value.href.slice(svgPrefix.length));
+    if (text.length > MAX_SVG_BYTES) throw new Error("backdrop SVG is too large");
+    href = svgPrefix + encodeURIComponent(sanitizeSvg(text).svg);
+  } else if (value.href.startsWith(pngPrefix)) {
+    const data = value.href.slice(pngPrefix.length);
+    if (data.length > Math.ceil(MAX_SVG_BYTES / 3) * 4 || !/^iVBORw0KGgo[A-Za-z0-9+/]*={0,2}$/.test(data) || data.length % 4) throw new Error("backdrop PNG is invalid or too large");
+    href = pngPrefix + data;
+  } else throw new Error("backdrop must be an SVG or PNG data image");
+  return { href, width: value.width, height: value.height, cx: value.cx, cy: value.cy, scale: value.scale, opacity: value.opacity };
+}
 
 const ENT = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
 const decode = (s) => s.replace(/&(?:#(\d+)|#x([0-9a-fA-F]+)|(amp|lt|gt|quot|apos));/g, (m, d, h, n) => (n ? ENT[n] : String.fromCodePoint(d ? +d : parseInt(h, 16))));

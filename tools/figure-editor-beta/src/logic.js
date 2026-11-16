@@ -189,6 +189,7 @@ export function resolveLogic(doc, pack) {
       inputs: pins.filter((name) => name !== "Y").sort(),
     });
   }
+
   if (!drivers.size) return base;
 
   const latches = nandLatchPairs(drivers, keyForRef);
@@ -201,6 +202,12 @@ export function resolveLogic(doc, pack) {
       .map((id) => base.wires.find((wire) => wire.id === id)?.level)
       .filter((level) => ["0", "1", "X", "Z"].includes(level)))];
     if (levels.length) values.set(key, levels.length === 1 ? levels[0] : "X");
+  }
+  for (const port of base.ports) {
+    const level = base.groups?.port_levels?.[port.id], key = keyForRef(port.id);
+    if (key === null || drivers.has(key) || !["0", "1", "X", "Z"].includes(level)) continue;
+    const existing = values.get(key);
+    values.set(key, existing && existing !== level ? "X" : level);
   }
   for (const key of drivers.keys()) values.set(key, latchKeys.has(key) ? previous.get(key) ?? null : null);
 

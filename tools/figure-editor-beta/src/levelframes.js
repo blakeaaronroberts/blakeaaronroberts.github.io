@@ -1,6 +1,6 @@
 // Level frames (F11.2). No DOM.
 //
-// A frame is a named snapshot of the logic levels on the wires and elements: a neutral Frame 0 followed
+// A frame is a named snapshot of the logic levels on the wires and elements: an initial Frame 0 followed
 // by one frame per timing step. Frames live in the figure's own free-form `groups`
 // map, under the key "frames", so the circuit/0.2 file stays valid and Save and Open keep them. Each frame is
 // { name, levels: { "<wire or element id>": "0" | "1" | "X" | "Z" } }; anything not listed has no level.
@@ -11,22 +11,22 @@ import { clone, connectedWireIds, wiresForRefs } from "./doc.js";
 
 export const KEY = "frames";
 
-const zeroFrame = () => ({
+const zeroFrame = (levels = {}) => ({
   name: "Frame 0",
-  levels: {},
+  levels: structuredClone(levels),
 });
 
-/** The frames a document carries (a copy), always beginning with a level-free Frame 0. */
+/** The frames a document carries (a copy), always beginning with Frame 0. */
 export function framesOf(doc) {
   const saved = Array.isArray(doc.groups?.[KEY]) ? structuredClone(doc.groups[KEY]) : [];
-  return [zeroFrame(), ...(saved[0]?.name === "Frame 0" ? saved.slice(1) : saved)];
+  return [zeroFrame(saved[0]?.name === "Frame 0" ? saved[0].levels ?? {} : {}), ...(saved[0]?.name === "Frame 0" ? saved.slice(1) : saved)];
 }
 
 function withFrames(doc, frames) {
   const d = clone(doc);
   const groups = { ...(d.groups ?? {}) };
   const rest = frames[0]?.name === "Frame 0" ? frames.slice(1) : frames;
-  groups[KEY] = [zeroFrame(), ...rest];
+  groups[KEY] = [zeroFrame(frames[0]?.name === "Frame 0" ? frames[0].levels ?? {} : {}), ...rest];
   if (Object.keys(groups).length) d.groups = groups; else delete d.groups;
   return d;
 }
@@ -36,7 +36,7 @@ export const ensureFrameZero = (doc) => withFrames(doc, framesOf(doc));
 
 /** The current levels of the document, as a frame's `levels`. */
 export function levelsOf(doc) {
-  const levels = {};
+  const levels = { ...(doc.groups?.port_levels ?? {}) };
   for (const x of [...doc.wires, ...doc.elements]) if (x.level) levels[x.id] = x.level;
   return levels;
 }
@@ -55,6 +55,11 @@ export function applyFrame(doc, frame) {
     const level = frame.levels?.[x.id];
     if (level) x.level = level; else delete x.level;
   }
+  const portLevels = {};
+  for (const port of d.ports) if (["0", "1", "X", "Z"].includes(frame.levels?.[port.id])) portLevels[port.id] = frame.levels[port.id];
+  const groups = { ...(d.groups ?? {}) };
+  if (Object.keys(portLevels).length) groups.port_levels = portLevels; else delete groups.port_levels;
+  if (Object.keys(groups).length) d.groups = groups; else delete d.groups;
   return d;
 }
 
@@ -64,7 +69,7 @@ export const renameFrame = (doc, i, name) => {
   return withFrames(doc, frames);
 };
 
-export const removeFrame = (doc, i) => withFrames(doc, framesOf(doc).filter((_, k) => k !== i));
+export const removeFrame = (doc, i) => i <= 0 ? withFrames(doc, framesOf(doc)) : withFrames(doc, framesOf(doc).filter((_, k) => k !== i));
 
 /** Move frame i by `by` places (-1 earlier, +1 later). */
 export function moveFrame(doc, i, by) {
@@ -77,7 +82,7 @@ export function moveFrame(doc, i, by) {
 /** Replace frame i's levels with the document's current ones. */
 export function recaptureFrame(doc, i) {
   const frames = framesOf(doc);
-  if (i > 0 && frames[i]) frames[i].levels = levelsOf(doc);
+  if (i >= 0 && frames[i]) frames[i].levels = levelsOf(doc);
   return withFrames(doc, frames);
 }
 
@@ -151,10 +156,11 @@ export function setLevelTagStyle(doc, ids, patch) {
 
 /** The wire and element ids a signal name drives: wires with that net label, the net a port of that name or label sits on, and an element of that id. */
 export function targetsOf(doc, nets, name, pack = null) {
-  const wires = new Set(), elements = new Set();
+  const wires = new Set(), elements = new Set(), ports = new Set();
   const refs = new Set();
   const labelText = (text) => typeof text === "string" ? text.trim() : "";
   const signalName = labelText(name);
+  for (const port of doc.ports) if (port.id === name || port.label === name) ports.add(port.id);
   for (const [key, members] of Object.entries(nets)) {
     const hit = key === name || members.some((m) => doc.ports.some((p) => p.id === m && (p.id === name || p.label === name)));
     if (hit) members.forEach((m) => refs.add(m));
@@ -171,19 +177,27 @@ export function targetsOf(doc, nets, name, pack = null) {
   for (const w of doc.wires) if (labelText(doc.groups?.wire_labels?.[w.id]) === signalName) [w.from, w.to].forEach((e) => { if (typeof e === "string") refs.add(e); });
   for (const w of doc.wires) if ([w.from, w.to].some((e) => typeof e === "string" && refs.has(e))) wires.add(w.id);
   for (const e of doc.elements) if (e.id === name) elements.add(e.id);
-  return { wires: [...wires], elements: [...elements] };
+  return { wires: [...wires], elements: [...elements], ports: [...ports] };
 }
 
 /** Replace the document's frames with one per step of the signals. Returns { doc, steps, matched (signal names that drive something), unmatched }. */
 export function framesFromSignals(doc, nets, signals, pack = null) {
   const steps = Math.max(0, ...signals.map((s) => s.levels.length));
-  const frames = [zeroFrame(), ...Array.from({ length: steps }, (_, i) => ({ name: `Step ${i + 1}`, levels: {} }))];
+  const old = framesOf(doc);
+  const driven = new Set(signals.flatMap((signal) => {
+    const target = targetsOf(doc, nets, signal.name, pack);
+    return [...target.wires, ...target.elements, ...target.ports];
+  }));
+  const frames = [old[0], ...Array.from({ length: steps }, (_, i) => ({
+    name: `Step ${i + 1}`,
+    levels: Object.fromEntries(Object.entries(old[i + 1]?.levels ?? {}).filter(([id]) => !driven.has(id))),
+  }))];
   const matched = [], unmatched = [];
   for (const s of signals) {
     const t = targetsOf(doc, nets, s.name, pack);
-    if (!t.wires.length && !t.elements.length) { unmatched.push(s.name); continue; }
+    if (!t.wires.length && !t.elements.length && !t.ports.length) { unmatched.push(s.name); continue; }
     matched.push(s.name);
-    s.levels.forEach((lv, i) => { if (lv) for (const id of [...t.wires, ...t.elements]) frames[i + 1].levels[id] = lv; });
+    s.levels.forEach((lv, i) => { if (lv) for (const id of [...t.wires, ...t.elements, ...t.ports]) frames[i + 1].levels[id] = lv; });
   }
   return { doc: withFrames(doc, frames), steps, matched, unmatched };
 }

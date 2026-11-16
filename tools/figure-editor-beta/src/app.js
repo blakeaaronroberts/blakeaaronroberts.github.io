@@ -11,7 +11,7 @@ import { contrast, levelRoles, warnings as levelWarnings, withLevelColour } from
 import * as D from "./doc.js";
 import { History } from "./history.js";
 import { drawTiming, parseEdge } from "../../timing/src/draw.js";
-import { drawing, exportSize, exportSvg, exportGridSvg, labelBoxes, timingGroup } from "./export.js";
+import { drawing, exportDocument, exportSize, exportSvg, exportGridSvg, labelBoxes, timingGroup } from "./export.js";
 import { hitTest, inBox } from "./hit.js";
 import { packLabelPt, texNeeded, texOf } from "./labels.js";
 import { typesetAll } from "./mathjax.js";
@@ -21,12 +21,12 @@ import { junctionCounts } from "./junctions.js";
 import { BLOCK, formatPins, handlesOf, parsePins, SHAPES, geometryOf } from "./block.js";
 import { PRESETS, presetById } from "./presets.js";
 import { sections } from "./categories.js";
-import { circuitFromSvg, sanitizeSvg, MAX_SVG_BYTES } from "./svgimport.js";
+import { checkedBackdrop, circuitFromSvg, sanitizeSvg, MAX_SVG_BYTES } from "./svgimport.js";
 import { FORMATS } from "./frame.js";
 import { contentArea, defaultSlide, KINDS, layoutThumb, LAYOUTS as SLIDE_LAYOUTS, nudgeRegion, slideOf, slideSize, slideSvg, SPLITS, splitsOf, withLayout, withSlide, withSplit } from "./slide.js";
 import { orient } from "./geometry.js";
 import { namedNetNames, parseTruthTable, truthTable } from "./demo.js";
-import { latexTable } from "./latex-table.js";
+import { latexTable, parseTable } from "./latex-table.js";
 import { framesFromSignals, levelTagStyleOf, setLevelTagStyle, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, ensureFrameZero, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame, targetsOf } from "./levelframes.js";
 import { logicModeOf, resolveLogic, setLogicMode } from "./logic.js";
 import { zipStore } from "./zip.js";
@@ -81,6 +81,7 @@ const BUTTON = "btn btn-sm fe-btn";
 const ICONS = {
   select: '<path d="M3 2l9 5-4 1.5L6.5 13z"/>',
   wire: '<path d="M2 12h5V5h7"/><circle cx="2" cy="12" r="1"/><circle cx="14" cy="5" r="1"/>',
+  solder: '<path d="M2 8h12M8 2v12"/><circle cx="8" cy="8" r="2" fill="currentColor"/>',
   port: '<path d="M2 3h8l4 5-4 5H2z"/>',
   label: '<path d="M3 3h10M8 3v10"/>',
   rotate: '<path d="M13 8a5 5 0 1 1-1.5-3.5M13 2v3h-3"/>',
@@ -127,9 +128,9 @@ export async function mount(root, options = {}) {
 
   root.innerHTML = `
   <div class="fe">
-    <div class="fe-toolbar" role="toolbar" aria-label="Figure Editor">
+    <div class="fe-toolbar" role="toolbar" aria-label="Schematic Editor">
       <div class="fe-group" role="group" aria-label="Tool">
-        ${btn("select", "Select", "Escape", ' aria-pressed="true"')}${btn("wire", "Wire", "W", ' aria-pressed="false"')}${btn("port", "Port", "P", ' aria-pressed="false"')}${btn("label", "Label", "T", ' aria-pressed="false"')}
+        ${btn("select", "Select", "Escape", ' aria-pressed="true"')}${btn("wire", "Wire", "W", ' aria-pressed="false"')}${btn("port", "Port", "P", ' aria-pressed="false"')}${btn("label", "Label", "T", ' aria-pressed="false"')}${btn("solder", "Solder dot", "", ' aria-pressed="false"', "Connect crossing wires")}
       </div>
       <div class="fe-group" role="group" aria-label="Edit">
         ${btn("rotate", "Rotate", "R")}${btn("mirror", "Mirror", "M")}${btn("delete", "Delete", "Delete")}
@@ -154,7 +155,7 @@ export async function mount(root, options = {}) {
       <input type="file" class="fe-theme-file" accept=".json,application/json" hidden>
     </div>
     <div class="fe-left" role="region" aria-label="Editor controls">
-      <details class="fe-palette fe-pane" data-views="figure" open>
+      <details class="fe-palette fe-pane" data-views="figure">
         <summary class="label-mono">Elements</summary>
         <div class="fe-cats"></div>
       </details>
@@ -208,8 +209,13 @@ export async function mount(root, options = {}) {
         <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-tcolour"> <span class="form-check-label">Colour the timing diagram like the nets (by level)</span></label>
       </details>
       <div class="fe-timing-controls" data-views="timing"></div>
+      <details data-views="figure timing" class="fe-pane fe-node-levels">
+        <summary class="label-mono">Node levels</summary>
+        <p class="fe-hint">Levels apply to the selected frame.</p>
+        <div class="fe-node-level-list"></div>
+      </details>
       <details data-views="figure timing slide" class="fe-pane fe-frames-pane" name="fe-doc">
-        <summary class="label-mono" title="Frame 0 has no logic levels; later frames correspond to timing steps.">Frames</summary>
+        <summary class="label-mono" title="Frame 0 holds initial levels; later frames correspond to timing steps.">Frames</summary>
         <div class="fe-theme-buttons" role="group" aria-label="Frames">${btn("framesfromtiming", "Fill from timing diagram")}${btn("framecapture", "Capture frame")}${btn("framerecapture", "Update selected")}</div>
         <ol class="fe-frame-list" aria-label="Frames"></ol>
         <div class="fe-theme-buttons" role="group" aria-label="Edit the selected frame">${btn("framerename", "Rename")}${btn("frameup", "Move up")}${btn("framedown", "Move down")}${btn("framedelete", "Delete")}</div>
@@ -217,7 +223,9 @@ export async function mount(root, options = {}) {
         <div class="fe-theme-buttons" role="group" aria-label="Export frames">${btn("framesexport", "Export frames")}${btn("framesslide", "Export all on one slide")}</div>
       </details>
       <details data-views="figure" class="fe-pane fe-backdrop-pane" name="fe-doc">
-        <summary class="label-mono" title="A tracing reference stays behind the grid and is never saved or exported.">Backdrop</summary>
+        <summary class="label-mono">Backdrop</summary>
+        <div class="fe-theme-buttons">${btn("backdropopen", "Choose SVG or PNG…")}</div>
+        <input type="file" class="fe-backdrop-file" accept=".svg,.png,image/svg+xml,image/png" hidden>
         <div class="fe-backdrop-controls" hidden>
           <label class="form-label">Opacity (%) <input class="form-control form-control-sm" type="number" name="fe-bd-opacity" min="0" max="100" step="5"></label>
           <label class="form-label">Scale (%) <input class="form-control form-control-sm" type="number" name="fe-bd-scale" min="5" max="2000" step="5"></label>
@@ -225,18 +233,18 @@ export async function mount(root, options = {}) {
           <div class="fe-theme-buttons">${btn("backdropremove", "Remove backdrop")}</div>
         </div>
       </details>
-      <details class="fe-pane fe-warnings" open>
+      <details class="fe-pane fe-warnings">
         <summary class="label-mono">Warnings</summary>
         <ul></ul>
       </details>
     </div>
     <div class="fe-resizer" data-resize="left" role="separator" aria-label="Resize controls pane" aria-orientation="vertical" tabindex="0"></div>
-    <div class="fe-stack" role="region" aria-label="Workspace: Figure Editor, Timing Diagram and Slide">
-      <button type="button" class="fe-sec-bar" data-cmd="viewfigure" data-sec-bar="figure" aria-expanded="false"><span class="label-mono">Figure Editor</span><span class="fe-sec-chev" aria-hidden="true"></span></button>
+    <div class="fe-stack" role="region" aria-label="Workspace: Schematic Editor, Timing Diagram and Slide">
+      <button type="button" class="fe-sec-bar" data-cmd="viewfigure" data-sec-bar="figure" aria-expanded="false"><span class="label-mono">Schematic Editor</span><span class="fe-sec-chev" aria-hidden="true"></span></button>
       <div class="fe-sec" data-sec="figure"><div class="fe-stage">
         <svg class="fe-canvas" tabindex="0" role="application" aria-label="Figure canvas" xmlns="http://www.w3.org/2000/svg"></svg>
       </div></div>
-      <div class="fe-stack-resizer" data-stack-resize="figure-timing" role="separator" aria-label="Resize Figure Editor and Timing Diagram panes" aria-orientation="horizontal" tabindex="0"></div>
+      <div class="fe-stack-resizer" data-stack-resize="figure-timing" role="separator" aria-label="Resize Schematic Editor and Timing Diagram panes" aria-orientation="horizontal" tabindex="0"></div>
       <button type="button" class="fe-sec-bar" data-cmd="viewtiming" data-sec-bar="timing" aria-expanded="false"><span class="label-mono">Timing Diagram</span><span class="fe-sec-chev" aria-hidden="true"></span></button>
       <div class="fe-sec" data-sec="timing"><div class="fe-timing-body"></div></div>
       <div class="fe-stack-resizer" data-stack-resize="timing-slide" role="separator" aria-label="Resize Timing Diagram and Slide panes" aria-orientation="horizontal" tabindex="0"></div>
@@ -423,6 +431,7 @@ export async function mount(root, options = {}) {
     typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags,
     levelTagPt: opt.levelTagPt ?? undefined, levelTagColour: opt.levelTagColour,
     netNames: opt.netNames, scale: opt.scale,
+    preserveLevels: true,
   });
 
   /** The status line. An error is bold and announced at once, and stays until the next message. */
@@ -545,7 +554,7 @@ export async function mount(root, options = {}) {
     };
     const preset = (p) => `<li><button type="button" class="fe-part" data-preset="${esc(p.id)}" title="${esc(p.name)}: a block with these pins; size, shape, pins and labels can all be changed">${blockThumbnail(pack, p.params)}<span>${esc(p.name)}</span></button></li>`;
     $(".fe-palette .fe-cats").innerHTML = sections(pack.types(true)).map((s) => {
-      const open = opt.cats?.[s.id] ?? s.open;
+      const open = opt.cats?.[s.id] ?? false;
       const items = s.presets ? PRESETS.map(preset) : s.types.map(tile);
       return `<details class="fe-cat" data-cat="${esc(s.id)}"${open ? " open" : ""}><summary class="fe-cat-head label-mono">${esc(s.title)} <span class="fe-count">${items.length}</span></summary><nav aria-label="${esc(s.title)}"><ul class="${s.presets ? "fe-blocks" : "fe-parts"}">${items.join("")}</ul></nav></details>`;
     }).join("");
@@ -591,6 +600,9 @@ export async function mount(root, options = {}) {
 
   function updateUI() {
     logicCalculationInput.checked = logicModeOf(doc) === "calculated";
+    const timingLogicInput = root.querySelector("[data-logic-calculation]");
+    if (timingLogicInput) timingLogicInput.checked = logicCalculationInput.checked;
+    renderNodeLevels();
     const has = total(selection) > 0;
     const set = (cmd, enabled) => { const b = root.querySelector(`[data-cmd="${cmd}"]`); b.disabled = !enabled; };
     const mirrorable = (placing && pack.mirrorable(placing.type)) ||
@@ -602,7 +614,7 @@ export async function mount(root, options = {}) {
     set("paste", !!clipboard);
     set("undo", history.canUndo);
     set("redo", history.canRedo);
-    for (const t of ["select", "wire", "port", "label"]) root.querySelector(`[data-cmd="${t}"]`).setAttribute("aria-pressed", String(tool === t));
+    for (const t of ["select", "wire", "port", "label", "solder"]) root.querySelector(`[data-cmd="${t}"]`).setAttribute("aria-pressed", String(tool === t));
     root.querySelector(`[data-cmd="gridhalf"]`).setAttribute("aria-pressed", String(opt.grid === 1));
     root.querySelector(`[data-cmd="gridfull"]`).setAttribute("aria-pressed", String(opt.grid === 2));
     svg.dataset.tool = tool;
@@ -889,6 +901,7 @@ export async function mount(root, options = {}) {
     if (previous.id !== doc.id) truthTableProjectChanged();
     if (!preserveLevels && selectedFrame > 0 && logicLevels(previous) !== logicLevels(doc)) syncCircuitLevelsToTiming(selectedFrame - 1);
     followTiming();
+    applyBackdrop();
     unsaved = true;
     render();
     if (msg) status(msg);
@@ -935,10 +948,80 @@ export async function mount(root, options = {}) {
     const wires = D.levelWireIds(doc, selection.wires, pack);
     const n = wires.length + selection.elements.length;
     const noun = selection.elements.length ? "item" : "wire";
-    let next = resolveLogic(D.setLevel(doc, selection.wires, level, selection.elements, pack), pack);
-    if (selectedFrame > 0) next = recaptureFrame(next, selectedFrame);
-    commit(next, level ? `Level ${level} (${name}) set on ${count(n, noun)}.` : "Level cleared.");
+    let next = setPortLevelsForWires(D.setLevel(doc, selection.wires, level, selection.elements, pack), wires, level);
+    if (selectedFrame > 0) next = resolveLogic(next, pack);
+    if (selectedFrame >= 0) next = recaptureFrame(next, selectedFrame);
+    commit(next, level ? `Level ${level} (${name}) set on ${count(n, noun)}.` : "Level cleared.", { preserveLevels: selectedFrame === 0 });
   }
+
+  function setPortLevelsForWires(next, wires, level, extraPorts = []) {
+    const portIds = new Set(extraPorts);
+    for (const port of next.ports) if (D.wiresForRefs(next, pack, [port.id]).some((id) => wires.includes(id))) portIds.add(port.id);
+    const groups = { ...(next.groups ?? {}) }, levels = { ...(groups.port_levels ?? {}) };
+    for (const id of portIds) { if (level) levels[id] = level; else delete levels[id]; }
+    if (Object.keys(levels).length) groups.port_levels = levels; else delete groups.port_levels;
+    next.groups = groups;
+    return next;
+  }
+
+  function nodeLevelRows() {
+    const rows = [], nets = D.deriveNets(doc, pack), seen = new Set();
+    for (const port of doc.ports) {
+      const wires = D.levelWireIds(doc, D.wiresForRefs(doc, pack, [port.id]), pack);
+      rows.push({ name: port.label || port.id, wires, ports: [port.id] });
+    }
+    const named = [], unnamed = [];
+    for (const wire of doc.wires) {
+      if (seen.has(wire.id)) continue;
+      const wires = D.levelWireIds(doc, [wire.id], pack);
+      wires.forEach((id) => seen.add(id));
+      const label = wires.map((id) => wireLabelOf(doc, id)).find(Boolean);
+      const name = label || Object.entries(nets).find(([, refs]) => D.wiresForRefs(doc, pack, refs).some((id) => wires.includes(id)))?.[0] || `Unconnected ${wire.id}`;
+      (label ? named : unnamed).push({ name, wires, ports: [] });
+    }
+    return [...rows, ...named, ...unnamed];
+  }
+
+  function renderNodeLevels() {
+    if (!$(".fe-node-levels").open) return;
+    const list = $(".fe-node-level-list");
+    const rows = nodeLevelRows();
+    list.innerHTML = rows.length ? rows.map((row, i) => {
+      const values = [...new Set([...row.wires.map((id) => doc.wires.find((w) => w.id === id)?.level), ...row.ports.map((id) => doc.groups?.port_levels?.[id])].filter(Boolean))];
+      const value = values.length === 1 ? values[0] : "";
+      return `<label class="fe-node-level"><span data-node-name="${esc(row.name)}">${esc(row.name)}</span><select class="form-select form-select-sm" data-node-level="${i}" aria-label="Level for ${esc(row.name)}">${[["", "Unset"], ["0", "0"], ["1", "1"], ["X", "X"], ["Z", "Z"]].map(([v, label]) => `<option value="${v}"${v === value ? " selected" : ""}>${label}</option>`).join("")}</select></label>`;
+    }).join("") : `<p class="fe-hint">Add a port or wire to set its level.</p>`;
+    const names = [...list.querySelectorAll("[data-node-name]")].map((el) => {
+      try { return [el, texOf(el.dataset.nodeName)]; } catch { return [el, null]; }
+    });
+    typesetAll(names.map(([, tex]) => tex).filter(Boolean), typeset).then(() => {
+      for (const [el, tex] of names) {
+        const ts = tex && typeset.get(tex);
+        if (!el.isConnected || !ts?.ok) continue;
+        el.innerHTML = `<svg role="img" aria-label="${esc(el.dataset.nodeName)}" viewBox="${ts.left * 1000} ${-ts.height * 1000} ${ts.width * 1000} ${(ts.height + ts.depth) * 1000}" width="${ts.width}em" height="${ts.height + ts.depth}em"><g color="currentColor">${statusNodesMarkup(ts.nodes)}</g></svg>`;
+      }
+    }).catch((error) => status(`Could not typeset node names: ${error.message}`, true));
+  }
+  $(".fe-node-levels").addEventListener("toggle", renderNodeLevels);
+  $(".fe-node-level-list").addEventListener("change", (event) => {
+    const select = event.target.closest("[data-node-level]");
+    if (!select) return;
+    const row = nodeLevelRows()[Number(select.dataset.nodeLevel)];
+    if (!row) return status("The node is no longer available.", true);
+    const level = select.value || null;
+    let next = setPortLevelsForWires(D.setLevel(doc, row.wires, level, [], pack), row.wires, level, row.ports);
+    if (selectedFrame >= 0) next = recaptureFrame(next, selectedFrame);
+    commit(next, `${row.name}: ${level ?? "unset"} in Frame ${selectedFrame}.`, { preserveLevels: true });
+    if (selectedFrame > 0 && level && timingTool) {
+      const nets = D.deriveNets(doc, pack), updates = {};
+      for (const signal of timingTool.value.signal) {
+        if (!signal?.name) continue;
+        const target = targetsOf(doc, nets, signal.name, pack);
+        if (target.wires.some((id) => row.wires.includes(id)) || target.ports.some((id) => row.ports.includes(id))) updates[signal.name] = level;
+      }
+      if (Object.keys(updates).length) timingTool.setSignalLevels(selectedFrame - 1, updates);
+    }
+  });
 
   function setGrid(g) {
     opt.grid = g; saveOptions(); view.setGrid(g);
@@ -1031,25 +1114,57 @@ export async function mount(root, options = {}) {
   }
 
   function portClick(p) {
-    const at = snapPoint(p);
+    const hits = targets(p);
+    const wire = hits.find((hit) => hit.kind === "wire" && hit.tap);
+    const at = wire ? wire.at : snapPoint(p);
     const side = D.exitSide(doc, pack, at);
     const dir = side === "right" ? "out" : "in";
-    const r = D.addPort(doc, pack, at, dir);
-    const named = D.setPort(r.doc, pack, r.id, { side: side ?? (dir === "in" ? "left" : "right") });
-    commit(named, `Placed port ${r.id}. Type its label in the panel.`);
+    const nets = D.deriveNets(doc, pack);
+    const netName = wire && Object.entries(nets).find(([, refs]) => D.wiresForRefs(doc, pack, refs).includes(wire.id))?.[0];
+    const connectedWires = wire ? D.connectedWireIds(doc, pack, [wire.id]) : [];
+    const label = connectedWires.map((id) => wireLabelOf(doc, id)).find(Boolean) ?? netName;
+    const r = D.addPort(doc, pack, at, dir, wire?.id ?? null);
+    const named = D.setPort(r.doc, pack, r.id, { side: side ?? (dir === "in" ? "left" : "right"), ...(label ? { label } : {}) });
+    commit(named, `Placed port ${r.id}${label ? ` on net ${label}` : ""}.`);
     selection = { ...none(), ports: [r.id] };
+    selectionPane.open = true;
     setTool("select");
     propsEl.querySelector('[data-field="portLabel"]')?.focus();
   }
 
   function labelClick(p) {
+    const hit = targets(p).find((target) => ["wire", "element", "port"].includes(target.kind));
+    if (hit) {
+      selection = { ...none(), [hit.kind === "wire" ? "wires" : hit.kind === "port" ? "ports" : "elements"]: [hit.id] };
+      selectionPane.open = true;
+      panelKey = null;
+      setTool("select");
+      const field = hit.kind === "wire" ? "wireNet" : hit.kind === "port" ? "portLabel" : "elLabel";
+      propsEl.querySelector(`[data-field="${field}"]`)?.focus();
+      status(`Type the ${hit.kind === "wire" ? "net" : hit.kind} label in the panel.`);
+      return;
+    }
     const at = snapPoint(p);
     pendingLabel = { at, side: D.exitSide(doc, pack, at) };
     selection = none();
+    selectionPane.open = true;
     panelKey = null;
     render();
     propsEl.querySelector('[data-field="pendingText"]')?.focus();
     status("Type the label in the panel and press Enter.");
+  }
+
+  function solderClick(p) {
+    const hits = targets(p);
+    const junction = hits.find((hit) => hit.kind === "junction" && junctionIsFourWay(hit.id));
+    if (junction && !D.junctionConnected(doc, junction.id)) {
+      commit(D.setJunctionConnected(doc, junction.id, true), "Solder dot added: the junction is connected.");
+      return;
+    }
+    const at = snapStep(p);
+    const ids = hits.filter((hit) => hit.kind === "wire" && hit.tap && same(hit.at, at)).map((hit) => hit.id);
+    try { commit(D.connectWiresAt(doc, pack, at, ids), "Solder dot added: crossing wires are connected."); }
+    catch (error) { status(error.message, true); }
   }
 
   // ---- commands ----------------------------------------------------------------------------
@@ -1058,6 +1173,7 @@ export async function mount(root, options = {}) {
     wire: () => { setTool("wire"); status("Wire: click a pin, junction, wire or empty grid point to start; hold Shift while drawing a straight leg."); },
     port: () => { setTool("port"); status("Port: click a point, a pin tip or a wire end."); },
     label: () => { setTool("label"); status("Label: click where the label goes."); },
+    solder: () => { setTool("solder"); status("Solder dot: click the crossing to connect its wires."); },
     rotate() {
       if (placing) { placing.rotation = (placing.rotation + 90) % 360; if (ghost) ghost.rotation = placing.rotation; render(); return; }
       if (selection.elements.length) commit(D.rotateElements(doc, pack, selection.elements), `Rotated ${selection.elements.join(", ")}.`);
@@ -1128,7 +1244,8 @@ export async function mount(root, options = {}) {
         return format === "svg" ? timingTool.exportSvg() : timingTool.exportPng();
       }
       try {
-        const slide = opt.view === "slide", text = slide ? await slideNow() : await svgNow();
+        const includeBackdrop = askBackdrop();
+        const slide = opt.view === "slide", text = slide ? await slideNow({ includeBackdrop }) : await svgNow(false, doc, includeBackdrop);
         const name = `${doc.id}${slide ? "-slide" : ""}.${format}`;
         if (format === "svg") download(text, name, "image/svg+xml");
         else download(await pngOf(text), name, "image/png");
@@ -1138,8 +1255,9 @@ export async function mount(root, options = {}) {
     async projectzip() {
       try {
         if (!timingTool) await mountTiming();
-        const schematicJson = D.serialize(doc, pack);
-        const schematicSvg = await svgNow();
+        const includeBackdrop = askBackdrop();
+        const schematicJson = D.serialize(exportDocument(doc, includeBackdrop), pack);
+        const schematicSvg = await svgNow(false, doc, includeBackdrop);
         const timing = await timingTool.exportAssets();
         const truthTable = truthTableSnapshot();
         const projectJson = `${JSON.stringify({
@@ -1194,7 +1312,7 @@ export async function mount(root, options = {}) {
       commit(recaptureFrame(doc, selectedFrame), `Frame "${framesOf(doc)[selectedFrame].name}" now holds the current levels.`);
     },
     async frametosignal() {
-      if (selectedFrame === 0) { status("Frame 0 has no logic levels to send."); return; }
+      if (selectedFrame === 0) { status("Frame 0 is the initial state, not a timing step."); return; }
       if (!timingTool) await mountTiming();
       let step = selectedFrame > 0 ? selectedFrame - 1 : null;
       if (step === null) {
@@ -1230,6 +1348,7 @@ export async function mount(root, options = {}) {
       if (!frames.length) { status("There are no frames yet.", true); return; }
       const what = framesWhat.value;
       try {
+        const includeBackdrop = what !== "timing" && askBackdrop();
         if (what === "timing" && !timingTool) await mountTiming();
         for (const [i, f] of frames.entries()) {
           const at = applyFrame(doc, f), nn = numbered(i, frames.length), name = `${doc.id}-${nn}`;
@@ -1238,7 +1357,7 @@ export async function mount(root, options = {}) {
           } else {
             const keepSel = selectedFrame; selectedFrame = i;
             let text;
-            try { text = what === "slide" ? await slideNow({ frame: i }) : await svgNow(false, at); }
+            try { text = what === "slide" ? await slideNow({ frame: i, includeBackdrop }) : await svgNow(false, at, includeBackdrop); }
             finally { selectedFrame = keepSel; }
             const content = format === "svg" ? text : await pngOf(text);
             download(content, `${name}.${format}`, format === "svg" ? "image/svg+xml" : "image/png");
@@ -1252,7 +1371,7 @@ export async function mount(root, options = {}) {
       const frames = framesOf(doc);
       if (!frames.length) { status("There are no frames yet: set the levels and press Capture frame."); return; }
       try {
-        const text = await gridNow(frames);
+        const text = await gridNow(frames, askBackdrop());
         download(text, `${doc.id}-all-frames.svg`, "image/svg+xml");
         download(await pngOf(text), `${doc.id}-all-frames.png`, "image/png");
         status(`Exported ${doc.id}-all-frames: ${frames.length} frames on one slide, SVG and PNG.`);
@@ -1313,13 +1432,13 @@ export async function mount(root, options = {}) {
   }
 
   /** The schematic alone as the export options say; labels are typeset first. Throws if one cannot be drawn. */
-  async function svgNow(_unused = false, at = doc) {
+  async function svgNow(_unused = false, at = doc, includeBackdrop = false) {
     await typesetAll(texNeeded(at, pack, { levelTags: opt.levelTags }), typeset);
-    return exportSvg(at, packFor(opt.exportDark), drawOpts());   // light by default; dark only if asked
+    return exportSvg(at, packFor(opt.exportDark), { ...drawOpts(), includeBackdrop });   // light by default; dark only if asked
   }
 
   /** The slide (or one region of it, `only`) as an SVG file, in the export theme. `frame`: draw at that frame's levels, with its step marked. */
-  async function slideNow({ only = null, frame = null } = {}) {
+  async function slideNow({ only = null, frame = null, includeBackdrop = false } = {}) {
     const pk = packFor(opt.exportDark), s = currentSlide();
     const frames = framesOf(doc);
     const docs = [doc, ...frames.map((f) => applyFrame(doc, f))];
@@ -1337,7 +1456,7 @@ export async function mount(root, options = {}) {
       }
     }
     await typesetAll([...new Set([...docs.flatMap((d) => texNeeded(d, pk, { levelTags: opt.levelTags })), ...timingTex])], typeset);
-    return slideSvg(doc, pk, s, { ...drawOpts(), only, frame, timing: timingFor(pk, frame ?? selectedFrame) });
+    return slideSvg(doc, pk, s, { ...drawOpts(), only, frame, includeBackdrop, timing: timingFor(pk, frame ?? selectedFrame) });
   }
 
   const DPI = 300, MAX_PIXELS = 16000;
@@ -1394,7 +1513,7 @@ export async function mount(root, options = {}) {
     selectedFrame = +b.dataset.frame;
     render();
     const f = framesOf(doc)[selectedFrame];
-    const message = selectedFrame === 0 ? "Frame 0 has no logic levels highlighted." : `Showing frame "${f.name}": its levels are on the canvas.`;
+    const message = selectedFrame === 0 ? "Showing Frame 0: set initial levels on the canvas." : `Showing frame "${f.name}": its levels are on the canvas.`;
     commit(applyFrame(doc, f), message, { preserveLevels: true });
     timingTool?.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
     renderFrames();
@@ -1455,10 +1574,10 @@ export async function mount(root, options = {}) {
   });
 
   /** One slide with every frame as a small figure, labelled with its name. */
-  async function gridNow(frames) {
+  async function gridNow(frames, includeBackdrop = false) {
     const pk = packFor(opt.exportDark), size = slideSize(currentSlide().format);
     await typesetAll([...texNeeded(doc, pk, { levelTags: opt.levelTags }), ...frames.map((f) => frameTex(f.name))], typeset);
-    return exportGridSvg(doc, pk, frames.map((f) => ({ name: f.name, doc: applyFrame(doc, f) })), size, drawOpts());
+    return exportGridSvg(doc, pk, frames.map((f) => ({ name: f.name, doc: applyFrame(doc, f) })), size, { ...drawOpts(), includeBackdrop });
   }
 
   function download(content, name, type) {
@@ -1484,6 +1603,7 @@ export async function mount(root, options = {}) {
       ["The file's nets did not match its drawing. Saving writes the nets the drawing makes."];
     if (record) { selectedFrame = 0; commit(next, `Opened ${next.id}.`); }
     else { doc = next; history.clear(); timingTool?.setCircuit(D.serialize(doc, pack)); }
+    applyBackdrop();
     refreshTruthPortList();
     unsaved = false;   // what was just opened matches a file
     selection = none();
@@ -1527,6 +1647,9 @@ export async function mount(root, options = {}) {
         if (opt.slideView) syncSlide();
       },
     });
+    const timingLogicInput = tpBody.querySelector("[data-logic-calculation]");
+    timingLogicInput.checked = logicModeOf(doc) === "calculated";
+    timingLogicInput.addEventListener("change", () => setCalculationMode(timingLogicInput.checked));
     timingTool.setCircuit(D.serialize(doc, pack));
     timingTool.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
     syncTimingSelection();
@@ -1548,6 +1671,8 @@ export async function mount(root, options = {}) {
     const inputNames = pane.querySelector("[data-truth-inputs]");
     const outputNames = pane.querySelector("[data-truth-outputs]");
     const tableInput = pane.querySelector("[data-truth-table]");
+    const tableGrid = pane.querySelector("[data-truth-grid]");
+    const tableMode = pane.querySelector("[data-truth-mode]");
     const latexOutput = pane.querySelector("[data-truth-latex]");
     const latexStatus = pane.querySelector("[data-truth-latex-status]");
     const portList = pane.querySelector("#td-truth-ports");
@@ -1565,6 +1690,7 @@ export async function mount(root, options = {}) {
         const kind = port?.dir === "in" ? "Input" : port?.dir === "out" ? "Output" : "Net";
         return `<option value="${esc(name)}">${kind}</option>`;
       }).join("");
+      if (tableMode.value === "arbitrary") return;
       for (const [field, direction] of [[inputNames, "in"], [outputNames, "out"]]) {
         const available = direction === "in" ? inputs : outputs;
         const previousDefault = direction === "in" ? lastDefaultInputs : lastDefaultOutputs;
@@ -1589,6 +1715,23 @@ export async function mount(root, options = {}) {
       for (const name of names) if (!available.has(name)) throw new Error(`"${name}" is not a named net in this circuit.`);
     };
     const csvCell = (value) => /[",\t\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+    const renderTableGrid = () => {
+      let rows;
+      try { rows = parseTable(tableInput.value); }
+      catch { tableGrid.replaceChildren(); return; }
+      tableGrid.innerHTML = `<table><thead><tr>${rows[0].map((name) => `<th scope="col" data-table-name="${esc(name)}">${esc(name)}</th>`).join("")}</tr></thead><tbody>${rows.slice(1).map((row, i) => `<tr>${row.map((value, j) => `<td><input class="form-control form-control-sm" data-table-row="${i + 1}" data-table-col="${j}" aria-label="Case ${i + 1}, ${esc(rows[0][j])}" value="${esc(value)}"></td>`).join("")}</tr>`).join("")}</tbody></table>`;
+      const headings = [...tableGrid.querySelectorAll("[data-table-name]")];
+      const pairs = headings.map((heading) => {
+        try { return [heading, texOf(heading.dataset.tableName)]; } catch { return [heading, null]; }
+      });
+      typesetAll(pairs.map(([, tex]) => tex).filter(Boolean), typeset).then(() => {
+        for (const [heading, tex] of pairs) {
+          const parsed = tex && typeset.get(tex);
+          if (!heading.isConnected || !parsed?.ok) continue;
+          heading.innerHTML = `<svg role="img" aria-label="${esc(heading.dataset.tableName)}" viewBox="${parsed.left * 1000} ${-parsed.height * 1000} ${parsed.width * 1000} ${(parsed.height + parsed.depth) * 1000}" width="${parsed.width}em" height="${parsed.height + parsed.depth}em"><g color="currentColor">${statusNodesMarkup(parsed.nodes)}</g></svg>`;
+        }
+      }).catch((error) => { latexStatus.textContent = `Could not typeset table names: ${error.message}`; latexStatus.setAttribute("data-error", ""); });
+    };
     const defaultHeader = () => [...new Set([...parseNames(inputNames), ...parseNames(outputNames)])].map(csvCell).join(",");
     const refreshTableHeader = (force = false) => {
       const current = tableInput.value.trim();
@@ -1599,6 +1742,7 @@ export async function mount(root, options = {}) {
       if (replace) {
         tableInput.value = next;
         refreshLatex();
+        renderTableGrid();
       }
     };
     const showResults = (result) => {
@@ -1650,11 +1794,13 @@ export async function mount(root, options = {}) {
         }
         inputNames.value = copy.inputs;
         outputNames.value = copy.outputs;
+        tableMode.value = copy.mode === "arbitrary" ? "arbitrary" : "circuit";
         lastDefaultInputs = inputNames.value.trim();
         lastDefaultOutputs = outputNames.value.trim();
         lastDefaultHeader = defaultHeader();
         tableInput.value = copy.csv;
         refreshLatex();
+        renderTableGrid();
         latexStatus.textContent = "Loaded this project's saved copy.";
       } catch (error) {
         refreshTableHeader(true);
@@ -1668,7 +1814,7 @@ export async function mount(root, options = {}) {
       if (!csv.trim()) return null;
       let latex = null, error = null;
       try { latex = latexTable(csv); } catch (e) { error = e.message; }
-      return { schema: "figure-editor-truth-table/1", inputs: inputNames.value, outputs: outputNames.value, csv, latex, ...(error ? { error } : {}) };
+      return { schema: "figure-editor-truth-table/1", mode: tableMode.value, inputs: inputNames.value, outputs: outputNames.value, csv, latex, ...(error ? { error } : {}) };
     };
     truthTableSnapshot = snapshot;
     refreshTruthPortList = () => { refreshPorts(); refreshTableHeader(); };
@@ -1684,13 +1830,39 @@ export async function mount(root, options = {}) {
     };
     refreshPorts();
     restoreProjectCopy();
+    tableMode.addEventListener("change", () => {
+      if (tableMode.value === "circuit") { lastDefaultInputs = ""; lastDefaultOutputs = ""; inputNames.value = ""; outputNames.value = ""; refreshPorts(); }
+      refreshTableHeader(true);
+      results.replaceChildren();
+    });
     for (const field of [inputNames, outputNames]) field.addEventListener("input", () => refreshTableHeader());
-    tableInput.addEventListener("input", refreshLatex);
+    tableInput.addEventListener("input", () => { refreshLatex(); renderTableGrid(); });
+    tableGrid.addEventListener("input", (event) => {
+      const input = event.target.closest("[data-table-row]");
+      if (!input) return;
+      try {
+        const rows = parseTable(tableInput.value);
+        rows[Number(input.dataset.tableRow)][Number(input.dataset.tableCol)] = input.value;
+        tableInput.value = rows.map((row) => row.map(csvCell).join(",")).join("\n");
+        refreshLatex();
+      } catch (error) { displayError(error); }
+    });
     pane.addEventListener("click", (event) => {
       const action = event.target.closest("[data-truth-action]")?.dataset.truthAction;
       if (!action) return;
       try {
-        if (action === "generate") {
+        if (action === "create" || (action === "generate" && tableMode.value === "arbitrary")) {
+          const inputs = parseNames(inputNames), outputs = parseNames(outputNames);
+          if (!inputs.length || !outputs.length || inputs.length > 6 || inputs.length + outputs.length > 32) throw new Error("Choose 1–6 inputs and at least one output, with at most 32 columns.");
+          if (new Set([...inputs, ...outputs]).size !== inputs.length + outputs.length) throw new Error("Every input and output needs a unique name.");
+          if (tableMode.value === "circuit") { validateInputs(inputs); validateOutputs(outputs); }
+          const columns = [...inputs, ...outputs];
+          tableInput.value = [columns.map(csvCell).join(","), ...Array.from({ length: 2 ** inputs.length }, (_, i) =>
+            columns.map((_, j) => action === "generate" && j < inputs.length ? String((i >> (inputs.length - 1 - j)) & 1) : "").join(","))].join("\n");
+          refreshLatex(); renderTableGrid();
+          results.removeAttribute("data-error");
+          results.textContent = `${2 ** inputs.length} cases ready to edit.`;
+        } else if (action === "generate") {
           const inputs = parseNames(inputNames), outputs = parseNames(outputNames);
           validateInputs(inputs); validateOutputs(outputs);
           const generated = truthTable(doc, pack, inputs, outputs);
@@ -1708,6 +1880,7 @@ export async function mount(root, options = {}) {
             }).map(csvCell).join(",")),
           ].join("\n");
           refreshLatex();
+          renderTableGrid();
           results.removeAttribute("data-error");
           results.innerHTML = `<p>Generated ${generated.frames.length} cases. Edit the table, then check it against the circuit.</p>`;
           applyResult(generated, `Generated ${generated.frames.length} input cases.`, true);
@@ -1720,7 +1893,7 @@ export async function mount(root, options = {}) {
         } else if (action === "save-copy") {
           const latex = refreshLatex();
           if (!latex) throw new Error(latexStatus.textContent || "Enter a valid truth table before saving a copy.");
-          const copy = JSON.stringify({ schema: "figure-editor-truth-table/1", inputs: inputNames.value, outputs: outputNames.value, csv: tableInput.value, latex });
+          const copy = JSON.stringify({ schema: "figure-editor-truth-table/1", mode: tableMode.value, inputs: inputNames.value, outputs: outputNames.value, csv: tableInput.value, latex });
           if (!store.set(storageKey(), copy)) throw new Error("Could not save the truth table copy in this browser (storage may be unavailable or full).");
           latexStatus.textContent = "Saved the table and LaTeX with this project in this browser.";
           status("Saved a truth-table copy with this project.");
@@ -1760,7 +1933,7 @@ export async function mount(root, options = {}) {
     const frames = framesOf(doc);
     if (!frames.length || !Number.isFinite(n)) return;
     selectedFrame = Math.max(0, Math.min(frames.length - 1, Math.round(n)));
-    const message = selectedFrame === 0 ? "Frame 0 has no logic levels highlighted." : `Frame ${selectedFrame} of ${frames.length - 1}: ${frames[selectedFrame].name}`;
+    const message = selectedFrame === 0 ? "Frame 0: initial levels." : `Frame ${selectedFrame} of ${frames.length - 1}: ${frames[selectedFrame].name}`;
     commit(applyFrame(doc, frames[selectedFrame]), message, { preserveLevels: true });
     timingTool?.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
     renderFrames();
@@ -1770,11 +1943,7 @@ export async function mount(root, options = {}) {
   function stepFrame(by) {
     const frames = framesOf(doc);
     if (!frames.length) return;
-    selectedFrame = Math.max(0, Math.min(frames.length - 1, (selectedFrame < 0 ? (by > 0 ? -1 : frames.length) : selectedFrame) + by));
-    const message = selectedFrame === 0 ? "Frame 0 has no logic levels highlighted." : `Frame ${selectedFrame} of ${frames.length - 1}: ${frames[selectedFrame].name}`;
-    commit(applyFrame(doc, frames[selectedFrame]), message);
-    timingTool?.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
-    renderFrames();
+    goToFrame((selectedFrame < 0 ? (by > 0 ? -1 : frames.length) : selectedFrame) + by);
   }
 
   // ---- level colours (F17) ----------------------------------------------------------------------------
@@ -1919,7 +2088,7 @@ export async function mount(root, options = {}) {
     const id = li.dataset.r, s = currentSlide();
     if (b.dataset.part === "del") { setSlide({ ...s, layout: "custom", regions: s.regions.filter((r) => r.id !== id) }, "Region deleted."); return; }
     try {
-      const text = await slideNow({ only: id }), name = `${doc.id}-${id}`;
+      const text = await slideNow({ only: id, includeBackdrop: askBackdrop() }), name = `${doc.id}-${id}`;
       if (b.dataset.part === "svg") download(text, `${name}.svg`, "image/svg+xml"); else download(await pngOf(text), `${name}.png`, "image/png");
       status(`Exported ${name}.${b.dataset.part} at the region's size.`);
     } catch (err) { status(err.message, true); }
@@ -1963,10 +2132,14 @@ export async function mount(root, options = {}) {
   tagsInput.addEventListener("change", () => { opt.levelTags = tagsInput.checked; saveOptions(); render(); queueTypeset(); });
   netNamesInput.checked = opt.netNames;
   netNamesInput.addEventListener("change", () => { opt.netNames = netNamesInput.checked; saveOptions(); render(); });
-  // ---- a backdrop to trace over (F12.2): never part of the figure, never saved or exported ----------------------
-  let backdrop = null;                     // {href, width, height (modules at 100%), cx, cy (modules), scale, opacity}
+  // ---- backdrop to trace over -------------------------------------------------------------
   const bdOpacity = $('[name="fe-bd-opacity"]'), bdScale = $('[name="fe-bd-scale"]'), bdX = $('[name="fe-bd-x"]'), bdY = $('[name="fe-bd-y"]');
+  const backdropInput = $(".fe-backdrop-file");
+  function askBackdrop() {
+    return !!doc.groups?.backdrop && window.confirm("Include the backdrop in this export?");
+  }
   function applyBackdrop() {
+    const backdrop = doc.groups?.backdrop;
     if (!backdrop) { view.setBackdrop(null); $(".fe-backdrop-controls").hidden = true; return; }
     const w = backdrop.width * backdrop.scale, h = backdrop.height * backdrop.scale;
     view.setBackdrop({ href: backdrop.href, x: backdrop.cx - w / 2, y: backdrop.cy - h / 2, width: w, height: h, opacity: backdrop.opacity });
@@ -1976,22 +2149,45 @@ export async function mount(root, options = {}) {
   }
   function importBackdrop(text, name) {
     const r = sanitizeSvg(text);
-    backdrop = { href: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(r.svg)}`, width: r.width, height: r.height, cx: view.cam.cx, cy: view.cam.cy, scale: 1, opacity: 0.5 };
-    applyBackdrop();
+    setBackdrop({ href: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(r.svg)}`, width: r.width, height: r.height, cx: view.cam.cx, cy: view.cam.cy, scale: 1, opacity: 0.5 }, `Loaded ${name} as a backdrop.`);
     $(".fe-backdrop-pane").open = true;
-    status(`${name} is not one of this editor's exports, so it is a locked backdrop to trace over (scripts and external references removed). Opacity, scale and position are in the Backdrop panel; it is never saved or exported.`);
   }
-  commands.backdropremove = () => { backdrop = null; applyBackdrop(); status("Backdrop removed."); };
-  bdOpacity.addEventListener("change", () => { if (backdrop && bdOpacity.value !== "") backdrop.opacity = Math.min(1, Math.max(0, +bdOpacity.value / 100)); applyBackdrop(); });
-  bdScale.addEventListener("change", () => { if (backdrop && +bdScale.value >= 5) backdrop.scale = Math.min(20, +bdScale.value / 100); applyBackdrop(); });
-  for (const input of [bdX, bdY]) input.addEventListener("change", () => { if (backdrop) { backdrop.cx = (+bdX.value || 0) / 2; backdrop.cy = -(+bdY.value || 0) / 2; } applyBackdrop(); });
+  function setBackdrop(value, message) {
+    const groups = { ...(doc.groups ?? {}) };
+    if (value) groups.backdrop = checkedBackdrop(value); else delete groups.backdrop;
+    commit({ ...D.clone(doc), groups }, message, { preserveLevels: true });
+  }
+  commands.backdropopen = () => backdropInput.click();
+  commands.backdropremove = () => setBackdrop(null, "Backdrop removed.");
+  bdOpacity.addEventListener("change", () => { if (doc.groups?.backdrop && bdOpacity.value !== "") setBackdrop({ ...doc.groups.backdrop, opacity: Math.min(1, Math.max(0, +bdOpacity.value / 100)) }, "Backdrop opacity changed."); });
+  bdScale.addEventListener("change", () => { if (doc.groups?.backdrop && +bdScale.value >= 5) setBackdrop({ ...doc.groups.backdrop, scale: Math.min(20, +bdScale.value / 100) }, "Backdrop scale changed."); else applyBackdrop(); });
+  for (const input of [bdX, bdY]) input.addEventListener("change", () => { if (doc.groups?.backdrop) setBackdrop({ ...doc.groups.backdrop, cx: (+bdX.value || 0) / 2, cy: -(+bdY.value || 0) / 2 }, "Backdrop position changed."); });
+  backdropInput.addEventListener("change", async () => {
+    const f = backdropInput.files[0]; backdropInput.value = "";
+    if (!f) return;
+    try {
+      if (f.size > MAX_SVG_BYTES) throw new Error("image exceeds the 5 MB limit");
+      if (/\.svg$/i.test(f.name) || f.type === "image/svg+xml") importBackdrop(await f.text(), f.name);
+      else if (/\.png$/i.test(f.name) || f.type === "image/png") {
+        const href = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error("could not read the PNG"));
+          reader.readAsDataURL(new Blob([f], { type: "image/png" }));
+        });
+        const img = new Image(); img.src = href; await img.decode();
+        if (img.naturalWidth > 16000 || img.naturalHeight > 16000) throw new Error("PNG dimensions exceed 16000 pixels");
+        setBackdrop({ href, width: img.naturalWidth * 2.54 / 96 / 0.5, height: img.naturalHeight * 2.54 / 96 / 0.5, cx: view.cam.cx, cy: view.cam.cy, scale: 1, opacity: 0.5 }, `Loaded ${f.name} as a backdrop.`);
+      } else throw new Error("choose an SVG or PNG image");
+    } catch (error) { status(`Could not load backdrop: ${error.message}`, true); }
+  });
 
   fileInput.addEventListener("change", async () => {
     const f = fileInput.files[0];
     fileInput.value = "";
     if (!f) return;
     const isSvg = /\.svg$/i.test(f.name) || f.type === "image/svg+xml";
-    const limit = isSvg ? MAX_SVG_BYTES : 5e6;
+    const limit = isSvg ? MAX_SVG_BYTES * 6 : MAX_SVG_BYTES * 5;
     if (f.size > limit) { status(`Could not open ${f.name}: it is ${(f.size / 1e6).toFixed(1)} MB, over the ${limit / 1e6} MB limit. The figure on the canvas is unchanged.`, true); return; }
     try {
       const text = await f.text();
@@ -2018,12 +2214,13 @@ export async function mount(root, options = {}) {
     if (titleInput.value) next.title = titleInput.value; else delete next.title;
     commit(next, "Title changed.");
   });
-  logicCalculationInput.addEventListener("change", () => {
-    const mode = logicCalculationInput.checked ? "calculated" : "manual";
+  function setCalculationMode(checked) {
+    const mode = checked ? "calculated" : "manual";
     commit(setLogicMode(doc, pack, mode), mode === "manual"
       ? "Calculated levels cleared. Set logic levels manually."
       : "Calculated logic levels are on.");
-  });
+  }
+  logicCalculationInput.addEventListener("change", () => setCalculationMode(logicCalculationInput.checked));
 
   /** The resize handle of the one selected block under the pointer, if any: {id, el}. */
   function blockHandleAt(p) {
@@ -2036,6 +2233,17 @@ export async function mount(root, options = {}) {
       if (d <= 0.9 && (!best || d < best.d)) best = { id: h.id, el, d };
     }
     return best;
+  }
+
+  function wireHandleAt(p) {
+    if (total(selection) !== 1 || selection.wires.length !== 1) return null;
+    const wire = doc.wires.find((item) => item.id === selection.wires[0]);
+    if (!wire) return null;
+    for (const side of ["from", "to"]) {
+      const end = D.endpoint(doc, pack, wire[side]);
+      if (end && Math.hypot(end.at[0] - p[0], end.at[1] - p[1]) <= 0.9) return { id: wire.id, side };
+    }
+    return null;
   }
 
   const LIST = { element: "elements", wire: "wires", port: "ports", label: "labels" };
@@ -2062,6 +2270,14 @@ export async function mount(root, options = {}) {
     if (tool === "wire") { wireClick(p, e); return; }
     if (tool === "port") { portClick(p); return; }
     if (tool === "label") { labelClick(p); return; }
+    if (tool === "solder") { solderClick(p); return; }
+    const wireHandle = wireHandleAt(p);
+    if (wireHandle) {
+      drag = { kind: "wire-end", ...wireHandle, start: p, base: doc, moved: false };
+      svg.setPointerCapture(e.pointerId);
+      status("Drag the wire end to a pin, port, wire or grid point.");
+      return;
+    }
     const handle = blockHandleAt(p);
     if (handle) {
       drag = { kind: "resize", id: handle.el.id, handle: handle.id, start: p, base: doc, el: handle.el };
@@ -2119,6 +2335,19 @@ export async function mount(root, options = {}) {
     const p = view.toGrid(e);
     pointer = p;
     if (drag?.kind === "pan") { view.panBy(e.clientX - drag.x, e.clientY - drag.y); drag.x = e.clientX; drag.y = e.clientY; return; }
+    if (drag?.kind === "wire-end") {
+      const at = snapStep(p);
+      if (Math.hypot(p[0] - drag.start[0], p[1] - drag.start[1]) < 0.5) return;
+      const hit = hitTest(drag.base, pack, p).find((item) =>
+        ["pin", "junction", "port", "wire"].includes(item.kind) && !item.textOnly &&
+        (item.kind !== "wire" || (item.id !== drag.id && item.tap)));
+      const target = hit ? hit.kind === "pin" ? { kind: "pin", ref: hit.ref, at: hit.at }
+        : { kind: hit.kind, id: hit.id, at: hit.at } : { kind: "point", at };
+      try { doc = D.moveWireEnd(drag.base, pack, drag.id, drag.side, target); drag.moved = true; }
+      catch (err) { doc = drag.base; drag.moved = false; status(err.message, true); }
+      render();
+      return;
+    }
     if (drag?.kind === "segment") {
       const d = Math.round(drag.horizontal ? p[1] - drag.start[1] : p[0] - drag.start[0]);   // whole grid steps (half a module)
       if (d !== drag.d) {
@@ -2176,7 +2405,10 @@ export async function mount(root, options = {}) {
   }
 
   const endDrag = () => {
-    if (drag?.kind === "resize") {
+    if (drag?.kind === "wire-end") {
+      if (drag.moved && JSON.stringify(doc) !== JSON.stringify(drag.base)) { history.record(drag.base); changed("Moved a wire end.", drag.base); }
+      else doc = drag.base;
+    } else if (drag?.kind === "resize") {
       if (doc !== drag.base && JSON.stringify(doc) !== JSON.stringify(drag.base)) { history.record(drag.base); changed("Resized the block.", drag.base); }
       else doc = drag.base;
     } else if (drag?.kind === "segment") {

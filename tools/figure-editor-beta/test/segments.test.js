@@ -1,6 +1,6 @@
 // F6: dragging a wire segment, selecting and deleting a wire.
 
-import { addElement, addWire, deleteSelection, endpoint, moveWireSegment, newDoc, wireCorners } from "../src/doc.js";
+import { addElement, addWire, deleteSelection, endpoint, moveWireEnd, moveWireSegment, newDoc, wireCorners } from "../src/doc.js";
 import { dots } from "../src/junctions.js";
 import { History } from "../src/history.js";
 import { hitTest } from "../src/hit.js";
@@ -19,6 +19,17 @@ function zWire() {
   doc = addElement(doc, pack, "not_gate", [20, 6]).doc;
   return addWire(doc, pack, pin("and1.Y"), pin("not1.A")).doc;
 }
+
+Deno.test("wire ends can detach and reconnect to another wire", () => {
+  let doc = zWire();
+  doc = moveWireEnd(doc, pack, "w1", "to", { kind: "point", at: [18, 8] });
+  assertEquals(doc.wires[0].to, [18, 8]);
+  doc = addWire(doc, pack, { kind: "point", at: [20, 10] }, { kind: "point", at: [30, 10] }).doc;
+  doc = moveWireEnd(doc, pack, "w1", "to", { kind: "wire", id: "w2", at: [24, 10] });
+  assertEquals(doc.wires[0].to, doc.junctions[0].id);
+  assertEquals(doc.junctions[0].on, "w2");
+  assertThrows(() => moveWireEnd(doc, pack, "w1", "to", { kind: "wire", id: "w1", at: [5, 0] }), /itself/);
+});
 
 Deno.test("the middle run slides sideways and its neighbours stretch; the ends stay on their pins", () => {
   const doc = zWire();

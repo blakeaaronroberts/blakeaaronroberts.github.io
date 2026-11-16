@@ -31,7 +31,7 @@ const sameColour = (a, b) => a.toUpperCase() === b.toUpperCase();
  * `pending` those still waiting to be typeset.
  */
 export function drawing(doc, pack, opts = {}) {
-  doc = resolveLogic(doc, pack);
+  if (!opts.preserveLevels) doc = resolveLogic(doc, pack);
   const typeset = opts.typeset ?? new Map();
   const { line, junction, roles, geometry } = pack.theme;
   const ink = roles.ink;
@@ -75,7 +75,7 @@ export function drawing(doc, pack, opts = {}) {
   });
   const ds = dots(doc, pack).map((dot) => ({
     id: dot.id, at: toSvg(dot.at), r: junction.radius_module,
-    colour: wireColour(doc.junctions.find((j) => j.id === dot.id).on),
+    colour: wireColour(dot.on ?? doc.junctions.find((j) => j.id === dot.id)?.on),
   }));
 
   // Labels and level tags: outlined paths from MathJax, placed by the pack's label gap and anchors.
@@ -259,6 +259,13 @@ export function withBodyColour(nodes, ink, colour) {
 
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+export function exportDocument(doc, includeBackdrop) {
+  if (includeBackdrop || !doc.groups?.backdrop) return doc;
+  const groups = { ...doc.groups };
+  delete groups.backdrop;
+  return { ...doc, groups };
+}
+
 /** The exported file's size for a drawing: real size (its box plus a module of margin, 0.5 cm a module) times the scale option. */
 export function exportSize(d, scale = 1, frame = null) {
   const box = frame ?? d.box ?? { min: [0, 0], max: [0, 0] }, m = frame ? 0 : 1;
@@ -270,6 +277,7 @@ export function exportSize(d, scale = 1, frame = null) {
  * (see drawing). Throws ExportError if a label could not be drawn, so a file never silently lacks one.
  */
 export function exportSvg(doc, pack, opts = {}) {
+  doc = exportDocument(doc, opts.includeBackdrop);
   const scale = opts.scale ?? 1;
   if (!(scale > 0 && Number.isFinite(scale))) throw new ExportError("the scale must be a number above 0");
   const { roles, line } = pack.theme;
@@ -278,7 +286,11 @@ export function exportSvg(doc, pack, opts = {}) {
   const ink = roles.ink;
   const framed = opts.frame ?? null;   // a slide frame ({min, max} in modules): exactly that rectangle, no margin, at 1:1
   const m = framed ? 0 : 1;            // otherwise one module of margin
-  const box = framed ?? d.box ?? { min: [0, 0], max: [0, 0] };
+  const backdrop = opts.includeBackdrop ? doc.groups?.backdrop : null;
+  const bw = backdrop && backdrop.width * backdrop.scale, bh = backdrop && backdrop.height * backdrop.scale;
+  const backgroundBox = backdrop && { min: [backdrop.cx - bw / 2, backdrop.cy - bh / 2], max: [backdrop.cx + bw / 2, backdrop.cy + bh / 2] };
+  const contentBox = backgroundBox && d.box ? boxOf([backgroundBox.min, backgroundBox.max, d.box.min, d.box.max]) : backgroundBox ?? d.box;
+  const box = framed ?? contentBox ?? { min: [0, 0], max: [0, 0] };
   const [x0, y0] = [box.min[0] - m, box.min[1] - m];
   const [w, h] = [box.max[0] - box.min[0] + 2 * m, box.max[1] - box.min[1] + 2 * m];
   const out = [
@@ -287,6 +299,7 @@ export function exportSvg(doc, pack, opts = {}) {
     `  <title>${esc(doc.title ?? doc.id)}</title>`,
     metadataOf(serialize(doc, pack)),   // the circuit itself, so Open on this file brings the figure back editable
   ];
+  if (backdrop) out.push(`  <image href="${esc(backdrop.href)}" x="${fmt(backgroundBox.min[0])}" y="${fmt(backgroundBox.min[1])}" width="${fmt(bw)}" height="${fmt(bh)}" opacity="${fmt(backdrop.opacity)}"/>`);
   if (d.wires.length) {
     out.push(`  <g fill="none" stroke="${ink}" stroke-width="${fmt(line.width_module)}" stroke-linecap="${line.cap}" stroke-linejoin="${line.join}">`);
     for (const wire of d.wires) {
@@ -330,6 +343,7 @@ export function exportSvg(doc, pack, opts = {}) {
  * frameTex(name) for every name. Never scaled up: a figure that fits is drawn at its real size.
  */
 export function exportGridSvg(doc, pack, frames, slide, opts = {}) {
+  doc = exportDocument(doc, opts.includeBackdrop);
   const scale = opts.scale ?? 1;
   if (!frames.length) throw new ExportError("There are no frames to put on a slide.");
   const typeset = opts.typeset ?? new Map();

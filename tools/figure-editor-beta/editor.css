@@ -78,6 +78,8 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 .fe-pane .form-label:first-of-type { margin-top: 0; }
 .fe-pane .form-check { margin: .5rem .75rem 0; }
 .fe-pane .form-control, .fe-pane .form-select { margin-top: .15rem; }
+.fe-node-level { display: grid; grid-template-columns: minmax(0, 1fr) 5rem; align-items: center; gap: .5rem; margin-top: .3rem; }
+.fe-node-level span { overflow-wrap: anywhere; }
 .fe-props dl { margin: 0; }
 .fe-props dt { font-weight: 600; margin-top: .35rem; }
 .fe-props dd { margin: 0; }
@@ -164,6 +166,10 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 .fe-slide-regions { list-style: none; margin: .4rem 0; padding: 0; display: grid; gap: .4rem; }
 .fe-region { display: grid; gap: .2rem; padding: .3rem; border: 1px solid var(--role-rule); }
 .fe-slidebar { position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; flex-wrap: nowrap; align-items: stretch; gap: .35rem; padding: .4rem .6rem; overflow-x: auto; background: var(--role-surface); border-bottom: 1px solid var(--role-rule); }
+.fe .fe-slidebar { scrollbar-width: thin; scrollbar-color: var(--role-accent) var(--role-surface); }
+.fe .fe-slidebar::-webkit-scrollbar { display: block; height: .45rem; }
+.fe .fe-slidebar::-webkit-scrollbar-track { background: var(--role-surface); }
+.fe .fe-slidebar::-webkit-scrollbar-thumb { background: var(--role-accent); border-radius: .25rem; }
 .fe-slidebar > .label-mono { align-self: center; margin-right: .2rem; }
 .fe-layout { flex: 0 0 6.6rem; display: grid; justify-items: center; gap: .15rem; width: 6.6rem; padding: .25rem; border: 1px solid var(--role-rule); background: var(--role-background); color: var(--role-ink); font-size: .65rem; line-height: 1.15; cursor: pointer; }
 .fe-layout svg { width: 100%; height: auto; display: block; color: var(--role-muted); }

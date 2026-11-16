@@ -4,13 +4,35 @@ import { drawing, exportGridSvg, exportSvg } from "../src/export.js";
 import { parse, serialize, setLevel } from "../src/doc.js";
 import { REFERENCE_TEX } from "../src/labels.js";
 import {
-  applyFrame, captureFrame, frameTex, framesOf, gridShape, moveFrame, numbered, removeFrame, renameFrame,
+  applyFrame, captureFrame, frameTex, framesFromSignals, framesOf, gridShape, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame,
 } from "../src/levelframes.js";
 import { buildClaChevron } from "../examples/cla-chevron.js";
 import { assert, assertEquals, pack, typeset } from "./helpers.js";
 
 const base = () => buildClaChevron(pack);
 const P = (at) => ({ kind: "point", at });
+
+Deno.test("initial frame levels survive timing refresh and serialization", () => {
+  const initial = setLevel(base(), [base().wires[0].id], "1");
+  const saved = recaptureFrame(initial, 0);
+  const reloaded = parse(serialize(saved, pack)).doc;
+  assertEquals(framesOf(reloaded)[0].levels[initial.wires[0].id], "1");
+  const refreshed = framesFromSignals(reloaded, {}, [{ name: "unmatched", levels: ["0"] }], pack).doc;
+  assertEquals(framesOf(refreshed)[0].levels[initial.wires[0].id], "1");
+  assertEquals(framesOf(removeFrame(refreshed, 0))[0].levels[initial.wires[0].id], "1");
+});
+
+Deno.test("timing refresh preserves initial and unrelated per-frame manual levels", () => {
+  const doc = base();
+  const [a, b] = doc.wires;
+  doc.groups = { ...(doc.groups ?? {}), frames: [
+    { name: "Frame 0", levels: { [a.id]: "1" } },
+    { name: "Step 1", levels: { [b.id]: "0" } },
+    { name: "Step 2", levels: { [b.id]: "1" } },
+  ] };
+  const refreshed = framesFromSignals(doc, {}, [{ name: "unmatched", levels: ["0", "1"] }], pack).doc;
+  assertEquals(framesOf(refreshed).map((frame) => frame.levels), [{ [a.id]: "1" }, { [b.id]: "0" }, { [b.id]: "1" }]);
+});
 
 Deno.test("capture stores the current levels; apply draws them; the figure's own levels are untouched", () => {
   let doc = setLevel(base(), [base().wires[0].id], "1");
