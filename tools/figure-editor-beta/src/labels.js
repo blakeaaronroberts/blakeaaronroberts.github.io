@@ -13,11 +13,19 @@ import { busMark, tagAnchor } from "./marks.js";
 const NET_SIDES = { up: [0, 1], down: [0, -1], left: [-1, 0], right: [1, 0] };   // as SIDES in levelframes.js
 import { attr, parseXml } from "./xml.js";
 
+function horizontalEdgeAnchor(corners, side, middle) {
+  if (side !== "left" && side !== "right") return middle;
+  const x = side === "left" ? Math.min(...corners.map((p) => p[0])) : Math.max(...corners.map((p) => p[0]));
+  const ends = corners.filter((p) => p[0] === x);
+  const nearest = ends.reduce((best, point) => Math.abs(point[1] - middle[1]) < Math.abs(best[1] - middle[1]) ? point : best);
+  return [x, nearest[1]];
+}
+
 /** Typeset once, to measure a capital letter: labels beside a wire are centred on this height, not on their own box. */
 export const REFERENCE_TEX = "X";
 
-/** Label size in TeX points when neither the pack nor the user says. 10 pt is the toolbox's own (LaTeX `standalone` default). */
-export const DEFAULT_LABEL_PT = 10;
+/** Label size in TeX points when neither the pack nor the user says. */
+export const DEFAULT_LABEL_PT = 18;
 
 /** The pack's label size if it carries one (`label.size_pt`), else the default. */
 export const packLabelPt = (pack) => pack.theme.label?.size_pt ?? DEFAULT_LABEL_PT;
@@ -168,7 +176,8 @@ export function labelItems(doc, pack, corners = allCorners(doc, pack)) {
     if (nc) {
       const t = tagAnchor(nc), st = doc.groups?.wire_label_style?.[w.id] ?? {};
       const dir = NET_SIDES[st.side] ?? t.dir, gap = Number.isFinite(+st.gap) ? +st.gap : 0;
-      add({ key: `net:${w.id}`, kind: "net", id: w.id, text: net, at: [t.at[0] + dir[0] * gap, t.at[1] + dir[1] * gap], dir });
+      const anchor = horizontalEdgeAnchor(nc, st.side, t.at);
+      add({ key: `net:${w.id}`, kind: "net", id: w.id, text: net, at: [anchor[0] + dir[0] * gap, anchor[1] + dir[1] * gap], dir });
     }
     if (c) { const m = busMark(c, pack.theme.line.width_module).label; add({ key: `bus:${w.id}`, kind: "bus", id: w.id, text: w.bus, at: m.at, dir: m.dir }); }
   }

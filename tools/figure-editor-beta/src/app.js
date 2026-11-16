@@ -26,7 +26,8 @@ import { FORMATS } from "./frame.js";
 import { contentArea, defaultSlide, KINDS, layoutThumb, LAYOUTS as SLIDE_LAYOUTS, nudgeRegion, slideOf, slideSize, slideSvg, SPLITS, splitsOf, withLayout, withSlide, withSplit } from "./slide.js";
 import { orient } from "./geometry.js";
 import { truthTable } from "./demo.js";
-import { framesFromSignals, levelTagStyleOf, setLevelTagStyle, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame } from "./levelframes.js";
+import { framesFromSignals, levelTagStyleOf, setLevelTagStyle, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, ensureFrameZero, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame, targetsOf } from "./levelframes.js";
+import { resolveLogic } from "./logic.js";
 
 const AUTOSAVE = "figure-editor-beta/autosave";
 const SAVES = "figure-editor-beta/saves";               // the last 20 manual saves
@@ -94,6 +95,9 @@ const ICONS = {
   save: '<path d="M8 2v8M5 7l3 3 3-3M3 13h10"/>',
   export: '<path d="M3 5v8h10V5M8 11V2M5 5l3-3 3 3"/>',
   png: '<rect x="2" y="3" width="12" height="10"/><circle cx="6" cy="7" r="1"/><path d="M2 12l4-3 3 2 2-2 3 3"/>',
+  navframes: '<rect x="2" y="3" width="9" height="10"/><path d="M5 6h3M5 9h3M12 5h2v9H5v-1"/>',
+  help: '<circle cx="8" cy="8" r="6"/><path d="M6.4 6.1a1.7 1.7 0 1 1 2.8 1.3c-.8.6-1.2.9-1.2 1.8M8 11.6v.1"/>',
+  frametosignal: '<path d="M2 8h3l2-4 3 8 2-4h2"/><path d="M8 2v2M8 12v2"/>',
 };
 /** A button for a command: an icon (named for assistive tech and in its tooltip) or, with no icon, its text. */
 const btn = (cmd, label, keys = "", extra = "", title = label) => {
@@ -141,30 +145,15 @@ export async function mount(root, options = {}) {
       <div class="fe-group" role="group" aria-label="File">
         ${btn("new", "New")}${btn("open", "Open…")}${btn("save", "Save", "Control+S")}${btn("export", "Export SVG")}${btn("png", "Copy as PNG")}
       </div>
-      <div class="fe-group fe-group-end" role="navigation" aria-label="Views"><span class="fe-stepper">${btn("frameprev", "◀", "", "", "Previous frame")}<input class="fe-stepinput" type="number" min="1" step="1" aria-label="Go to frame" title="Type a frame number and press Enter"><span class="fe-stepno label-mono"></span>${btn("framenext", "▶", "", "", "Next frame")}${btn("navframes", "Export frames", "", "", "Export every frame: the schematic, the timing diagram or the slide, whichever view you are in")}</span>${btn("help", "?", "?", ' aria-label="Keys"')}</div>
+      <div class="fe-group fe-group-end" role="navigation" aria-label="Views"><span class="fe-stepper">${btn("frameprev", "◀", "", "", "Previous frame")}<input class="fe-stepinput" type="number" min="0" step="1" aria-label="Go to frame" title="Type a frame number and press Enter"><span class="fe-stepno label-mono"></span>${btn("framenext", "▶", "", "", "Next frame")}${btn("frametosignal", "Send current frame to timing", "", "", "Send the current schematic state to a timing step")}${btn("navframes", "Export frames", "", "", "Export every frame: the schematic, the timing diagram or the slide, whichever view you are in")}</span>${btn("help", "Keys", "?")}</div>
       <input type="file" class="fe-file" accept=".json,.svg,application/json,image/svg+xml" hidden>
       <input type="file" class="fe-theme-file" accept=".json,application/json" hidden>
     </div>
-    <details class="fe-palette fe-pane" data-views="figure" open>
-      <summary class="label-mono">Elements</summary>
-      <div class="fe-cats"></div>
-    </details>
-    <div class="fe-resizer" data-resize="left" role="separator" aria-label="Resize elements pane" aria-orientation="vertical" tabindex="0"></div>
-    <div class="fe-stack" role="region" aria-label="Workspace: Figure Editor, Timing Diagram and Slide">
-      <button type="button" class="fe-sec-bar" data-cmd="viewfigure" data-sec-bar="figure" aria-expanded="false"><span class="label-mono">Figure Editor</span><span class="fe-sec-chev" aria-hidden="true"></span></button>
-      <div class="fe-sec" data-sec="figure"><div class="fe-stage">
-        <svg class="fe-canvas" tabindex="0" role="application" aria-label="Figure canvas" xmlns="http://www.w3.org/2000/svg"></svg>
-      </div></div>
-      <button type="button" class="fe-sec-bar" data-cmd="viewtiming" data-sec-bar="timing" aria-expanded="false"><span class="label-mono">Timing Diagram</span><span class="fe-sec-chev" aria-hidden="true"></span></button>
-      <div class="fe-sec" data-sec="timing"><div class="fe-timing-body"></div></div>
-      <button type="button" class="fe-sec-bar" data-cmd="viewslide" data-sec-bar="slide" aria-expanded="false"><span class="label-mono">Slide</span><span class="fe-sec-chev" aria-hidden="true"></span></button>
-      <div class="fe-sec" data-sec="slide">
-        <div class="fe-slidebar" role="toolbar" aria-label="Slide layouts"></div>
-        <svg class="fe-slideview" role="img" aria-label="Slide view: drag a region to move it, drag its corner to resize it" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
-      </div>
-    </div>
-    <div class="fe-resizer" data-resize="right" role="separator" aria-label="Resize properties pane" aria-orientation="vertical" tabindex="0"></div>
-    <div class="fe-side" role="region" aria-label="Figure properties">
+    <div class="fe-left" role="region" aria-label="Editor controls">
+      <details class="fe-palette fe-pane" data-views="figure" open>
+        <summary class="label-mono">Elements</summary>
+        <div class="fe-cats"></div>
+      </details>
       <details data-views="figure" class="fe-pane">
         <summary class="label-mono">Selection</summary>
         <section class="fe-props" aria-label="Selection"></section>
@@ -214,13 +203,13 @@ export async function mount(root, options = {}) {
       </details>
       <details data-views="figure timing slide" class="fe-pane fe-frames-pane" name="fe-doc">
         <summary class="label-mono">Frames</summary>
-        <p class="fe-hint">A frame is a snapshot of the wire and element levels, one per transition. Set the levels, then Capture. Frames are saved in the figure file.</p>
+        <p class="fe-hint">Frame 0 exports every logic node at 0. Later frames store the circuit's levels, one per timing step.</p>
         <div class="fe-theme-buttons" role="group" aria-label="Frames">${btn("framesfromtiming", "Fill from timing diagram")}${btn("framecapture", "Capture frame")}${btn("framerecapture", "Update selected")}</div>
         <ol class="fe-frame-list" aria-label="Frames"></ol>
         <div class="fe-theme-buttons" role="group" aria-label="Edit the selected frame">${btn("framerename", "Rename")}${btn("frameup", "Move up")}${btn("framedown", "Move down")}${btn("framedelete", "Delete")}</div>
         <label class="form-label">Export each frame as <select class="form-select form-select-sm" name="fe-frames-what"><option value="schematic">The schematic alone</option><option value="slide">The slide</option></select></label>
         <div class="fe-theme-buttons" role="group" aria-label="Export frames">${btn("framesexport", "Export frames")}${btn("framesslide", "Export all on one slide")}</div>
-        <p class="fe-hint">Export frames writes one SVG and one PNG per frame, numbered 01, 02, … (your browser may ask to allow several downloads). The one-slide export lays every frame out as a grid of small figures, labelled with their names, at the slide's size.</p>
+        <p class="fe-hint">Export frames writes one SVG and one PNG per frame, numbered from 00 (your browser may ask to allow several downloads). The one-slide export lays every frame out as a grid of small figures, labelled with their names, at the slide's size.</p>
       </details>
       <details data-views="figure" class="fe-pane fe-backdrop-pane" name="fe-doc">
         <summary class="label-mono">Backdrop</summary>
@@ -236,6 +225,22 @@ export async function mount(root, options = {}) {
         <summary class="label-mono">Warnings</summary>
         <ul></ul>
       </details>
+    </div>
+    <div class="fe-resizer" data-resize="left" role="separator" aria-label="Resize controls pane" aria-orientation="vertical" tabindex="0"></div>
+    <div class="fe-stack" role="region" aria-label="Workspace: Figure Editor, Timing Diagram and Slide">
+      <button type="button" class="fe-sec-bar" data-cmd="viewfigure" data-sec-bar="figure" aria-expanded="false"><span class="label-mono">Figure Editor</span><span class="fe-sec-chev" aria-hidden="true"></span></button>
+      <div class="fe-sec" data-sec="figure"><div class="fe-stage">
+        <svg class="fe-canvas" tabindex="0" role="application" aria-label="Figure canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div></div>
+      <div class="fe-stack-resizer" data-stack-resize="figure-timing" role="separator" aria-label="Resize Figure Editor and Timing Diagram panes" aria-orientation="horizontal" tabindex="0"></div>
+      <button type="button" class="fe-sec-bar" data-cmd="viewtiming" data-sec-bar="timing" aria-expanded="false"><span class="label-mono">Timing Diagram</span><span class="fe-sec-chev" aria-hidden="true"></span></button>
+      <div class="fe-sec" data-sec="timing"><div class="fe-timing-body"></div></div>
+      <div class="fe-stack-resizer" data-stack-resize="timing-slide" role="separator" aria-label="Resize Timing Diagram and Slide panes" aria-orientation="horizontal" tabindex="0"></div>
+      <button type="button" class="fe-sec-bar" data-cmd="viewslide" data-sec-bar="slide" aria-expanded="false"><span class="label-mono">Slide</span><span class="fe-sec-chev" aria-hidden="true"></span></button>
+      <div class="fe-sec" data-sec="slide">
+        <div class="fe-slidebar" role="toolbar" aria-label="Slide layouts"></div>
+        <svg class="fe-slideview" role="img" aria-label="Slide view: drag a region to move it, drag its corner to resize it" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
     </div>
     <p class="fe-status" role="status" aria-live="polite"></p>
     <dialog class="fe-help" aria-labelledby="fe-help-title">
@@ -256,7 +261,7 @@ export async function mount(root, options = {}) {
   fit(); window.addEventListener("resize", fit);
 
   // ---- state ---------------------------------------------------------------------------
-  let doc = D.newDoc();
+  let doc = ensureFrameZero(D.newDoc());
   const history = new History();
   let selection = none();
   let selectedJunction = null;
@@ -273,7 +278,8 @@ export async function mount(root, options = {}) {
   let spaceHeld = false;
   let lastDrawing = null;
   let selectedFrame = -1;            // the frame chosen in the Frames list (level frames, F11.2)
-  let timingTool = null, timingTimer = 0, fitTimingWhenReady = false;   // the docked Timing Diagram pane, mounted on first open (F18)
+  let timingTool = null, timingTimer = 0, fitTimingWhenReady = false, refreshFramesWhenTimingReady = false;
+  const pendingTimingSteps = new Set();
   const framesWhat = $('[name="fe-frames-what"]');
   let autosaveTimer = null;
   const typeset = new Map();         // TeX to parseTypeset's result (every label drawn is typeset once)
@@ -293,33 +299,27 @@ export async function mount(root, options = {}) {
   const editor = $(".fe");
   const paneWidth = (n, fallback) => Number.isFinite(Number(n)) ? Math.max(160, Math.min(480, Math.round(Number(n)))) : fallback;
   opt.leftPaneWidth = paneWidth(opt.leftPaneWidth, 240);
-  opt.rightPaneWidth = paneWidth(opt.rightPaneWidth, 272);
   function applyPaneWidths() {
     editor.style.setProperty("--fe-left-width", `${opt.leftPaneWidth}px`);
-    editor.style.setProperty("--fe-right-width", `${opt.rightPaneWidth}px`);
     for (const handle of root.querySelectorAll(".fe-resizer")) {
-      const side = handle.dataset.resize;
-      const width = side === "left" ? opt.leftPaneWidth : opt.rightPaneWidth;
       handle.setAttribute("aria-valuemin", "160");
       handle.setAttribute("aria-valuemax", "480");
-      handle.setAttribute("aria-valuenow", String(width));
+      handle.setAttribute("aria-valuenow", String(opt.leftPaneWidth));
     }
   }
-  function resizePane(side, width) {
-    const key = side === "left" ? "leftPaneWidth" : "rightPaneWidth";
-    opt[key] = paneWidth(width, opt[key]);
+  function resizePane(width) {
+    opt.leftPaneWidth = paneWidth(width, opt.leftPaneWidth);
     applyPaneWidths();
   }
   applyPaneWidths();
   for (const handle of root.querySelectorAll(".fe-resizer")) {
-    const side = handle.dataset.resize;
     handle.addEventListener("pointerdown", (e) => {
       if (e.button !== 0) return;
       e.preventDefault();
       handle.setPointerCapture(e.pointerId);
       const move = (event) => {
         const bounds = editor.getBoundingClientRect();
-        resizePane(side, side === "left" ? event.clientX - bounds.left : bounds.right - event.clientX);
+        resizePane(event.clientX - bounds.left);
       };
       const done = () => {
         handle.removeEventListener("pointermove", move);
@@ -332,15 +332,71 @@ export async function mount(root, options = {}) {
       handle.addEventListener("pointercancel", done, { once: true });
     });
     handle.addEventListener("keydown", (e) => {
-      const delta = e.key === "ArrowRight" ? (side === "left" ? 16 : -16)
-        : e.key === "ArrowLeft" ? (side === "left" ? -16 : 16) : 0;
+      const delta = e.key === "ArrowRight" ? 16 : e.key === "ArrowLeft" ? -16 : 0;
       if (delta) {
         e.preventDefault();
-        resizePane(side, (side === "left" ? opt.leftPaneWidth : opt.rightPaneWidth) + delta);
+        resizePane(opt.leftPaneWidth + delta);
         saveOptions();
       } else if (e.key === "Home" || e.key === "End") {
         e.preventDefault();
-        resizePane(side, e.key === "Home" ? 160 : 480);
+        resizePane(e.key === "Home" ? 160 : 480);
+        saveOptions();
+      }
+    });
+  }
+  const workspaceViews = ["figure", "timing", "slide"];
+  const savedPanes = opt.workspacePanes && typeof opt.workspacePanes === "object" ? opt.workspacePanes : {};
+  function setWorkspacePanes(panes) {
+    let values = workspaceViews.map((key) => Math.max(0, Number(panes[key]) || 0));
+    if (!values.some(Boolean)) values = [100, 0, 0];
+    const sum = values.reduce((total, value) => total + value, 0);
+    opt.workspacePanes = Object.fromEntries(workspaceViews.map((key, i) => [key, values[i] * 100 / sum]));
+    for (const key of workspaceViews) editor.style.setProperty(`--fe-${key}-pane`, `${opt.workspacePanes[key]}fr`);
+  }
+  setWorkspacePanes(savedPanes);
+  for (const handle of root.querySelectorAll(".fe-stack-resizer")) {
+    const [before, after] = handle.dataset.stackResize.split("-");
+    handle.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      const a = root.querySelector(`[data-sec="${before}"]`), b = root.querySelector(`[data-sec="${after}"]`);
+      const aHeight = a.getBoundingClientRect().height, bHeight = b.getBoundingClientRect().height, pairHeight = aHeight + bHeight;
+      const pairWeight = opt.workspacePanes[before] + opt.workspacePanes[after];
+      if (!pairHeight || !pairWeight) return;
+      e.preventDefault();
+      handle.setPointerCapture(e.pointerId);
+      const startY = e.clientY;
+      const move = (event) => {
+        const height = Math.max(0, Math.min(pairHeight, aHeight + event.clientY - startY));
+        setWorkspacePanes({ ...opt.workspacePanes, [before]: pairWeight * height / pairHeight, [after]: pairWeight * (1 - height / pairHeight) });
+        window.dispatchEvent(new Event("resize"));
+        timingTool?.render();
+        syncSlide();
+      };
+      const done = () => {
+        handle.removeEventListener("pointermove", move);
+        handle.removeEventListener("pointerup", done);
+        handle.removeEventListener("pointercancel", done);
+        saveOptions();
+      };
+      handle.addEventListener("pointermove", move);
+      handle.addEventListener("pointerup", done, { once: true });
+      handle.addEventListener("pointercancel", done, { once: true });
+    });
+    handle.addEventListener("keydown", (e) => {
+      const delta = e.key === "ArrowDown" ? 5 : e.key === "ArrowUp" ? -5 : 0;
+      if (delta) {
+        e.preventDefault();
+        const total = opt.workspacePanes[before] + opt.workspacePanes[after];
+        if (!total) return;
+        const next = Math.max(0, Math.min(total, opt.workspacePanes[before] + delta));
+        setWorkspacePanes({ ...opt.workspacePanes, [before]: next, [after]: total - next });
+        saveOptions();
+      } else if (e.key === "Home" || e.key === "End") {
+        e.preventDefault();
+        const total = opt.workspacePanes[before] + opt.workspacePanes[after];
+        if (!total) return;
+        const first = e.key === "Home" ? 0 : total;
+        setWorkspacePanes({ ...opt.workspacePanes, [before]: first, [after]: total - first });
         saveOptions();
       }
     });
@@ -600,6 +656,9 @@ export async function mount(root, options = {}) {
       const one = levels.size === 1 ? [...levels][0] : null;
       const what = els.length && wires.length ? "wires and elements" : els.length ? "elements" : "wires";
       html += `<p class="fe-level" data-text="levelText"></p>${choice(`Level (colours the body of an element, the line of a wire)`, "level", levelOpts())}`;
+      if (wires.some((wire) => doc.groups?.logic_generated_levels?.[wire.id] === wire.level)) {
+        html += `<p class="fe-hint">This gate-driven net is calculated from its inputs; set levels on input nets.</p>`;
+      }
       key += "|level";
       const tagStyles = [...wires, ...els].map((item) => levelTagStyleOf(doc, item.id));
       const tagSides = new Set(tagStyles.map((style) => style.side ?? ""));
@@ -732,6 +791,7 @@ export async function mount(root, options = {}) {
   }
 
   function changed(msg) {
+    doc = ensureFrameZero(resolveLogic(doc, pack));
     followTiming();
     unsaved = true;
     render();
@@ -753,6 +813,7 @@ export async function mount(root, options = {}) {
 
   /** Make `next` the document, recorded as one undo step. */
   function commit(next, msg) {
+    next = ensureFrameZero(resolveLogic(next, pack));
     if (JSON.stringify(next) === JSON.stringify(doc)) return false;
     history.record(doc);
     doc = next;
@@ -777,7 +838,10 @@ export async function mount(root, options = {}) {
     const wires = D.levelWireIds(doc, selection.wires, pack);
     const n = wires.length + selection.elements.length;
     const noun = selection.elements.length ? "item" : "wire";
-    commit(D.setLevel(doc, selection.wires, level, selection.elements, pack), level ? `Level ${level} (${name}) set on ${count(n, noun)}.` : "Level cleared.");
+    let next = resolveLogic(D.setLevel(doc, selection.wires, level, selection.elements, pack), pack);
+    if (selectedFrame > 0) next = recaptureFrame(next, selectedFrame);
+    const changed = commit(next, level ? `Level ${level} (${name}) set on ${count(n, noun)}.` : "Level cleared.");
+    if (changed && selectedFrame > 0) syncCircuitLevelsToTiming(selectedFrame - 1);
   }
 
   function setGrid(g) {
@@ -991,22 +1055,41 @@ export async function mount(root, options = {}) {
       commit(captureFrame(doc), null);
       const frames = framesOf(doc);
       selectedFrame = frames.length - 1;
-      status(`Captured "${frames[selectedFrame].name}" (frame ${selectedFrame + 1}) from the current levels.`);
+      status(`Captured "${frames[selectedFrame].name}" (frame ${selectedFrame}) from the current levels.`);
       renderFrames();
     },
     framerecapture() {
-      if (!frameSelected()) return;
+      if (!frameSelected() || selectedFrame === 0) return;
       commit(recaptureFrame(doc, selectedFrame), `Frame "${framesOf(doc)[selectedFrame].name}" now holds the current levels.`);
     },
+    async frametosignal() {
+      if (!timingTool) await mountTiming();
+      let step = selectedFrame > 0 ? selectedFrame - 1 : null;
+      if (step === null) {
+        const answer = window.prompt("Timing step to receive the current schematic levels (1–64):", "1");
+        if (answer === null) return;
+        const destination = Number(answer);
+        if (!Number.isInteger(destination) || destination < 1 || destination > 64) { status("Enter a timing step from 1 to 64.", true); return; }
+        step = destination - 1;
+      }
+      const result = timingTool.setSignalLevels(step, circuitLevelsForTiming());
+      if (!result.updated) { status(result.error ?? "No matching timing signals to update.", true); return; }
+      const keepFrame = selectedFrame;
+      populateFromTiming(true);
+      selectedFrame = keepFrame < 0 ? -1 : Math.min(keepFrame, framesOf(doc).length - 1);
+      renderFrames();
+      timingTool.setFrame(step);
+      status(`Sent the current schematic levels to timing step ${step + 1}.`);
+    },
     framerename() {
-      if (!frameSelected()) return;
+      if (!frameSelected() || selectedFrame === 0) return;
       const name = window.prompt("Name of this frame", framesOf(doc)[selectedFrame].name);
       if (name && name.trim()) commit(renameFrame(doc, selectedFrame, name), `Renamed to "${name.trim()}".`);
     },
-    frameup() { moveSelected(-1); },
-    framedown() { moveSelected(1); },
+    frameup() { if (selectedFrame > 1) moveSelected(-1); },
+    framedown() { if (selectedFrame > 0) moveSelected(1); },
     framedelete() {
-      if (!frameSelected()) return;
+      if (!frameSelected() || selectedFrame === 0) return;
       commit(removeFrame(doc, selectedFrame), "Frame deleted.");
       selectedFrame = Math.min(selectedFrame, framesOf(doc).length - 1);
       renderFrames();
@@ -1085,7 +1168,7 @@ export async function mount(root, options = {}) {
         dataFills: [lc("1"), lc("0"), r.accent, lc("X"), lc("Z"), r.muted ?? r.ink, r.ink],
         levelFills: { unknown: r.unknown, floating: r.floating },
         signalLineColour: sent.source.config?.signalLineColour ?? r.ink,
-        marker: opt.timingMarker && step >= 0 ? step : null,
+        marker: opt.timingMarker && step > 0 ? step - 1 : null,
         levelColour: opt.timingColour ? (l) => pk.levelColour(l) ?? null : null,
         fontSize: Math.min(24, Math.max(8, Number(sent.source.config?.fontSize) || 12)),
         lineWidth: Math.min(4, Math.max(0.5, Number(sent.source.config?.lineWidth) || 1.6)),
@@ -1147,7 +1230,7 @@ export async function mount(root, options = {}) {
   // ---- level frames (F11.2) ---------------------------------------------------------------------------
   const frameSelected = () => { if (framesOf(doc)[selectedFrame]) return true; status("Select a frame in the list first."); return false; };
   function moveSelected(by) {
-    if (!frameSelected()) return;
+    if (!frameSelected() || selectedFrame === 0) return;
     const n = framesOf(doc).length, j = selectedFrame + by;
     if (j < 0 || j >= n) return;
     commit(moveFrame(doc, selectedFrame, by), null);
@@ -1156,12 +1239,18 @@ export async function mount(root, options = {}) {
   }
   function renderFrames() {
     const frames = framesOf(doc);
-    $(".fe-stepno").textContent = frames.length ? `/ ${frames.length}` : "no frames";
-    const stepIn = $(".fe-stepinput");
-    stepIn.max = String(frames.length); stepIn.disabled = !frames.length;
-    if (document.activeElement !== stepIn) stepIn.value = selectedFrame >= 0 ? String(selectedFrame + 1) : "";
-    for (const c of ["frameprev", "framenext", "navframes"]) $(`[data-cmd="${c}"]`).disabled = !frames.length;
     if (selectedFrame >= frames.length) selectedFrame = frames.length - 1;
+    $(".fe-stepno").textContent = frames.length ? `/ ${frames.length - 1}` : "no frames";
+    const stepIn = $(".fe-stepinput");
+    stepIn.min = "0"; stepIn.max = String(Math.max(0, frames.length - 1)); stepIn.disabled = !frames.length;
+    if (document.activeElement !== stepIn) stepIn.value = selectedFrame >= 0 ? String(selectedFrame) : "";
+    $(`[data-cmd="frameprev"]`).disabled = selectedFrame <= 0;
+    $(`[data-cmd="framenext"]`).disabled = !frames.length || selectedFrame >= frames.length - 1;
+    $(`[data-cmd="navframes"]`).disabled = !frames.length;
+    $(`[data-cmd="framerecapture"]`).disabled = selectedFrame <= 0;
+    for (const c of ["framerename", "framedelete"]) $(`[data-cmd="${c}"]`).disabled = selectedFrame <= 0;
+    $(`[data-cmd="frameup"]`).disabled = selectedFrame <= 1;
+    $(`[data-cmd="framedown"]`).disabled = selectedFrame <= 0 || selectedFrame >= frames.length - 1;
     const ol = $(".fe-frame-list");
     ol.innerHTML = frames.length ? frames.map((f, i) => `<li><button type="button" class="fe-frame-item${i === selectedFrame ? " is-selected" : ""}" data-frame="${i}" aria-pressed="${i === selectedFrame}">${numbered(i, frames.length)} ${esc(f.name)}</button></li>`).join("") : `<li class="fe-hint">No frames yet.</li>`;
   }
@@ -1172,19 +1261,43 @@ export async function mount(root, options = {}) {
     render();
     const f = framesOf(doc)[selectedFrame];
     commit(applyFrame(doc, f), `Showing frame "${f.name}": its levels are on the canvas.`);
+    timingTool?.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
     renderFrames();
   });
 
   // ---- frames from the timing diagram: one frame per step, levels from the signals that match wires, ports or elements ----
+  function circuitLevelsForTiming() {
+    let sent = null;
+    try { sent = JSON.parse(store.get(TIMING_SEND) ?? "null"); } catch { sent = null; }
+    if (!Array.isArray(sent?.signals)) return {};
+    const nets = D.deriveNets(doc, pack), updates = {};
+    for (const signal of sent.signals) {
+      if (typeof signal?.name !== "string") continue;
+      const targets = targetsOf(doc, nets, signal.name, pack);
+      const levels = new Set([
+        ...targets.wires.map((id) => doc.wires.find((wire) => wire.id === id)?.level),
+        ...targets.elements.map((id) => doc.elements.find((element) => element.id === id)?.level),
+      ].filter((level) => ["0", "1", "X", "Z"].includes(level)));
+      if (levels.size) updates[signal.name] = levels.size === 1 ? [...levels][0] : "X";
+    }
+    return updates;
+  }
+  function syncCircuitLevelsToTiming(step) {
+    if (!Number.isInteger(step) || step < 0) return;
+    if (!timingTool) { pendingTimingSteps.add(step); return; }
+    const result = timingTool.setSignalLevels(step, circuitLevelsForTiming());
+    if (result.updated) status(`Updated timing step ${step + 1} from the schematic logic levels.`);
+    else status(result.error ?? "No matching timing signals to update.", true);
+  }
   function populateFromTiming(auto = false) {
     let sent = null;
     try { sent = JSON.parse(store.get(TIMING_SEND) ?? "null"); } catch { sent = null; }
-    if (!sent?.signals?.length) { if (!auto) status("Nothing sent yet: in the timing tool, press Send to schematic."); return; }
-    const r = framesFromSignals(doc, D.deriveNets(doc, pack), sent.signals, pack);
+    if (!sent?.signals?.length && !auto) { status("Nothing sent yet: in the timing tool, press Send to schematic."); return; }
+    const r = framesFromSignals(doc, D.deriveNets(doc, pack), sent?.signals ?? [], pack);
     commit(r.doc, null);
     selectedFrame = -1;
     renderFrames();
-    status(`${r.steps} frames filled from the timing diagram. Drives: ${r.matched.join(", ") || "nothing"}.${r.unmatched.length ? ` No wire, port or element named: ${r.unmatched.join(", ")} (name a wire with its Net label).` : ""}`, !r.matched.length);
+    status(`Frame 0 and ${r.steps} timing steps are now synced. Drives: ${r.matched.join(", ") || "nothing"}.${r.unmatched.length ? ` No wire, port or element named: ${r.unmatched.join(", ")} (name a wire with its Net label).` : ""}`, !!r.steps && !r.matched.length);
   }
   window.addEventListener("storage", (e) => { if (e.key === TIMING_SEND) populateFromTiming(true); });
 
@@ -1205,12 +1318,13 @@ export async function mount(root, options = {}) {
 
   /** Open a saved file. With `record`, it is an undo step; on start-up it is not. */
   function load(text, record = true) {
-    const { doc: next, nets } = D.parse(text);
+    const { doc: parsed, nets } = D.parse(text);
+    const next = ensureFrameZero(resolveLogic(parsed, pack));
     try { drawing(next, pack, { typeset }); D.lint(next, pack); } catch (e) { throw new Error(`the figure could not be drawn (${e.message})`); }   // a dry run: nothing changes if it fails
     loadWarnings = D.netsMatch(nets, D.deriveNets(next, pack)) ? [] :
       ["The file's nets did not match its drawing. Saving writes the nets the drawing makes."];
     if (record) commit(next, `Opened ${next.id}.`);
-    else { doc = next; history.clear(); }
+    else { doc = next; history.clear(); timingTool?.setCircuit(D.serialize(doc, pack)); }
     unsaved = false;   // what was just opened matches a file
     selection = none();
     selectedJunction = null;
@@ -1244,11 +1358,17 @@ export async function mount(root, options = {}) {
         await typesetAll([...new Set(texByName.values())], typeset);
         return new Map([...texByName].map(([name, tex]) => [name, typeset.get(tex)]));
       },
+      texSignalName: (name) => texOf(name),
       onStatus: (m, err) => { if (opt.view === "timing") status(m, err); },
-      onChange: () => { if (!framesOf(doc).length) populateFromTiming(true); if (opt.slideView) syncSlide(); },
+      onChange: () => { if (opt.slideView) syncSlide(); },
     });
     timingTool.setCircuit(D.serialize(doc, pack));
-    if (!framesOf(doc).length) populateFromTiming(true);
+    if (refreshFramesWhenTimingReady) {
+      refreshFramesWhenTimingReady = false;
+      populateFromTiming(true);
+    }
+    for (const step of pendingTimingSteps) syncCircuitLevelsToTiming(step);
+    pendingTimingSteps.clear();
     if (fitTimingWhenReady) { fitTimingWhenReady = false; timingTool.fit(); }
   }
   /**
@@ -1260,15 +1380,21 @@ export async function mount(root, options = {}) {
     root.dataset.workspace = v;
     for (const b of root.querySelectorAll("[data-sec-bar]")) b.setAttribute("aria-expanded", String(b.dataset.secBar === v));
     for (const p of root.querySelectorAll("[data-views]")) p.hidden = !p.dataset.views.split(" ").includes(v);
-    saveOptions(); mountTiming(); syncSlide();
+    setWorkspacePanes({ figure: v === "figure" ? 100 : 0, timing: v === "timing" ? 100 : 0, slide: v === "slide" ? 100 : 0 });
+    saveOptions();
+    if (v === "figure" || v === "slide") {
+      if (timingTool) populateFromTiming(true);
+      else refreshFramesWhenTimingReady = true;
+    }
+    mountTiming(); syncSlide();
   }
   /** Step through the frames from the toolbar: the canvas shows that frame's levels, the timing diagram marks its step. */
   function goToFrame(n) {
     const frames = framesOf(doc);
     if (!frames.length || !Number.isFinite(n)) return;
-    selectedFrame = Math.max(0, Math.min(frames.length - 1, Math.round(n) - 1));
-    commit(applyFrame(doc, frames[selectedFrame]), `Frame ${selectedFrame + 1} of ${frames.length}: ${frames[selectedFrame].name}`);
-    timingTool?.setFrame(selectedFrame);
+    selectedFrame = Math.max(0, Math.min(frames.length - 1, Math.round(n)));
+    commit(applyFrame(doc, frames[selectedFrame]), `Frame ${selectedFrame} of ${frames.length - 1}: ${frames[selectedFrame].name}`);
+    timingTool?.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
     renderFrames();
   }
   $(".fe-stepinput").addEventListener("change", (e) => goToFrame(Number(e.target.value)));
@@ -1277,8 +1403,8 @@ export async function mount(root, options = {}) {
     const frames = framesOf(doc);
     if (!frames.length) return;
     selectedFrame = Math.max(0, Math.min(frames.length - 1, (selectedFrame < 0 ? (by > 0 ? -1 : frames.length) : selectedFrame) + by));
-    commit(applyFrame(doc, frames[selectedFrame]), `Frame ${selectedFrame + 1} of ${frames.length}: ${frames[selectedFrame].name}`);
-    timingTool?.setFrame(selectedFrame);
+    commit(applyFrame(doc, frames[selectedFrame]), `Frame ${selectedFrame} of ${frames.length - 1}: ${frames[selectedFrame].name}`);
+    timingTool?.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
     renderFrames();
   }
 
@@ -1575,7 +1701,7 @@ export async function mount(root, options = {}) {
       selectedJunction = junction.id;
       hoverWire = null;
       drag = null;
-      const pane = root.querySelector('.fe-side details[data-views="figure"]');
+      const pane = root.querySelector('.fe-left details[data-views="figure"]');
       if (pane) pane.open = true;
       render();
       return;
@@ -1781,7 +1907,7 @@ export async function mount(root, options = {}) {
     try {
       load(await (await fetch(new URL("examples/full-adder.json", document.baseURI))).text(), false);
       const tt = truthTable(doc, pack, ["A", "B", "Cin"], ["S", "Cout"]);
-      doc = { ...doc, groups: { ...(doc.groups ?? {}), frames: tt.frames } };
+      doc = ensureFrameZero({ ...doc, groups: { ...(doc.groups ?? {}), frames: tt.frames } });
       if (!store.get(TIMING_SOURCE)) store.set(TIMING_SOURCE, JSON.stringify(tt.timing));
       timingTool?.source !== undefined && (timingTool.source = JSON.stringify(tt.timing));
       render(); renderFrames();

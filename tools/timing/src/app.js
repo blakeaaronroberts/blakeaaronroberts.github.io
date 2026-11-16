@@ -19,7 +19,7 @@ const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 
 export function mount(root, {
   docked = false, onSend = null, onStatus = null, onChange = null, betaFeatures = false,
-  storageKey = KEY, sendKey = SEND_KEY, editorKey = EDITOR_KEY, mergeConnectedNodes = false, allowTexSignalNames = false, typesetSignalNames = null,
+  storageKey = KEY, sendKey = SEND_KEY, editorKey = EDITOR_KEY, mergeConnectedNodes = false, allowTexSignalNames = false, typesetSignalNames = null, texSignalName = null,
 } = {}) {
   root.classList.add(docked ? "td-dock" : "fe");   // standalone: the Figure Editor's shell (editor.css); docked: a pane inside the editor
   if (betaFeatures) root.classList.add("td-beta");
@@ -118,7 +118,6 @@ export function mount(root, {
       width: Number(wIn.value) || natural.w, height: Number(hIn.value) || natural.h,
       ink, accent: role(dark ? "--fig-dark-accent" : "--fig-accent"),
       dataFills: dataColoursOf(value, dataDefaults(dark)), paper: role(dark ? "--fig-dark-background" : "--fig-background"), marker: frame >= 0 && frame < frameNames.length ? frame : null,
-      centerTransitions: betaFeatures,
       ...(betaFeatures ? {
         fontSize: textSizeOf(value), lineWidth: lineWidthOf(value), signalLineColour: signalLineColourOf(value, ink),
         levelFills: { unknown: role(dark ? "--fig-dark-unknown" : "--fig-unknown"), floating: role(dark ? "--fig-dark-floating" : "--fig-floating") },
@@ -132,6 +131,7 @@ export function mount(root, {
   // ---- the three views: Edit, Diagram, WaveDrom source ----
   const srcText = $(".td-srctext");
   const srcLineNumbers = $(".td-line-numbers");
+  const srcFile = $(".td-source-file");
   function syncSourceLines() {
     if (!srcLineNumbers) return;
     const lines = srcText.value.split("\n").length;
@@ -222,6 +222,7 @@ export function mount(root, {
   }
   if (!docked) new MutationObserver(() => render()).observe(document.body, { attributes: true, attributeFilter: ["class"] });
   window.addEventListener("resize", () => { if (!custom) render(); });
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => { if (!custom) render(); }).observe(root);
 
   // ---- Edit: the brushes (what a click sets) ----
   const brushes = $(".td-brushes");
@@ -392,8 +393,22 @@ export function mount(root, {
     if (act === "add-spacer") commit(addSpacer(value), "Added a spacer.");
     if (act === "src-apply") { const r = parseSource(srcText.value); if (!r.ok) return say(r.error, true); commit(fromWaveDrom(r.value), "Using the pasted source."); showView("edit"); }
     if (act === "src-clear" && betaFeatures) { srcText.value = ""; syncSourceLines(); srcText.focus(); say("Source editor cleared; the diagram is unchanged until you use this source."); }
+    if (act === "src-upload" && betaFeatures) srcFile.click();
     if (act === "src-save") { save(new Blob([srcText.value], { type: "application/json" }), "timing-diagram.json"); say("Saved WaveDrom source as timing-diagram.json."); }
     if (act === "src-copy") { navigator.clipboard?.writeText(srcText.value).then(() => say("Copied the WaveDrom source."), () => say("The browser would not copy; select the text and copy it.", true)); }
+  });
+  srcFile?.addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 5e6) return say("That source file is too large (maximum 5 MB).", true);
+    try {
+      const text = await file.text();
+      srcText.value = text;
+      syncSourceLines();
+      const parsed = parseSource(text);
+      say(parsed.ok ? `Loaded ${file.name}. Review it, then choose Use this source.` : `Loaded ${file.name}, but it needs correction: ${parsed.error}`, !parsed.ok);
+    } catch (error) { say(`Could not read ${file.name}: ${error.message}`, true); }
   });
   for (const [i, other] of [[wIn, hIn], [hIn, wIn]]) i.addEventListener("input", () => {
     custom = true;
@@ -406,9 +421,36 @@ export function mount(root, {
 
   // ---- the circuit's nodes: one button each, live from the Figure Editor ----
   const chips = $(".td-chips"), flag = $(".td-flag");
+  let chipNames = null, chipTypesetRun = 0;
   function renderChips() {
     const have = new Set(value.signal.map((s) => s.name));
-    chips.innerHTML = nodes.length ? nodes.map((nd) => `<button type="button" class="td-chip" data-node="${esc(nd.name)}"${have.has(nd.name) ? ' aria-pressed="true" disabled' : ""}>${esc(nd.name)}</button>`).join("") : `<span class="fe-hint">No circuit yet: draw one in the Figure Editor, or open a circuit file.</span>`;
+    const key = nodes.map((nd) => nd.name).join("\u0001");
+    if (key !== chipNames) {
+      if (chipNames && window.MathJax?.typesetClear) window.MathJax.typesetClear([chips]);
+      chipNames = key;
+      chips.innerHTML = nodes.length ? nodes.map((nd) => {
+        const label = betaFeatures && texSignalName ? `\\(${esc(texSignalName(nd.name))}\\)` : esc(nd.name);
+        return `<button type="button" class="td-chip" data-node="${esc(nd.name)}">${label}</button>`;
+      }).join("") : `<span class="fe-hint">No circuit yet: draw one in the Figure Editor, or open a circuit file.</span>`;
+      if (nodes.length && betaFeatures && texSignalName && typesetSignalNames) {
+        const run = ++chipTypesetRun;
+        typesetSignalNames(nodes.map((nd) => nd.name)).then(() => {
+          if (run !== chipTypesetRun) return;
+          if (!window.MathJax?.typesetPromise) throw new Error("MathJax is unavailable");
+          return window.MathJax.typesetPromise([chips]);
+        }).catch((error) => {
+          if (run !== chipTypesetRun) return;
+          for (const button of chips.querySelectorAll("[data-node]")) button.textContent = button.dataset.node;
+          say(`Could not typeset node buttons: ${error.message}`, true);
+        });
+      }
+    }
+    for (const button of chips.querySelectorAll("[data-node]")) {
+      const active = have.has(button.dataset.node);
+      if (active) button.setAttribute("aria-pressed", "true");
+      else button.removeAttribute("aria-pressed");
+      button.disabled = active;
+    }
     const bad = nodes.length ? unknownNames(value.signal.map((s) => s.name).filter(Boolean), nodes) : [];
     flag.textContent = bad.length ? `Not in the circuit: ${bad.join(", ")}` : "";
   }
@@ -526,10 +568,27 @@ export function mount(root, {
   render();
   /** Docked, the slide always shows the current diagram: no Send button needed. */
   function autoSend() {
-    if (!value.signal.length) return;
-    try { localStorage.setItem(sendKey, JSON.stringify({ svg: "", w: Number(wIn.value) || natural.w, h: Number(hIn.value) || natural.h, signals: signalLevels(), source: toWaveDrom(value), at: Date.now() })); } catch { /* storage unavailable */ }
+    try { localStorage.setItem(sendKey, JSON.stringify({ svg: "", w: Number(wIn.value) || natural.w, h: Number(hIn.value) || natural.h, signals: signalLevels(), source: toWaveDrom(value), at: Date.now() })); }
+    catch (error) { say(`Could not sync timing levels to the schematic: ${error.message}`, true); }
   }
   if (docked) autoSend();
+  function setSignalLevels(step, levels) {
+    if (!Number.isInteger(step) || step < 0 || step >= 64) return { updated: false, error: "Choose a timing step from 1 to 64." };
+    const entries = Object.entries(levels ?? {}).filter(([, level]) => ["0", "1", "X", "Z"].includes(level));
+    if (!entries.length) return { updated: false, error: "The schematic has no named logic levels to send." };
+    let next = step >= stepCount(value) ? setSteps(value, step + 1) : value;
+    const waveLevel = { "0": "0", "1": "1", X: "x", Z: "z" };
+    const missing = [];
+    let updated = 0;
+    for (const [name, level] of entries) {
+      const index = next.signal.findIndex((signal) => signal?.name === name);
+      if (index < 0) { missing.push(name); continue; }
+      next = setCell(next, index, step, waveLevel[level]);
+      updated++;
+    }
+    if (updated) commit(next, null);
+    return { updated, missing, error: updated ? null : "No timing signal matched the schematic's net labels." };
+  }
   return { render, setCircuit, clear, fit: fitToView, exportSvg, exportPng: async () => { try { save(await pngBlob(svgText()), "timing-diagram.png"); say("Exported timing-diagram.png at 300 dpi."); } catch (err) { say(err.message, true); } },
-    setFrame(i) { frame = i; render(); }, get source() { return tidy(toWaveDrom(value)); }, set source(v) { const r = parseSource(v); if (r.ok) commit(fromWaveDrom(r.value)); }, get value() { return value; } };
+    setFrame(i) { frame = i; render(); }, setSignalLevels, get source() { return tidy(toWaveDrom(value)); }, set source(v) { const r = parseSource(v); if (r.ok) commit(fromWaveDrom(r.value)); }, get value() { return value; } };
 }

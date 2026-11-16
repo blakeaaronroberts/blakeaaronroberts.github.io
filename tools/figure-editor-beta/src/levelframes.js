@@ -1,7 +1,7 @@
 // Level frames (F11.2). No DOM.
 //
-// A frame is a named snapshot of the logic levels on the wires and elements: one per transition, so each
-// step of a scenario can be exported as its own figure. Frames live in the figure's own free-form `groups`
+// A frame is a named snapshot of the logic levels on the wires and elements: an all-zero Frame 0 followed
+// by one frame per timing step. Frames live in the figure's own free-form `groups`
 // map, under the key "frames", so the circuit/0.2 file stays valid and Save and Open keep them. Each frame is
 // { name, levels: { "<wire or element id>": "0" | "1" | "X" | "Z" } }; anything not listed has no level.
 //
@@ -11,16 +11,28 @@ import { clone, connectedWireIds, wiresForRefs } from "./doc.js";
 
 export const KEY = "frames";
 
-/** The frames a document carries (a copy). */
-export const framesOf = (doc) => (Array.isArray(doc.groups?.[KEY]) ? structuredClone(doc.groups[KEY]) : []);
+const zeroFrame = (doc) => ({
+  name: "Frame 0",
+  levels: Object.fromEntries([...doc.wires, ...doc.elements].map((item) => [item.id, "0"])),
+});
+
+/** The frames a document carries (a copy), always beginning with the all-zero Frame 0. */
+export function framesOf(doc) {
+  const saved = Array.isArray(doc.groups?.[KEY]) ? structuredClone(doc.groups[KEY]) : [];
+  return [zeroFrame(doc), ...(saved[0]?.name === "Frame 0" ? saved.slice(1) : saved)];
+}
 
 function withFrames(doc, frames) {
   const d = clone(doc);
   const groups = { ...(d.groups ?? {}) };
-  if (frames.length) groups[KEY] = frames; else delete groups[KEY];
+  const rest = frames[0]?.name === "Frame 0" ? frames.slice(1) : frames;
+  groups[KEY] = [zeroFrame(d), ...rest];
   if (Object.keys(groups).length) d.groups = groups; else delete d.groups;
   return d;
 }
+
+/** Add or repair the invariant Frame 0 in a document. */
+export const ensureFrameZero = (doc) => withFrames(doc, framesOf(doc));
 
 /** The current levels of the document, as a frame's `levels`. */
 export function levelsOf(doc) {
@@ -32,7 +44,7 @@ export function levelsOf(doc) {
 /** Add a frame holding the current levels. The name defaults to "Frame N". */
 export function captureFrame(doc, name) {
   const frames = framesOf(doc);
-  frames.push({ name: (name ?? "").trim() || `Frame ${frames.length + 1}`, levels: levelsOf(doc) });
+  frames.push({ name: (name ?? "").trim() || `Frame ${frames.length}`, levels: levelsOf(doc) });
   return withFrames(doc, frames);
 }
 
@@ -48,7 +60,7 @@ export function applyFrame(doc, frame) {
 
 export const renameFrame = (doc, i, name) => {
   const frames = framesOf(doc);
-  if (frames[i] && name.trim()) frames[i].name = name.trim();
+  if (i > 0 && frames[i] && name.trim()) frames[i].name = name.trim();
   return withFrames(doc, frames);
 };
 
@@ -57,7 +69,7 @@ export const removeFrame = (doc, i) => withFrames(doc, framesOf(doc).filter((_, 
 /** Move frame i by `by` places (-1 earlier, +1 later). */
 export function moveFrame(doc, i, by) {
   const frames = framesOf(doc), j = i + by;
-  if (!frames[i] || j < 0 || j >= frames.length) return withFrames(doc, frames);
+  if (i === 0 || j <= 0 || !frames[i] || j >= frames.length) return withFrames(doc, frames);
   [frames[i], frames[j]] = [frames[j], frames[i]];
   return withFrames(doc, frames);
 }
@@ -65,12 +77,12 @@ export function moveFrame(doc, i, by) {
 /** Replace frame i's levels with the document's current ones. */
 export function recaptureFrame(doc, i) {
   const frames = framesOf(doc);
-  if (frames[i]) frames[i].levels = levelsOf(doc);
+  if (i > 0 && frames[i]) frames[i].levels = levelsOf(doc);
   return withFrames(doc, frames);
 }
 
-/** "01", "02", ...: the number in an exported file's name (at least two digits). */
-export const numbered = (i, n) => String(i + 1).padStart(Math.max(2, String(n).length), "0");
+/** "00", "01", ...: the number in an exported file's name (at least two digits). */
+export const numbered = (i, n) => String(i).padStart(Math.max(2, String(n - 1).length), "0");
 
 /** The TeX that typesets a frame's name as a label (text mode; characters TeX treats specially are made plain). */
 export const frameTex = (name) => `\text{${name.replace(/[\^~]/g, " ").replace(/([{}$&#_%])/g, "\$1")}}`;
@@ -135,7 +147,7 @@ export function setLevelTagStyle(doc, ids, patch) {
 }
 
 // ---- frames from the timing diagram -------------------------------------------------------------
-// The timing tool sends signals as [{name, levels: ["0","1","X","Z",null, ...]}], one level per step. Step i becomes frame i.
+// The timing tool sends signals as [{name, levels: ["0","1","X","Z",null, ...]}], one level per step. Step i becomes frame i+1.
 
 /** The wire and element ids a signal name drives: wires with that net label, the net a port of that name or label sits on, and an element of that id. */
 export function targetsOf(doc, nets, name, pack = null) {
@@ -165,13 +177,13 @@ export function targetsOf(doc, nets, name, pack = null) {
 /** Replace the document's frames with one per step of the signals. Returns { doc, steps, matched (signal names that drive something), unmatched }. */
 export function framesFromSignals(doc, nets, signals, pack = null) {
   const steps = Math.max(0, ...signals.map((s) => s.levels.length));
-  const frames = Array.from({ length: steps }, (_, i) => ({ name: `Step ${i + 1}`, levels: {} }));
+  const frames = [zeroFrame(doc), ...Array.from({ length: steps }, (_, i) => ({ name: `Step ${i + 1}`, levels: {} }))];
   const matched = [], unmatched = [];
   for (const s of signals) {
     const t = targetsOf(doc, nets, s.name, pack);
     if (!t.wires.length && !t.elements.length) { unmatched.push(s.name); continue; }
     matched.push(s.name);
-    s.levels.forEach((lv, i) => { if (lv) for (const id of [...t.wires, ...t.elements]) frames[i].levels[id] = lv; });
+    s.levels.forEach((lv, i) => { if (lv) for (const id of [...t.wires, ...t.elements]) frames[i + 1].levels[id] = lv; });
   }
   return { doc: withFrames(doc, frames), steps, matched, unmatched };
 }

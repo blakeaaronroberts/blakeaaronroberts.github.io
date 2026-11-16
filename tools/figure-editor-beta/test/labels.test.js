@@ -4,13 +4,14 @@
 import { addElement, addLabel, addPort, exitSide, newDoc, setElementLabel, setPort, addWire } from "../src/doc.js";
 import { drawing, ExportError, exportSvg } from "../src/export.js";
 import { emModules, labelItems, packLabelPt, parseTypeset, placeLabel, REFERENCE_TEX, texNeeded, texOf } from "../src/labels.js";
+import { setWireLabelStyle, setWireLabels } from "../src/levelframes.js";
 import { parseXml, walk } from "../src/xml.js";
 import { buildFullAdderLevels } from "../examples/full-adder-levels.js";
 import { assert, assertClose, assertEquals, assertThrows, mathjaxVersion, pack, typeset } from "./helpers.js";
 
 const ts = (tex) => typeset.get(tex);
 const gap = pack.theme.geometry.label_gap_cm / pack.theme.geometry.module_cm;
-const em = emModules(pack, 10);
+const em = emModules(pack, packLabelPt(pack));
 
 Deno.test("the captured MathJax output is from the version the editor loads", () => {
   assertEquals(mathjaxVersion, "4.1.3");
@@ -61,10 +62,19 @@ Deno.test("a glyph outside the STIX2 font, an unknown command and a colour of th
   assertEquals(parseTypeset("<svg").ok, false);
 });
 
-Deno.test("label size is points at the pack's own pt-to-cm ratio: 10 pt is 0.703 modules", () => {
-  assertClose(em, (10 * 0.03866) / 1.1 / 0.5, 1e-9);
-  assertEquals(packLabelPt(pack), 10);                       // the pack carries no label size, so the toolbox's 10 pt
+Deno.test("label size is points at the pack's own pt-to-cm ratio: 18 pt is 1.266 modules", () => {
+  assertClose(em, (18 * 0.03866) / 1.1 / 0.5, 1e-9);
+  assertEquals(packLabelPt(pack), 18);
   assertEquals(packLabelPt({ theme: { label: { size_pt: 12 } } }), 12);
+});
+
+Deno.test("left and right net labels anchor at the wire's outer endpoints", () => {
+  const P = (at) => ({ kind: "point", at });
+  let doc = addWire(newDoc(), pack, P([0, 0]), P([20, 0])).doc;
+  doc = setWireLabels(doc, ["w1"], "N");
+  const atSide = (side) => labelItems(setWireLabelStyle(doc, ["w1"], { side }), pack)[0].at;
+  assertEquals(atSide("left"), [0, 0]);
+  assertEquals(atSide("right"), [20, 0]);
 });
 
 Deno.test("placement: each side is attached by the edge facing the point, a label gap away", () => {

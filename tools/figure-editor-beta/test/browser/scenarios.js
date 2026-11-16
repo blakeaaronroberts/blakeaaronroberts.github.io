@@ -638,6 +638,57 @@ scenarios.levels = async (ctx) => {
   return res;
 };
 
+/** Basic gate outputs follow the input-net levels, including after an input edit. */
+scenarios.logic = async (ctx) => {
+  const res = [];
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(ctx.url);
+    await page.waitFor(ready);
+    const figure = {
+      schema: "circuit/0.2", id: "logic_gate_test", grid_cm: 0.25,
+      elements: [{ id: "and1", type: "and_gate", at: [0, 0] }],
+      nets: { n1: ["and1.A"], n2: ["and1.B"], n3: ["and1.Y"] },
+      wires: [
+        { id: "w1", from: [-12, 1], to: "and1.A", level: "1" },
+        { id: "w2", from: [-12, -1], to: "and1.B", level: "1" },
+        { id: "w3", from: "and1.Y", to: [12, 0] },
+      ],
+    };
+    await page.eval(`window.figureEditor.load(${JSON.stringify(JSON.stringify(figure))})`);
+    const initial = await page.eval(`window.figureEditor.doc.wires.find((wire) => wire.id === "w3").level`);
+    res.push([initial === "1", `AND output resolves to 1 from inputs 1 and 1 (${initial})`]);
+
+    const input = await page.eval(`(() => {
+      const svg = document.querySelector("svg.fe-canvas"), p = svg.createSVGPoint();
+      p.x = -8 / 2; p.y = -1 / 2;
+      const q = p.matrixTransform(svg.getScreenCTM());
+      return [q.x, q.y];
+    })()`);
+    await page.click(input[0], input[1]);
+    await page.sleep(200);
+    await page.eval(`(() => {
+      const field = document.querySelector('[data-field="level"]');
+      field.value = "0"; field.dispatchEvent(new Event("change", { bubbles: true }));
+    })()`);
+    const updated = await page.eval(`window.figureEditor.doc.wires.find((wire) => wire.id === "w3").level`);
+    res.push([updated === "0", `changing one input to 0 recalculates the AND output (${updated})`]);
+    const output = await page.eval(`(() => {
+      const svg = document.querySelector("svg.fe-canvas"), p = svg.createSVGPoint();
+      p.x = 8 / 2; p.y = 0;
+      const q = p.matrixTransform(svg.getScreenCTM());
+      return [q.x, q.y];
+    })()`);
+    await page.click(output[0], output[1]);
+    await page.sleep(200);
+    const hint = await page.eval(`document.querySelector(".fe-props .fe-hint")?.textContent ?? ""`);
+    res.push([hint.includes("calculated from its inputs"), "the selection panel explains that gate outputs are calculated"]);
+    await page.shot(`${ctx.out}/beta-logic.png`);
+    res.push([page.errors.length === 0, `logic: no page errors${page.errors.length ? `: ${page.errors[0]}` : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};
+
 /** F12: Open an exported SVG (the circuit comes back), Open some other SVG (a locked, sanitised backdrop), and a bad one. */
 scenarios.import = async (ctx) => {
   const res = [];
@@ -778,7 +829,7 @@ scenarios.frames = async (ctx) => {
       return { n, types, svg: svg ? { cm: /width="([\d.]+)cm" height="([\d.]+)cm"/.exec(svg)?.slice(1), text: /<text/.test(svg), groups: (svg.match(/scale\(/g) ?? []).length } : null };
     })()`);
     await page.shot(`${ctx.out}/beta-frames.png`);
-    res.push([out.n === 2, `frames: two captured frames listed (${out.n})`]);
+    res.push([out.n === 3, `frames: Frame 0 plus two captured frames listed (${out.n})`]);
     res.push([out.svg && out.svg.cm[0] === "33.867" && out.svg.cm[1] === "19.05" && !out.svg.text && out.svg.groups >= 2, `frames: one-slide export is slide size, with no <text> (${JSON.stringify(out.svg)})`]);
     res.push([out.types.some((t) => t.includes("png")), `frames: the PNG was made (${out.types.join(", ")})`]);
     res.push([page.errors.length === 0, `frames: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
@@ -825,6 +876,8 @@ scenarios.timing = async (ctx) => {
     await page.waitFor(`Array.from(document.querySelectorAll(".td-chips [data-node]")).map((b) => b.dataset.node).join(",") === "$Q_{0}$"`, 10000);
     const connectedNames = await page.eval(`Array.from(document.querySelectorAll(".td-chips [data-node]")).map((b) => b.dataset.node)`);
     res.push([connectedNames.length === 1 && connectedNames[0] === "$Q_{0}$", `connected and disconnected wires with the same TeX label share one timing node (${JSON.stringify(connectedNames)})`]);
+    await page.waitFor(`!!document.querySelector(".td-chips .td-chip mjx-container")`, 30000);
+    res.push([true, "timing node buttons typeset TeX labels"]);
 
     await page.eval(`(() => {
       document.querySelector('[data-view="source"]').click();
@@ -967,7 +1020,7 @@ scenarios.solderdots = async (ctx) => {
     await page.click(center[0], center[1]);
     const initial = await page.eval(`(() => ({
       value: document.querySelector('[data-field="junctionConnected"]')?.value ?? null,
-      open: document.querySelector('.fe-side details[data-views="figure"]')?.open ?? false
+    open: document.querySelector('.fe-left details[data-views="figure"]')?.open ?? false
     }))()`);
     res.push([initial.value === "true" && initial.open, "selecting a four-way junction opens its solder-dot selector"]);
     await page.eval(`(() => {
@@ -1026,18 +1079,36 @@ scenarios.sourceEditor = async (ctx) => {
     res.push([editor.font && editor.centered, "source text uses the figure coding font with vertically centered line spacing"]);
 
     await page.eval(`(() => {
+      window.__realCreateObjectURL = URL.createObjectURL;
+      window.__realRevokeObjectURL = URL.revokeObjectURL;
+      window.__realAnchorClick = HTMLAnchorElement.prototype.click;
       URL.createObjectURL = (blob) => { window.__sourceBlob = blob; return "blob:source-test"; };
       URL.revokeObjectURL = () => {};
       HTMLAnchorElement.prototype.click = function() { window.__sourceFilename = this.download; };
       document.querySelector('[data-do="src-save"]').click();
     })()`);
     const download = await page.eval(`(async () => ({ filename: window.__sourceFilename, text: await window.__sourceBlob.text() }))()`);
+    await page.eval(`(() => {
+      URL.createObjectURL = window.__realCreateObjectURL;
+      URL.revokeObjectURL = window.__realRevokeObjectURL;
+      HTMLAnchorElement.prototype.click = window.__realAnchorClick;
+    })()`);
     res.push([download.filename === "timing-diagram.json" && download.text === text, "Save source downloads the editor text as timing-diagram.json"]);
-    await page.shot(`${ctx.out}/beta-source-editor.png`);
     const storedBefore = await page.eval(`localStorage.getItem("figure-editor-beta/timing-source")`);
     await page.eval(`document.querySelector('[data-do="src-clear"]').click()`);
     const cleared = await page.eval(`({ empty: document.querySelector(".td-srctext").value === "", lines: document.querySelector(".td-line-numbers").textContent, stored: localStorage.getItem("figure-editor-beta/timing-source") })`);
     res.push([cleared.empty && cleared.lines === "1" && cleared.stored === storedBefore, "Clear empties only the source buffer and leaves the diagram unchanged"]);
+    await page.eval(`(() => {
+      const input = document.querySelector(".td-source-file");
+      const transfer = new DataTransfer();
+      transfer.items.add(new File(['{"signal":[{"name":"uploaded","wave":"01"}]}'], "uploaded.json", { type: "application/json" }));
+      Object.defineProperty(input, "files", { configurable: true, value: transfer.files });
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    })()`);
+    await page.waitFor(`document.querySelector(".td-srctext").value.includes('"uploaded"')`, 10000);
+    const uploaded = await page.eval(`({ source: document.querySelector(".td-srctext").value, status: document.querySelector(".td-status").textContent })`);
+    res.push([uploaded.source.includes('"uploaded"') && uploaded.status.includes("Review it"), "Upload source fills the editor without applying it automatically"]);
+    await page.shot(`${ctx.out}/beta-source-editor.png`);
     res.push([page.errors.length === 0, `source editor: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
   } finally { await page.close(); }
   return res;
@@ -1051,18 +1122,31 @@ scenarios.layoutAndFit = async (ctx) => {
     await page.waitFor(`!!document.querySelector(".td-tabs")`);
     const widths = await page.eval(`(() => {
       const left = document.querySelector('.fe-resizer[data-resize="left"]');
-      const right = document.querySelector('.fe-resizer[data-resize="right"]');
       left.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
-      right.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
       const options = JSON.parse(localStorage.getItem("figure-editor-beta/options") ?? "{}");
-      return { left: left.getAttribute("aria-valuenow"), right: right.getAttribute("aria-valuenow"), stored: [options.leftPaneWidth, options.rightPaneWidth], hiddenBars: getComputedStyle(document.querySelector(".fe")).scrollbarWidth === "none" };
+      return { left: left.getAttribute("aria-valuenow"), stored: options.leftPaneWidth, leftVisible: document.querySelector(".fe-left").getBoundingClientRect().width > 0, hiddenBars: getComputedStyle(document.querySelector(".fe")).scrollbarWidth === "none" };
     })()`);
-    res.push([Number(widths.left) === 256 && Number(widths.right) === 288 && widths.stored.join(",") === "256,288", `editor pane widths resize by keyboard and persist (${JSON.stringify(widths)})`]);
+    res.push([Number(widths.left) === 256 && widths.stored === 256 && widths.leftVisible, `persistent controls pane resizes by keyboard and persists (${JSON.stringify(widths)})`]);
     res.push([widths.hiddenBars, "beta editor scrollbars are hidden without disabling scrolling"]);
-    const rightHandle = await page.eval(`(() => { const r = document.querySelector('.fe-resizer[data-resize="right"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
-    await page.drag(rightHandle, [rightHandle[0] - 24, rightHandle[1]]);
-    const draggedWidth = await page.eval(`Number(document.querySelector('.fe-resizer[data-resize="right"]').getAttribute("aria-valuenow"))`);
-    res.push([draggedWidth > Number(widths.right), `editor pane separator resizes by dragging (${draggedWidth}px)`]);
+    const leftHandle = await page.eval(`(() => { const r = document.querySelector('.fe-resizer[data-resize="left"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
+    await page.drag(leftHandle, [leftHandle[0] + 24, leftHandle[1]]);
+    const draggedWidth = await page.eval(`Number(document.querySelector('.fe-resizer[data-resize="left"]').getAttribute("aria-valuenow"))`);
+    res.push([draggedWidth > Number(widths.left), `controls pane separator resizes by dragging (${draggedWidth}px)`]);
+
+    const workspace = await page.eval(`(() => {
+      const handle = document.querySelector('[data-stack-resize="figure-timing"]');
+      const before = JSON.parse(localStorage.getItem("figure-editor-beta/options") ?? "{}").workspacePanes;
+      handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+      const resized = JSON.parse(localStorage.getItem("figure-editor-beta/options") ?? "{}").workspacePanes;
+      document.querySelector('[data-sec-bar="figure"]').click();
+      const maximized = JSON.parse(localStorage.getItem("figure-editor-beta/options") ?? "{}").workspacePanes;
+      return { before, resized, maximized, leftVisible: document.querySelector(".fe-left").getBoundingClientRect().width > 0 };
+    })()`);
+    res.push([workspace.resized.figure > workspace.before.figure && workspace.resized.timing < workspace.before.timing, `Figure and Timing workspaces resize by keyboard (${JSON.stringify(workspace.resized)})`]);
+    res.push([workspace.maximized.figure === 100 && workspace.maximized.timing === 0 && workspace.leftVisible, "clicking a workspace title maximizes it while keeping controls visible"]);
+    await page.eval(`document.querySelector('[data-sec-bar="timing"]').click()`);
+    await page.sleep(300);
+    await page.shot(`${ctx.out}/beta-workspace-layout.png`);
 
     await page.eval(`(() => { document.querySelector('[data-view="diagram"]').click(); document.querySelector(".td-view-look").open = true; })()`);
     await page.sleep(100);
@@ -1087,6 +1171,83 @@ scenarios.layoutAndFit = async (ctx) => {
     })()`);
     res.push([fit.prevented && fit.width > 200, `F prevents the page-search shortcut and fits the active timing diagram (${JSON.stringify(fit)})`]);
     res.push([page.errors.length === 0, `layout and Fit: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};
+
+scenarios.logicSync = async (ctx) => {
+  const res = [];
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(`${ctx.url}?view=figure`);
+    await page.waitFor(ready);
+    const figure = {
+      schema: "circuit/0.2", id: "logic_sync_test", grid_cm: 0.25,
+      elements: [{ id: "and1", type: "and_gate", at: [0, 0] }],
+      nets: { n1: ["and1.A"], n2: ["and1.B"], n3: ["and1.Y"] },
+      wires: [
+        { id: "w1", from: [-12, 1], to: "and1.A", level: "1" },
+        { id: "w2", from: [-12, -1], to: "and1.B", level: "1" },
+        { id: "w3", from: "and1.Y", to: [12, 0] },
+      ],
+      groups: { wire_labels: { w1: "A", w2: "B" } },
+    };
+    await page.eval(`window.figureEditor.load(${JSON.stringify(JSON.stringify(figure))})`);
+    await page.eval(`document.querySelector('[data-sec-bar="timing"]').click()`);
+    await page.waitFor(`!!document.querySelector(".td-tabs")`);
+    const source = JSON.stringify({ signal: [{ name: "A", wave: "1" }, { name: "B", wave: "1" }] });
+    await page.eval(`(() => {
+      document.querySelector('[data-view="source"]').click();
+      const input = document.querySelector(".td-srctext");
+      input.value = ${JSON.stringify(source)};
+      document.querySelector('[data-do="src-apply"]').click();
+    })()`);
+    await page.eval(`document.querySelector('[data-sec-bar="figure"]').click()`);
+    await page.waitFor(`document.querySelectorAll(".fe-frame-item").length === 2`, 10000);
+    await page.sleep(300);
+    await page.eval(`(() => { document.querySelector(".fe-frames-pane").open = true; document.querySelector('[data-frame="1"]').click(); })()`);
+    await page.sleep(300);
+    const point = await page.eval(`(() => {
+      const svg = document.querySelector("svg.fe-canvas"), p = svg.createSVGPoint();
+      p.x = -8 / 2; p.y = -1 / 2;
+      const q = p.matrixTransform(svg.getScreenCTM());
+      return [q.x, q.y];
+    })()`);
+    await page.click(point[0], point[1]);
+    await page.waitFor(`!!document.querySelector('[data-field="level"]')`, 10000);
+    await page.eval(`(() => {
+      const input = document.querySelector('[data-field="level"]');
+      input.value = "0";
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    })()`);
+    await page.waitFor(`JSON.parse(localStorage.getItem("figure-editor-beta/timing-source") || "{}").signal?.[0]?.wave?.[0] === "0"`, 10000);
+    const changed = await page.eval(`(() => {
+      const figure = JSON.parse(window.figureEditor.save());
+      const timing = JSON.parse(localStorage.getItem("figure-editor-beta/timing-source"));
+      return { input: figure.wires.find((wire) => wire.id === "w1")?.level, output: figure.wires.find((wire) => wire.id === "w3")?.level, timingA: timing.signal[0].wave[0] };
+    })()`);
+    res.push([changed.input === "0" && changed.output === "0" && changed.timingA === "0", `editing a named input updates its gate outputs and matching timing step (${JSON.stringify(changed)})`]);
+
+    await page.eval(`(() => {
+      window.__timingPrompt = "";
+      window.prompt = (message) => { window.__timingPrompt = message; return "1"; };
+      document.querySelector('[data-frame="0"]').click();
+      document.querySelector('[data-cmd="frametosignal"]').click();
+    })()`);
+    await page.waitFor(`JSON.parse(localStorage.getItem("figure-editor-beta/timing-source") || "{}").signal?.every((signal) => signal.wave[0] === "0")`, 10000);
+    const frameZero = await page.eval(`({ prompted: window.__timingPrompt.includes("Timing step"), levels: JSON.parse(localStorage.getItem("figure-editor-beta/timing-source")).signal.map((signal) => signal.wave[0]) })`);
+    res.push([frameZero.prompted && frameZero.levels.every((level) => level === "0"), `Frame 0 prompts for a timing destination and sends all-zero levels (${JSON.stringify(frameZero)})`]);
+
+    await page.eval(`(() => {
+      window.prompt = (message) => { window.__timingPrompt = message; return "2"; };
+      document.querySelector('[data-cmd="frametosignal"]').click();
+    })()`);
+    await page.waitFor(`JSON.parse(localStorage.getItem("figure-editor-beta/timing-source") || "{}").signal?.every((signal) => signal.wave.length === 2)`, 10000);
+    await page.eval(`document.querySelector('[data-sec-bar="slide"]').click()`);
+    await page.waitFor(`document.querySelectorAll(".fe-frame-item").length === 3`, 10000);
+    const slideFrames = await page.eval(`({ count: document.querySelectorAll(".fe-frame-item").length, height: document.querySelector('[data-sec="slide"]').getBoundingClientRect().height })`);
+    res.push([slideFrames.count === 3 && slideFrames.height > 0, `returning to Slide refreshes its frames from the current timing diagram (${JSON.stringify(slideFrames)})`]);
+    res.push([page.errors.length === 0, `logic-to-timing sync: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
   } finally { await page.close(); }
   return res;
 };

@@ -1,4 +1,4 @@
-// F19: the slide model, the six layouts, saving in the figure, and the slide and part exports.
+// F19: the slide model, the 18 layouts, saving in the figure, and the slide and part exports.
 
 import { contentArea, cleanSlide, defaultSlide, LAYOUTS, nudgeRegion, slideOf, slideSize, slideSvg, splitsOf, withLayout, withSlide, withSplit } from "../src/slide.js";
 import { parse, serialize } from "../src/doc.js";
@@ -17,15 +17,18 @@ Deno.test("sizes are PowerPoint's; the content area sits between the header and 
   assert(Number.isInteger(a.w) && Number.isInteger(a.h));
 });
 
-Deno.test("each layout fills the content area with regions on the grid, none overlapping", () => {
-  assertEquals(Object.keys(LAYOUTS).length, 8);
-  for (const id of Object.keys(LAYOUTS)) {
-    const s = withLayout({ format: "16:9", headerCm: 3, footerCm: 1 }, id), a = contentArea(s);
-    for (const r of s.regions) {
-      assert(inside(r, a), `${id}: ${r.id} inside the content area`);
-      assert([r.x, r.y, r.w, r.h].every(Number.isInteger), `${id}: ${r.id} on the module grid`);
+Deno.test("each layout fills both slide formats with regions on the grid, none overlapping", () => {
+  assertEquals(Object.keys(LAYOUTS).length, 18);
+  for (const format of ["16:9", "4:3"]) {
+    for (const id of Object.keys(LAYOUTS)) {
+      const s = withLayout({ format, headerCm: 3, footerCm: 1 }, id), a = contentArea(s);
+      for (const r of s.regions) {
+        assert(inside(r, a), `${format} ${id}: ${r.id} inside the content area`);
+        assert([r.x, r.y, r.w, r.h].every(Number.isInteger), `${format} ${id}: ${r.id} on the module grid`);
+        assert(r.w >= 2 && r.h >= 2, `${format} ${id}: ${r.id} is large enough`);
+      }
+      for (const p of s.regions) for (const q of s.regions) if (p !== q) assert(p.x + p.w <= q.x || q.x + q.w <= p.x || p.y + p.h <= q.y || q.y + q.h <= p.y, `${format} ${id}: ${p.id} and ${q.id} overlap`);
     }
-    for (const p of s.regions) for (const q of s.regions) if (p !== q) assert(p.x + p.w <= q.x || q.x + q.w <= p.x || p.y + p.h <= q.y || q.y + q.h <= p.y, `${id}: ${p.id} and ${q.id} overlap`);
   }
 });
 

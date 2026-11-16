@@ -18,6 +18,7 @@ import { dots, joints } from "./junctions.js";
 import { colourNodes, emModules, labelItems, levelTagTex, packLabelPt, placeLabel, REFERENCE_TEX } from "./labels.js";
 import { attr, walk, writeXml } from "./xml.js";
 import { frameTex, gridShape, levelTagStyleOf, SIDES } from "./levelframes.js";
+import { resolveLogic } from "./logic.js";
 
 export class ExportError extends Error {}
 
@@ -30,6 +31,7 @@ const sameColour = (a, b) => a.toUpperCase() === b.toUpperCase();
  * `pending` those still waiting to be typeset.
  */
 export function drawing(doc, pack, opts = {}) {
+  doc = resolveLogic(doc, pack);
   const typeset = opts.typeset ?? new Map();
   const { line, junction, roles, geometry } = pack.theme;
   const ink = roles.ink;

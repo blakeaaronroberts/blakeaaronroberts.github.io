@@ -16,11 +16,14 @@ Deno.test("capture stores the current levels; apply draws them; the figure's own
   let doc = setLevel(base(), [base().wires[0].id], "1");
   doc = captureFrame(doc);
   const doc2 = captureFrame(setLevel(doc, [doc.wires[0].id], "0"), "Reset");
-  const [a, b] = framesOf(doc2);
+  const [zero, a, b] = framesOf(doc2);
+  assertEquals(zero.name, "Frame 0");
+  assert(Object.values(zero.levels).every((level) => level === "0"));
   assertEquals(a.name, "Frame 1");
   assertEquals(b.name, "Reset");
   assertEquals(a.levels[doc.wires[0].id], "1");
   assertEquals(b.levels[doc.wires[0].id], "0");
+  assertEquals(applyFrame(doc2, zero).wires[0].level, "0");
   assertEquals(applyFrame(doc2, a).wires[0].level, "1");
   assertEquals(applyFrame(doc2, { name: "x", levels: {} }).wires[0].level, undefined);
   assertEquals(doc2.wires[0].level, "0");
@@ -30,12 +33,12 @@ Deno.test("rename, move and delete", () => {
   let doc = base();
   for (const n of ["a", "b", "c"]) doc = captureFrame(doc, n);
   doc = moveFrame(doc, 2, -1);
-  assertEquals(framesOf(doc).map((f) => f.name), ["a", "c", "b"]);
+  assertEquals(framesOf(doc).map((f) => f.name), ["Frame 0", "b", "a", "c"]);
   doc = renameFrame(doc, 0, "start");
   doc = removeFrame(doc, 1);
-  assertEquals(framesOf(doc).map((f) => f.name), ["start", "b"]);
-  assertEquals(framesOf(removeFrame(removeFrame(doc, 0), 0)), []);
-  assertEquals(removeFrame(removeFrame(doc, 0), 0).groups, undefined);
+  assertEquals(framesOf(doc).map((f) => f.name), ["Frame 0", "a", "c"]);
+  assertEquals(framesOf(removeFrame(doc, 0)).map((f) => f.name), ["Frame 0", "a", "c"]);
+  assertEquals(removeFrame(doc, 0).groups.frames[0].name, "Frame 0");
 });
 
 Deno.test("frames survive save and reload and the file stays within the schema's fields", () => {
@@ -53,7 +56,7 @@ Deno.test("names become TeX text with special characters made plain", () => {
 });
 
 Deno.test("numbering and grid shape", () => {
-  assertEquals([numbered(0, 3), numbered(9, 12), numbered(99, 120)], ["01", "10", "100"]);
+  assertEquals([numbered(0, 3), numbered(9, 12), numbered(99, 120)], ["00", "09", "099"]);
   const g = gridShape(6, 16 / 9);
   assert(g.cols * g.rows >= 6 && g.cols >= g.rows, `${g.cols}x${g.rows}`);
   assertEquals(gridShape(1, 16 / 9), { cols: 1, rows: 1 });
@@ -64,7 +67,7 @@ Deno.test("all frames on one slide: slide-size SVG, every frame drawn once, no t
   const names = ["Frame 1", "Frame 2", "Frame 3"];
   for (const n of names) doc = captureFrame(setLevel(doc, [doc.wires[0].id], n === "Frame 2" ? "1" : "0"), n);
   const ts = new Map(typeset);
-  for (const n of names) ts.set(frameTex(n), typeset.get(REFERENCE_TEX));
+  for (const n of ["Frame 0", ...names]) ts.set(frameTex(n), typeset.get(REFERENCE_TEX));
   const slide = { w: 33.867 / 0.5, h: 19.05 / 0.5 };
   const svg = exportGridSvg(doc, pack, framesOf(doc).map((f) => ({ name: f.name, doc: applyFrame(doc, f) })), slide, { typeset: ts });
   assert(/width="33\.867cm" height="19\.05cm"/.test(svg), "slide size");
@@ -139,9 +142,10 @@ Deno.test("frames fill from timing signals: a net label, a port and an element n
   assertEquals(r.steps, 3);
   assertEquals(r.unmatched, ["nothing_here"]);
   const f = framesOf(r.doc);
-  assertEquals(f.map((x) => x.name), ["Step 1", "Step 2", "Step 3"]);
-  assertEquals(f[1].levels[w], "1");
-  assert(Object.keys(f[2].levels).length > 0 && f[2].levels[w] === undefined || f[2].levels[w] === "X");
+  assertEquals(f.map((x) => x.name), ["Frame 0", "Step 1", "Step 2", "Step 3"]);
+  assertEquals(f[0].levels[w], "0");
+  assertEquals(f[2].levels[w], "1");
+  assert(Object.keys(f[3].levels).length > 0 && f[3].levels[w] === undefined || f[3].levels[w] === "X");
 });
 
 Deno.test("a timing signal drives every ordinary wire segment on its labelled net", async () => {
@@ -152,7 +156,7 @@ Deno.test("a timing signal drives every ordinary wire segment on its labelled ne
   doc = setWireLabels(doc, ["w1"], "CLK");
   const result = framesFromSignals(doc, deriveNets(doc, pack), [{ name: "CLK", levels: ["0", "1"] }], pack);
   assertEquals(result.matched, ["CLK"]);
-  assertEquals(framesOf(result.doc).map((f) => [f.levels.w1, f.levels.w2]), [["0", "0"], ["1", "1"]]);
+  assertEquals(framesOf(result.doc).map((f) => [f.levels.w1, f.levels.w2]), [["0", "0"], ["0", "0"], ["1", "1"]]);
 });
 
 Deno.test("a timing signal drives disconnected wires with the same net label", async () => {
@@ -163,5 +167,5 @@ Deno.test("a timing signal drives disconnected wires with the same net label", a
   doc = setWireLabels(doc, ["w1", "w2"], "READY");
   const result = framesFromSignals(doc, deriveNets(doc, pack), [{ name: "READY", levels: ["0", "1"] }], pack);
   assertEquals(result.matched, ["READY"]);
-  assertEquals(framesOf(result.doc).map((f) => [f.levels.w1, f.levels.w2]), [["0", "0"], ["1", "1"]]);
+  assertEquals(framesOf(result.doc).map((f) => [f.levels.w1, f.levels.w2]), [["0", "0"], ["0", "0"], ["1", "1"]]);
 });

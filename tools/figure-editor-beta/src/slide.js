@@ -56,6 +56,31 @@ export const LAYOUTS = {
     },
   },
   textleft: { name: "Text left, figure right", defaults: { v: 40 }, uses: ["v"], make: (a, p) => { const l = Math.round(a.w * p.v / 100); return [R("r1", "text", a.x, a.y, l - 1, a.h, { label: "Text" }), R("r2", "schematic", a.x + l, a.y, a.w - l, a.h)]; } },
+  schematicOnly: { name: "Schematic only", defaults: {}, uses: [], make: (a) => [R("r1", "schematic", a.x, a.y, a.w, a.h)] },
+  textOnly: { name: "Text placeholder only", defaults: {}, uses: [], make: (a) => [R("r1", "text", a.x, a.y, a.w, a.h, { label: "Text" })] },
+  timingOver: { name: "Timing diagram over schematic", defaults: { h: 45 }, uses: ["h"], make: (a, p) => { const t = Math.round(a.h * p.h / 100); return [R("r1", "timing", a.x, a.y, a.w, t - 1), R("r2", "schematic", a.x, a.y + t, a.w, a.h - t)]; } },
+  figureText: { name: "Schematic left, text right", defaults: { v: 62 }, uses: ["v"], make: (a, p) => { const l = Math.round(a.w * p.v / 100); return [R("r1", "schematic", a.x, a.y, l - 1, a.h), R("r2", "text", a.x + l, a.y, a.w - l, a.h, { label: "Text" })]; } },
+  timingText: { name: "Timing diagram left, text right", defaults: { v: 62 }, uses: ["v"], make: (a, p) => { const l = Math.round(a.w * p.v / 100); return [R("r1", "timing", a.x, a.y, l - 1, a.h), R("r2", "text", a.x + l, a.y, a.w - l, a.h, { label: "Text" })]; } },
+  threeColumns: {
+    name: "Text, schematic and timing in three columns", defaults: {}, uses: [], make: (a) => {
+      const w = Math.floor((a.w - 2) / 3), last = a.w - 2 * w - 2;
+      return [R("r1", "text", a.x, a.y, w, a.h, { label: "Text" }), R("r2", "schematic", a.x + w + 1, a.y, w, a.h), R("r3", "timing", a.x + 2 * (w + 1), a.y, last, a.h)];
+    },
+  },
+  threeRows: {
+    name: "Schematic, timing and text stacked", defaults: {}, uses: [], make: (a) => {
+      const top = Math.round(a.h * 0.45), middle = Math.round(a.h * 0.3);
+      return [R("r1", "schematic", a.x, a.y, a.w, top - 1), R("r2", "timing", a.x, a.y + top, a.w, middle - 1), R("r3", "text", a.x, a.y + top + middle, a.w, a.h - top - middle, { label: "Text" })];
+    },
+  },
+  captionTop: { name: "Caption above schematic", defaults: { c: 20 }, uses: ["c"], make: (a, p) => { const c = Math.max(3, Math.round(a.h * p.c / 100)); return [R("r1", "text", a.x, a.y, a.w, c - 1, { label: "Caption" }), R("r2", "schematic", a.x, a.y + c, a.w, a.h - c)]; } },
+  timingCaption: { name: "Timing diagram with caption", defaults: { c: 20 }, uses: ["c"], make: (a, p) => { const c = Math.max(3, Math.round(a.h * p.c / 100)); return [R("r1", "timing", a.x, a.y, a.w, a.h - c - 1), R("r2", "text", a.x, a.y + a.h - c, a.w, c, { label: "Caption" })]; } },
+  twoSchematics: {
+    name: "Two schematic frames side by side", defaults: { v: 50 }, uses: ["v"], make: (a, p) => {
+      const l = Math.round(a.w * p.v / 100);
+      return [R("r1", "schematic", a.x, a.y, l - 1, a.h, { label: "Frame 0", frame: 0 }), R("r2", "schematic", a.x + l, a.y, a.w - l, a.h, { label: "Frame 1", frame: 1 })];
+    },
+  },
 };
 
 /** What each divider is called, its allowed range (percent) and what it measures. */
