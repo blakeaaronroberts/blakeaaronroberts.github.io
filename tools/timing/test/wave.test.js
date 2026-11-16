@@ -127,3 +127,13 @@ Deno.test("levelColour colours each level's line like the nets", async () => {
   for (const c of ["#111111", "#222222", "#333333"]) assert(s.includes(`stroke="${c}"`), c);
   assert(!drawTiming(v, {}).svg.includes("#111111"));
 });
+Deno.test("theme level backgrounds coordinate X and Z fills with the signal line colour", async () => {
+  const { drawTiming } = await import("../src/draw.js");
+  const svg = drawTiming({ signal: [{ name: "D", wave: "xz" }] }, {
+    signalLineColour: "#123456",
+    levelFills: { unknown: "#CC79A7", floating: "#0072B2" },
+  }).svg;
+  assert(svg.includes('fill="#CC79A7" fill-opacity="0.35"'));
+  assert(svg.includes('fill="#0072B2" fill-opacity="0.35"'));
+  assert(svg.includes('stroke="#123456"'));
+});

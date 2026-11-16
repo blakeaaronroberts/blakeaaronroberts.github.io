@@ -11,11 +11,13 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 
 .fe {
   position: fixed; top: var(--fe-top, 0); right: 0; bottom: 0; left: 0; z-index: 10;
-  display: grid; grid-template-columns: 15rem minmax(0, 1fr) 17rem; grid-template-rows: auto minmax(0, 1fr) auto;
+  display: grid; grid-template-columns: minmax(0, var(--fe-left-width, 15rem)) 6px minmax(0, 1fr) 6px minmax(0, var(--fe-right-width, 17rem)); grid-template-rows: auto minmax(0, 1fr) auto;
   background: var(--role-background); color: var(--role-ink);
   font-size: .85rem;
 }
 .fe p { margin: 0; }
+.fe, .fe * { scrollbar-width: none; -ms-overflow-style: none; }
+.fe::-webkit-scrollbar, .fe *::-webkit-scrollbar { display: none; }
 
 /* ---- toolbar ---- */
 .fe-toolbar {
@@ -45,7 +47,16 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 .fe-palette, .fe-side { min-height: 0; overflow-y: auto; scrollbar-width: none; }   /* a fallback only: sections collapse instead of scrolling */
 .fe-palette::-webkit-scrollbar, .fe-side::-webkit-scrollbar { display: none; }
 .fe-palette { grid-column: 1; border-right: 1px solid var(--role-rule); }
-.fe-side { grid-column: 3; border-left: 1px solid var(--role-rule); }
+.fe-side { grid-column: 5; border-left: 1px solid var(--role-rule); }
+.fe-resizer {
+  grid-row: 2; display: flex; align-items: stretch; justify-content: center; min-width: 0; padding: 0; border: 0;
+  background: transparent; touch-action: none; cursor: col-resize;
+}
+.fe-resizer[data-resize="left"] { grid-column: 2; }
+.fe-resizer[data-resize="right"] { grid-column: 4; }
+.fe-resizer::after { content: ""; width: 1px; background: var(--role-rule); }
+.fe-resizer:hover::after, .fe-resizer:focus-visible::after { width: 2px; background: var(--role-accent); }
+.fe-resizer:focus-visible { outline: 0; }
 
 .fe-pane { border-bottom: 1px solid var(--role-rule); }
 .fe-palette.fe-pane { border-bottom: 0; }
@@ -110,7 +121,7 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 .fe-canvas:focus-visible { outline-offset: -2px; }
 
 @media (max-width: 900px) {
-  .fe { grid-template-columns: 11rem minmax(0, 1fr) 13rem; }
+  .fe { --fe-left-width: 11rem; --fe-right-width: 13rem; }
 }
 
 /* ---- dark canvas: the plate follows the dark figure roles; the drawing itself is mapped by the editor ---- */
@@ -216,7 +227,7 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 .fe-pop-values button[aria-pressed="true"] { background: var(--role-accent); border-color: var(--role-accent); color: var(--role-background); }
 
 /* ---- one stack, three sliding sections: Figure Editor, Timing Diagram, Slide ---- */
-.fe-stack { grid-column: 2; grid-row: 2; min-width: 0; min-height: 0; display: grid; grid-template-rows: auto 1fr auto 0fr auto 0fr; transition: grid-template-rows .32s ease; background: var(--role-background); }
+.fe-stack { grid-column: 3; grid-row: 2; min-width: 0; min-height: 0; display: grid; grid-template-rows: auto 1fr auto 0fr auto 0fr; transition: grid-template-rows .32s ease; background: var(--role-background); }
 [data-workspace="figure"] .fe-stack { grid-template-rows: auto 1fr auto 0fr auto 0fr; }
 [data-workspace="timing"] .fe-stack { grid-template-rows: auto 0fr auto 1fr auto 0fr; }
 [data-workspace="slide"] .fe-stack { grid-template-rows: auto 0fr auto 0fr auto 1fr; }
@@ -236,6 +247,7 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 .fe-sec .fe-timing-body { min-height: 0; }
 .fe-pane[hidden], .fe-palette[hidden] { display: none; }
 /* the left column belongs to the Figure Editor only */
-[data-workspace="timing"] .fe, [data-workspace="slide"] .fe { grid-template-columns: 0 minmax(0, 1fr) 17rem; }
+[data-workspace="timing"] .fe, [data-workspace="slide"] .fe { grid-template-columns: 0 0 minmax(0, 1fr) 6px minmax(0, var(--fe-right-width, 17rem)); }
 [data-workspace="timing"] .fe-palette, [data-workspace="slide"] .fe-palette { display: none; }
+[data-workspace="timing"] .fe-resizer[data-resize="left"], [data-workspace="slide"] .fe-resizer[data-resize="left"] { display: none; }
 @media (prefers-reduced-motion: reduce) { .fe-stack, .fe-sec-chev { transition: none; } }

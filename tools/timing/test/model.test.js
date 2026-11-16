@@ -149,3 +149,12 @@ Deno.test("data fills and arrow-line styling are independent of arrowhead stylin
   assert(headPath(styled, "#445566") !== headPath(defaults, "#000000"), "the arrowhead size is independent of line width");
   assert(styled.includes('class="td-edge-label-math"') && styled.includes('scale(0.01)'), "the edge title is drawn from the typeset paths at label size");
 });
+
+Deno.test("signal-line colour persists and is cleared by the theme-colour reset", async () => {
+  const { empty, resetTimingColours, setSignalLineColour, signalLineColourOf, toWaveDrom } = await import("../src/model.js");
+  const fallback = "#ABCDEF";
+  const styled = setSignalLineColour(empty(), "#123456");
+  eq(signalLineColourOf(styled, fallback), "#123456");
+  eq(toWaveDrom(styled).config.signalLineColour, "#123456");
+  eq(signalLineColourOf(resetTimingColours(styled), fallback), fallback);
+});

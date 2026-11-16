@@ -786,10 +786,10 @@ scenarios.timing = async (ctx) => {
       const look = view.querySelector(".td-view-look"), chart = view.querySelector("#WaveDrom_Display_0");
       look.open = true;
       const chartBox = chart.getBoundingClientRect(), lookBox = look.getBoundingClientRect(), lookStyle = getComputedStyle(look);
-      return { shown: !view.hidden, look: !!look, below: chartBox.bottom <= lookBox.top, chartVisible: chartBox.height > 0, unboxed: lookStyle.borderLeftWidth === "0px" && lookStyle.borderRightWidth === "0px" && lookStyle.borderBottomWidth === "0px", showNames: view.querySelector('[data-look="showNames"]')?.checked, font: view.querySelector('[data-look="fontSize"]')?.value, width: view.querySelector('[data-look="lineWidth"]')?.value, spacing: !!view.querySelector('[data-size="hscale"]'), size: !!view.querySelector('[data-size="w"]'), dataColours: view.querySelectorAll('[data-look="dataColour"]').length, arrowLine: !!view.querySelector('[data-look="edgeLineWidth"]') && !!view.querySelector('[data-look="edgeLineColour"]'), arrowHead: !!view.querySelector('[data-look="arrowHeadSize"]') && !!view.querySelector('[data-look="arrowHeadColour"]'), spacerButton: !!document.querySelector('[data-do="add-spacer"]') };
+      return { shown: !view.hidden, look: !!look, below: chartBox.bottom <= lookBox.top, chartVisible: chartBox.height > 0, unboxed: lookStyle.borderLeftWidth === "0px" && lookStyle.borderRightWidth === "0px" && lookStyle.borderBottomWidth === "0px", showNames: view.querySelector('[data-look="showNames"]')?.checked, font: view.querySelector('[data-look="fontSize"]')?.value, width: view.querySelector('[data-look="lineWidth"]')?.value, signalColour: !!view.querySelector('[data-look="signalLineColour"]'), spacing: !!view.querySelector('[data-size="hscale"]'), size: !!view.querySelector('[data-size="w"]'), fit: !!view.querySelector('[data-do="fit"]'), dataColours: view.querySelectorAll('[data-look="dataColour"]').length, arrowLine: !!view.querySelector('[data-look="edgeLineWidth"]') && !!view.querySelector('[data-look="edgeLineColour"]'), arrowHead: !!view.querySelector('[data-look="arrowHeadSize"]') && !!view.querySelector('[data-look="arrowHeadColour"]'), spacerButton: !!document.querySelector('[data-do="add-spacer"]') };
     })()`);
     res.push([controls.shown && controls.look && controls.below && controls.chartVisible && controls.unboxed && controls.showNames === true && controls.font === "12" && controls.width === "1.6" && controls.spacing && controls.size, `diagram sits above integrated look and size controls (${JSON.stringify(controls)})`]);
-    res.push([controls.dataColours === 7 && controls.arrowLine && controls.arrowHead && controls.spacerButton, `look controls include seven data colours, independent arrow styling and the WaveDrom spacer tool (${JSON.stringify(controls)})`]);
+    res.push([controls.dataColours === 7 && controls.arrowLine && controls.arrowHead && controls.spacerButton && controls.fit, `look controls include seven data colours, independent arrow styling, Fit and the WaveDrom spacer tool (${JSON.stringify(controls)})`]);
 
     await page.eval(`window.figureEditor.load(JSON.stringify({
       schema: "circuit/0.2", id: "timing_connected_wires", grid_cm: 0.25,
@@ -829,6 +829,7 @@ scenarios.timing = async (ctx) => {
       width.value = "2.6"; width.dispatchEvent(new Event("change", { bubbles: true }));
       const set = (selector, value) => { const input = document.querySelector(selector); input.value = value; input.dispatchEvent(new Event("change", { bubbles: true })); };
       set('[data-look="dataColour"][data-colour-index="0"]', "#123456");
+      set('[data-look="signalLineColour"]', "#112233");
       set('[data-look="edgeLineWidth"]', "2.4");
       set('[data-look="edgeLineColour"]', "#654321");
       set('[data-look="arrowHeadSize"]', "10");
@@ -842,7 +843,7 @@ scenarios.timing = async (ctx) => {
         math: !!s?.querySelector(".td-name-math path"), editorMath: !!document.querySelector(".td-name .td-inline-math path"),
         edgeMath: !!s?.querySelector(".td-edge-label-math path"), textSized: !!s?.querySelector('.td-name-math[transform*="scale(0.018)"]'),
         thickLine: !!s?.querySelector('[stroke-width="2.6"]'), dataColour: !!s?.querySelector('[fill="#123456"]'),
-        arrowLine: !!s?.querySelector('[stroke="#654321"][stroke-width="2.4"]'), arrowHead: !!s?.querySelector('[fill="#ABCDEF"]'),
+        signalLine: !!s?.querySelector('[stroke="#112233"]'), arrowLine: !!s?.querySelector('[stroke="#654321"][stroke-width="2.4"]'), arrowHead: !!s?.querySelector('[fill="#ABCDEF"]'),
         widths: Array.from(s?.querySelectorAll("[stroke-width]") ?? []).map((t) => t.getAttribute("stroke-width")), config: source.config,
         sourceKey: !!localStorage.getItem("figure-editor-beta/timing-source"), stableKey: localStorage.getItem("timing-diagram/source"), legacySend: localStorage.getItem("timing-diagram/send"),
       };
@@ -851,11 +852,11 @@ scenarios.timing = async (ctx) => {
     res.push([svg.editorMath, "the Edit view also renders TeX signal names"]);
     res.push([svg.edgeMath, "WaveDrom edge titles render as TeX paths"]);
     res.push([svg.textSized && svg.thickLine, `text size and line width update the diagram (${JSON.stringify(svg)})`]);
-    res.push([svg.dataColour && svg.arrowLine && svg.arrowHead && svg.config?.dataColours?.[0] === "#123456" && svg.config.edgeLineWidth === 2.4 && svg.config.arrowHeadSize === 10, `data colours and arrow line/head styles are independent and saved (${JSON.stringify(svg)})`]);
+    res.push([svg.dataColour && svg.signalLine && svg.arrowLine && svg.arrowHead && svg.config?.dataColours?.[0] === "#123456" && svg.config.signalLineColour === "#112233" && svg.config.edgeLineWidth === 2.4 && svg.config.arrowHeadSize === 10, `signal, data and arrow line/head styles are independent and saved (${JSON.stringify(svg)})`]);
     const resetColours = await page.eval(`(() => {
       document.querySelector('[data-do="reset-look-colours"]').click();
       const source = JSON.parse(localStorage.getItem("figure-editor-beta/timing-source") ?? "{}");
-      return !source.config?.dataColours && !source.config?.edgeLineColour && !source.config?.arrowHeadColour;
+      return !source.config?.dataColours && !source.config?.signalLineColour && !source.config?.edgeLineColour && !source.config?.arrowHeadColour;
     })()`);
     res.push([resetColours, "theme-colour reset clears only custom colour overrides"]);
     res.push([svg.sourceKey && svg.stableKey === null && svg.legacySend === null, "beta timing data stays in beta-only browser storage"]);
@@ -864,9 +865,9 @@ scenarios.timing = async (ctx) => {
     const pane = await page.eval(`(() => {
       const body = document.querySelector(".td-source").getBoundingClientRect(), editor = document.querySelector(".td-srctext").getBoundingClientRect();
       const rect = (s) => { const r = document.querySelector(s).getBoundingClientRect(); return [r.width, r.height]; };
-      return { visible: !document.querySelector(".td-source").hidden, pane: [body.width, body.height], editor: [editor.width, editor.height], center: rect(".td-center"), dock: rect(".td-dock"), section: rect('[data-sec="timing"]'), grid: getComputedStyle(document.querySelector(".td-dock")).gridTemplateRows, centerGrid: getComputedStyle(document.querySelector(".td-center")).gridTemplateRows, sourceDisplay: getComputedStyle(document.querySelector(".td-source")).display, wrap: document.querySelector(".td-srctext").wrap };
+      return { visible: !document.querySelector(".td-source").hidden, pane: [body.width, body.height], editor: [editor.width, editor.height], center: rect(".td-center"), dock: rect(".td-dock"), section: rect('[data-sec="timing"]'), grid: getComputedStyle(document.querySelector(".td-dock")).gridTemplateRows, centerGrid: getComputedStyle(document.querySelector(".td-center")).gridTemplateRows, sourceDisplay: getComputedStyle(document.querySelector(".td-source")).display, wrap: document.querySelector(".td-srctext").wrap, tab: document.querySelector('[data-view="source"]').textContent.trim(), hint: !!document.querySelector(".td-source .fe-hint") };
     })()`);
-    res.push([pane.visible && pane.editor[0] >= pane.pane[0] * 0.9 && pane.editor[1] >= pane.pane[1] * 0.65 && pane.wrap === "off", `WaveDrom source fills the pane as an unwrapped editor (${JSON.stringify(pane)})`]);
+    res.push([pane.visible && pane.editor[0] >= pane.pane[0] * 0.9 && pane.editor[1] >= pane.pane[1] * 0.65 && pane.wrap === "off" && pane.tab === "Source" && !pane.hint, `Source fills the pane as an unwrapped editor without the old hint (${JSON.stringify(pane)})`]);
 
     await page.eval(`(() => { document.querySelector('[data-view="diagram"]').click(); document.querySelector(".td-view-look").open = true; })()`);
     await page.sleep(250);
@@ -982,11 +983,14 @@ scenarios.sourceEditor = async (ctx) => {
     const editor = await page.eval(`(() => ({
       lastLine: document.querySelector(".td-line-numbers").textContent.split("\\n").at(-1),
       synced: document.querySelector(".td-line-numbers").scrollTop === document.querySelector(".td-srctext").scrollTop,
-      striped: getComputedStyle(document.querySelector(".td-srctext")).backgroundImage.includes("repeating-linear-gradient")
+      striped: getComputedStyle(document.querySelector(".td-srctext")).backgroundImage.includes("repeating-linear-gradient"),
+      font: getComputedStyle(document.querySelector(".td-srctext")).fontFamily.includes("Fira Mono"),
+      centered: parseFloat(getComputedStyle(document.querySelector(".td-srctext")).lineHeight) / parseFloat(getComputedStyle(document.querySelector(".td-srctext")).fontSize) >= 1.5
     }))()`);
     res.push([editor.lastLine === "60", "source editor numbers every line"]);
     res.push([editor.synced, "line numbers stay aligned while the source scrolls"]);
     res.push([editor.striped, "source lines use alternating theme backgrounds"]);
+    res.push([editor.font && editor.centered, "source text uses the figure coding font with vertically centered line spacing"]);
 
     await page.eval(`(() => {
       URL.createObjectURL = (blob) => { window.__sourceBlob = blob; return "blob:source-test"; };
@@ -997,7 +1001,59 @@ scenarios.sourceEditor = async (ctx) => {
     const download = await page.eval(`(async () => ({ filename: window.__sourceFilename, text: await window.__sourceBlob.text() }))()`);
     res.push([download.filename === "timing-diagram.json" && download.text === text, "Save source downloads the editor text as timing-diagram.json"]);
     await page.shot(`${ctx.out}/beta-source-editor.png`);
+    const storedBefore = await page.eval(`localStorage.getItem("figure-editor-beta/timing-source")`);
+    await page.eval(`document.querySelector('[data-do="src-clear"]').click()`);
+    const cleared = await page.eval(`({ empty: document.querySelector(".td-srctext").value === "", lines: document.querySelector(".td-line-numbers").textContent, stored: localStorage.getItem("figure-editor-beta/timing-source") })`);
+    res.push([cleared.empty && cleared.lines === "1" && cleared.stored === storedBefore, "Clear empties only the source buffer and leaves the diagram unchanged"]);
     res.push([page.errors.length === 0, `source editor: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};
+
+scenarios.layoutAndFit = async (ctx) => {
+  const res = [];
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(`${ctx.url}?view=timing`);
+    await page.waitFor(`!!document.querySelector(".td-tabs")`);
+    const widths = await page.eval(`(() => {
+      const left = document.querySelector('.fe-resizer[data-resize="left"]');
+      const right = document.querySelector('.fe-resizer[data-resize="right"]');
+      left.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
+      right.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+      const options = JSON.parse(localStorage.getItem("figure-editor-beta/options") ?? "{}");
+      return { left: left.getAttribute("aria-valuenow"), right: right.getAttribute("aria-valuenow"), stored: [options.leftPaneWidth, options.rightPaneWidth], hiddenBars: getComputedStyle(document.querySelector(".fe")).scrollbarWidth === "none" };
+    })()`);
+    res.push([Number(widths.left) === 256 && Number(widths.right) === 288 && widths.stored.join(",") === "256,288", `editor pane widths resize by keyboard and persist (${JSON.stringify(widths)})`]);
+    res.push([widths.hiddenBars, "beta editor scrollbars are hidden without disabling scrolling"]);
+    const rightHandle = await page.eval(`(() => { const r = document.querySelector('.fe-resizer[data-resize="right"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
+    await page.drag(rightHandle, [rightHandle[0] - 24, rightHandle[1]]);
+    const draggedWidth = await page.eval(`Number(document.querySelector('.fe-resizer[data-resize="right"]').getAttribute("aria-valuenow"))`);
+    res.push([draggedWidth > Number(widths.right), `editor pane separator resizes by dragging (${draggedWidth}px)`]);
+
+    await page.eval(`(() => { document.querySelector('[data-view="diagram"]').click(); document.querySelector(".td-view-look").open = true; })()`);
+    await page.sleep(100);
+    const split = await page.eval(`(() => {
+      const handle = document.querySelector("[data-look-split]");
+      const before = Number(handle.getAttribute("aria-valuenow"));
+      handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true, cancelable: true }));
+      return { before, after: Number(handle.getAttribute("aria-valuenow")), visible: !handle.hidden };
+    })()`);
+    res.push([split.visible && split.after > split.before, `diagram and controls have a keyboard-resizable separator (${JSON.stringify(split)})`]);
+    const lookHandle = await page.eval(`(() => { const r = document.querySelector("[data-look-split]").getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
+    await page.drag(lookHandle, [lookHandle[0], lookHandle[1] - 24]);
+    const draggedLookHeight = await page.eval(`Number(document.querySelector("[data-look-split]").getAttribute("aria-valuenow"))`);
+    res.push([draggedLookHeight > split.after, `diagram and controls separator resizes by dragging (${draggedLookHeight}px)`]);
+
+    const fit = await page.eval(`(() => {
+      const width = document.querySelector('[data-size="w"]');
+      width.value = "200"; width.dispatchEvent(new Event("input", { bubbles: true }));
+      const event = new KeyboardEvent("keydown", { key: "f", bubbles: true, cancelable: true });
+      document.body.dispatchEvent(event);
+      return { prevented: event.defaultPrevented, width: Number(width.value) };
+    })()`);
+    res.push([fit.prevented && fit.width > 200, `F prevents the page-search shortcut and fits the active timing diagram (${JSON.stringify(fit)})`]);
+    res.push([page.errors.length === 0, `layout and Fit: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
   } finally { await page.close(); }
   return res;
 };

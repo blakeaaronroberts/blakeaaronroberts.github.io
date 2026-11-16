@@ -82,12 +82,13 @@ export function parseEdge(s) {
 
 /**
  * The SVG for a source at width x height px. Options include ink, accent (the step marker), marker (a step index or null),
- * levelColour (lines coloured by level, like the schematic nets), dataFills (theme fills for data 3 to 9), edge-line and
- * arrowhead styles, nameTypeset and edgeLabelTypeset (outlined TeX), and paper (behind edge labels; none if not given).
+ * levelColour (lines coloured by level, like the schematic nets), dataFills (theme fills for data 3 to 9), levelFills
+ * (theme backgrounds for X and Z), signalLineColour, edge-line and arrowhead styles, nameTypeset and edgeLabelTypeset
+ * (outlined TeX), and paper (behind edge labels; none if not given).
  * A source's config.dataColours can override the seven data fills.
  * Returns {svg, natural, geometry: {x0, stepW, laneH, steps, top}}.
  */
-export function drawTiming(value, { width, height, ink = "#000000", accent = "#0072B2", marker = null, levelColour = null, dataFills = [], paper = null, fontSize = FONT, lineWidth = 1.6, edgeLineWidth = lineWidth / 1.6, edgeLineColour = null, arrowHeadSize = 6, arrowHeadColour = null, nameTypeset = null, edgeLabelTypeset = nameTypeset, showNames = true } = {}) {
+export function drawTiming(value, { width, height, ink = "#000000", accent = "#0072B2", marker = null, levelColour = null, dataFills = [], levelFills = {}, signalLineColour = ink, paper = null, fontSize = FONT, lineWidth = 1.6, edgeLineWidth = lineWidth / 1.6, edgeLineColour = null, arrowHeadSize = 6, arrowHeadColour = null, nameTypeset = null, edgeLabelTypeset = nameTypeset, showNames = true } = {}) {
   const lanes = lanesOf(value);
   const nat = naturalSize(value, Number(value?.config?.hscale) || 1, { fontSize, nameTypeset, showNames });
   const W = Math.max(100, width ?? nat.w), H = Math.max(40, height ?? nat.h);
@@ -102,8 +103,9 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
   const edgeWidth = Math.max(0.25, Math.min(4, Number(value?.config?.edgeLineWidth) || Number(edgeLineWidth) || lw / 1.6));
   const edgeColour = isHexColour(value?.config?.edgeLineColour) ? value.config.edgeLineColour : edgeLineColour ?? ink;
   const headColour = isHexColour(value?.config?.arrowHeadColour) ? value.config.arrowHeadColour : arrowHeadColour ?? ink;
+  const signalColour = isHexColour(signalLineColour) ? signalLineColour : ink;
   const headSize = Math.max(2, Math.min(16, Number(value?.config?.arrowHeadSize) || Number(arrowHeadSize) || 6));
-  const stroke = `clip-path="url(#plot)" fill="none" stroke="${ink}" stroke-width="${n2(lw)}" stroke-linecap="round" stroke-linejoin="round"`;
+  const stroke = `clip-path="url(#plot)" fill="none" stroke="${signalColour}" stroke-width="${n2(lw)}" stroke-linecap="round" stroke-linejoin="round"`;
   const out = [], nodes = new Map();
   const text = (x, y, s, anchor = "middle", size = fontSize, extra = "") => `<text x="${n2(x)}" y="${n2(y)}" text-anchor="${anchor}" font-size="${n2(size)}" font-family="${FAMILY}" fill="${ink}"${extra}>${esc(s)}</text>`;
   const mathText = (x, y, parsed, anchor = "end", size = fontSize, className = "td-name-math", ariaLabel = "typeset label") => {
@@ -168,7 +170,7 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
     let cur = null, dashed = false, last = [0, 0];   // the colour and dash of the path being built
     const line = (x, y) => { last = [x, y]; d.push(`${d.length ? "L" : "M"} ${n2(x)} ${n2(y)}`); };
     const endPath = () => {
-      if (d.length) out.push(`<path d="${d.join(" ")}" ${cur ? stroke.replace(`stroke="${ink}"`, `stroke="${cur}"`) : stroke}${dashed ? ` stroke-dasharray="${n2(lw * 2)} ${n2(lw * 2)}"` : ""}/>`);
+      if (d.length) out.push(`<path d="${d.join(" ")}" ${cur ? stroke.replace(`stroke="${signalColour}"`, `stroke="${cur}"`) : stroke}${dashed ? ` stroke-dasharray="${n2(lw * 2)} ${n2(lw * 2)}"` : ""}/>`);
       d.length = 0;
     };
     const paint = (k, weak = false) => {   // start a new path when the colour (levelColour option) or the dash (u, d) changes
@@ -186,7 +188,13 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
       const colour = colourIndex >= 0
         ? (isHexColour(value?.config?.dataColours?.[colourIndex]) ? value.config.dataColours[colourIndex] : dataFills[colourIndex])
         : null;
-      out.push(`<path clip-path="url(#plot)" d="M ${pts.map((p) => `${n2(p[0])} ${n2(p[1])}`).join(" L ")} Z" fill="${hatch ? "url(#hatch)" : colour ?? ink}" fill-opacity="${hatch ? 1 : colour ? 0.35 : 0.08}" stroke="${ink}" stroke-width="${lw}" stroke-linejoin="round"/>`);
+      const shape = `M ${pts.map((p) => `${n2(p[0])} ${n2(p[1])}`).join(" L ")} Z`;
+      if (hatch && isHexColour(levelFills.unknown)) {
+        out.push(`<path clip-path="url(#plot)" d="${shape}" fill="${levelFills.unknown}" fill-opacity="0.35"/>`);
+        out.push(`<path clip-path="url(#plot)" d="${shape}" fill="url(#hatch)" stroke="${signalColour}" stroke-width="${lw}" stroke-linejoin="round"/>`);
+      } else {
+        out.push(`<path clip-path="url(#plot)" d="${shape}" fill="${hatch ? "url(#hatch)" : colour ?? signalColour}" fill-opacity="${hatch ? 1 : colour ? 0.35 : 0.08}" stroke="${signalColour}" stroke-width="${lw}" stroke-linejoin="round"/>`);
+      }
       if (!hatch && run.label) out.push(text((xl + xr) / 2, ym + fontSize * 0.35, run.label));
       run = null;
     };
@@ -202,6 +210,11 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
       if (xr <= x0) continue;
       const wasBox = prevBox; prevBox = BOX.test(c);
       const a = Math.max(xl, x0);
+      if (c === "z" && isHexColour(levelFills.floating)) {
+        const x1 = Math.max(xl, x0), mid = (yh + yl) / 2, zSlope = Math.min(slope, (xr - x1) / 4);
+        const pts = [[x1, mid], [x1 + zSlope, yh], [xr - zSlope, yh], [xr, mid], [xr - zSlope, yl], [x1 + zSlope, yl]];
+        out.push(`<path clip-path="url(#plot)" d="M ${pts.map((p) => `${n2(p[0])} ${n2(p[1])}`).join(" L ")} Z" fill="${levelFills.floating}" fill-opacity="0.35"/>`);
+      }
       if (/^[pPnN]$/.test(c)) {
         flush();
         paint(null);
@@ -277,7 +290,7 @@ export function drawTiming(value, { width, height, ink = "#000000", accent = "#0
     out.push(`<rect class="td-marker" x="${n2(x0 + marker * stepW)}" y="2" width="${n2(stepW)}" height="${n2(H - 4)}" rx="6" ry="6" fill="${accent}" fill-opacity="0.18" stroke="${accent}" stroke-width="${n2(lw * 0.75)}"/>`);
   }
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${n2(W)}" height="${n2(H)}" viewBox="0 0 ${n2(W)} ${n2(H)}">` +
-    `<defs><clipPath id="plot"><rect x="${n2(x0 - 2)}" y="0" width="${n2(W - x0 - 8)}" height="${n2(H)}"/></clipPath><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${ink}" stroke-width="${n2(lw / 1.6)}"/></pattern></defs>` +
+    `<defs><clipPath id="plot"><rect x="${n2(x0 - 2)}" y="0" width="${n2(W - x0 - 8)}" height="${n2(H)}"/></clipPath><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${signalColour}" stroke-width="${n2(lw / 1.6)}"/></pattern></defs>` +
     out.join("") + `</svg>`;
   return { svg, natural: nat, geometry: { x0, stepW, laneH, steps, top: top0, groupWidth: gw } };
 }

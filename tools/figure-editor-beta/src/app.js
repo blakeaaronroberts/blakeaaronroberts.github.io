@@ -67,7 +67,7 @@ export const KEYS = [
   ["Drag on empty canvas", "Box select"],
   ["Mouse wheel, + and −", "Zoom"],
   ["Space+drag, middle button+drag", "Pan"],
-  ["F", "Fit the figure in the window"],
+  ["F", "Fit the current view in the window"],
   ["Esc", "Cancel what you are doing, go back to Select, or clear the selection"],
   ["?", "Show or hide this list"],
 ];
@@ -149,6 +149,7 @@ export async function mount(root, options = {}) {
       <summary class="label-mono">Elements</summary>
       <div class="fe-cats"></div>
     </details>
+    <div class="fe-resizer" data-resize="left" role="separator" aria-label="Resize elements pane" aria-orientation="vertical" tabindex="0"></div>
     <div class="fe-stack" role="region" aria-label="Workspace: Figure Editor, Timing Diagram and Slide">
       <button type="button" class="fe-sec-bar" data-cmd="viewfigure" data-sec-bar="figure" aria-expanded="false"><span class="label-mono">Figure Editor</span><span class="fe-sec-chev" aria-hidden="true"></span></button>
       <div class="fe-sec" data-sec="figure"><div class="fe-stage">
@@ -162,6 +163,7 @@ export async function mount(root, options = {}) {
         <svg class="fe-slideview" role="img" aria-label="Slide view: drag a region to move it, drag its corner to resize it" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
       </div>
     </div>
+    <div class="fe-resizer" data-resize="right" role="separator" aria-label="Resize properties pane" aria-orientation="vertical" tabindex="0"></div>
     <div class="fe-side" role="region" aria-label="Figure properties">
       <details data-views="figure" class="fe-pane">
         <summary class="label-mono">Selection</summary>
@@ -269,7 +271,7 @@ export async function mount(root, options = {}) {
   let spaceHeld = false;
   let lastDrawing = null;
   let selectedFrame = -1;            // the frame chosen in the Frames list (level frames, F11.2)
-  let timingTool = null, timingTimer = 0;   // the docked Timing Diagram pane, mounted on first open (F18)
+  let timingTool = null, timingTimer = 0, fitTimingWhenReady = false;   // the docked Timing Diagram pane, mounted on first open (F18)
   const framesWhat = $('[name="fe-frames-what"]');
   let autosaveTimer = null;
   const typeset = new Map();         // TeX to parseTypeset's result (every label drawn is typeset once)
@@ -284,6 +286,61 @@ export async function mount(root, options = {}) {
   /** Snap a point (grid steps) to the part grid. Wires, ports and labels always snap to one step (half a module). */
   function snapPart(p) { const g = opt.grid; return [g * Math.round(p[0] / g) || 0, g * Math.round(p[1] / g) || 0]; }
   const saveOptions = () => store.set(OPTIONS, JSON.stringify(opt));
+  const editor = $(".fe");
+  const paneWidth = (n, fallback) => Number.isFinite(Number(n)) ? Math.max(160, Math.min(480, Math.round(Number(n)))) : fallback;
+  opt.leftPaneWidth = paneWidth(opt.leftPaneWidth, 240);
+  opt.rightPaneWidth = paneWidth(opt.rightPaneWidth, 272);
+  function applyPaneWidths() {
+    editor.style.setProperty("--fe-left-width", `${opt.leftPaneWidth}px`);
+    editor.style.setProperty("--fe-right-width", `${opt.rightPaneWidth}px`);
+    for (const handle of root.querySelectorAll(".fe-resizer")) {
+      const side = handle.dataset.resize;
+      const width = side === "left" ? opt.leftPaneWidth : opt.rightPaneWidth;
+      handle.setAttribute("aria-valuemin", "160");
+      handle.setAttribute("aria-valuemax", "480");
+      handle.setAttribute("aria-valuenow", String(width));
+    }
+  }
+  function resizePane(side, width) {
+    const key = side === "left" ? "leftPaneWidth" : "rightPaneWidth";
+    opt[key] = paneWidth(width, opt[key]);
+    applyPaneWidths();
+  }
+  applyPaneWidths();
+  for (const handle of root.querySelectorAll(".fe-resizer")) {
+    const side = handle.dataset.resize;
+    handle.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      handle.setPointerCapture(e.pointerId);
+      const move = (event) => {
+        const bounds = editor.getBoundingClientRect();
+        resizePane(side, side === "left" ? event.clientX - bounds.left : bounds.right - event.clientX);
+      };
+      const done = () => {
+        handle.removeEventListener("pointermove", move);
+        handle.removeEventListener("pointerup", done);
+        handle.removeEventListener("pointercancel", done);
+        saveOptions();
+      };
+      handle.addEventListener("pointermove", move);
+      handle.addEventListener("pointerup", done, { once: true });
+      handle.addEventListener("pointercancel", done, { once: true });
+    });
+    handle.addEventListener("keydown", (e) => {
+      const delta = e.key === "ArrowRight" ? (side === "left" ? 16 : -16)
+        : e.key === "ArrowLeft" ? (side === "left" ? -16 : 16) : 0;
+      if (delta) {
+        e.preventDefault();
+        resizePane(side, (side === "left" ? opt.leftPaneWidth : opt.rightPaneWidth) + delta);
+        saveOptions();
+      } else if (e.key === "Home" || e.key === "End") {
+        e.preventDefault();
+        resizePane(side, e.key === "Home" ? 160 : 480);
+        saveOptions();
+      }
+    });
+  }
   const drawOpts = () => ({ typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags, netNames: opt.netNames, scale: opt.scale });
 
   /** The status line. An error is bold and announced at once, and stays until the next message. */
@@ -864,7 +921,11 @@ export async function mount(root, options = {}) {
     gridfull: () => setGrid(2),
     zoomin: () => view.zoomAt(1 / 1.25),
     zoomout: () => view.zoomAt(1.25),
-    fit: () => view.fit(lastDrawing?.box ?? null),
+    fit: () => {
+      if (opt.view === "timing") {
+        if (timingTool) timingTool.fit(); else fitTimingWhenReady = true;
+      } else view.fit(lastDrawing?.box ?? null);
+    },
     new() {   // clears the figure and the Timing Diagram together (the figure can be brought back with Undo; the diagram cannot)
       if (timingTool) timingTool.clear(); else { store.remove(TIMING_SOURCE); store.remove(TIMING_SEND); }
       commit(D.newDoc(), "New: the figure and the timing diagram are cleared (Undo brings the figure back)."); selection = none(); loadWarnings = []; view.fit(null); render(); },
@@ -1003,6 +1064,8 @@ export async function mount(root, options = {}) {
       return {
         source: sent.source, ink: r.ink, accent: r.accent, paper: r.background,
         dataFills: [lc("1"), lc("0"), r.accent, lc("X"), lc("Z"), r.muted ?? r.ink, r.ink],
+        levelFills: { unknown: r.unknown, floating: r.floating },
+        signalLineColour: sent.source.config?.signalLineColour ?? r.ink,
         marker: opt.timingMarker && step >= 0 ? step : null,
         levelColour: opt.timingColour ? (l) => pk.levelColour(l) ?? null : null,
         fontSize: Math.min(24, Math.max(8, Number(sent.source.config?.fontSize) || 12)),
@@ -1167,6 +1230,7 @@ export async function mount(root, options = {}) {
     });
     timingTool.setCircuit(D.serialize(doc, pack));
     if (!framesOf(doc).length) populateFromTiming(true);
+    if (fitTimingWhenReady) { fitTimingWhenReady = false; timingTool.fit(); }
   }
   /**
    * The three workspaces are sections of one stack: the one in view takes the whole window, the others slide away to their title bars
@@ -1603,6 +1667,13 @@ export async function mount(root, options = {}) {
   new ResizeObserver(() => view.applyCamera()).observe(svg);
 
   root.addEventListener("keyup", (e) => { if (e.key === " ") spaceHeld = false; });
+  window.addEventListener("keydown", (e) => {
+    if (e.key.toLowerCase() !== "f" || e.ctrlKey || e.metaKey || e.altKey) return;
+    e.stopImmediatePropagation();
+    if (e.target.closest("input, textarea, select, [contenteditable=true]")) return;
+    e.preventDefault();
+    if (!helpEl.open) commands.fit();
+  }, true);
   root.addEventListener("keydown", (e) => {
     if (e.target.closest("input, textarea, select")) return;
     const ctrl = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
@@ -1636,7 +1707,6 @@ export async function mount(root, options = {}) {
     if (k === "t") return run("label");
     if (k === "r") return run("rotate");
     if (k === "m") return run("mirror");
-    if (k === "f") return run("fit");
     if ((selection.wires.length || selection.elements.length) && ["0", "1", "x", "z"].includes(k)) { e.preventDefault(); return setLevel(k.toUpperCase()); }
     if (e.key === "Delete" || e.key === "Backspace") return run("delete");
     if (e.key === "+" || e.key === "=") return run("zoomin");

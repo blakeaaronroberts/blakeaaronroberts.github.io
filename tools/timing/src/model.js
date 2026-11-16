@@ -213,6 +213,9 @@ const setColour = (v, key, colour) => {
   if (!Object.keys(d.config).length) delete d.config;
   return d;
 };
+export const signalLineColourOf = (v, fallback) =>
+  isHexColour(v?.config?.signalLineColour) ? v.config.signalLineColour : fallback;
+export const setSignalLineColour = (v, colour) => setColour(v, "signalLineColour", colour);
 /** The seven user-overridable fills for WaveDrom's data values 3 through 9. */
 export const dataColoursOf = (v, defaults = []) => Array.from({ length: 7 }, (_, i) =>
   isHexColour(v?.config?.dataColours?.[i]) ? v.config.dataColours[i] : defaults[i] ?? null);
@@ -253,6 +256,7 @@ export function resetTimingColours(v) {
   const d = clone(v);
   if (d.config) {
     delete d.config.dataColours;
+    delete d.config.signalLineColour;
     delete d.config.edgeLineColour;
     delete d.config.arrowHeadColour;
     if (!Object.keys(d.config).length) delete d.config;

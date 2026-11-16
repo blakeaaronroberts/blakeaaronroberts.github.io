@@ -40,6 +40,8 @@ $fig-dark-grid: mix($fig-dark-ink, $fig-dark-background, 22%);
   --fig-accent: #{$fig-accent};
   --fig-high: #{$fig-high};
   --fig-flow: #{$fig-flow};
+  --fig-unknown: #{$fig-unknown};
+  --fig-floating: #{$fig-floating};
   --fig-highlight: #{$fig-highlight};
   --fig-font: #{inspect($fig-font-text)};
   --fig-font-mono: #{inspect($fig-font-mono)};

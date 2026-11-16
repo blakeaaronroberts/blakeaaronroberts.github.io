@@ -7,7 +7,7 @@ const views = (B, sizeInLook = false, betaFeatures = false) => `
       <div class="td-tabs" role="tablist" aria-label="View">
         <button type="button" class="${B}" role="tab" data-view="edit" aria-selected="true">Edit</button>
         <button type="button" class="${B}" role="tab" data-view="diagram" aria-selected="false">Diagram</button>
-        <button type="button" class="${B}" role="tab" data-view="source" aria-selected="false" title="${betaFeatures ? "Save or copy the WaveDrom source, or paste one in" : "The diagram as WaveDrom source: copy it out, or paste one in"}">WaveDrom source</button>
+        <button type="button" class="${B}" role="tab" data-view="source" aria-selected="false" title="${betaFeatures ? "Save or copy the WaveDrom source, or paste one in" : "The diagram as WaveDrom source: copy it out, or paste one in"}">${betaFeatures ? "Source" : "WaveDrom source"}</button>
       </div>
       <div class="td-edit" role="tabpanel" aria-label="Edit the diagram">
         <div class="td-subtabs" role="tablist" aria-label="What to edit">
@@ -44,7 +44,7 @@ const views = (B, sizeInLook = false, betaFeatures = false) => `
             </div>
             <label class="form-label">Lean of an edge (px, 0 to 12) <input class="form-control form-control-sm" type="number" min="0" max="12" step="0.5" data-look="slant"></label>
           </fieldset>
-          ${sizeInLook ? sizeFields(B) : ""}
+          ${sizeInLook ? sizeFields(B, betaFeatures) : ""}
           <fieldset class="td-band"><legend class="label-mono">Spacing</legend>
             <label class="form-label">Step width (WaveDrom hscale) <input class="form-control form-control-sm" type="number" min="0.25" max="8" step="0.25" data-size="hscale"></label>
           </fieldset>
@@ -52,7 +52,8 @@ const views = (B, sizeInLook = false, betaFeatures = false) => `
       </div>
       <div class="td-view" role="tabpanel" aria-label="Diagram" hidden>
         <div id="WaveDrom_Display_0"></div>
-        ${betaFeatures ? `<details class="td-view-look"><summary>Look and size</summary>
+        ${betaFeatures ? `<button type="button" class="td-view-split" role="separator" aria-label="Resize diagram and look controls" aria-orientation="horizontal" aria-valuemin="80" aria-valuenow="180" aria-valuemax="400" data-look-split></button>
+          <details class="td-view-look"><summary>Look and size</summary>
           <div class="td-view-look-controls">
             <fieldset class="td-band"><legend class="label-mono">Edges</legend>
               <div class="td-presets" role="group" aria-label="Edge style">
@@ -65,6 +66,7 @@ const views = (B, sizeInLook = false, betaFeatures = false) => `
               <label class="form-check"><input class="form-check-input" type="checkbox" data-look="showNames"> <span class="form-check-label">Show net names</span></label>
               <label class="form-label">Text size (px) <input class="form-control form-control-sm" type="number" min="8" max="24" step="1" data-look="fontSize"></label>
               <label class="form-label">Line width (px) <input class="form-control form-control-sm" type="number" min="0.5" max="4" step="0.1" data-look="lineWidth"></label>
+              <label class="form-label">Signal line colour <input class="form-control form-control-color" type="color" data-look="signalLineColour"></label>
             </fieldset>
             <fieldset class="td-band"><legend class="label-mono">Data-signal colours</legend>
               <p class="fe-hint">WaveDrom data values 3 through 9.</p>
@@ -80,13 +82,13 @@ const views = (B, sizeInLook = false, betaFeatures = false) => `
             <fieldset class="td-band"><legend class="label-mono">Spacing</legend>
               <label class="form-label">Step width (WaveDrom hscale) <input class="form-control form-control-sm" type="number" min="0.25" max="8" step="0.25" data-size="hscale"></label>
             </fieldset>
-            ${sizeFields(B)}
+            ${sizeFields(B, betaFeatures)}
           </div>
         </details>` : ""}
       </div>
       <div class="td-source" role="tabpanel" aria-label="WaveDrom source" hidden>
         ${betaFeatures ? '<div class="td-code-editor"><pre class="td-line-numbers" aria-hidden="true">1</pre><textarea class="form-control td-srctext" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off" aria-label="WaveDrom source"></textarea></div>' : '<textarea class="form-control td-srctext" spellcheck="false" aria-label="WaveDrom source"></textarea>'}
-        <div class="fe-theme-buttons"><button type="button" class="${B}" data-do="src-apply">Use this source</button>${betaFeatures ? `<button type="button" class="${B}" data-do="src-save">Save source</button>` : ""}<button type="button" class="${B}" data-do="src-copy">Copy</button><span class="fe-hint">Any WaveDrom diagram: paste one in and press Use this source.</span></div>
+        <div class="fe-theme-buttons"><button type="button" class="${B}" data-do="src-apply">Use this source</button>${betaFeatures ? `<button type="button" class="${B}" data-do="src-clear">Clear</button><button type="button" class="${B}" data-do="src-save">Save source</button>` : ""}<button type="button" class="${B}" data-do="src-copy">Copy</button>${betaFeatures ? "" : '<span class="fe-hint">Any WaveDrom diagram: paste one in and press Use this source.</span>'}</div>
       </div>`;
 
 const bandFields = () => ["head", "foot"].map((b) => `<fieldset class="td-band"><legend class="label-mono">${b === "head" ? "Title above the signals (head)" : "Title below the signals (foot)"}</legend>
@@ -95,10 +97,10 @@ const bandFields = () => ["head", "foot"].map((b) => `<fieldset class="td-band">
             <label class="form-check"><input class="form-check-input" type="checkbox" data-band="${b}" data-key="tock"> <span class="form-check-label">Number the steps themselves (1, 2, 3, …)</span></label>
             <label class="form-label">Number every <input class="form-control form-control-sm" type="number" min="1" step="1" data-band="${b}" data-key="every"></label></fieldset>`).join("");
 
-const sizeFields = (B) => `<fieldset class="td-band"><legend class="label-mono">Export size</legend>
+const sizeFields = (B, showFit = false) => `<fieldset class="td-band"><legend class="label-mono">Export size</legend>
             <label class="form-label">Width (px) <input class="form-control form-control-sm" type="number" min="100" max="4000" step="10" data-size="w"></label>
             <label class="form-label">Height (px) <input class="form-control form-control-sm" type="number" min="40" max="4000" step="10" data-size="h"></label>
-            <div class="fe-theme-buttons"><button type="button" class="${B}" data-do="natural">Natural size</button></div>
+            <div class="fe-theme-buttons"><button type="button" class="${B}" data-do="natural">Natural size</button>${showFit ? `<button type="button" class="${B}" data-do="fit">Fit</button>` : ""}</div>
             <p class="fe-hint">Steps and lanes are laid out again to fit, never stretched.</p></fieldset>`;
 const sizePane = (B) => `
         <details class="fe-pane"><summary class="label-mono">Export size</summary><div class="td-pad">

@@ -12,6 +12,7 @@ $oi-orange: #E69F00 !default;
 $oi-sky-blue: #56B4E9 !default;
 $oi-bluish-green: #009E73 !default;
 $oi-blue: #0072B2 !default;
+$oi-reddish-purple: #CC79A7 !default;
 
 // Figures sit on a "paper plate" that is identical in both modes.
 $fig-background: $oi-white !default;
@@ -23,6 +24,8 @@ $fig-shade:      mix($oi-black, $oi-white, 12%) !default;   // regions excluded 
 $fig-accent:     $oi-blue !default;
 $fig-high:       $oi-vermillion !default;
 $fig-flow:       $oi-bluish-green !default;
+$fig-unknown:    $oi-reddish-purple !default;
+$fig-floating:   $oi-blue !default;
 $fig-highlight:  $oi-orange !default;
 $fig-font-text:  "STIX Two Text", "Times New Roman", serif !default;
 $fig-font-mono:  "Fira Mono", ui-monospace, Consolas, monospace !default;
@@ -31,7 +34,6 @@ $fig-font-mono:  "Fira Mono", ui-monospace, Consolas, monospace !default;
 // Used only by the figure editor's dark canvas, read through the --fig-dark-<role> properties custom.scss publishes.
 // Okabe-Ito hues are kept where they read well on dark; blue is lightened to sky blue and vermillion a little.
 // The dark background, grid and rule depend on the site's dark background, so custom.scss derives them.
-$oi-reddish-purple: #CC79A7 !default;
 $fig-dark-ink:       mix($oi-white, $oi-black, 92%) !default;   // light lines
 $fig-dark-low:       $fig-dark-ink !default;
 $fig-dark-high:      lighten($oi-vermillion, 8%) !default;

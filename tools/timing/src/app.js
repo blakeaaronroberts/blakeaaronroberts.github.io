@@ -4,7 +4,7 @@
 import { parseSource, tidy } from "./wave.js";
 import { drawTiming, naturalSize, lanesOf, stepsOf } from "./draw.js";
 import { nodesOf, unknownNames, framesIn } from "./nodes.js";
-import { addEdge, addSignal, addSpacer, arrowHeadColourOf, arrowHeadSizeOf, cellsOf, dataAt, dataColoursOf, EDGE_OPS, edgeLineColourOf, edgeLineWidthOf, edgesOf, empty, fromWaveDrom, isClock, LABEL, lineWidthOf, moveSignal, nextLetter, nextValue, nodeLetters, removeEdge, removeSignal, resetTimingColours, setArrowHeadColour, setArrowHeadSize, setBand, setCell, setClock, setDataColour, setDelay, setEdge, setEdgeLineColour, setEdgeLineWidth, setHscale, setLineWidth, setNode, setProp, setShowNames, setSlant, setSteps, setTextSize, showNamesOf, slantOf, stepCount, textSizeOf, toWaveDrom, WAVE } from "./model.js";
+import { addEdge, addSignal, addSpacer, arrowHeadColourOf, arrowHeadSizeOf, cellsOf, dataAt, dataColoursOf, EDGE_OPS, edgeLineColourOf, edgeLineWidthOf, edgesOf, empty, fromWaveDrom, isClock, LABEL, lineWidthOf, moveSignal, nextLetter, nextValue, nodeLetters, removeEdge, removeSignal, resetTimingColours, setArrowHeadColour, setArrowHeadSize, setBand, setCell, setClock, setDataColour, setDelay, setEdge, setEdgeLineColour, setEdgeLineWidth, setHscale, setLineWidth, setNode, setProp, setShowNames, setSignalLineColour, setSlant, setSteps, setTextSize, showNamesOf, signalLineColourOf, slantOf, stepCount, textSizeOf, toWaveDrom, WAVE } from "./model.js";
 import { dockShell, pageShell } from "./shell.js";
 
 const store = {
@@ -62,6 +62,45 @@ export function mount(root, {
   const figureRole = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || undefined;
   const dataDefaults = (dark) => dataRoles(dark).map(figureRole);
   const pickerColour = (colour) => /^#[\da-f]{6}$/i.test(colour ?? "") ? colour : "#000000";
+  const lookSplit = $("[data-look-split]");
+  const lookPane = $(".td-view-look");
+  const lookHeightKey = `${storageKey}/look-height`;
+  const savedLookHeight = Number(store.get(lookHeightKey));
+  if (savedLookHeight >= 80) root.style.setProperty("--td-look-height", `${savedLookHeight}px`);
+  const setLookHeight = (height) => {
+    const rect = $(".td-view").getBoundingClientRect();
+    const min = 80, max = Math.max(min, Math.floor(rect.height * 0.65));
+    const next = Math.max(min, Math.min(max, Math.round(height)));
+    root.style.setProperty("--td-look-height", `${next}px`);
+    lookSplit?.setAttribute("aria-valuemax", String(max));
+    lookSplit?.setAttribute("aria-valuenow", String(next));
+    store.set(lookHeightKey, String(next));
+  };
+  if (lookSplit && lookPane) {
+    lookPane.addEventListener("toggle", () => { lookSplit.hidden = !lookPane.open; });
+    lookSplit.hidden = !lookPane.open;
+    lookSplit.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      lookSplit.setPointerCapture(e.pointerId);
+      const move = (event) => setLookHeight(lookSplit.parentElement.getBoundingClientRect().bottom - event.clientY);
+      const done = () => {
+        lookSplit.removeEventListener("pointermove", move);
+        lookSplit.removeEventListener("pointerup", done);
+        lookSplit.removeEventListener("pointercancel", done);
+      };
+      lookSplit.addEventListener("pointermove", move);
+      lookSplit.addEventListener("pointerup", done, { once: true });
+      lookSplit.addEventListener("pointercancel", done, { once: true });
+    });
+    lookSplit.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+      e.preventDefault();
+      const rect = lookPane.getBoundingClientRect();
+      setLookHeight(rect.height + (e.key === "ArrowUp" ? 16 : -16));
+    });
+  }
+  function fitToView() { custom = false; render(); say("Diagram fitted to the viewer."); }
   const nodesMarkup = (nodes) => nodes.map((node) => `<${node.tag}${node.attrs.map(([k, v]) => ` ${k}="${esc(v)}"`).join("")}>${nodesMarkup(node.children)}</${node.tag}>`).join("");
   const inlineMath = (text) => {
     const parsed = betaFeatures ? nameTypesets.get(text) : null;
@@ -78,7 +117,9 @@ export function mount(root, {
       ink, accent: role(dark ? "--fig-dark-accent" : "--fig-accent"),
       dataFills: dataColoursOf(value, dataDefaults(dark)), paper: role(dark ? "--fig-dark-background" : "--fig-background"), marker: frame >= 0 && frame < frameNames.length ? frame : null,
       ...(betaFeatures ? {
-        fontSize: textSizeOf(value), lineWidth: lineWidthOf(value), nameTypeset: nameTypesets, edgeLabelTypeset: nameTypesets, showNames: showNamesOf(value),
+        fontSize: textSizeOf(value), lineWidth: lineWidthOf(value), signalLineColour: signalLineColourOf(value, ink),
+        levelFills: { unknown: role(dark ? "--fig-dark-unknown" : "--fig-unknown"), floating: role(dark ? "--fig-dark-floating" : "--fig-floating") },
+        nameTypeset: nameTypesets, edgeLabelTypeset: nameTypesets, showNames: showNamesOf(value),
         edgeLineWidth: edgeLineWidthOf(value, lineWidthOf(value)), edgeLineColour: edgeLineColourOf(value, ink),
         arrowHeadSize: arrowHeadSizeOf(value), arrowHeadColour: arrowHeadColourOf(value, ink),
       } : {}),
@@ -128,9 +169,11 @@ export function mount(root, {
     const fontIn = $("[data-look=fontSize]"), lineIn = $("[data-look=lineWidth]");
     if (fontIn && document.activeElement !== fontIn) fontIn.value = String(textSizeOf(value));
     if (lineIn && document.activeElement !== lineIn) lineIn.value = String(lineWidthOf(value));
+    const dark = !!root.closest('[data-canvas="dark"]'), ink = figureRole(dark ? "--fig-dark-ink" : "--fig-ink");
+    const signalColourIn = $("[data-look=signalLineColour]");
+    if (signalColourIn && document.activeElement !== signalColourIn) signalColourIn.value = pickerColour(signalLineColourOf(value, ink));
     const namesIn = $("[data-look=showNames]");
     if (namesIn && document.activeElement !== namesIn) namesIn.checked = showNamesOf(value);
-    const dark = !!root.closest('[data-canvas="dark"]'), ink = figureRole(dark ? "--fig-dark-ink" : "--fig-ink");
     const edgeWidthIn = $("[data-look=edgeLineWidth]"), headSizeIn = $("[data-look=arrowHeadSize]");
     if (edgeWidthIn && document.activeElement !== edgeWidthIn) edgeWidthIn.value = edgeLineWidthOf(value, lineWidthOf(value)).toFixed(2);
     if (headSizeIn && document.activeElement !== headSizeIn) headSizeIn.value = String(arrowHeadSizeOf(value));
@@ -301,6 +344,7 @@ export function mount(root, {
     if (i === slantIn) commit(setSlant(value, i.value));
     if (i.dataset?.look === "fontSize") commit(setTextSize(value, i.value));
     if (i.dataset?.look === "lineWidth") commit(setLineWidth(value, i.value));
+    if (i.dataset?.look === "signalLineColour") commit(setSignalLineColour(value, i.value));
     if (i.dataset?.look === "showNames") commit(setShowNames(value, i.checked));
     if (i.dataset?.look === "dataColour") commit(setDataColour(value, Number(i.dataset.colourIndex), i.value));
     if (i.dataset?.look === "edgeLineWidth") commit(setEdgeLineWidth(value, i.value));
@@ -315,6 +359,7 @@ export function mount(root, {
     if (act === "steps-") commit(setSteps(value, stepCount(value) - 1));
     if (act === "steps+") commit(setSteps(value, stepCount(value) + 1));
     if (act === "natural" && natural) { custom = true; wIn.value = natural.w; hIn.value = natural.h; render(); }
+    if (act === "fit") fitToView();
     if (act === "export") exportSvg();
     if (act === "new") {   // the page's New also clears the figure the Figure Editor keeps in this browser
       if (!window.confirm("Start over? This clears the diagram and the figure in the Figure Editor.")) return;
@@ -326,6 +371,7 @@ export function mount(root, {
     if (act === "add-custom") { const name = window.prompt("Name of the signal"); if (name?.trim()) commit(addSignal(value, name.trim(), { clock: CLOCK.test(name.trim()) })); }
     if (act === "add-spacer") commit(addSpacer(value), "Added a spacer.");
     if (act === "src-apply") { const r = parseSource(srcText.value); if (!r.ok) return say(r.error, true); commit(fromWaveDrom(r.value), "Using the pasted source."); showView("edit"); }
+    if (act === "src-clear" && betaFeatures) { srcText.value = ""; syncSourceLines(); srcText.focus(); say("Source editor cleared; the diagram is unchanged until you use this source."); }
     if (act === "src-save") { save(new Blob([srcText.value], { type: "application/json" }), "timing-diagram.json"); say("Saved WaveDrom source as timing-diagram.json."); }
     if (act === "src-copy") { navigator.clipboard?.writeText(srcText.value).then(() => say("Copied the WaveDrom source."), () => say("The browser would not copy; select the text and copy it.", true)); }
   });
@@ -457,6 +503,6 @@ export function mount(root, {
     try { localStorage.setItem(sendKey, JSON.stringify({ svg: "", w: Number(wIn.value) || natural.w, h: Number(hIn.value) || natural.h, signals: signalLevels(), source: toWaveDrom(value), at: Date.now() })); } catch { /* storage unavailable */ }
   }
   if (docked) autoSend();
-  return { render, setCircuit, clear, exportSvg, exportPng: async () => { try { save(await pngBlob(svgText()), "timing-diagram.png"); say("Exported timing-diagram.png at 300 dpi."); } catch (err) { say(err.message, true); } },
+  return { render, setCircuit, clear, fit: fitToView, exportSvg, exportPng: async () => { try { save(await pngBlob(svgText()), "timing-diagram.png"); say("Exported timing-diagram.png at 300 dpi."); } catch (err) { say(err.message, true); } },
     setFrame(i) { frame = i; render(); }, get source() { return tidy(toWaveDrom(value)); }, set source(v) { const r = parseSource(v); if (r.ok) commit(fromWaveDrom(r.value)); }, get value() { return value; } };
 }

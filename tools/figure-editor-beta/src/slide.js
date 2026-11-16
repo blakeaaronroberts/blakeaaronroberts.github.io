@@ -143,7 +143,7 @@ function timingIn(r, t) {
   if (!t?.source) return "";
   const svg = drawTiming(t.source, {
     width: r.w * PX_PER_MODULE, height: r.h * PX_PER_MODULE, ink: t.ink, accent: t.accent,
-    marker: t.marker ?? null, levelColour: t.levelColour ?? null, dataFills: t.dataFills ?? [], paper: t.paper ?? null,
+    marker: t.marker ?? null, levelColour: t.levelColour ?? null, dataFills: t.dataFills ?? [], levelFills: t.levelFills ?? {}, signalLineColour: t.signalLineColour ?? t.ink, paper: t.paper ?? null,
     fontSize: t.fontSize ?? 12, lineWidth: t.lineWidth ?? 1.6, showNames: t.showNames ?? true, nameTypeset: t.nameTypeset ?? null, edgeLabelTypeset: t.edgeLabelTypeset ?? t.nameTypeset ?? null,
   }).svg;
   const inner = svg.slice(svg.indexOf(">") + 1, svg.lastIndexOf("</svg>"));
