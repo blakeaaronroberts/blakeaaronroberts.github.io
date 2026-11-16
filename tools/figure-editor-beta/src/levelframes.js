@@ -1,6 +1,6 @@
 // Level frames (F11.2). No DOM.
 //
-// A frame is a named snapshot of the logic levels on the wires and elements: an all-zero Frame 0 followed
+// A frame is a named snapshot of the logic levels on the wires and elements: a neutral Frame 0 followed
 // by one frame per timing step. Frames live in the figure's own free-form `groups`
 // map, under the key "frames", so the circuit/0.2 file stays valid and Save and Open keep them. Each frame is
 // { name, levels: { "<wire or element id>": "0" | "1" | "X" | "Z" } }; anything not listed has no level.
@@ -11,22 +11,22 @@ import { clone, connectedWireIds, wiresForRefs } from "./doc.js";
 
 export const KEY = "frames";
 
-const zeroFrame = (doc) => ({
+const zeroFrame = () => ({
   name: "Frame 0",
-  levels: Object.fromEntries([...doc.wires, ...doc.elements].map((item) => [item.id, "0"])),
+  levels: {},
 });
 
-/** The frames a document carries (a copy), always beginning with the all-zero Frame 0. */
+/** The frames a document carries (a copy), always beginning with a level-free Frame 0. */
 export function framesOf(doc) {
   const saved = Array.isArray(doc.groups?.[KEY]) ? structuredClone(doc.groups[KEY]) : [];
-  return [zeroFrame(doc), ...(saved[0]?.name === "Frame 0" ? saved.slice(1) : saved)];
+  return [zeroFrame(), ...(saved[0]?.name === "Frame 0" ? saved.slice(1) : saved)];
 }
 
 function withFrames(doc, frames) {
   const d = clone(doc);
   const groups = { ...(d.groups ?? {}) };
   const rest = frames[0]?.name === "Frame 0" ? frames.slice(1) : frames;
-  groups[KEY] = [zeroFrame(d), ...rest];
+  groups[KEY] = [zeroFrame(), ...rest];
   if (Object.keys(groups).length) d.groups = groups; else delete d.groups;
   return d;
 }
@@ -177,7 +177,7 @@ export function targetsOf(doc, nets, name, pack = null) {
 /** Replace the document's frames with one per step of the signals. Returns { doc, steps, matched (signal names that drive something), unmatched }. */
 export function framesFromSignals(doc, nets, signals, pack = null) {
   const steps = Math.max(0, ...signals.map((s) => s.levels.length));
-  const frames = [zeroFrame(doc), ...Array.from({ length: steps }, (_, i) => ({ name: `Step ${i + 1}`, levels: {} }))];
+  const frames = [zeroFrame(), ...Array.from({ length: steps }, (_, i) => ({ name: `Step ${i + 1}`, levels: {} }))];
   const matched = [], unmatched = [];
   for (const s of signals) {
     const t = targetsOf(doc, nets, s.name, pack);

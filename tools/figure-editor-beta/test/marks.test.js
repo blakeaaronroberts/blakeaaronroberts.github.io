@@ -166,7 +166,7 @@ Deno.test("export has the slash as a second path in the wire group and the heads
   assert(/Z"\/>/.test(svg), "a closed head");
 });
 
-Deno.test("arrows and bus marks are saved as C5 defines and survive save and open; none and empty are left out", () => {
+Deno.test("arrows and bus marks are saved as C5 defines and survive save and open; empty bus labels persist", () => {
   let doc = wired({ arrow: "end", bus: "N", level: "1" });
   const text = serialize(doc, pack);
   assert(text.includes('"arrow": "end", "bus": "N", "level": "1" }'), text);
@@ -174,9 +174,9 @@ Deno.test("arrows and bus marks are saved as C5 defines and survive save and ope
   assertEquals([again.wires[0].arrow, again.wires[0].bus], ["end", "N"]);
   assertEquals(serialize(again, pack), text);
   doc = setWireStyle(doc, ["w1"], { arrow: "none", bus: "" });
-  assertEquals(Object.keys(doc.wires[0]).sort(), ["from", "id", "level", "to", "via"].filter((k) => k in doc.wires[0]));
+  assertEquals(doc.wires[0].bus, "");
   const bare = serialize({ ...doc, wires: [{ ...doc.wires[0], arrow: "none", bus: "" }] }, pack);
-  assert(!bare.includes("arrow") && !bare.includes('"bus"'), bare);
+  assert(!bare.includes("arrow") && bare.includes('"bus": ""'), bare);
 });
 
 Deno.test("setWireStyle changes only the wires named, refuses a bad arrow, and one call is one document", () => {

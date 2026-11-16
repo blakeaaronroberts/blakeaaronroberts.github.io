@@ -10,7 +10,7 @@
 // colours resolved to attributes, and no fonts, links, ids, classes or CSS.
 
 import { boxOf, elementBox, elementSvgBox, fmt, fromSvg, MODULE_CM, svgTransform, toSvg } from "./geometry.js";
-import { allCorners, serialize } from "./doc.js";
+import { allCorners, levelWireIds, serialize } from "./doc.js";
 import { metadataOf } from "./svgimport.js";
 import { BLOCK, blockNodes } from "./block.js";
 import { busMark, tagAnchor, withArrows } from "./marks.js";
@@ -64,7 +64,7 @@ export function drawing(doc, pack, opts = {}) {
   const wires = [...corners].map(([id, c]) => {
     const w = spec.get(id), full = c.map(toSvg);
     const { points, heads } = withArrows(full, w.arrow, lw);
-    const mark = w.bus ? busMark(c, lw) : null;
+    const mark = w.bus !== undefined ? busMark(c, lw) : null;
     return { id, points, heads, slash: mark?.slash ?? null, level: levelOf.get(id) ?? null, colour: wireColour(id) };
   });
 
@@ -99,15 +99,34 @@ export function drawing(doc, pack, opts = {}) {
     put(item, `label ${JSON.stringify(item.text)}`);
   }
   if (opts.levelTags) {
-    for (const [id, c] of corners) {
-      const level = levelOf.get(id);
-      if (!level) continue;
-      const anchor = tagAnchor(c), style = levelTagStyleOf(doc, id);
+    const taggedWires = new Set();
+    for (const [id] of corners) {
+      if (taggedWires.has(id)) continue;
+      const netWires = levelWireIds(doc, [id], pack);
+      for (const wireId of netWires) taggedWires.add(wireId);
+
+      let best = null;
+      for (const wireId of netWires) {
+        if (!levelOf.has(wireId)) continue;
+        const c = corners.get(wireId);
+        for (let i = 0; i + 1 < c.length; i++) {
+          const length = Math.hypot(c[i + 1][0] - c[i][0], c[i + 1][1] - c[i][1]);
+          if (!best || length > best.length) best = { id: wireId, a: c[i], b: c[i + 1], length };
+        }
+      }
+      if (!best) continue;
+
+      const { id: tagId } = best, level = levelOf.get(tagId);
+      const styleId = netWires.find((wireId) => {
+        const style = levelTagStyleOf(doc, wireId);
+        return style.side || style.gap;
+      }) ?? tagId;
+      const anchor = tagAnchor([best.a, best.b]), style = levelTagStyleOf(doc, styleId);
       const dir = style.side ? SIDES[style.side] : anchor.dir, offset = Number(style.gap) || 0;
       put({
-        key: `tag:${id}`, kind: "tag", id, level, tex: levelTagTex(level),
+        key: `tag:${tagId}`, kind: "tag", id: tagId, level, tex: levelTagTex(level),
         at: [anchor.at[0] + dir[0] * offset, anchor.at[1] + dir[1] * offset], dir, error: null,
-      }, `level tag of ${id}`, tagEm);
+      }, `level tag of ${tagId}`, tagEm);
     }
   }
 

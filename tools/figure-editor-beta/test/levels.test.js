@@ -114,6 +114,18 @@ Deno.test("level tags are off by default; on, each levelled wire gets its level 
   assertEquals(exportSvg(doc, pack, { typeset, levelTags: true }).split("\n").filter((l) => /^  <g transform="translate\([-\d. ]+\) scale\(/.test(l)).length, 2);
 });
 
+Deno.test("one level tag is drawn for a net with multiple wire segments", () => {
+  let doc = addWire(newDoc(), pack, P([0, 0]), P([4, 0])).doc;
+  doc = addWire(doc, pack, P([4, 0]), P([4, 12])).doc;
+  doc = setLevel(doc, ["w1"], "1", [], pack);
+
+  const d = drawing(doc, pack, { typeset, levelTags: true });
+  assertEquals(d.labels.filter((label) => label.kind === "tag").map((label) => label.id), ["w2"]);
+  assertEquals(exportSvg(doc, pack, { typeset, levelTags: true }).split("\n").filter((l) => /^  <g transform="translate\([-\d. ]+\) scale\(/.test(l)).length, 1);
+  const styled = setLevelTagStyle(doc, ["w1"], { side: "left", gap: 3 });
+  assert(drawing(styled, pack, { typeset, levelTags: true }).labels[0].transform !== d.labels[0].transform, "a segment's tag style applies to the net tag");
+});
+
 Deno.test("level tags accept their own position, offset, size and theme colour", () => {
   let doc = addWire(newDoc(), pack, P([0, 0]), P([10, 0])).doc;
   doc = setLevel(doc, ["w1"], "1");

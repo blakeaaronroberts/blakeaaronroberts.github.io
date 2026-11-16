@@ -499,15 +499,15 @@ export function setElementLabel(doc, id, text) {
   return doc;
 }
 
-/** Arrowheads and a bus mark on wires: `fields` holds arrow ("none", "start", "end", "both") and/or bus (text; empty removes it). */
+/** Arrowheads and a bus mark on wires: `bus` is optional text; an empty string marks an unlabeled bus, null removes the mark. */
 export function setWireStyle(doc, wireIds, fields) {
   if (fields.arrow !== undefined && !ARROWS.includes(fields.arrow)) throw new Error(`arrow must be none, start, end or both`);
-  if (fields.bus !== undefined && typeof fields.bus !== "string") throw new Error("the bus mark is text, such as N or 4");
+  if (fields.bus !== undefined && fields.bus !== null && typeof fields.bus !== "string") throw new Error("the bus mark label must be text, such as N or 4");
   doc = clone(doc);
   for (const w of doc.wires) {
     if (!wireIds.includes(w.id)) continue;
     if (fields.arrow !== undefined) { if (fields.arrow === "none") delete w.arrow; else w.arrow = fields.arrow; }
-    if (fields.bus !== undefined) { if (fields.bus.trim()) w.bus = fields.bus.trim(); else delete w.bus; }
+    if (fields.bus !== undefined) { if (fields.bus === null) delete w.bus; else w.bus = fields.bus.trim(); }
   }
   return doc;
 }
@@ -783,7 +783,7 @@ export function serialize(doc, pack) {
     const o = ordered(w, ORDER.wire);
     if (!o.via?.length) delete o.via;
     if (o.arrow === "none") delete o.arrow;
-    if (!o.bus) delete o.bus;
+    if (o.bus === undefined || o.bus === null) delete o.bus;
     return inline(o);
   };
   const nets = deriveNets(doc, pack);

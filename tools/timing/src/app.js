@@ -5,7 +5,7 @@ import { parseSource, tidy } from "./wave.js";
 import { drawTiming, naturalSize, lanesOf, stepsOf } from "./draw.js";
 import { nodesOf, unknownNames, framesIn } from "./nodes.js";
 import { addEdge, addSignal, addSpacer, arrowHeadColourOf, arrowHeadSizeOf, cellsOf, dataAt, dataColoursOf, EDGE_OPS, edgeLineColourOf, edgeLineWidthOf, edgeStyleOf, edgesOf, empty, fromWaveDrom, isClock, LABEL, lineWidthOf, moveSignal, nextLetter, nextValue, nodeLetters, removeEdge, removeSignal, resetTimingColours, resetTimingLook, setArrowHeadSize, setBand, setCell, setClock, setDataColour, setDelay, setEdge, setEdgeLineWidth, setEdgeStyle, setHscale, setLineWidth, setNode, setProp, setShowNames, setSignalLineColour, setSlant, setSteps, setTextSize, showNamesOf, signalLineColourOf, slantOf, stepCount, textSizeOf, toWaveDrom, WAVE } from "./model.js";
-import { dockShell, pageShell } from "./shell.js";
+import { dockSettings, dockShell, pageShell } from "./shell.js";
 
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -19,7 +19,7 @@ const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 
 export function mount(root, {
   docked = false, onSend = null, onStatus = null, onChange = null, betaFeatures = false,
-  storageKey = KEY, sendKey = SEND_KEY, editorKey = EDITOR_KEY, mergeConnectedNodes = false, allowTexSignalNames = false, typesetSignalNames = null, texSignalName = null,
+  controlsRoot = null, storageKey = KEY, sendKey = SEND_KEY, editorKey = EDITOR_KEY, mergeConnectedNodes = false, allowTexSignalNames = false, typesetSignalNames = null, texSignalName = null,
 } = {}) {
   root.classList.add(docked ? "td-dock" : "fe");   // standalone: the Figure Editor's shell (editor.css); docked: a pane inside the editor
   if (betaFeatures) root.classList.add("td-beta");
@@ -27,8 +27,16 @@ export function mount(root, {
   const fit = () => root.style.setProperty("--fe-top", `${header ? Math.round(header.getBoundingClientRect().bottom) : 0}px`);
   if (!docked) { fit(); window.addEventListener("resize", fit); }
   const B = "btn btn-sm fe-btn";
-  root.innerHTML = docked ? dockShell(B, betaFeatures) : pageShell(B);
-  const $ = (s) => root.querySelector(s);
+  const externalControls = docked && betaFeatures && controlsRoot;
+  root.innerHTML = docked ? dockShell(B, betaFeatures, !!externalControls) : pageShell(B);
+  if (externalControls) controlsRoot.innerHTML = dockSettings(B);
+  const controlRoot = externalControls ? controlsRoot : root;
+  const $ = (s) => root.querySelector(s) ?? controlRoot.querySelector(s);
+  const $$ = (s) => [...new Set([...root.querySelectorAll(s), ...controlRoot.querySelectorAll(s)])];
+  const listen = (type, handler) => {
+    root.addEventListener(type, handler);
+    if (externalControls) controlRoot.addEventListener(type, handler);
+  };
   const status = $(".td-status"), view = $("#WaveDrom_Display_0"), grid = $(".td-grid");
   const wIn = $("[data-size=w]"), hIn = $("[data-size=h]");
   const aspectLockIn = $("[data-size=lockAspect]");
@@ -64,44 +72,6 @@ export function mount(root, {
   const figureRole = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || undefined;
   const dataDefaults = (dark) => dataRoles(dark).map(figureRole);
   const pickerColour = (colour) => /^#[\da-f]{6}$/i.test(colour ?? "") ? colour : "#000000";
-  const lookSplit = $("[data-look-split]");
-  const lookPane = $(".td-view-look");
-  const lookHeightKey = `${storageKey}/look-height`;
-  const savedLookHeight = Number(store.get(lookHeightKey));
-  if (savedLookHeight >= 80) root.style.setProperty("--td-look-height", `${savedLookHeight}px`);
-  const setLookHeight = (height) => {
-    const rect = $(".td-view").getBoundingClientRect();
-    const min = 80, max = Math.max(min, Math.floor(rect.height * 0.65));
-    const next = Math.max(min, Math.min(max, Math.round(height)));
-    root.style.setProperty("--td-look-height", `${next}px`);
-    lookSplit?.setAttribute("aria-valuemax", String(max));
-    lookSplit?.setAttribute("aria-valuenow", String(next));
-    store.set(lookHeightKey, String(next));
-  };
-  if (lookSplit && lookPane) {
-    lookPane.addEventListener("toggle", () => { lookSplit.hidden = !lookPane.open; });
-    lookSplit.hidden = !lookPane.open;
-    lookSplit.addEventListener("pointerdown", (e) => {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      lookSplit.setPointerCapture(e.pointerId);
-      const move = (event) => setLookHeight(lookSplit.parentElement.getBoundingClientRect().bottom - event.clientY);
-      const done = () => {
-        lookSplit.removeEventListener("pointermove", move);
-        lookSplit.removeEventListener("pointerup", done);
-        lookSplit.removeEventListener("pointercancel", done);
-      };
-      lookSplit.addEventListener("pointermove", move);
-      lookSplit.addEventListener("pointerup", done, { once: true });
-      lookSplit.addEventListener("pointercancel", done, { once: true });
-    });
-    lookSplit.addEventListener("keydown", (e) => {
-      if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
-      e.preventDefault();
-      const rect = lookPane.getBoundingClientRect();
-      setLookHeight(rect.height + (e.key === "ArrowUp" ? 16 : -16));
-    });
-  }
   function fitToView() { custom = false; render(); say("Diagram fitted to the viewer."); }
   const nodesMarkup = (nodes) => nodes.map((node) => `<${node.tag}${node.attrs.map(([k, v]) => ` ${k}="${esc(v)}"`).join("")}>${nodesMarkup(node.children)}</${node.tag}>`).join("");
   const inlineMath = (text) => {
@@ -132,6 +102,7 @@ export function mount(root, {
   const srcText = $(".td-srctext");
   const srcLineNumbers = $(".td-line-numbers");
   const srcFile = $(".td-source-file");
+  const truthView = root.querySelector(".td-truth");
   function syncSourceLines() {
     if (!srcLineNumbers) return;
     const lines = srcText.value.split("\n").length;
@@ -146,6 +117,7 @@ export function mount(root, {
     $(".td-edit").hidden = m !== "edit";
     $(".td-view").hidden = m !== "diagram";
     $(".td-source").hidden = m !== "source";
+    if (truthView) truthView.hidden = m !== "truth";
     if (m === "source") { srcText.value = JSON.stringify(toWaveDrom(value), null, 2); syncSourceLines(); }
     if (m === "diagram") render();   // its width follows the view, which has a size only when shown
   };
@@ -164,7 +136,7 @@ export function mount(root, {
     const fontSize = betaFeatures ? textSizeOf(value) : 12;
     natural = naturalSize(toWaveDrom(value), Number(value.config?.hscale) || 1, betaFeatures ? { fontSize, nameTypeset: nameTypesets, showNames: showNamesOf(value) } : {});
     if (!custom) {   // on screen the diagram fills the view's width (laid out again, not stretched); Natural size gives WaveDrom's own proportions
-      const room = view.parentElement.clientWidth - 32;
+      const room = view.parentElement.clientWidth;
       wIn.value = Math.round(Math.max(natural.w, room > 0 ? room : 0)); hIn.value = Math.round(natural.h * (room > natural.w ? Math.min(2, room / natural.w) : 1));
     }
     if (document.activeElement !== hsIn) hsIn.value = String(value.config?.hscale ?? 1);
@@ -180,17 +152,17 @@ export function mount(root, {
     const edgeWidthIn = $("[data-look=edgeLineWidth]"), headSizeIn = $("[data-look=arrowHeadSize]");
     if (edgeWidthIn && document.activeElement !== edgeWidthIn) edgeWidthIn.value = edgeLineWidthOf(value, lineWidthOf(value)).toFixed(2);
     if (headSizeIn && document.activeElement !== headSizeIn) headSizeIn.value = String(arrowHeadSizeOf(value));
-    for (const input of root.querySelectorAll('[data-look="edgeColour"]')) {
+    for (const input of $$('[data-look="edgeColour"]')) {
       if (document.activeElement !== input) input.value = pickerColour(edgeStyleOf(value, input.dataset.edgeType).colour ?? edgeLineColourOf(value, ink));
     }
-    for (const input of root.querySelectorAll('[data-look="edgeDotted"]')) {
+    for (const input of $$('[data-look="edgeDotted"]')) {
       if (document.activeElement !== input) input.checked = edgeStyleOf(value, input.dataset.edgeType).dotted;
     }
     const colourDefaults = dataDefaults(dark);
-    for (const input of root.querySelectorAll('[data-look="dataColour"]')) {
+    for (const input of $$('[data-look="dataColour"]')) {
       if (document.activeElement !== input) input.value = pickerColour(dataColoursOf(value, colourDefaults)[Number(input.dataset.colourIndex)]);
     }
-    for (const p of root.querySelectorAll("[data-slant]")) p.setAttribute("aria-pressed", String(Number(p.dataset.slant) === slantOf(value)));
+    for (const p of $$("[data-slant]")) p.setAttribute("aria-pressed", String(Number(p.dataset.slant) === slantOf(value)));
     if (!docked) root.dataset.canvas = siteIsDark() ? "dark" : "light";   // standalone: follow the site's look, as the editor's canvas does
     // The size is a layout input: steps and lanes are re-spaced to fit it, nothing is stretched.
     view.innerHTML = value.signal.length ? drawNow(!!root.closest('[data-canvas="dark"]')) : `<p class="fe-hint td-emptynote">No signals yet: add a node in the Edit view.</p>`;
@@ -344,7 +316,7 @@ export function mount(root, {
       if (i.type === "checkbox") i.checked = b[k] !== undefined; else i.value = b[k] ?? "";
     }
   }
-  root.addEventListener("change", (e) => {
+  listen("change", (e) => {
     const i = e.target;
     if (i.dataset?.band) commit(setBand(value, i.dataset.band, { [i.dataset.key]: i.type === "checkbox" ? i.checked : i.value }));
     if (i === hsIn) commit(setHscale(value, i.value));
@@ -364,7 +336,7 @@ export function mount(root, {
     }
   });
 
-  root.addEventListener("click", (e) => {
+  listen("click", (e) => {
     const act = e.target.closest("[data-do]")?.dataset.do;
     if (act === "reset-look-colours") commit(resetTimingColours(value), "Restored theme colours.");
     if (act === "reset-look") {
@@ -499,6 +471,17 @@ export function mount(root, {
     c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
     return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("could not make the PNG"))), "image/png"));
   }
+  async function exportFrame(index, format, filename) {
+    if (!value.signal.length) throw new Error("Nothing to export yet.");
+    if (!Number.isInteger(index) || index < -1) throw new Error("Choose a valid timing frame.");
+    if (format !== "svg" && format !== "png") throw new Error("Choose SVG or PNG.");
+    const previous = frame;
+    frame = index;
+    let xml;
+    try { xml = svgText(); } finally { frame = previous; }
+    if (format === "svg") save(new Blob([xml], { type: "image/svg+xml" }), filename);
+    else save(await pngBlob(xml), filename);
+  }
   root.addEventListener("click", async (e) => {
     if (!e.target.closest("[data-do=export-png]")) return;
     if (!value.signal.length) return say("Nothing to export yet.", true);
@@ -589,6 +572,8 @@ export function mount(root, {
     if (updated) commit(next, null);
     return { updated, missing, error: updated ? null : "No timing signal matched the schematic's net labels." };
   }
-  return { render, setCircuit, clear, fit: fitToView, exportSvg, exportPng: async () => { try { save(await pngBlob(svgText()), "timing-diagram.png"); say("Exported timing-diagram.png at 300 dpi."); } catch (err) { say(err.message, true); } },
+  return { render, setCircuit, clear, fit: fitToView, exportSvg, exportFrame,
+    exportAssets: async () => { const svg = svgText(); return { source: tidy(toWaveDrom(value)), svg, png: await pngBlob(svg) }; },
+    exportPng: async () => { try { save(await pngBlob(svgText()), "timing-diagram.png"); say("Exported timing-diagram.png at 300 dpi."); } catch (err) { say(err.message, true); } },
     setFrame(i) { frame = i; render(); }, setSignalLevels, get source() { return tidy(toWaveDrom(value)); }, set source(v) { const r = parseSource(v); if (r.ok) commit(fromWaveDrom(r.value)); }, get value() { return value; } };
 }

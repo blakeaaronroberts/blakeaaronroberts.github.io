@@ -1,6 +1,6 @@
 // F11.2: level frames kept in the figure's `groups`, applied to the drawing, and every frame on one slide.
 
-import { exportGridSvg, exportSvg } from "../src/export.js";
+import { drawing, exportGridSvg, exportSvg } from "../src/export.js";
 import { parse, serialize, setLevel } from "../src/doc.js";
 import { REFERENCE_TEX } from "../src/labels.js";
 import {
@@ -18,12 +18,13 @@ Deno.test("capture stores the current levels; apply draws them; the figure's own
   const doc2 = captureFrame(setLevel(doc, [doc.wires[0].id], "0"), "Reset");
   const [zero, a, b] = framesOf(doc2);
   assertEquals(zero.name, "Frame 0");
-  assert(Object.values(zero.levels).every((level) => level === "0"));
+  assertEquals(zero.levels, {});
   assertEquals(a.name, "Frame 1");
   assertEquals(b.name, "Reset");
   assertEquals(a.levels[doc.wires[0].id], "1");
   assertEquals(b.levels[doc.wires[0].id], "0");
-  assertEquals(applyFrame(doc2, zero).wires[0].level, "0");
+  assertEquals(applyFrame(doc2, zero).wires[0].level, undefined);
+  assertEquals(drawing(applyFrame(doc2, zero), pack).wires[0].level, null);
   assertEquals(applyFrame(doc2, a).wires[0].level, "1");
   assertEquals(applyFrame(doc2, { name: "x", levels: {} }).wires[0].level, undefined);
   assertEquals(doc2.wires[0].level, "0");
@@ -143,7 +144,7 @@ Deno.test("frames fill from timing signals: a net label, a port and an element n
   assertEquals(r.unmatched, ["nothing_here"]);
   const f = framesOf(r.doc);
   assertEquals(f.map((x) => x.name), ["Frame 0", "Step 1", "Step 2", "Step 3"]);
-  assertEquals(f[0].levels[w], "0");
+  assertEquals(f[0].levels[w], undefined);
   assertEquals(f[2].levels[w], "1");
   assert(Object.keys(f[3].levels).length > 0 && f[3].levels[w] === undefined || f[3].levels[w] === "X");
 });
@@ -156,7 +157,7 @@ Deno.test("a timing signal drives every ordinary wire segment on its labelled ne
   doc = setWireLabels(doc, ["w1"], "CLK");
   const result = framesFromSignals(doc, deriveNets(doc, pack), [{ name: "CLK", levels: ["0", "1"] }], pack);
   assertEquals(result.matched, ["CLK"]);
-  assertEquals(framesOf(result.doc).map((f) => [f.levels.w1, f.levels.w2]), [["0", "0"], ["0", "0"], ["1", "1"]]);
+  assertEquals(framesOf(result.doc).map((f) => [f.levels.w1, f.levels.w2]), [[undefined, undefined], ["0", "0"], ["1", "1"]]);
 });
 
 Deno.test("a timing signal drives disconnected wires with the same net label", async () => {
@@ -167,5 +168,5 @@ Deno.test("a timing signal drives disconnected wires with the same net label", a
   doc = setWireLabels(doc, ["w1", "w2"], "READY");
   const result = framesFromSignals(doc, deriveNets(doc, pack), [{ name: "READY", levels: ["0", "1"] }], pack);
   assertEquals(result.matched, ["READY"]);
-  assertEquals(framesOf(result.doc).map((f) => [f.levels.w1, f.levels.w2]), [["0", "0"], ["0", "0"], ["1", "1"]]);
+  assertEquals(framesOf(result.doc).map((f) => [f.levels.w1, f.levels.w2]), [[undefined, undefined], ["0", "0"], ["1", "1"]]);
 });

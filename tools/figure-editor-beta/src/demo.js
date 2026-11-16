@@ -64,6 +64,8 @@ export function wireLevels(doc, { level, netOf }) {
  * Returns {frames: [{name, levels}], timing: WaveDrom-format source}. Inputs and outputs are port ids.
  */
 export function truthTable(doc, pack, inputs, outputs) {
+  if (!inputs.length || !outputs.length) throw new Error("Choose at least one input and one output port.");
+  if (inputs.length > 6) throw new Error("A timing diagram holds at most 64 cases; choose six or fewer inputs.");
   const n = 2 ** inputs.length, frames = [], waves = Object.fromEntries([...inputs, ...outputs].map((p) => [p, ""]));
   for (let k = 0; k < n; k++) {
     const vals = Object.fromEntries(inputs.map((p, i) => [p, (k >> (inputs.length - 1 - i)) & 1]));
@@ -78,6 +80,99 @@ export function truthTable(doc, pack, inputs, outputs) {
   return {
     frames,
     timing: { signal: [...inputs.map((p) => ({ name: p, wave: waves[p] })), {}, ...outputs.map((p) => ({ name: p, wave: waves[p] }))], head: { text: "Full adder", tock: 1 }, config: { steps: n } },
+  };
+}
+
+/** Parse a complete CSV or tab-separated table whose headers are port ids. */
+export function parseTruthTable(text, doc, pack) {
+  const lines = String(text ?? "").replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
+  if (lines.length < 2) throw new Error("Paste a header row and every truth-table case.");
+  const delimiter = lines[0].includes("\t") ? "\t" : lines[0].includes(",") ? "," : null;
+  if (!delimiter) throw new Error("Separate truth-table columns with commas or tabs.");
+  const split = (line) => {
+    const cells = [];
+    let cell = "", quoted = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (quoted && line[i + 1] === '"') { cell += '"'; i++; }
+        else quoted = !quoted;
+      } else if (ch === delimiter && !quoted) { cells.push(cell.trim()); cell = ""; }
+      else cell += ch;
+    }
+    if (quoted) throw new Error("A quoted table value is missing its closing quote.");
+    cells.push(cell.trim());
+    return cells;
+  };
+  const headers = split(lines[0]);
+  if (headers.some((name) => !name) || new Set(headers).size !== headers.length) throw new Error("Every truth-table column needs a unique port id.");
+  const ports = new Map(doc.ports.map((port) => [port.id, port]));
+  const inputs = [], outputs = [];
+  for (const name of headers) {
+    const port = ports.get(name);
+    if (!port) throw new Error(`"${name}" is not a port id in this circuit.`);
+    if (port.dir === "in") inputs.push(name);
+    else if (port.dir === "out") outputs.push(name);
+    else throw new Error(`Port "${name}" needs an input or output direction.`);
+  }
+  if (!inputs.length || !outputs.length) throw new Error("Include at least one input port and one output port.");
+  if (inputs.length > 6) throw new Error("A timing diagram holds at most 64 cases; choose six or fewer inputs.");
+  const rows = lines.slice(1).map((line, index) => {
+    const cells = split(line);
+    if (cells.length !== headers.length) throw new Error(`Row ${index + 2} has ${cells.length} values; expected ${headers.length}.`);
+    if (cells.some((value) => value !== "0" && value !== "1")) throw new Error(`Row ${index + 2} must contain only 0 or 1.`);
+    return {
+      inputs: Object.fromEntries(inputs.map((name) => [name, cells[headers.indexOf(name)]])),
+      expected: Object.fromEntries(outputs.map((name) => [name, cells[headers.indexOf(name)]])),
+    };
+  });
+  return truthTableRows(doc, pack, inputs, outputs, rows);
+}
+
+/** Check all table rows against the circuit; returned waves show expected and computed outputs side by side. */
+export function truthTableRows(doc, pack, inputs, outputs, rows) {
+  if (!inputs.length || !outputs.length) throw new Error("Choose at least one input and one output port.");
+  if (inputs.length > 6) throw new Error("A timing diagram holds at most 64 cases; choose six or fewer inputs.");
+  if (new Set([...inputs, ...outputs]).size !== inputs.length + outputs.length) throw new Error("Input and output ports must be different.");
+  const n = 2 ** inputs.length;
+  if (rows.length !== n) throw new Error(`Expected all ${n} cases; received ${rows.length}.`);
+  const seen = new Set(), frames = [], checks = [];
+  const waves = Object.fromEntries([...inputs, ...outputs].map((name) => [name, ""]));
+  const append = (name, value) => {
+    const wave = waves[name], last = wave.replace(/\./g, "").slice(-1);
+    waves[name] += last === value ? "." : value;
+  };
+  for (const [i, row] of rows.entries()) {
+    const key = inputs.map((name) => row.inputs[name]).join("");
+    if ([...key].some((value) => value !== "0" && value !== "1")) throw new Error(`Case ${i + 1} needs a 0 or 1 for every input.`);
+    if ([...Object.values(row.expected)].some((value) => value !== "0" && value !== "1")) throw new Error(`Case ${i + 1} needs a 0 or 1 for every output.`);
+    if (seen.has(key)) throw new Error(`Input case ${key} appears more than once.`);
+    seen.add(key);
+    const inputValues = Object.fromEntries(inputs.map((name) => [name, Number(row.inputs[name])]));
+    const ev = evaluate(doc, pack, inputValues);
+    const results = outputs.map((name) => {
+      const value = ev.level.get(ev.netOf.get(name));
+      const actual = value === null || value === undefined ? "X" : String(value);
+      return { name, expected: row.expected[name], actual, pass: actual === row.expected[name] };
+    });
+    const label = inputs.map((name) => `${name}=${row.inputs[name]}`).join(", ");
+    frames.push({ name: label, levels: wireLevels(doc, ev) });
+    checks.push({ case: i + 1, inputs: inputValues, outputs: results, pass: results.every((result) => result.pass) });
+    for (const name of inputs) append(name, row.inputs[name]);
+    for (const result of results) append(result.name, result.actual === "X" ? "x" : result.actual);
+  }
+  if (seen.size !== n) {
+    const missing = Array.from({ length: n }, (_, k) => k.toString(2).padStart(inputs.length, "0")).filter((key) => !seen.has(key));
+    throw new Error(`Missing input cases: ${missing.join(", ")}.`);
+  }
+  return {
+    frames,
+    checks,
+    timing: {
+      signal: [...inputs.map((name) => ({ name, wave: waves[name] })), {}, ...outputs.map((name) => ({ name, wave: waves[name] }))],
+      head: { text: "Truth table check" },
+      config: { steps: n },
+    },
   };
 }
 function lastLevel(wave) { for (let i = wave.length - 1; i >= 0; i--) if (wave[i] !== ".") return wave[i]; return null; }

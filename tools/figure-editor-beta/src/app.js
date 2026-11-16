@@ -25,9 +25,10 @@ import { circuitFromSvg, sanitizeSvg, MAX_SVG_BYTES } from "./svgimport.js";
 import { FORMATS } from "./frame.js";
 import { contentArea, defaultSlide, KINDS, layoutThumb, LAYOUTS as SLIDE_LAYOUTS, nudgeRegion, slideOf, slideSize, slideSvg, SPLITS, splitsOf, withLayout, withSlide, withSplit } from "./slide.js";
 import { orient } from "./geometry.js";
-import { truthTable } from "./demo.js";
+import { parseTruthTable, truthTable } from "./demo.js";
 import { framesFromSignals, levelTagStyleOf, setLevelTagStyle, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, ensureFrameZero, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame, targetsOf } from "./levelframes.js";
 import { resolveLogic } from "./logic.js";
+import { zipStore } from "./zip.js";
 
 const AUTOSAVE = "figure-editor-beta/autosave";
 const SAVES = "figure-editor-beta/saves";               // the last 20 manual saves
@@ -94,6 +95,7 @@ const ICONS = {
   open: '<path d="M2 4h4l1.5 2H14v7H2z"/>',
   save: '<path d="M8 2v8M5 7l3 3 3-3M3 13h10"/>',
   export: '<path d="M3 5v8h10V5M8 11V2M5 5l3-3 3 3"/>',
+  projectzip: '<path d="M3 2h7l3 3v9H3z"/><path d="M10 2v3h3M8 6v1m0 1v1m0 1v1m0 1v1"/>',
   png: '<rect x="2" y="3" width="12" height="10"/><circle cx="6" cy="7" r="1"/><path d="M2 12l4-3 3 2 2-2 3 3"/>',
   navframes: '<rect x="2" y="3" width="9" height="10"/><path d="M5 6h3M5 9h3M12 5h2v9H5v-1"/>',
   help: '<circle cx="8" cy="8" r="6"/><path d="M6.4 6.1a1.7 1.7 0 1 1 2.8 1.3c-.8.6-1.2.9-1.2 1.8M8 11.6v.1"/>',
@@ -143,9 +145,9 @@ export async function mount(root, options = {}) {
         <span class="fe-grouplabel label-mono" aria-hidden="true">Grid</span>${btn("gridhalf", "½", "", ' aria-pressed="true"', "Snap parts to half a module")}${btn("gridfull", "1", "", ' aria-pressed="false"', "Snap parts to a whole module")}
       </div>
       <div class="fe-group" role="group" aria-label="File">
-        ${btn("new", "New")}${btn("open", "Open…")}${btn("save", "Save", "Control+S")}${btn("export", "Export SVG")}${btn("png", "Copy as PNG")}
+        ${btn("new", "New")}${btn("open", "Open…")}${btn("save", "Save", "Control+S")}${btn("export", "Export", "", "", "Export the active view as SVG or PNG")}${btn("projectzip", "Project ZIP", "", "", "Download the schematic, timing diagram, and editable project JSON as a ZIP file")}
       </div>
-      <div class="fe-group fe-group-end" role="navigation" aria-label="Views"><span class="fe-stepper">${btn("frameprev", "◀", "", "", "Previous frame")}<input class="fe-stepinput" type="number" min="0" step="1" aria-label="Go to frame" title="Type a frame number and press Enter"><span class="fe-stepno label-mono"></span>${btn("framenext", "▶", "", "", "Next frame")}${btn("frametosignal", "Send current frame to timing", "", "", "Send the current schematic state to a timing step")}${btn("navframes", "Export frames", "", "", "Export every frame: the schematic, the timing diagram or the slide, whichever view you are in")}</span>${btn("help", "Keys", "?")}</div>
+      <div class="fe-group fe-group-end" role="navigation" aria-label="Views"><span class="fe-stepper">${btn("frameprev", "◀", "", "", "Previous frame")}<input class="fe-stepinput" type="number" min="0" step="1" aria-label="Go to frame" title="Type a frame number and press Enter"><span class="fe-stepno label-mono"></span>${btn("framenext", "▶", "", "", "Next frame")}${btn("frametosignal", "Send current frame to timing", "", "", "Send the current schematic state to a timing step")}${btn("navframes", "Export frames", "", "", "Export each frame in the active workspace as SVG or PNG")}</span>${btn("help", "Keys", "?")}</div>
       <input type="file" class="fe-file" accept=".json,.svg,application/json,image/svg+xml" hidden>
       <input type="file" class="fe-theme-file" accept=".json,application/json" hidden>
     </div>
@@ -154,7 +156,7 @@ export async function mount(root, options = {}) {
         <summary class="label-mono">Elements</summary>
         <div class="fe-cats"></div>
       </details>
-      <details data-views="figure" class="fe-pane">
+      <details data-views="figure" class="fe-pane fe-selection-pane">
         <summary class="label-mono">Selection</summary>
         <section class="fe-props" aria-label="Selection"></section>
       </details>
@@ -179,8 +181,7 @@ export async function mount(root, options = {}) {
         <label class="form-label">Canvas <select class="form-select form-select-sm" name="fe-canvas"><option value="auto">Auto (follows system)</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
         <p class="fe-theme-note"></p>
         <div class="fe-theme-buttons" role="group" aria-label="Theme">${btn("theme", "Private theme…")}${btn("themereset", "Default theme")}</div>
-        <fieldset class="fe-levelcolours"><legend class="label-mono">Level colours</legend>
-          <p class="fe-hint">Choose the colour of each logic level, for the light and for the dark canvas. The choice is saved with the figure and used by every export. A colour left on its default follows the theme.</p>
+        <fieldset class="fe-levelcolours"><legend class="label-mono" title="Colours are saved with the figure; defaults follow the theme.">Level colours</legend>
           <div class="fe-lc-head" aria-hidden="true"><span></span><span>Light</span><span>Dark</span><span></span></div>
           ${LEVELS.map((l) => `<div class="fe-lc-row" data-level="${l.value}"><span class="fe-lc-name">${l.value} <small>${l.name}</small></span><input type="color" data-mode="light" aria-label="Level ${l.value}, light canvas"><input type="color" data-mode="dark" aria-label="Level ${l.value}, dark canvas"><button type="button" class="${BUTTON}" data-lc-reset="${l.value}" aria-label="Level ${l.value} back to the theme default" title="Back to the theme default">↺</button></div>`).join("")}
           <ul class="fe-lc-warnings" aria-live="polite"></ul>
@@ -188,7 +189,7 @@ export async function mount(root, options = {}) {
         </fieldset>
       </details>
       <details data-views="slide" class="fe-pane fe-slide-pane" name="fe-doc">
-        <summary class="label-mono">Slide</summary>
+        <summary class="label-mono" title="Configure slide size, layout, and regions. Drag regions in the slide view.">Slide</summary>
         <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-slide-show"> <span class="form-check-label">Show the slide (instead of the canvas)</span></label>
         <label class="form-label">Slide size <select class="form-select form-select-sm" name="fe-slide-format">${Object.entries(FORMATS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("")}</select></label>
         <label class="form-label">Header and footer heights (cm) <span class="fe-pair"><input class="form-control form-control-sm" type="number" name="fe-slide-header" min="0" max="8" step="0.25" aria-label="Header height (cm)"><input class="form-control form-control-sm" type="number" name="fe-slide-footer" min="0" max="5" step="0.25" aria-label="Footer height (cm)"></span></label>
@@ -196,24 +197,20 @@ export async function mount(root, options = {}) {
         <fieldset class="fe-splits"><legend class="label-mono">Dividers</legend>${Object.entries(SPLITS).map(([k, v]) => `<label class="form-label" data-split="${k}">${v.name} (%) <input class="form-control form-control-sm" type="number" min="${v.min}" max="${v.max}" step="1" name="fe-split-${k}" title="${v.hint}"></label>`).join("")}<button type="button" class="${BUTTON}" data-cmd="splitsreset">Reset dividers to the layout's defaults</button></fieldset>
         <ul class="fe-slide-regions" aria-label="Regions"></ul>
         <div class="fe-theme-buttons" role="group" aria-label="Add a region">${btn("addschematic", "+ Schematic")}${btn("addtiming", "+ Timing")}${btn("addtext", "+ Text")}</div>
-        <div class="fe-theme-buttons" role="group" aria-label="Export the slide">${btn("slidesvg", "Slide as SVG")}${btn("slidepng", "Slide as PNG")}</div>
-        <p class="fe-hint">Regions sit on the 0.5 cm module grid: drag one in the slide view to move it, drag its corner to resize it. Content is fitted to its region and re-drawn there, so line weights stay as drawn. Text regions only mark where PowerPoint text goes and are never exported. The slide is saved in the figure.</p>
         <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-tmarker"> <span class="form-check-label">Mark the selected frame's step on the timing diagram</span></label>
         <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-tcolour"> <span class="form-check-label">Colour the timing diagram like the nets (by level)</span></label>
       </details>
+      <div class="fe-timing-controls" data-views="timing"></div>
       <details data-views="figure timing slide" class="fe-pane fe-frames-pane" name="fe-doc">
-        <summary class="label-mono">Frames</summary>
-        <p class="fe-hint">Frame 0 exports every logic node at 0. Later frames store the circuit's levels, one per timing step.</p>
+        <summary class="label-mono" title="Frame 0 has no logic levels; later frames correspond to timing steps.">Frames</summary>
         <div class="fe-theme-buttons" role="group" aria-label="Frames">${btn("framesfromtiming", "Fill from timing diagram")}${btn("framecapture", "Capture frame")}${btn("framerecapture", "Update selected")}</div>
         <ol class="fe-frame-list" aria-label="Frames"></ol>
         <div class="fe-theme-buttons" role="group" aria-label="Edit the selected frame">${btn("framerename", "Rename")}${btn("frameup", "Move up")}${btn("framedown", "Move down")}${btn("framedelete", "Delete")}</div>
-        <label class="form-label">Export each frame as <select class="form-select form-select-sm" name="fe-frames-what"><option value="schematic">The schematic alone</option><option value="slide">The slide</option></select></label>
+        <label class="form-label">Export each frame as <select class="form-select form-select-sm" name="fe-frames-what"><option value="schematic">Schematic</option><option value="timing">Timing diagram</option><option value="slide">Slide</option></select></label>
         <div class="fe-theme-buttons" role="group" aria-label="Export frames">${btn("framesexport", "Export frames")}${btn("framesslide", "Export all on one slide")}</div>
-        <p class="fe-hint">Export frames writes one SVG and one PNG per frame, numbered from 00 (your browser may ask to allow several downloads). The one-slide export lays every frame out as a grid of small figures, labelled with their names, at the slide's size.</p>
       </details>
       <details data-views="figure" class="fe-pane fe-backdrop-pane" name="fe-doc">
-        <summary class="label-mono">Backdrop</summary>
-        <p class="fe-hint fe-backdrop-note">Open an SVG that this editor did not make to trace over it. It sits behind the grid, locked, and is never saved or exported.</p>
+        <summary class="label-mono" title="A tracing reference stays behind the grid and is never saved or exported.">Backdrop</summary>
         <div class="fe-backdrop-controls" hidden>
           <label class="form-label">Opacity (%) <input class="form-control form-control-sm" type="number" name="fe-bd-opacity" min="0" max="100" step="5"></label>
           <label class="form-label">Scale (%) <input class="form-control form-control-sm" type="number" name="fe-bd-scale" min="5" max="2000" step="5"></label>
@@ -248,11 +245,21 @@ export async function mount(root, options = {}) {
       <table><tbody>${KEYS.map(([k, what]) => `<tr><th scope="row">${esc(k)}</th><td>${esc(what)}</td></tr>`).join("")}</tbody></table>
       <form method="dialog"><button class="${BUTTON}">Close</button></form>
     </dialog>
+    <dialog class="fe-export-dialog" aria-labelledby="fe-export-title">
+      <form method="dialog">
+        <h2 id="fe-export-title">Export</h2>
+        <div class="fe-export-options">
+          <button type="button" class="${BUTTON}" data-export-format="svg" title="Download a scalable vector graphic">SVG</button>
+          <button type="button" class="${BUTTON}" data-export-format="png" title="Download a PNG image at 300 dpi">PNG</button>
+          <button type="submit" class="${BUTTON}">Cancel</button>
+        </div>
+      </form>
+    </dialog>
   </div>`;
 
   const $ = (s) => root.querySelector(s);
   const svg = $(".fe-canvas"), statusEl = $(".fe-status"), fileInput = $(".fe-file"), themeInput = $(".fe-theme-file");
-  const idInput = $('[name="fe-id"]'), titleInput = $('[name="fe-title"]'), propsEl = $(".fe-props"), helpEl = $(".fe-help");
+  const idInput = $('[name="fe-id"]'), titleInput = $('[name="fe-title"]'), propsEl = $(".fe-props"), selectionPane = $(".fe-selection-pane"), helpEl = $(".fe-help"), exportDialog = $(".fe-export-dialog");
   const scaleInput = $('[name="fe-scale"]'), ptInput = $('[name="fe-labelpt"]'), tagPtInput = $('[name="fe-tagpt"]'), tagsInput = $('[name="fe-tags"]'), tagColourInput = $('[name="fe-tagcolour"]'), netNamesInput = $('[name="fe-netnames"]'), draftsInput = { checked: false }, canvasInput = $('[name="fe-canvas"]'), exportDarkInput = $('[name="fe-exportdark"]');
   const view = createView(svg, loaded);
   // The editor fills the window below the site header; measure the header so the two never overlap.
@@ -280,7 +287,9 @@ export async function mount(root, options = {}) {
   let selectedFrame = -1;            // the frame chosen in the Frames list (level frames, F11.2)
   let timingTool = null, timingTimer = 0, fitTimingWhenReady = false, refreshFramesWhenTimingReady = false;
   const pendingTimingSteps = new Set();
+  let refreshTruthPortList = () => {};
   const framesWhat = $('[name="fe-frames-what"]');
+  let pendingExport = null;
   let autosaveTimer = null;
   const typeset = new Map();         // TeX to parseTypeset's result (every label drawn is typeset once)
 
@@ -289,7 +298,7 @@ export async function mount(root, options = {}) {
   if (!["auto", "light", "dark"].includes(opt.canvas)) opt.canvas = "auto";
   opt.exportDark = opt.exportDark === true;
   opt.netNames = opt.netNames !== false;
-  opt.levelTagPt = Number.isFinite(+opt.levelTagPt) && +opt.levelTagPt >= 4 && +opt.levelTagPt <= 48 ? +opt.levelTagPt : null;
+  opt.levelTagPt = Number.isFinite(+opt.levelTagPt) && +opt.levelTagPt >= 4 && +opt.levelTagPt <= 48 ? +opt.levelTagPt : 8;
   opt.levelTagColour = opt.levelTagColour === true;
   opt.drafts = false;   // draft elements are no longer offered
   delete opt.frame;   // the F10 frame option is replaced by the slide saved in the figure (F19)
@@ -582,33 +591,37 @@ export async function mount(root, options = {}) {
 
   // ---- the properties panel ---------------------------------------------------------------
   const field = (label, name, extra = "") => `<label class="form-label">${label} <input class="form-control form-control-sm" data-field="${name}" spellcheck="false" ${extra}></label>`;
-  const choice = (label, name, opts) => `<label class="form-label">${label} <select class="form-select form-select-sm" data-field="${name}">${opts.map(([v, t, off]) => `<option value="${v}"${off ? " disabled" : ""}>${esc(t)}</option>`).join("")}</select></label>`;
+  const choice = (label, name, opts, extra = "") => `<label class="form-label">${label} <select class="form-select form-select-sm" data-field="${name}" ${extra}>${opts.map(([v, t, off]) => `<option value="${v}"${off ? " disabled" : ""}>${esc(t)}</option>`).join("")}</select></label>`;
   const SIDE_OPTS = [["", "centred on the point"], ["left", "left of the point"], ["right", "right of the point"], ["up", "above the point"], ["down", "below the point"]];
   const levelOpts = () => [["", "none (default colour)"], ...LEVELS.map((l) => [l.value, `${l.value}: ${l.name}`, !pack.levelColour(l.value)])];
   const junctionIsFourWay = (id) => (junctionCounts(doc).get(id) ?? 0) >= pack.theme.junction.min_wires;
 
   const BLOCK_PIN_FIELDS = { blkLeft: "left", blkRight: "right", blkTop: "top", blkBottom: "bottom" };
-  const blockFields = () => `<p class="fe-hint">Size is in whole modules; a side needs one more module than it has pins.</p>` +
+  const blockFields = () =>
     choice("Shape", "blkShape", SHAPES.map((s) => [s, s])) +
-    `<label class="form-label">Width (modules) <input class="form-control form-control-sm" type="number" min="1" step="1" data-field="blkW"></label>` +
-    `<label class="form-label">Height (modules) <input class="form-control form-control-sm" type="number" min="1" step="1" data-field="blkH"></label>` +
+    `<label class="form-label">Width (modules) <input class="form-control form-control-sm" type="number" min="1" step="1" data-field="blkW" title="A side needs one more module than it has pins."></label>` +
+    `<label class="form-label">Height (modules) <input class="form-control form-control-sm" type="number" min="1" step="1" data-field="blkH" title="A side needs one more module than it has pins."></label>` +
     field("Text in the block (TeX or words)", "blkLabel") +
-    `<p class="fe-hint">Pins, top to bottom or left to right: names with an optional label, such as A, B: $B_1$, Cin: $C_{in}$.</p>` +
-    field("Pins on the left", "blkLeft") + field("Pins on the right", "blkRight") + field("Pins on the top", "blkTop") + field("Pins on the bottom", "blkBottom");
+    field("Pins on the left", "blkLeft", 'title="Comma-separated pin names; append an optional label after a colon."') +
+    field("Pins on the right", "blkRight", 'title="Comma-separated pin names; append an optional label after a colon."') +
+    field("Pins on the top", "blkTop", 'title="Comma-separated pin names; append an optional label after a colon."') +
+    field("Pins on the bottom", "blkBottom", 'title="Comma-separated pin names; append an optional label after a colon."');
 
   function propsModel() {
     const only = (list) => list.length === 1 && total(selection) === 1;
     const text = {}, values = {};
+    const wires = selection.wires.map((id) => doc.wires.find((w) => w.id === id)).filter(Boolean);
+    const els = selection.elements.map((id) => doc.elements.find((e) => e.id === id)).filter(Boolean);
     let html = "", key;
     if (pendingLabel) {
       key = "pending";
-      html = `<p>New label at [${pendingLabel.at.join(", ")}]</p>${field("Label text (TeX, such as $A_0$)", "pendingText")}<p class="fe-hint">Press Enter to add it, Esc to cancel.</p>`;
+      html = `<p>New label at [${pendingLabel.at.join(", ")}]</p>${field("Label text (TeX, such as $A_0$)", "pendingText", 'title="Press Enter to add the label; Escape cancels."')}`;
     } else if (selectedJunction && junctionIsFourWay(selectedJunction)) {
       const j = doc.junctions.find((x) => x.id === selectedJunction);
       key = `junction:${selectedJunction}`;
       html = `<p><strong>Four-way junction</strong> at [${j.at.join(", ")}]</p>` +
         choice("Solder dot", "junctionConnected", [["true", "Present - connected"], ["false", "Absent - paths stay separate"]]) +
-        `<p class="fe-hint">Without a solder dot, the crossing paths are not electrically connected.</p>`;
+        "";
       values.junctionConnected = String(D.junctionConnected(doc, selectedJunction));
     } else if (only(selection.elements)) {
       const el = doc.elements.find((e) => e.id === selection.elements[0]);
@@ -638,7 +651,6 @@ export async function mount(root, options = {}) {
       html = `<p><strong>Label</strong> at <span data-text="labelPos"></span></p>${field("Text (TeX, such as $A_0$)", "labelText")}${choice("Side", "labelSide", SIDE_OPTS)}`;
       if (l) { text.labelPos = `[${l.at.join(", ")}]`; Object.assign(values, { labelText: l.text, labelSide: l.side ?? "" }); }
     } else {
-      const wires = selection.wires.map((id) => doc.wires.find((w) => w.id === id)).filter(Boolean);
       key = `sel:${JSON.stringify(selection)}`;
       html = `<p data-text="summary"></p>`;
       text.summary = total(selection)
@@ -649,42 +661,51 @@ export async function mount(root, options = {}) {
         html += `<dl><dt>Wire</dt><dd>${esc(wires[0].id)}: ${esc(end(wires[0].from))} to ${esc(end(wires[0].to))}</dd></dl>`;
       }
     }
-    if (!pendingLabel && (selection.wires.length || selection.elements.length)) {   // the level applies to every selected wire and element
-      const wires = selection.wires.map((id) => doc.wires.find((w) => w.id === id)).filter(Boolean);
-      const els = selection.elements.map((id) => doc.elements.find((e) => e.id === id)).filter(Boolean);
+    if (!pendingLabel && (wires.length || els.length)) {
       const levels = new Set([...wires, ...els].map((x) => x.level ?? ""));
       const one = levels.size === 1 ? [...levels][0] : null;
       const what = els.length && wires.length ? "wires and elements" : els.length ? "elements" : "wires";
-      html += `<p class="fe-level" data-text="levelText"></p>${choice(`Level (colours the body of an element, the line of a wire)`, "level", levelOpts())}`;
-      if (wires.some((wire) => doc.groups?.logic_generated_levels?.[wire.id] === wire.level)) {
-        html += `<p class="fe-hint">This gate-driven net is calculated from its inputs; set levels on input nets.</p>`;
-      }
+      const baseHtml = html;
+      const netHtml = wires.length
+        ? field("Net label", "wireNet", 'title="Signal name used by the timing diagram."')
+        : "";
+      const levelTitle = wires.some((wire) => doc.groups?.logic_generated_levels?.[wire.id] === wire.level)
+        ? 'title="This gate-driven level is calculated from its input levels."'
+        : "";
+      const levelHtml = `<p class="fe-level" data-text="levelText"></p>${choice("Logic level", "level", levelOpts(), levelTitle)}`;
+      let restHtml = "";
       key += "|level";
       const tagStyles = [...wires, ...els].map((item) => levelTagStyleOf(doc, item.id));
       const tagSides = new Set(tagStyles.map((style) => style.side ?? ""));
       const tagGaps = new Set(tagStyles.map((style) => style.gap ?? 0));
-      html += choice("Level tag position", "levelTagSide", [["", "automatic"], ["up", "above"], ["down", "below"], ["left", "left"], ["right", "right"]]) +
+      restHtml += choice("Level tag position", "levelTagSide", [["", "automatic"], ["up", "above"], ["down", "below"], ["left", "left"], ["right", "right"]]) +
         field("Level tag offset (extra grid steps from its anchor)", "levelTagGap", 'type="number" min="-10" max="20" step="1"');
       values.levelTagSide = tagSides.size === 1 ? [...tagSides][0] : "";
       values.levelTagGap = tagGaps.size === 1 ? String([...tagGaps][0]) : "";
       if (wires.length) {
-        const arrows = new Set(wires.map((w) => w.arrow ?? "none")), buses = new Set(wires.map((w) => w.bus ?? ""));
+        const arrows = new Set(wires.map((w) => w.arrow ?? "none"));
+        const buses = new Set(wires.map((w) => w.bus === undefined ? null : w.bus));
         const arrow = arrows.size === 1 ? [...arrows][0] : null;
         key += arrow === null ? "|mixed" : "";
-        html += choice("Arrowheads", "wireArrow", [...(arrow === null ? [["", "mixed (pick one)", true]] : []), ["none", "none"], ["end", "at the end"], ["start", "at the start"], ["both", "at both ends"]]) +
-          field("Net label: the wire's signal name in the timing diagram (such as CLK or N1)", "wireNet") +
-          choice("Net label position", "wireNetSide", [["", "automatic (above or right)"], ["up", "above"], ["down", "below"], ["left", "left"], ["right", "right"]]) +
-          field("Net label spacing (extra grid steps away from the wire)", "wireNetGap") +
-          field("Bus mark: a slash with this label (such as N or 4; a name such as D[3:0] also names the signal)", "wireBus") +
-          `<p class="fe-hint">A wire starts where it was begun and ends where it was finished. An arrowhead's tip lands exactly on the pin, wire or point it points at.</p>`;
+        restHtml += choice("Net label position", "wireNetSide", [["", "automatic (above or right)"], ["up", "above"], ["down", "below"], ["left", "left"], ["right", "right"]]) +
+          field("Net label offset", "wireNetGap", 'title="Extra grid steps away from the wire."') +
+          choice("Arrowheads", "wireArrow", [...(arrow === null ? [["", "mixed (pick one)", true]] : []), ["none", "none"], ["end", "at the end"], ["start", "at the start"], ["both", "at both ends"]]) +
+          `<label class="form-check"><input class="form-check-input" type="checkbox" data-field="wireBusEnabled" title="Show a bus slash, even when the bus label is blank."> <span class="form-check-label">Bus</span></label>` +
+          field("Bus label (optional)", "wireBus", 'title="Leave blank to show the bus slash without a visible label."');
+        values.wireBusEnabled = new Set(wires.map((w) => w.bus === undefined)).size > 1
+          ? "mixed"
+          : wires.every((w) => w.bus !== undefined);
         values.wireArrow = arrow ?? "";
         const nets = new Set(wires.map((w) => wireLabelOf(doc, w.id)));
         values.wireNet = nets.size === 1 ? [...nets][0] : "";
         const sides = new Set(wires.map((w) => wireLabelStyleOf(doc, w.id).side ?? "")), gaps = new Set(wires.map((w) => wireLabelStyleOf(doc, w.id).gap ?? 0));
         values.wireNetSide = sides.size === 1 ? [...sides][0] : "";
-        values.wireNetGap = gaps.size === 1 ? String([...gaps][0]) : "";
-        values.wireBus = buses.size === 1 ? [...buses][0] : "";
+        values.wireNetGap = sides.size === 1 && gaps.size === 1 ? String([...gaps][0]) : "";
+        values.wireBus = buses.size === 1 ? [...buses][0] ?? "" : "";
       }
+      html = wires.length
+        ? `${netHtml}${levelHtml}${baseHtml}${restHtml}`
+        : `${levelHtml}${baseHtml}${restHtml}`;
       const name = LEVELS.find((l) => l.value === one);
       text.levelText = one === null ? "Level: mixed" : one === "" ? "Level: none (default colour)" : `Level: ${one} (${name.name}) on the selected ${what}`;
       values.level = one ?? "";
@@ -695,10 +716,18 @@ export async function mount(root, options = {}) {
   let panelKey = null;
   function renderProps() {
     const m = propsModel();
-    if (m.key !== panelKey) { propsEl.innerHTML = m.html; panelKey = m.key; }
+    if (m.key !== panelKey) {
+      propsEl.innerHTML = m.html;
+      if (selection.elements.length) selectionPane.open = true;
+      panelKey = m.key;
+    }
     for (const el of propsEl.querySelectorAll("[data-text]")) el.textContent = m.text[el.dataset.text] ?? "";
     for (const el of propsEl.querySelectorAll("[data-field]")) {
-      if (el !== document.activeElement && el.dataset.field in m.values) el.value = m.values[el.dataset.field];
+      if (el === document.activeElement || !(el.dataset.field in m.values)) continue;
+      if (el.type === "checkbox") {
+        el.checked = m.values[el.dataset.field] === true;
+        el.indeterminate = m.values[el.dataset.field] === "mixed";
+      } else el.value = m.values[el.dataset.field];
     }
   }
 
@@ -759,7 +788,12 @@ export async function mount(root, options = {}) {
       } else if (name === "wireArrow") {
         if (v) commit(D.setWireStyle(doc, selection.wires, { arrow: v }), v === "none" ? "Arrowheads removed." : "Arrowheads set.");
       } else if (name === "wireBus") {
-        commit(D.setWireStyle(doc, selection.wires, { bus: v }), v.trim() ? "Bus mark set." : "Bus mark removed.");
+        const enabled = propsEl.querySelector('[data-field="wireBusEnabled"]')?.checked;
+        const label = v.trim();
+        commit(D.setWireStyle(doc, selection.wires, { bus: enabled || label ? label : null }), enabled || label ? "Bus mark set." : "Bus mark removed.");
+      } else if (name === "wireBusEnabled") {
+        const label = propsEl.querySelector('[data-field="wireBus"]')?.value.trim() ?? "";
+        commit(D.setWireStyle(doc, selection.wires, { bus: e.target.checked ? label : null }), e.target.checked ? "Bus mark set." : "Bus mark removed.");
       }
     } catch (err) { status(err.message); }
     render();
@@ -787,11 +821,19 @@ export async function mount(root, options = {}) {
   function followTiming() {
     if (!timingTool) return;
     clearTimeout(timingTimer);
-    timingTimer = setTimeout(() => timingTool.setCircuit(D.serialize(doc, pack)), 250);
+    timingTimer = setTimeout(() => {
+      timingTool.setCircuit(D.serialize(doc, pack));
+      timingTool.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
+    }, 250);
   }
 
-  function changed(msg) {
+  function logicLevels(doc) {
+    return JSON.stringify([...doc.wires, ...doc.elements].map((item) => [item.id, item.level ?? null]));
+  }
+  function changed(msg, previous = doc) {
     doc = ensureFrameZero(resolveLogic(doc, pack));
+    refreshTruthPortList();
+    if (selectedFrame > 0 && logicLevels(previous) !== logicLevels(doc)) syncCircuitLevelsToTiming(selectedFrame - 1);
     followTiming();
     unsaved = true;
     render();
@@ -815,10 +857,11 @@ export async function mount(root, options = {}) {
   function commit(next, msg) {
     next = ensureFrameZero(resolveLogic(next, pack));
     if (JSON.stringify(next) === JSON.stringify(doc)) return false;
+    const previous = doc;
     history.record(doc);
     doc = next;
     prune();
-    changed(msg);
+    changed(msg, previous);
     return true;
   }
 
@@ -840,8 +883,7 @@ export async function mount(root, options = {}) {
     const noun = selection.elements.length ? "item" : "wire";
     let next = resolveLogic(D.setLevel(doc, selection.wires, level, selection.elements, pack), pack);
     if (selectedFrame > 0) next = recaptureFrame(next, selectedFrame);
-    const changed = commit(next, level ? `Level ${level} (${name}) set on ${count(n, noun)}.` : "Level cleared.");
-    if (changed && selectedFrame > 0) syncCircuitLevelsToTiming(selectedFrame - 1);
+    commit(next, level ? `Level ${level} (${name}) set on ${count(n, noun)}.` : "Level cleared.");
   }
 
   function setGrid(g) {
@@ -979,8 +1021,8 @@ export async function mount(root, options = {}) {
       selection = none();
       render();
     },
-    undo() { const prev = history.undo(doc); if (prev) { doc = prev; prune(); changed("Undone."); } },
-    redo() { const next = history.redo(doc); if (next) { doc = next; prune(); changed("Redone."); } },
+    undo() { const prev = history.undo(doc); if (prev) { const current = doc; doc = prev; prune(); changed("Undone.", current); } },
+    redo() { const next = history.redo(doc); if (next) { const current = doc; doc = next; prune(); changed("Redone.", current); } },
     copy() {
       if (!total(selection)) return;
       clipboard = D.extractFragment(doc, pack, selection);
@@ -1023,24 +1065,51 @@ export async function mount(root, options = {}) {
       store.set(SAVES, JSON.stringify(saves.slice(0, 20)));
       status(`Saved ${doc.id}.json.`);
     },
-    async export() {
-      if (opt.view === "timing" && timingTool) return timingTool.exportSvg();
-      if (opt.view === "slide") return commands.slidesvg();
-      try { download(await svgNow(), `${doc.id}.svg`, "image/svg+xml"); status(`Exported ${doc.id}.svg.`); } catch (e) { status(e.message); }
+    async export(format) {
+      if (!format) return showExportChoices("view");
+      if (format !== "svg" && format !== "png") return status("Choose SVG or PNG.", true);
+      if (opt.view === "timing") {
+        if (!timingTool) await mountTiming();
+        return format === "svg" ? timingTool.exportSvg() : timingTool.exportPng();
+      }
+      try {
+        const slide = opt.view === "slide", text = slide ? await slideNow() : await svgNow();
+        const name = `${doc.id}${slide ? "-slide" : ""}.${format}`;
+        if (format === "svg") download(text, name, "image/svg+xml");
+        else download(await pngOf(text), name, "image/png");
+        status(`Exported ${name}.`);
+      } catch (e) { status(e.message, true); }
     },
-    async slidesvg() {
-      try { download(await slideNow(), `${doc.id}-slide.svg`, "image/svg+xml"); status(`Exported ${doc.id}-slide.svg: the whole slide at its real size.`); } catch (e) { status(e.message, true); }
-    },
-    async slidepng() {
-      try { download(await pngOf(await slideNow()), `${doc.id}-slide.png`, "image/png"); status(`Exported ${doc.id}-slide.png at 300 dpi.`); } catch (e) { status(e.message, true); }
+    async projectzip() {
+      try {
+        if (!timingTool) await mountTiming();
+        const schematicJson = D.serialize(doc, pack);
+        const schematicSvg = await svgNow();
+        const timing = await timingTool.exportAssets();
+        const projectJson = `${JSON.stringify({
+          schema: "figure-editor-project/1",
+          schematic: JSON.parse(schematicJson),
+          timing: JSON.parse(timing.source),
+        }, null, 2)}\n`;
+        const zip = await zipStore([
+          { name: "schematic.png", data: await pngOf(schematicSvg) },
+          { name: "schematic.svg", data: schematicSvg },
+          { name: "schematic.json", data: schematicJson },
+          { name: "timing-diagram.png", data: timing.png },
+          { name: "timing-diagram.svg", data: timing.svg },
+          { name: "timing-diagram.json", data: timing.source },
+          { name: "source.json", data: projectJson },
+        ]);
+        download(new Blob([zip], { type: "application/zip" }), `${doc.id}-project.zip`, "application/zip");
+        status(`Exported ${doc.id}-project.zip with 7 project files.`);
+      } catch (error) { status(`Project ZIP failed: ${error.message}`, true); }
     },
     viewfigure: () => setView("figure"),
     viewtiming: () => setView("timing"),
     viewslide: () => setView("slide"),
-    navframes() {   // one button for the view you are in
-      if (!framesOf(doc).length) { status("No frames yet: add signals in the Timing Diagram, or capture a frame in the Frames pane.", true); return; }
-      if (opt.view === "timing") { tpBody.querySelector("[data-do=frames-export]")?.click(); return; }
-      framesWhat.value = opt.view === "slide" ? "slide" : "schematic";
+    navframes() {
+      if (!framesOf(doc).length) { status("No frames yet.", true); return; }
+      framesWhat.value = opt.view === "timing" ? "timing" : opt.view === "slide" ? "slide" : "schematic";
       return commands.framesexport();
     },
     frameprev: () => stepFrame(-1),
@@ -1063,6 +1132,7 @@ export async function mount(root, options = {}) {
       commit(recaptureFrame(doc, selectedFrame), `Frame "${framesOf(doc)[selectedFrame].name}" now holds the current levels.`);
     },
     async frametosignal() {
+      if (selectedFrame === 0) { status("Frame 0 has no logic levels to send."); return; }
       if (!timingTool) await mountTiming();
       let step = selectedFrame > 0 ? selectedFrame - 1 : null;
       if (step === null) {
@@ -1094,20 +1164,29 @@ export async function mount(root, options = {}) {
       selectedFrame = Math.min(selectedFrame, framesOf(doc).length - 1);
       renderFrames();
     },
-    async framesexport() {
+    async framesexport(format) {
+      if (!format) return showExportChoices("frames");
+      if (format !== "svg" && format !== "png") return status("Choose SVG or PNG.", true);
       const frames = framesOf(doc);
-      if (!frames.length) { status("There are no frames yet: set the levels and press Capture frame."); return; }
-      const framed = framesWhat.value === "slide";
+      if (!frames.length) { status("There are no frames yet.", true); return; }
+      const what = framesWhat.value;
       try {
+        if (what === "timing" && !timingTool) await mountTiming();
         for (const [i, f] of frames.entries()) {
           const at = applyFrame(doc, f), nn = numbered(i, frames.length), name = `${doc.id}-${nn}`;
-          const keepSel = selectedFrame; selectedFrame = i;   // the exported frame is the marked step
-          let text; try { text = framed ? await slideNow({ frame: i }) : await svgNow(false, at); } finally { selectedFrame = keepSel; }
-          download(text, `${name}.svg`, "image/svg+xml");
-          download(await pngOf(text), `${name}.png`, "image/png");
+          if (what === "timing") {
+            await timingTool.exportFrame(i - 1, format, `${name}-timing.${format}`);
+          } else {
+            const keepSel = selectedFrame; selectedFrame = i;
+            let text;
+            try { text = what === "slide" ? await slideNow({ frame: i }) : await svgNow(false, at); }
+            finally { selectedFrame = keepSel; }
+            const content = format === "svg" ? text : await pngOf(text);
+            download(content, `${name}.${format}`, format === "svg" ? "image/svg+xml" : "image/png");
+          }
           await new Promise((r) => setTimeout(r, 200));   // so the browser takes every download
         }
-        status(`Exported ${frames.length} frames as ${doc.id}-${numbered(0, frames.length)} to ${numbered(frames.length - 1, frames.length)}, each as SVG and PNG${framed ? ", as the slide" : ""}.`);
+        status(`Exported ${frames.length} ${what === "timing" ? "timing diagrams" : what === "slide" ? "slides" : "schematics"} as ${format.toUpperCase()}.`);
       } catch (e) { status(e.message, true); }
     },
     async framesslide() {
@@ -1120,20 +1199,6 @@ export async function mount(root, options = {}) {
         status(`Exported ${doc.id}-all-frames: ${frames.length} frames on one slide, SVG and PNG.`);
       } catch (e) { status(e.message, true); }
     },
-    async png() {
-      if (opt.view === "timing" && timingTool) return timingTool.exportPng();
-      if (opt.view === "slide") return commands.slidepng();
-      try {
-        const blob = await pngNow();
-        try {
-          await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-          status("Copied the figure to the clipboard as a PNG (300 dpi).");
-        } catch (e) {
-          download(blob, `${doc.id}.png`, "image/png");
-          status(`The browser would not let the page use the clipboard (${e.message}), so the PNG was downloaded instead.`);
-        }
-      } catch (e) { status(e.message); }
-    },
     help() { if (helpEl.open) helpEl.close(); else helpEl.showModal(); },
     theme: () => themeInput.click(),
     themereset() {
@@ -1143,6 +1208,16 @@ export async function mount(root, options = {}) {
       status("Back to the pack's default theme.");
     },
   };
+  exportDialog.addEventListener("click", (e) => {
+    const option = e.target.closest("[data-export-format]");
+    if (!option) return;
+    const kind = pendingExport;
+    pendingExport = null;
+    exportDialog.close();
+    if (kind === "frames") commands.framesexport(option.dataset.exportFormat);
+    else if (kind === "view") commands.export(option.dataset.exportFormat);
+  });
+  exportDialog.addEventListener("close", () => { pendingExport = null; });
 
   /** What a timing region draws: the diagram the timing tool sent, in the given pack's roles, the marked step and the net colours as the options say. */
   const timingNameTex = (name) => { try { return texOf(name); } catch { return null; } };
@@ -1157,6 +1232,7 @@ export async function mount(root, options = {}) {
           else if (typeof item?.name === "string" && item.name) names.add(item.name);
         }
       };
+      refreshTruthPortList = refreshPorts;
       collect(sent.source.signal);
       for (const raw of sent.source.edge ?? []) {
         const label = parseEdge(raw)?.label;
@@ -1260,7 +1336,8 @@ export async function mount(root, options = {}) {
     selectedFrame = +b.dataset.frame;
     render();
     const f = framesOf(doc)[selectedFrame];
-    commit(applyFrame(doc, f), `Showing frame "${f.name}": its levels are on the canvas.`);
+    const message = selectedFrame === 0 ? "Frame 0 has no logic levels highlighted." : `Showing frame "${f.name}": its levels are on the canvas.`;
+    commit(applyFrame(doc, f), message);
     timingTool?.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
     renderFrames();
   });
@@ -1294,8 +1371,8 @@ export async function mount(root, options = {}) {
     try { sent = JSON.parse(store.get(TIMING_SEND) ?? "null"); } catch { sent = null; }
     if (!sent?.signals?.length && !auto) { status("Nothing sent yet: in the timing tool, press Send to schematic."); return; }
     const r = framesFromSignals(doc, D.deriveNets(doc, pack), sent?.signals ?? [], pack);
-    commit(r.doc, null);
     selectedFrame = -1;
+    commit(r.doc, null);
     renderFrames();
     status(`Frame 0 and ${r.steps} timing steps are now synced. Drives: ${r.matched.join(", ") || "nothing"}.${r.unmatched.length ? ` No wire, port or element named: ${r.unmatched.join(", ")} (name a wire with its Net label).` : ""}`, !!r.steps && !r.matched.length);
   }
@@ -1316,6 +1393,12 @@ export async function mount(root, options = {}) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+  function showExportChoices(kind) {
+    pendingExport = kind;
+    $("#fe-export-title").textContent = kind === "frames" ? "Export frames" : "Export current view";
+    exportDialog.showModal();
+  }
+
   /** Open a saved file. With `record`, it is an undo step; on start-up it is not. */
   function load(text, record = true) {
     const { doc: parsed, nets } = D.parse(text);
@@ -1323,8 +1406,9 @@ export async function mount(root, options = {}) {
     try { drawing(next, pack, { typeset }); D.lint(next, pack); } catch (e) { throw new Error(`the figure could not be drawn (${e.message})`); }   // a dry run: nothing changes if it fails
     loadWarnings = D.netsMatch(nets, D.deriveNets(next, pack)) ? [] :
       ["The file's nets did not match its drawing. Saving writes the nets the drawing makes."];
-    if (record) commit(next, `Opened ${next.id}.`);
+    if (record) { selectedFrame = -1; commit(next, `Opened ${next.id}.`); }
     else { doc = next; history.clear(); timingTool?.setCircuit(D.serialize(doc, pack)); }
+    refreshTruthPortList();
     unsaved = false;   // what was just opened matches a file
     selection = none();
     selectedJunction = null;
@@ -1352,6 +1436,7 @@ export async function mount(root, options = {}) {
     const { mount } = await import("../../timing/src/app.js");
     timingTool = mount(tpBody, {
       docked: true, betaFeatures: true, storageKey: TIMING_SOURCE, sendKey: TIMING_SEND, editorKey: AUTOSAVE,
+      controlsRoot: $(".fe-timing-controls"),
       mergeConnectedNodes: true, allowTexSignalNames: true,
       typesetSignalNames: async (names) => {
         const texByName = new Map(names.map((name) => [name, texOf(name)]));
@@ -1370,6 +1455,86 @@ export async function mount(root, options = {}) {
     for (const step of pendingTimingSteps) syncCircuitLevelsToTiming(step);
     pendingTimingSteps.clear();
     if (fitTimingWhenReady) { fitTimingWhenReady = false; timingTool.fit(); }
+    setupTruthTable();
+  }
+
+  function setupTruthTable() {
+    const pane = tpBody.querySelector(".td-truth");
+    if (!pane || pane.dataset.ready) return;
+    pane.dataset.ready = "true";
+    const inputNames = pane.querySelector("[data-truth-inputs]");
+    const outputNames = pane.querySelector("[data-truth-outputs]");
+    const tableInput = pane.querySelector("[data-truth-table]");
+    const portList = pane.querySelector("#td-truth-ports");
+    const results = pane.querySelector(".td-truth-results");
+    const parseNames = (input) => input.value.split(/[,\s;]+/).filter(Boolean);
+    const refreshPorts = () => {
+      portList.innerHTML = doc.ports.map((port) => `<option value="${esc(port.id)}">${esc(port.dir === "in" ? "Input" : port.dir === "out" ? "Output" : "Port")}</option>`).join("");
+      for (const [field, direction] of [[inputNames, "in"], [outputNames, "out"]]) {
+        const available = doc.ports.filter((port) => port.dir === direction).map((port) => port.id);
+        const chosen = parseNames(field);
+        if (!chosen.length || chosen.some((name) => !available.includes(name))) field.value = available.join(", ");
+      }
+    };
+    const validatePorts = (names, direction) => {
+      if (!names.length) throw new Error(`Choose at least one ${direction === "in" ? "input" : "output"} port.`);
+      if (new Set(names).size !== names.length) throw new Error("Choose each port only once.");
+      for (const name of names) {
+        const port = doc.ports.find((item) => item.id === name);
+        if (!port) throw new Error(`"${name}" is not a port id in this circuit.`);
+        if (port.dir !== direction) throw new Error(`Port "${name}" must be an ${direction === "in" ? "input" : "output"}.`);
+      }
+    };
+    const showResults = (result) => {
+      const passed = result.checks.filter((item) => item.pass).length;
+      results.removeAttribute("data-error");
+      results.innerHTML = `<p>${passed} of ${result.checks.length} cases match the circuit.</p><ol>${result.checks.map((item) => {
+        const detail = item.outputs.map((output) => output.pass ? `${output.name}: PASS` : `${output.name}: expected ${output.expected}, got ${output.actual}`).join("; ");
+        return `<li data-pass="${item.pass}">Case ${item.case} (${Object.entries(item.inputs).map(([name, value]) => `${esc(name)}=${value}`).join(", ")}): ${esc(detail)}</li>`;
+      }).join("")}</ol>`;
+    };
+    const displayError = (error) => {
+      results.dataset.error = "true";
+      results.innerHTML = `<p data-error>${esc(error.message)}</p>`;
+    };
+    const applyResult = (result, message, showDiagram) => {
+      timingTool.source = JSON.stringify(result.timing);
+      selectedFrame = 0;
+      commit({ ...doc, groups: { ...(doc.groups ?? {}), frames: result.frames } }, null);
+      renderFrames();
+      timingTool.setFrame(-1);
+      status(message);
+      if (showDiagram) tpBody.querySelector('[data-view="diagram"]').click();
+    };
+    refreshPorts();
+    pane.addEventListener("click", (event) => {
+      const action = event.target.closest("[data-truth-action]")?.dataset.truthAction;
+      if (!action) return;
+      try {
+        if (action === "generate") {
+          const inputs = parseNames(inputNames), outputs = parseNames(outputNames);
+          validatePorts(inputs, "in"); validatePorts(outputs, "out");
+          const generated = truthTable(doc, pack, inputs, outputs);
+          const signals = new Map(generated.timing.signal.filter((signal) => signal.name).map((signal) => [signal.name, signal.wave]));
+          const expand = (wave) => {
+            let previous = "";
+            return [...wave].map((value) => value === "." ? previous : (previous = value)).join("");
+          };
+          const waves = new Map([...signals].map(([name, wave]) => [name, expand(wave)]));
+          tableInput.value = [ [...inputs, ...outputs].join(","),
+            ...Array.from({ length: generated.frames.length }, (_, step) => [...inputs, ...outputs].map((name) => waves.get(name)[step]).join(",")),
+          ].join("\n");
+          results.removeAttribute("data-error");
+          results.innerHTML = `<p>Generated ${generated.frames.length} cases. Edit the table, then check it against the circuit.</p>`;
+          applyResult(generated, `Generated ${generated.frames.length} input cases.`, true);
+        } else if (action === "check") {
+          const checked = parseTruthTable(tableInput.value, doc, pack);
+          showResults(checked);
+          const passed = checked.checks.filter((item) => item.pass).length;
+          applyResult(checked, `${passed} of ${checked.checks.length} truth-table cases match the circuit.`, false);
+        }
+      } catch (error) { displayError(error); status(error.message, true); }
+    });
   }
   /**
    * The three workspaces are sections of one stack: the one in view takes the whole window, the others slide away to their title bars
@@ -1393,7 +1558,8 @@ export async function mount(root, options = {}) {
     const frames = framesOf(doc);
     if (!frames.length || !Number.isFinite(n)) return;
     selectedFrame = Math.max(0, Math.min(frames.length - 1, Math.round(n)));
-    commit(applyFrame(doc, frames[selectedFrame]), `Frame ${selectedFrame} of ${frames.length - 1}: ${frames[selectedFrame].name}`);
+    const message = selectedFrame === 0 ? "Frame 0 has no logic levels highlighted." : `Frame ${selectedFrame} of ${frames.length - 1}: ${frames[selectedFrame].name}`;
+    commit(applyFrame(doc, frames[selectedFrame]), message);
     timingTool?.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
     renderFrames();
   }
@@ -1403,7 +1569,8 @@ export async function mount(root, options = {}) {
     const frames = framesOf(doc);
     if (!frames.length) return;
     selectedFrame = Math.max(0, Math.min(frames.length - 1, (selectedFrame < 0 ? (by > 0 ? -1 : frames.length) : selectedFrame) + by));
-    commit(applyFrame(doc, frames[selectedFrame]), `Frame ${selectedFrame} of ${frames.length - 1}: ${frames[selectedFrame].name}`);
+    const message = selectedFrame === 0 ? "Frame 0 has no logic levels highlighted." : `Frame ${selectedFrame} of ${frames.length - 1}: ${frames[selectedFrame].name}`;
+    commit(applyFrame(doc, frames[selectedFrame]), message);
     timingTool?.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
     renderFrames();
   }
@@ -1492,7 +1659,7 @@ export async function mount(root, options = {}) {
       <text x="${r.x + 0.3}" y="${r.y + 0.3 + k}" font-size="${k}" font-family="var(--bs-font-monospace)" fill="${roles.accent}">${esc(r.label)}</text>
       <rect data-handle="1" x="${r.x + r.w - 1}" y="${r.y + r.h - 1}" width="1" height="1" fill="${roles.accent}" style="cursor:nwse-resize"/>
     </g>`).join("");
-    slideBar.innerHTML = `<span class="label-mono">Layout</span>${Object.entries(SLIDE_LAYOUTS).map(([k, v]) => `<button type="button" class="fe-layout" data-layout="${k}" aria-pressed="${s.layout === k}" title="${esc(v.name)}">${layoutThumb(k, s, roles)}<span>${esc(v.name)}</span></button>`).join("")}<span class="fe-slidebar-end">${btn("slidesvg", "Slide as SVG")}${btn("slidepng", "Slide as PNG")}</span>`;
+    slideBar.innerHTML = `<span class="label-mono">Layout</span>${Object.entries(SLIDE_LAYOUTS).map(([k, v]) => `<button type="button" class="fe-layout" data-layout="${k}" aria-pressed="${s.layout === k}" title="${esc(v.name)}">${layoutThumb(k, s, roles)}<span>${esc(v.name)}</span></button>`).join("")}`;
     slideView.setAttribute("viewBox", `-1 -1 ${w + 2} ${h + 2}`);
     slideView.innerHTML = `<rect x="0" y="0" width="${w}" height="${h}" fill="none" stroke="${roles.accent}" stroke-width="${lw * 1.5}"/>${body}${outlines}`;
   }
@@ -1569,15 +1736,15 @@ export async function mount(root, options = {}) {
     opt.labelPt = v >= 4 && v <= 48 && v !== packLabelPt(pack) ? v : null;
     saveOptions();
     ptInput.value = String(opt.labelPt ?? packLabelPt(pack));
-    tagPtInput.value = String(opt.levelTagPt ?? opt.labelPt ?? packLabelPt(pack));
+    tagPtInput.value = String(opt.levelTagPt);
     render();
   });
-  tagPtInput.value = String(opt.levelTagPt ?? opt.labelPt ?? packLabelPt(pack));
+  tagPtInput.value = String(opt.levelTagPt);
   tagPtInput.addEventListener("change", () => {
-    const v = +tagPtInput.value, fallback = opt.labelPt ?? packLabelPt(pack);
-    opt.levelTagPt = v >= 4 && v <= 48 && v !== fallback ? v : null;
+    const v = +tagPtInput.value;
+    opt.levelTagPt = v >= 4 && v <= 48 ? v : 8;
     saveOptions();
-    tagPtInput.value = String(opt.levelTagPt ?? fallback);
+    tagPtInput.value = String(opt.levelTagPt);
     render();
   });
   tagColourInput.checked = opt.levelTagColour;
@@ -1796,13 +1963,13 @@ export async function mount(root, options = {}) {
 
   const endDrag = () => {
     if (drag?.kind === "resize") {
-      if (doc !== drag.base && JSON.stringify(doc) !== JSON.stringify(drag.base)) { history.record(drag.base); changed("Resized the block."); }
+      if (doc !== drag.base && JSON.stringify(doc) !== JSON.stringify(drag.base)) { history.record(drag.base); changed("Resized the block.", drag.base); }
       else doc = drag.base;
     } else if (drag?.kind === "segment") {
-      if (doc !== drag.base) { history.record(drag.base); changed("Moved a wire run."); }   // the whole drag is one undo step
+      if (doc !== drag.base) { history.record(drag.base); changed("Moved a wire run.", drag.base); }   // the whole drag is one undo step
     } else if (drag?.kind === "move" && !same(drag.delta, [0, 0])) {
       history.record(drag.base);   // the whole drag is one undo step
-      changed("Moved.");
+      changed("Moved.", drag.base);
     } else if (drag?.kind === "box" && boxSel) {
       const got = inBox(doc, pack, boxSel);
       const union = (a, b) => [...new Set([...a, ...b])];

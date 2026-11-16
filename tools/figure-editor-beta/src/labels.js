@@ -171,7 +171,7 @@ export function labelItems(doc, pack, corners = allCorners(doc, pack)) {
     }
   }
   for (const w of doc.wires) {
-    const c = w.bus && corners.get(w.id);
+    const c = w.bus !== undefined && corners.get(w.id);
     const net = doc.groups?.wire_labels?.[w.id], nc = net && corners.get(w.id);   // the net label sits on the other side of the wire from the level tag
     if (nc) {
       const t = tagAnchor(nc), st = doc.groups?.wire_label_style?.[w.id] ?? {};
@@ -179,7 +179,7 @@ export function labelItems(doc, pack, corners = allCorners(doc, pack)) {
       const anchor = horizontalEdgeAnchor(nc, st.side, t.at);
       add({ key: `net:${w.id}`, kind: "net", id: w.id, text: net, at: [anchor[0] + dir[0] * gap, anchor[1] + dir[1] * gap], dir });
     }
-    if (c) { const m = busMark(c, pack.theme.line.width_module).label; add({ key: `bus:${w.id}`, kind: "bus", id: w.id, text: w.bus, at: m.at, dir: m.dir }); }
+    if (c && w.bus) { const m = busMark(c, pack.theme.line.width_module).label; add({ key: `bus:${w.id}`, kind: "bus", id: w.id, text: w.bus, at: m.at, dir: m.dir }); }
   }
   for (const p of doc.ports) if (p.label) add({ key: `port:${p.id}`, kind: "port", id: p.id, text: p.label, at: p.at, dir: side(p.side) });
   doc.labels.forEach((l, index) => add({ key: `label:${index}`, kind: "label", index, text: l.text, at: l.at, dir: side(l.side) }));

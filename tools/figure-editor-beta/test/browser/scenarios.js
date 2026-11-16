@@ -495,6 +495,8 @@ scenarios.marks = async (ctx) => {
     await page.goto(`${ctx.url}?open=examples/cla-chevron.json`);
     await page.waitFor(ready);
     await page.sleep(3000);
+    const defaultTagSize = await page.eval(`document.querySelector('[name="fe-tagpt"]').value`);
+    res.push([defaultTagSize === "8", `level-tag size defaults to 8 pt (${defaultTagSize})`]);
     const px = (gx, gy) => page.eval(`(() => { const s = document.querySelector("svg.fe-canvas"), p = s.createSVGPoint(); p.x = ${gx} / 2; p.y = -${gy} / 2; const q = p.matrixTransform(s.getScreenCTM()); return [q.x, q.y]; })()`);
     const setField = (name, value) => page.eval(`(() => { const i = document.querySelector('[data-field="${name}"]'); i.value = ${JSON.stringify(value)}; i.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
     const wire = (id) => page.eval(`JSON.stringify(window.figureEditor.doc.wires.find((w) => w.id === ${JSON.stringify(id)}))`).then(JSON.parse);
@@ -516,6 +518,8 @@ scenarios.marks = async (ctx) => {
     // Element level: click the block, set level 1 from the panel; the outline turns the level colour, the leads keep theirs.
     const mid = await px(0, 0);
     await page.click(mid[0], mid[1]); await page.sleep(300);
+    const selectionOpen = await page.eval(`document.querySelector(".fe-selection-pane").open`);
+    res.push([selectionOpen, "selecting an element opens the selection pane"]);
     await setField("level", "1"); await page.sleep(300);
     const colours = await page.eval(`(() => { const g = document.querySelector('[data-el="blk1"]'); return [...g.querySelectorAll("path")].map((p) => getComputedStyle(p).stroke); })()`);
     res.push([(await page.eval(`window.figureEditor.doc.elements[0].level`)) === "1", "the panel sets the block's level to 1"]);
@@ -848,15 +852,34 @@ scenarios.timing = async (ctx) => {
     await page.sleep(300);
     const controls = await page.eval(`(() => {
       const view = document.querySelector(".td-view");
-      const look = view.querySelector(".td-view-look"), chart = view.querySelector("#WaveDrom_Display_0");
-      look.open = true;
-      const chartBox = chart.getBoundingClientRect(), lookBox = look.getBoundingClientRect(), lookStyle = getComputedStyle(look);
-      return { shown: !view.hidden, look: !!look, below: chartBox.bottom <= lookBox.top, chartVisible: chartBox.height > 0, unboxed: lookStyle.borderLeftWidth === "0px" && lookStyle.borderRightWidth === "0px" && lookStyle.borderBottomWidth === "0px", showNames: view.querySelector('[data-look="showNames"]')?.checked, font: view.querySelector('[data-look="fontSize"]')?.value, width: view.querySelector('[data-look="lineWidth"]')?.value, signalColour: !!view.querySelector('[data-look="signalLineColour"]'), spacing: !!view.querySelector('[data-size="hscale"]'), size: !!view.querySelector('[data-size="w"]'), lockAspect: !!view.querySelector('[data-size="lockAspect"]'), fit: !!view.querySelector('[data-do="fit"]'), dataColours: view.querySelectorAll('[data-look="dataColour"]').length, arrowLine: !!view.querySelector('[data-look="edgeLineWidth"]'), arrowHead: !!view.querySelector('[data-look="arrowHeadSize"]'), arrowColours: view.querySelectorAll('[data-look="edgeColour"]').length, arrowDotted: view.querySelectorAll('[data-look="edgeDotted"]').length, resetLook: !!view.querySelector('[data-do="reset-look"]'), spacerButton: !!document.querySelector('[data-do="add-spacer"]') };
+      const look = document.querySelector(".fe-left .td-side-look"), size = document.querySelector(".fe-left .td-side-size");
+      const chart = view.querySelector("#WaveDrom_Display_0"), chartBox = chart.getBoundingClientRect();
+      return {
+        shown: !view.hidden,
+        controlsInSidebar: !!look && !!size && document.querySelector(".fe-left").contains(look) && document.querySelector(".fe-left").contains(size),
+        noInlineControls: !view.querySelector(".td-view-look") && !view.querySelector("[data-look-split]"),
+        chartVisible: chartBox.width > 0 && chartBox.height > 0,
+        showNames: document.querySelector('[data-look="showNames"]')?.checked,
+        font: document.querySelector('[data-look="fontSize"]')?.value,
+        width: document.querySelector('[data-look="lineWidth"]')?.value,
+        signalColour: !!document.querySelector('[data-look="signalLineColour"]'),
+        spacing: !!document.querySelector('[data-size="hscale"]'),
+        sizeFields: !!document.querySelector('[data-size="w"]'),
+        lockAspect: !!document.querySelector('[data-size="lockAspect"]'),
+        fit: !!document.querySelector('[data-do="fit"]'),
+        dataColours: document.querySelectorAll('[data-look="dataColour"]').length,
+        arrowLine: !!document.querySelector('[data-look="edgeLineWidth"]'),
+        arrowHead: !!document.querySelector('[data-look="arrowHeadSize"]'),
+        arrowColours: document.querySelectorAll('[data-look="edgeColour"]').length,
+        arrowDotted: document.querySelectorAll('[data-look="edgeDotted"]').length,
+        resetLook: !!document.querySelector('[data-do="reset-look"]'),
+        spacerButton: !!document.querySelector('[data-do="add-spacer"]'),
+      };
     })()`);
-    res.push([controls.shown && controls.look && controls.below && controls.chartVisible && controls.unboxed && controls.showNames === true && controls.font === "12" && controls.width === "1.6" && controls.spacing && controls.size, `diagram sits above integrated look and size controls (${JSON.stringify(controls)})`]);
-    res.push([controls.dataColours === 7 && controls.arrowLine && controls.arrowHead && controls.arrowColours === 3 && controls.arrowDotted === 3 && controls.resetLook && controls.lockAspect && controls.spacerButton && controls.fit, `look controls include per-shape arrow styling, aspect lock, reset, Fit and the WaveDrom spacer tool (${JSON.stringify(controls)})`]);
+    res.push([controls.shown && controls.controlsInSidebar && controls.noInlineControls && controls.chartVisible && controls.showNames === true && controls.font === "12" && controls.width === "1.6" && controls.spacing && controls.sizeFields, `diagram fills its pane while Look and Size controls stay in the sidebar (${JSON.stringify(controls)})`]);
+    res.push([controls.dataColours === 7 && controls.arrowLine && controls.arrowHead && controls.arrowColours === 3 && controls.arrowDotted === 3 && controls.resetLook && controls.lockAspect && controls.spacerButton && controls.fit, `sidebar look controls include per-shape arrow styling, aspect lock, reset, Fit and the WaveDrom spacer tool (${JSON.stringify(controls)})`]);
     const aspect = await page.eval(`(() => {
-      const view = document.querySelector(".td-view"), width = view.querySelector('[data-size="w"]'), height = view.querySelector('[data-size="h"]'), lock = view.querySelector('[data-size="lockAspect"]');
+      const width = document.querySelector('[data-size="w"]'), height = document.querySelector('[data-size="h"]'), lock = document.querySelector('[data-size="lockAspect"]');
       width.value = "240"; width.dispatchEvent(new Event("input", { bubbles: true }));
       height.value = "100"; height.dispatchEvent(new Event("input", { bubbles: true }));
       lock.checked = true; lock.dispatchEvent(new Event("change", { bubbles: true }));
@@ -955,7 +978,7 @@ scenarios.timing = async (ctx) => {
     })()`);
     res.push([pane.visible && pane.editor[0] >= pane.pane[0] * 0.9 && pane.editor[1] >= pane.pane[1] * 0.65 && pane.wrap === "off" && pane.tab === "Source" && !pane.hint, `Source fills the pane as an unwrapped editor without the old hint (${JSON.stringify(pane)})`]);
 
-    await page.eval(`(() => { document.querySelector('[data-view="diagram"]').click(); document.querySelector(".td-view-look").open = true; })()`);
+    await page.eval(`(() => { document.querySelector('[data-view="diagram"]').click(); document.querySelector(".td-side-look").open = true; document.querySelector(".td-side-size").open = true; })()`);
     await page.sleep(250);
     await page.shot(`${ctx.out}/beta-timing-look.png`);
     res.push([page.errors.length === 0, `no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
@@ -1148,19 +1171,19 @@ scenarios.layoutAndFit = async (ctx) => {
     await page.sleep(300);
     await page.shot(`${ctx.out}/beta-workspace-layout.png`);
 
-    await page.eval(`(() => { document.querySelector('[data-view="diagram"]').click(); document.querySelector(".td-view-look").open = true; })()`);
+    await page.eval(`(() => { document.querySelector('[data-view="diagram"]').click(); document.querySelector(".td-side-look").open = true; document.querySelector(".td-side-size").open = true; })()`);
     await page.sleep(100);
-    const split = await page.eval(`(() => {
-      const handle = document.querySelector("[data-look-split]");
-      const before = Number(handle.getAttribute("aria-valuenow"));
-      handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true, cancelable: true }));
-      return { before, after: Number(handle.getAttribute("aria-valuenow")), visible: !handle.hidden };
+    const external = await page.eval(`(() => {
+      const view = document.querySelector(".td-view"), chart = document.querySelector("#WaveDrom_Display_0");
+      const box = chart.getBoundingClientRect(), viewBox = view.getBoundingClientRect();
+      return {
+        look: document.querySelector(".fe-left").contains(document.querySelector(".td-side-look")),
+        size: document.querySelector(".fe-left").contains(document.querySelector(".td-side-size")),
+        noSplitter: !document.querySelector("[data-look-split]"),
+        chartFillsPane: box.width > 0 && box.height > 0 && box.width >= viewBox.width * 0.9,
+      };
     })()`);
-    res.push([split.visible && split.after > split.before, `diagram and controls have a keyboard-resizable separator (${JSON.stringify(split)})`]);
-    const lookHandle = await page.eval(`(() => { const r = document.querySelector("[data-look-split]").getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
-    await page.drag(lookHandle, [lookHandle[0], lookHandle[1] - 24]);
-    const draggedLookHeight = await page.eval(`Number(document.querySelector("[data-look-split]").getAttribute("aria-valuenow"))`);
-    res.push([draggedLookHeight > split.after, `diagram and controls separator resizes by dragging (${draggedLookHeight}px)`]);
+    res.push([external.look && external.size && external.noSplitter && external.chartFillsPane, `Look and Size controls remain in the sidebar and the diagram fills its pane (${JSON.stringify(external)})`]);
 
     const fit = await page.eval(`(() => {
       const width = document.querySelector('[data-size="w"]');
@@ -1190,12 +1213,12 @@ scenarios.logicSync = async (ctx) => {
         { id: "w2", from: [-12, -1], to: "and1.B", level: "1" },
         { id: "w3", from: "and1.Y", to: [12, 0] },
       ],
-      groups: { wire_labels: { w1: "A", w2: "B" } },
+      groups: { wire_labels: { w1: "A", w2: "B", w3: "Y" } },
     };
     await page.eval(`window.figureEditor.load(${JSON.stringify(JSON.stringify(figure))})`);
     await page.eval(`document.querySelector('[data-sec-bar="timing"]').click()`);
     await page.waitFor(`!!document.querySelector(".td-tabs")`);
-    const source = JSON.stringify({ signal: [{ name: "A", wave: "1" }, { name: "B", wave: "1" }] });
+    const source = JSON.stringify({ signal: [{ name: "A", wave: "1" }, { name: "B", wave: "1" }, { name: "Y", wave: "1" }] });
     await page.eval(`(() => {
       document.querySelector('[data-view="source"]').click();
       const input = document.querySelector(".td-srctext");
@@ -1224,21 +1247,42 @@ scenarios.logicSync = async (ctx) => {
     const changed = await page.eval(`(() => {
       const figure = JSON.parse(window.figureEditor.save());
       const timing = JSON.parse(localStorage.getItem("figure-editor-beta/timing-source"));
-      return { input: figure.wires.find((wire) => wire.id === "w1")?.level, output: figure.wires.find((wire) => wire.id === "w3")?.level, timingA: timing.signal[0].wave[0] };
+      return {
+        input: figure.wires.find((wire) => wire.id === "w1")?.level,
+        output: figure.wires.find((wire) => wire.id === "w3")?.level,
+        timingA: timing.signal.find((signal) => signal.name === "A")?.wave[0],
+        timingY: timing.signal.find((signal) => signal.name === "Y")?.wave[0],
+      };
     })()`);
-    res.push([changed.input === "0" && changed.output === "0" && changed.timingA === "0", `editing a named input updates its gate outputs and matching timing step (${JSON.stringify(changed)})`]);
+    res.push([changed.input === "0" && changed.output === "0" && changed.timingA === "0" && changed.timingY === "0", `editing a named input updates calculated net values in the matching timing step (${JSON.stringify(changed)})`]);
 
     await page.eval(`(() => {
       window.__timingPrompt = "";
       window.prompt = (message) => { window.__timingPrompt = message; return "1"; };
+      window.__timingBeforeFrameZero = JSON.stringify(JSON.parse(localStorage.getItem("figure-editor-beta/timing-source")));
       document.querySelector('[data-frame="0"]').click();
       document.querySelector('[data-cmd="frametosignal"]').click();
     })()`);
-    await page.waitFor(`JSON.parse(localStorage.getItem("figure-editor-beta/timing-source") || "{}").signal?.every((signal) => signal.wave[0] === "0")`, 10000);
-    const frameZero = await page.eval(`({ prompted: window.__timingPrompt.includes("Timing step"), levels: JSON.parse(localStorage.getItem("figure-editor-beta/timing-source")).signal.map((signal) => signal.wave[0]) })`);
-    res.push([frameZero.prompted && frameZero.levels.every((level) => level === "0"), `Frame 0 prompts for a timing destination and sends all-zero levels (${JSON.stringify(frameZero)})`]);
+    const frameZero = await page.eval(`({
+      prompted: window.__timingPrompt !== "",
+      unchanged: window.__timingBeforeFrameZero === JSON.stringify(JSON.parse(localStorage.getItem("figure-editor-beta/timing-source"))),
+      status: document.querySelector(".fe-status").textContent,
+    })`);
+    res.push([!frameZero.prompted && frameZero.unchanged && frameZero.status.includes("Frame 0 has no logic levels"), `Frame 0 has no logic levels to send (${JSON.stringify(frameZero)})`]);
 
     await page.eval(`(() => {
+      document.querySelector('[data-frame="1"]').click();
+      window.__timingPrompt = "";
+      document.querySelector('[data-cmd="frametosignal"]').click();
+    })()`);
+    const sentFrame = await page.eval(`({
+      prompted: window.__timingPrompt !== "",
+      levels: JSON.parse(localStorage.getItem("figure-editor-beta/timing-source")).signal.map((signal) => signal.wave[0]),
+    })`);
+    res.push([!sentFrame.prompted && sentFrame.levels.join(",") === "0,1,0", `a timing frame sends its schematic levels to the matching step (${JSON.stringify(sentFrame)})`]);
+
+    await page.eval(`(() => {
+      document.querySelector('[data-cmd="framesfromtiming"]').click();
       window.prompt = (message) => { window.__timingPrompt = message; return "2"; };
       document.querySelector('[data-cmd="frametosignal"]').click();
     })()`);
@@ -1248,6 +1292,217 @@ scenarios.logicSync = async (ctx) => {
     const slideFrames = await page.eval(`({ count: document.querySelectorAll(".fe-frame-item").length, height: document.querySelector('[data-sec="slide"]').getBoundingClientRect().height })`);
     res.push([slideFrames.count === 3 && slideFrames.height > 0, `returning to Slide refreshes its frames from the current timing diagram (${JSON.stringify(slideFrames)})`]);
     res.push([page.errors.length === 0, `logic-to-timing sync: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};
+
+scenarios.exports = async (ctx) => {
+  const res = [];
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(`${ctx.url}?open=examples/full-adder-levels.json`);
+    await page.waitFor(ready);
+    await page.sleep(500);
+    await page.eval(`(() => {
+      window.__exportObjects = [];
+      window.__downloads = [];
+      const create = URL.createObjectURL.bind(URL);
+      URL.createObjectURL = (blob) => {
+        const url = create(blob);
+        window.__exportObjects.push({ url, blob });
+        return url;
+      };
+      HTMLAnchorElement.prototype.click = function() {
+        const object = window.__exportObjects.find((entry) => entry.url === this.href);
+        window.__downloads.push({ name: this.download, type: object?.blob.type, blob: object?.blob });
+      };
+    })()`);
+    await page.eval(`document.querySelector('[data-sec-bar="slide"]').click()`);
+    await page.eval(`document.querySelector('[data-cmd="export"]').click()`);
+    await page.waitFor(`document.querySelector(".fe-export-dialog").open`, 10000);
+    const dialog = await page.eval(`({
+      title: document.querySelector("#fe-export-title").textContent,
+      formats: Array.from(document.querySelectorAll("[data-export-format]")).map((button) => button.dataset.exportFormat),
+    })`);
+    res.push([dialog.title === "Export current view" && dialog.formats.join(",") === "svg,png", `current-view export asks the user to choose SVG or PNG (${JSON.stringify(dialog)})`]);
+    await page.eval(`document.querySelector('[data-export-format="png"]').click()`);
+    await page.waitFor(`document.querySelector(".fe-status").textContent.includes("Exported")`, 15000);
+    const slide = await page.eval(`window.__downloads[0]`);
+    res.push([slide.type === "image/png" && slide.name.endsWith("-slide.png"), `the active slide exports as the selected PNG format (${JSON.stringify(slide)})`]);
+
+    await page.eval(`(async () => {
+      document.querySelector(".fe-frames-pane").open = true;
+      document.querySelector('[data-cmd="framecapture"]').click();
+      document.querySelector('[data-cmd="framecapture"]').click();
+      document.querySelector('[data-frame="0"]').click();
+      window.__expectedFrameZero = await window.figureEditor.exportSvg();
+      document.querySelector('[name="fe-frames-what"]').value = "schematic";
+    })()`);
+    await page.sleep(300);
+    await page.shot(`${ctx.out}/beta-frame-zero.png`);
+    await page.eval(`document.querySelector('[data-cmd="framesexport"]').click()`);
+    await page.waitFor(`document.querySelector(".fe-export-dialog").open`, 10000);
+    const frames = await page.eval(`({
+      timingOption: !!document.querySelector('[name="fe-frames-what"] option[value="timing"]'),
+      title: document.querySelector("#fe-export-title").textContent,
+    })`);
+    res.push([frames.timingOption && frames.title === "Export frames", `frame export offers timing diagrams and prompts for a format (${JSON.stringify(frames)})`]);
+    await page.eval(`document.querySelector('[data-export-format="svg"]').click()`);
+    await page.waitFor(`document.querySelector(".fe-status").textContent.includes("Exported 3 schematics as SVG")`, 15000);
+    const frameExports = await page.eval(`Promise.all(window.__downloads.slice(1).map(async (file) => ({
+      name: file.name,
+      type: file.type,
+      text: file.type === "image/svg+xml" ? await file.blob.text() : "",
+      matchesFrameZero: file.name.endsWith("-00.svg") && await file.blob.text() === window.__expectedFrameZero,
+    })))`);
+    res.push([frameExports.length === 3 && frameExports.every((file) => file.type === "image/svg+xml" && file.name.endsWith(".svg")), `all frames are exported in the chosen SVG format (${JSON.stringify(frameExports)})`]);
+    res.push([frameExports[0]?.matchesFrameZero, "the exported Frame 0 matches the unhighlighted schematic"]);
+    res.push([page.errors.length === 0, `exports: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};
+
+scenarios.truth = async (ctx) => {
+  const res = [];
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(`${ctx.url}?view=timing`);
+    await page.waitFor(ready);
+    await page.waitFor(`!!document.querySelector("[data-truth-table]")`, 10000);
+    await page.eval(`document.querySelector('[data-view="truth"]').click()`);
+    const ports = await page.eval(`({
+      inputs: document.querySelector("[data-truth-inputs]").value,
+      outputs: document.querySelector("[data-truth-outputs]").value,
+    })`);
+    res.push([ports.inputs === "A, B, Cin" && ports.outputs === "S, Cout", `truth-table view lists the current circuit's ports (${JSON.stringify(ports)})`]);
+    await page.eval(`document.querySelector('[data-truth-action="generate"]').click()`);
+    await page.waitFor(`document.querySelectorAll(".fe-frame-item").length === 9`, 10000);
+    const generated = await page.eval(`(() => {
+      const table = document.querySelector("[data-truth-table]").value.trim().split("\\n");
+      const timing = JSON.parse(localStorage.getItem("figure-editor-beta/timing-source"));
+      return { rows: table.length - 1, names: timing.signal.filter((signal) => signal.name).map((signal) => signal.name), frames: document.querySelectorAll(".fe-frame-item").length };
+    })()`);
+    res.push([generated.rows === 8 && generated.frames === 9 && generated.names.join(",") === "A,B,Cin,S,Cout", `generate creates all eight cases, timing rows and Frame 0 (${JSON.stringify(generated)})`]);
+
+    await page.eval(`(() => {
+      document.querySelector('[data-view="truth"]').click();
+      const input = document.querySelector("[data-truth-table]");
+      const rows = input.value.trim().split("\\n");
+      rows[1] = "0,0,0,1,0";
+      input.value = rows.join("\\n");
+      document.querySelector('[data-truth-action="check"]').click();
+    })()`);
+    await page.waitFor(`document.querySelector(".td-truth-results").textContent.includes("7 of 8 cases match")`, 10000);
+    const checked = await page.eval(`(() => {
+      const text = document.querySelector(".td-truth-results").textContent;
+      const timing = JSON.parse(localStorage.getItem("figure-editor-beta/timing-source"));
+      const sum = document.querySelector(".td-truth-results li[data-pass='false']")?.textContent ?? "";
+      return { text, mismatch: sum, sWave: timing.signal.find((signal) => signal.name === "S").wave[0] };
+    })()`);
+    res.push([checked.mismatch.includes("expected 1, got 0") && checked.sWave === "0", `checking reports the bad row and keeps the circuit's computed output in the timing diagram (${JSON.stringify(checked)})`]);
+    await page.shot(`${ctx.out}/beta-truth-table.png`);
+    res.push([page.errors.length === 0, `truth table: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};
+
+scenarios.projectZip = async (ctx) => {
+  const res = [];
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(`${ctx.url}?open=examples/full-adder-levels.json`);
+    await page.waitFor(ready);
+    await page.eval(`(() => {
+      window.__zipObjects = [];
+      window.__projectZip = null;
+      window.__projectZipName = "";
+      const create = URL.createObjectURL.bind(URL);
+      URL.createObjectURL = (blob) => {
+        const url = create(blob);
+        window.__zipObjects.push({ url, blob });
+        return url;
+      };
+      HTMLAnchorElement.prototype.click = function() {
+        const object = window.__zipObjects.find((entry) => entry.url === this.href);
+        if (object?.blob.type === "application/zip") {
+          window.__projectZip = object.blob;
+          window.__projectZipName = this.download;
+        }
+      };
+    })()`);
+    await page.eval(`document.querySelector('[data-sec-bar="timing"]').click()`);
+    await page.waitFor(`!!document.querySelector(".td-tabs")`, 10000);
+    const source = JSON.stringify({ signal: [{ name: "S", wave: "01" }, { name: "Cout", wave: "10" }] });
+    await page.eval(`(() => {
+      document.querySelector('[data-view="source"]').click();
+      const input = document.querySelector(".td-srctext");
+      input.value = ${JSON.stringify(source)};
+      document.querySelector('[data-do="src-apply"]').click();
+      document.querySelector('[data-sec-bar="figure"]').click();
+    })()`);
+    await page.sleep(300);
+    await page.shot(`${ctx.out}/beta-project-zip.png`);
+    await page.eval(`document.querySelector('[data-cmd="projectzip"]').click()`);
+    await page.waitFor(`document.querySelector(".fe-status").textContent.includes("with 7 project files")`, 30000);
+    const contents = await page.eval(`(async () => {
+      const blob = window.__projectZip, bytes = new Uint8Array(await blob.arrayBuffer());
+      const view = new DataView(bytes.buffer), decoder = new TextDecoder(), files = new Map();
+      let offset = 0;
+      while (view.getUint32(offset, true) === 0x04034b50) {
+        const size = view.getUint32(offset + 18, true);
+        const nameLength = view.getUint16(offset + 26, true);
+        const extraLength = view.getUint16(offset + 28, true);
+        const name = decoder.decode(bytes.subarray(offset + 30, offset + 30 + nameLength));
+        const start = offset + 30 + nameLength + extraLength;
+        files.set(name, bytes.slice(start, start + size));
+        offset = start + size;
+      }
+      const text = (name) => decoder.decode(files.get(name) ?? new Uint8Array());
+      const schematic = JSON.parse(text("schematic.json"));
+      const timing = JSON.parse(text("timing-diagram.json"));
+      const source = JSON.parse(text("source.json"));
+      const png = (name) => files.get(name)?.slice(0, 4).join(",") === "137,80,78,71";
+      return {
+        name: window.__projectZipName,
+        files: [...files.keys()],
+        zipEnd: view.getUint32(bytes.length - 22, true) === 0x06054b50,
+        schematicJson: schematic.schema === "circuit/0.2",
+        schematicSvg: text("schematic.svg").includes("<svg"),
+        schematicPng: png("schematic.png"),
+        timingJson: Array.isArray(timing.signal) && timing.signal.length === 2,
+        timingSvg: text("timing-diagram.svg").includes("<svg"),
+        timingPng: png("timing-diagram.png"),
+        sourceSchema: source.schema,
+        sourceMatchesFiles: JSON.stringify(source.schematic) === JSON.stringify(schematic) && JSON.stringify(source.timing) === JSON.stringify(timing),
+      };
+    })()`);
+    const expected = "schematic.png,schematic.svg,schematic.json,timing-diagram.png,timing-diagram.svg,timing-diagram.json,source.json";
+    res.push([contents.name.endsWith("-project.zip") && contents.files.join(",") === expected && contents.zipEnd, `Project ZIP contains all seven named files (${contents.files.join(", ")})`]);
+    res.push([contents.schematicJson && contents.schematicSvg && contents.schematicPng && contents.timingJson && contents.timingSvg && contents.timingPng, `ZIP contains valid JSON, SVG and PNG assets for both views (${JSON.stringify(contents)})`]);
+    res.push([contents.sourceSchema === "figure-editor-project/1" && contents.sourceMatchesFiles, `source.json combines the same schematic and timing source (${contents.sourceSchema})`]);
+
+    await page.eval(`document.querySelector('[data-cmd="new"]').click()`);
+    await page.eval(`document.querySelector('[data-cmd="projectzip"]').click()`);
+    await page.waitFor(`document.querySelector(".fe-status").textContent.includes("with 7 project files")`, 30000);
+    const empty = await page.eval(`(async () => {
+      const bytes = new Uint8Array(await window.__projectZip.arrayBuffer());
+      const view = new DataView(bytes.buffer), decoder = new TextDecoder(), files = new Map();
+      let offset = 0;
+      while (view.getUint32(offset, true) === 0x04034b50) {
+        const size = view.getUint32(offset + 18, true), names = view.getUint16(offset + 26, true), extra = view.getUint16(offset + 28, true);
+        const start = offset + 30 + names + extra;
+        files.set(decoder.decode(bytes.subarray(offset + 30, offset + 30 + names)), bytes.slice(start, start + size));
+        offset = start + size;
+      }
+      const source = JSON.parse(decoder.decode(files.get("timing-diagram.json")));
+      return {
+        signals: source.signal.length,
+        svg: decoder.decode(files.get("timing-diagram.svg")).includes("<svg"),
+        png: files.get("timing-diagram.png")?.slice(0, 4).join(",") === "137,80,78,71",
+      };
+    })()`);
+    res.push([empty.signals === 0 && empty.svg && empty.png, `an empty timing diagram still exports all three formats (${JSON.stringify(empty)})`]);
+    res.push([page.errors.length === 0, `project ZIP: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
   } finally { await page.close(); }
   return res;
 };

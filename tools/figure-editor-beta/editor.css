@@ -56,7 +56,7 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 .fe-resizer:focus-visible { outline: 0; }
 
 .fe-pane { border-bottom: 1px solid var(--role-rule); }
-.fe-palette.fe-pane { border-bottom: 0; }
+.fe-palette.fe-pane { border-bottom: 1px solid var(--role-rule); }
 .fe-pane > summary { margin: 0; padding: .35rem .75rem; font-size: .8rem; font-weight: 600; color: var(--role-muted, inherit); cursor: pointer; border-top: 1px solid var(--role-rule); list-style: none; user-select: none; }
 .fe-pane > summary::-webkit-details-marker { display: none; }
 .fe-pane > summary:hover { color: var(--role-accent); }
@@ -162,13 +162,14 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 .fe-stage.is-slide .fe-canvas { visibility: hidden; }
 .fe-slide-regions { list-style: none; margin: .4rem 0; padding: 0; display: grid; gap: .4rem; }
 .fe-region { display: grid; gap: .2rem; padding: .3rem; border: 1px solid var(--role-rule); }
-.fe-slidebar { position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: stretch; gap: .35rem; padding: .4rem .6rem; background: var(--role-surface); border-bottom: 1px solid var(--role-rule); }
+.fe-slidebar { position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; flex-wrap: nowrap; align-items: stretch; gap: .35rem; padding: .4rem .6rem; overflow-x: auto; background: var(--role-surface); border-bottom: 1px solid var(--role-rule); }
 .fe-slidebar > .label-mono { align-self: center; margin-right: .2rem; }
-.fe-layout { display: grid; justify-items: center; gap: .15rem; width: 6.6rem; padding: .25rem; border: 1px solid var(--role-rule); background: var(--role-background); color: var(--role-ink); font-size: .65rem; line-height: 1.15; cursor: pointer; }
+.fe-layout { flex: 0 0 6.6rem; display: grid; justify-items: center; gap: .15rem; width: 6.6rem; padding: .25rem; border: 1px solid var(--role-rule); background: var(--role-background); color: var(--role-ink); font-size: .65rem; line-height: 1.15; cursor: pointer; }
 .fe-layout svg { width: 100%; height: auto; display: block; color: var(--role-muted); }
 .fe-layout:hover { border-color: var(--role-accent); }
 .fe-layout[aria-pressed="true"] { border-color: var(--role-accent); box-shadow: inset 0 0 0 1px var(--role-accent); }
 .fe-slidebar-end { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+.fe-slidebar { justify-content: flex-start; }
 .fe-stage.is-slide .fe-slideview { top: var(--slidebar-h, 6.5rem); height: calc(100% - var(--slidebar-h, 6.5rem)); }
 .fe-toolbar { column-gap: .3rem; }
 .fe-group { padding-right: .3rem; }
@@ -208,6 +209,24 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 .fe-stepper .fe-btn:disabled { opacity: .35; }
 .fe-stepno { min-width: 2.2rem; text-align: left; font-size: .7rem; }
 .fe-toolbar .fe-btn { white-space: nowrap; }
+
+/* Beta interface sizing: improve legibility without scaling the drawing canvas. */
+.fe { font-size: 1.05rem; }
+.fe .fe-btn { height: 2.4rem; font-size: 1rem; }
+.fe-pane > summary { padding: .4rem .85rem; font-size: 1rem; }
+.fe-pane .form-label { font-size: 1rem; }
+.fe-hint, .fe-size, .fe-theme-note { font-size: 1rem; }
+.fe-status { font-size: .9rem; }
+.fe-part { font-size: .75rem; }
+.fe-grouplabel, .fe-stepno { font-size: .9rem; }
+.fe-slidebar > .label-mono { font-size: .9rem; }
+.fe-layout { font-size: .8rem; }
+
+.fe-export-dialog { max-width: min(28rem, 94vw); border: 1px solid var(--role-rule); border-radius: 0; background: var(--role-background); color: var(--role-ink); }
+.fe-export-dialog::backdrop { background: color-mix(in srgb, var(--role-ink) 40%, transparent); }
+.fe-export-dialog h2 { font-size: 1.1rem; }
+.fe-export-options { display: flex; flex-wrap: wrap; gap: .5rem; }
+.fe-export-options .fe-btn { border-color: var(--role-rule); }
 
 /* ---- drafts and families in the Elements pane (F21.1) ---- */
 .fe-part { position: relative; }

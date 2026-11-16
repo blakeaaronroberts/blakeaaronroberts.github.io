@@ -59,13 +59,13 @@ Deno.test("the solder-dot selector separates a four-way crossing in nets, levels
   const horizontal = setLevel(isolated, ["w1"], "1", [], pack);
   assertEquals(horizontal.wires.map((w) => w.level), ["1", undefined, undefined]);
   const timing = framesFromSignals(isolated, deriveNets(isolated, pack), [{ name: "L", levels: ["1"] }], pack);
-  assertEquals(framesOf(timing.doc).map((frame) => frame.levels.w1), ["0", "1"]);
+  assertEquals(framesOf(timing.doc).map((frame) => frame.levels.w1), [undefined, "1"]);
 
   assertEquals(deriveNets(connected, pack), { B: ["B", "L", "R", "T"] });
   assertEquals(connectedWireIds(connected, pack, ["w1"]), ["w1", "w2", "w3"]);
   assertEquals(dots(connected, pack).length, 1);
   const connectedTiming = framesFromSignals(connected, deriveNets(connected, pack), [{ name: "L", levels: ["1"] }], pack);
-  assertEquals(framesOf(connectedTiming.doc).map((frame) => [frame.levels.w1, frame.levels.w2, frame.levels.w3]), [["0", "0", "0"], ["1", "1", "1"]]);
+  assertEquals(framesOf(connectedTiming.doc).map((frame) => [frame.levels.w1, frame.levels.w2, frame.levels.w3]), [[undefined, undefined, undefined], ["1", "1", "1"]]);
 });
 
 Deno.test("an undotted four-way junction survives save, load and copy/paste", () => {
