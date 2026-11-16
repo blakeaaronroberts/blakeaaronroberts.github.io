@@ -32,9 +32,46 @@ Deno.test("pasted full-adder table creates timing waves and checks every output 
   assert(result.checks.every((item) => item.pass), "all eight rows match the circuit");
   assertEquals(result.timing.signal.filter((signal) => signal.name).map((signal) => signal.name), ["A", "B", "Cin", "S", "Cout"]);
   assertEquals(result.checks[0].outputs, [
-    { name: "S", expected: "0", actual: "0", pass: true },
-    { name: "Cout", expected: "0", actual: "0", pass: true },
+    { name: "S", expected: "0", actual: "0", unresolved: false, pass: true },
+    { name: "Cout", expected: "0", actual: "0", unresolved: false, pass: true },
   ]);
+});
+
+Deno.test("free-ended wires touching ports inherit their computed net levels", () => {
+  const circuit = {
+    schema: "circuit/0.3",
+    elements: [{ id: "and1", type: "and_gate", at: [0, 0] }],
+    ports: [
+      { id: "A", dir: "in", at: [-10, 1] },
+      { id: "B", dir: "in", at: [-10, -1] },
+      { id: "Y", dir: "out", at: [10, 0] },
+    ],
+    wires: [
+      { id: "w1", from: [-10, 1], to: "and1.A" },
+      { id: "w2", from: [-10, -1], to: "and1.B" },
+      { id: "w3", from: "and1.Y", to: [10, 0] },
+    ],
+    junctions: [],
+    groups: {},
+  };
+  const result = truthTable(circuit, pack, ["A", "B"], ["Y"]);
+  assertEquals(result.frames[0].levels, { w1: "0", w2: "0", w3: "0" });
+  assertEquals(result.frames[3].levels, { w1: "1", w2: "1", w3: "1" });
+  assertEquals(result.timing.signal.find((signal) => signal.name === "Y").wave, "0..1");
+});
+
+Deno.test("unknown circuit outputs remain unresolved even when the expected value is X", () => {
+  const disconnected = {
+    schema: "circuit/0.3",
+    elements: [],
+    ports: [{ id: "A", dir: "in", at: [0, 0] }, { id: "Y", dir: "out", at: [10, 0] }],
+    wires: [],
+    junctions: [],
+    groups: {},
+  };
+  const result = parseTruthTable("A,Y\n0,X\n1,X", disconnected, pack);
+  assert(result.checks.every((item) => !item.pass), "unknown outputs do not pass");
+  assert(result.checks.every((item) => item.outputs[0].unresolved && item.outputs[0].actual === "X"), "unknowns are marked unresolved");
 });
 
 Deno.test("labelled internal wire nets are included in generated and checked truth tables", () => {
@@ -63,7 +100,7 @@ Deno.test("pasted truth tables report mismatches and reject incomplete or malfor
   ];
   const result = parseTruthTable(header + rows.join("\n"), fa, pack);
   assert(!result.checks[0].pass, "a wrong expected output fails");
-  assertEquals(result.checks[0].outputs[0], { name: "S", expected: "1", actual: "0", pass: false });
+  assertEquals(result.checks[0].outputs[0], { name: "S", expected: "1", actual: "0", unresolved: false, pass: false });
   let error;
   try { parseTruthTable(header + rows.slice(0, -1).join("\n"), fa, pack); } catch (e) { error = e; }
   assert(/Expected all 8 cases/.test(error?.message), "incomplete coverage is rejected");

@@ -3,6 +3,7 @@
 import { clone, deriveNets, wiresForRefs } from "./doc.js";
 
 const GENERATED = "logic_generated_levels";
+const MODE = "logic_mode";
 const BINARY = new Set(["0", "1"]);
 const OPERATIONS = {
   and_gate: (values) => values.includes("0") ? "0" : values.every((v) => v === "1") ? "1" : "X",
@@ -43,6 +44,18 @@ function clearGenerated(doc) {
   delete groups[GENERATED];
   if (Object.keys(groups).length) next.groups = groups; else delete next.groups;
   return next;
+}
+
+export function logicModeOf(doc) {
+  return doc.groups?.[MODE] === "manual" ? "manual" : "calculated";
+}
+
+export function setLogicMode(doc, pack, mode) {
+  if (mode !== "calculated" && mode !== "manual") throw new Error('logic mode must be "calculated" or "manual"');
+  const next = clone(doc), groups = { ...(next.groups ?? {}) };
+  if (mode === "manual") groups[MODE] = "manual"; else delete groups[MODE];
+  if (Object.keys(groups).length) next.groups = groups; else delete next.groups;
+  return mode === "manual" ? clearGenerated(next) : resolveLogic(next, pack);
 }
 
 function networkOf(doc, pack) {
@@ -157,6 +170,7 @@ function latchOutputs(inputA, inputB, previousA, previousB) {
 
 /** Recalculate gate-driven nets; undriven inputs stay visually unset until a value is known. */
 export function resolveLogic(doc, pack) {
+  if (logicModeOf(doc) === "manual") return doc;
   const base = clearGenerated(doc);
   const { keyForRef, wireNet, wiresByKey } = networkOf(base, pack);
   const drivers = new Map();

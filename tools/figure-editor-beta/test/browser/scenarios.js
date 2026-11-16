@@ -1524,6 +1524,167 @@ scenarios.truth = async (ctx) => {
   return res;
 };
 
+scenarios.frameNavigation = async (ctx) => {
+  const res = [];
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(`${ctx.url}?view=figure`);
+    await page.waitFor(ready);
+    await page.waitFor(`document.querySelector(".fe-stepinput")?.max === "8"`, 10000);
+    const initial = await page.eval(`(() => ({
+      value: document.querySelector(".fe-stepinput").value,
+      previousDisabled: document.querySelector('[data-cmd="frameprev"]').disabled,
+      nextDisabled: document.querySelector('[data-cmd="framenext"]').disabled,
+      appearance: getComputedStyle(document.querySelector(".fe-stepinput")).appearance,
+    }))()`);
+    await page.eval(`document.querySelector('[data-cmd="framenext"]').click()`);
+    await page.waitFor(`document.querySelector('[data-frame="1"]')?.getAttribute("aria-pressed") === "true"`, 5000);
+    await page.eval(`document.querySelector('[data-cmd="frameprev"]').click()`);
+    await page.waitFor(`document.querySelector('[data-frame="0"]')?.getAttribute("aria-pressed") === "true"`, 5000);
+    const typed = await page.eval(`(() => {
+      const input = document.querySelector(".fe-stepinput");
+      input.value = "3";
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      return document.querySelector('[data-frame="3"]')?.getAttribute("aria-pressed");
+    })()`);
+    res.push([initial.value === "0" && initial.previousDisabled && !initial.nextDisabled, `frame controls start in the first of nine frames and enable Next (${JSON.stringify(initial)})`]);
+    res.push([typed === "true", "Next, Previous, and direct frame entry select the expected frames"]);
+    res.push([initial.appearance === "textfield", "the frame number field has no native spinner control"]);
+    res.push([page.errors.length === 0, `frame navigation: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};
+
+scenarios.sourceAlignment = async (ctx) => {
+  const res = [];
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(`${ctx.url}?view=timing`);
+    await page.waitFor(ready);
+    await page.waitFor(`!!document.querySelector(".td-srctext")`, 10000);
+    await page.eval(`document.querySelector('[data-view="source"]').click()`);
+    const alignment = await page.eval(`(() => {
+      const gutter = document.querySelector(".td-line-numbers");
+      const source = document.querySelector(".td-srctext");
+      source.value = Array.from({ length: 80 }, (_, i) => '  {"name":"s' + i + '","wave":"01","note":"' + "x".repeat(120) + '"}').join("\\n");
+      source.dispatchEvent(new Event("input", { bubbles: true }));
+      source.scrollTop = 100;
+      source.dispatchEvent(new Event("scroll"));
+      const left = getComputedStyle(gutter), right = getComputedStyle(source);
+      const sameMetrics = ["fontFamily", "fontSize", "fontWeight", "lineHeight", "paddingTop", "paddingBottom"]
+        .every((key) => left[key] === right[key]);
+      return {
+        sameMetrics,
+        wrap: source.wrap,
+        whiteSpace: right.whiteSpace,
+        lineCount: gutter.textContent.split("\\n").length,
+        scrollTop: gutter.scrollTop,
+        sourceScrollTop: source.scrollTop,
+      };
+    })()`);
+    await page.shot(`${ctx.out}/beta-source-alignment.png`);
+    res.push([alignment.sameMetrics && alignment.wrap === "off" && alignment.whiteSpace === "pre", `source text and line-number gutter share fixed, non-wrapping line metrics (${JSON.stringify(alignment)})`]);
+    res.push([alignment.lineCount === 80 && alignment.scrollTop === alignment.sourceScrollTop, "line numbers stay vertically aligned while scrolling long source"]);
+    res.push([page.errors.length === 0, `source editor: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};
+
+scenarios.truthUnknown = async (ctx) => {
+  const res = [];
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(`${ctx.url}?view=timing`);
+    await page.waitFor(ready);
+    await page.waitFor(`!!document.querySelector("[data-truth-table]")`, 10000);
+    await page.eval(`window.figureEditor.load(JSON.stringify({
+      schema: "circuit/0.3", id: "unresolved_demo", grid_cm: 0.25,
+      elements: [], ports: [
+        { id: "A", dir: "in", at: [0, 0] },
+        { id: "Y", dir: "out", at: [10, 0] },
+      ], wires: [], junctions: [], nets: {}, groups: {},
+    }))`);
+    await page.eval(`document.querySelector('[data-view="truth"]').click()`);
+    await page.eval(`(() => {
+      const input = document.querySelector("[data-truth-table]");
+      input.value = "A,Y\\n0,X\\n1,X";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      document.querySelector('[data-truth-action="check"]').click();
+    })()`);
+    await page.waitFor(`document.querySelector(".td-truth-results").textContent.includes("2 output(s) unresolved (X).")`, 10000);
+    const result = await page.eval(`(() => ({
+      text: document.querySelector(".td-truth-results").textContent,
+      failures: [...document.querySelectorAll(".td-truth-results li[data-pass='false']")].length,
+    }))()`);
+    res.push([result.text.includes("UNRESOLVED") && result.failures === 2, `unknown outputs are explicitly unresolved, never passing (${JSON.stringify(result)})`]);
+    res.push([page.errors.length === 0, `unknown truth table: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};
+
+scenarios.logicMode = async (ctx) => {
+  const res = [];
+  const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(`${ctx.url}?view=figure`);
+    await page.waitFor(ready);
+    await page.waitFor(`document.querySelector(".fe-stepinput")?.max === "8"`, 10000);
+    const states = await page.eval(`(() => {
+      window.figureEditor.load(JSON.stringify({
+        schema: "circuit/0.3", id: "logic_mode_demo", grid_cm: 0.25,
+        elements: [{ id: "and1", type: "and_gate", at: [0, 0] }],
+        ports: [],
+        wires: [
+          { id: "w1", from: [-12, 0], to: "and1.A", level: "1" },
+          { id: "w2", from: [-12, 4], to: "and1.B", level: "1" },
+          { id: "w3", from: "and1.Y", to: [12, 0] },
+        ],
+        junctions: [], groups: {}, nets: {},
+      }));
+      const input = document.querySelector('[name="fe-logic-calculation"]');
+      const automatic = {
+        checked: input.checked,
+        mode: window.figureEditor.doc.groups?.logic_mode ?? "calculated",
+        generated: Object.keys(window.figureEditor.doc.groups?.logic_generated_levels ?? {}).length,
+      };
+      input.checked = false;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      const manual = {
+        checked: input.checked,
+        mode: window.figureEditor.doc.groups?.logic_mode,
+        generated: window.figureEditor.doc.groups?.logic_generated_levels,
+      };
+      window.figureEditor.load(JSON.stringify(window.figureEditor.doc));
+      const reopened = {
+        checked: document.querySelector('[name="fe-logic-calculation"]').checked,
+        mode: window.figureEditor.doc.groups?.logic_mode,
+      };
+      const restored = document.querySelector('[name="fe-logic-calculation"]');
+      restored.checked = true;
+      restored.dispatchEvent(new Event("change", { bubbles: true }));
+      const calculated = {
+        checked: restored.checked,
+        mode: window.figureEditor.doc.groups?.logic_mode ?? "calculated",
+        generated: Object.keys(window.figureEditor.doc.groups?.logic_generated_levels ?? {}).length,
+      };
+      return { automatic, manual, reopened, calculated };
+    })()`);
+    await page.eval(`(() => {
+      const pane = document.querySelector(".fe-logic-mode");
+      pane.open = true;
+      pane.scrollIntoView({ block: "start" });
+    })()`);
+    await page.sleep(300);
+    await page.shot(`${ctx.out}/beta-logic-mode.png`);
+    res.push([states.automatic.checked && states.automatic.mode === "calculated" && states.automatic.generated > 0, "calculated logic is the default"]);
+    res.push([!states.manual.checked && states.manual.mode === "manual" && !states.manual.generated, "manual mode clears generated levels and records the choice"]);
+    res.push([!states.reopened.checked && states.reopened.mode === "manual", "manual mode is restored from the saved figure"]);
+    res.push([states.calculated.checked && states.calculated.mode === "calculated" && states.calculated.generated > 0, "calculation can be turned back on and recomputes levels"]);
+    res.push([page.errors.length === 0, `logic mode: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};
+
 scenarios.projectZip = async (ctx) => {
   const res = [];
   const page = await ctx.launch({ scheme: "light", port: nextPort++ });

@@ -28,7 +28,7 @@ import { orient } from "./geometry.js";
 import { namedNetNames, parseTruthTable, truthTable } from "./demo.js";
 import { latexTable } from "./latex-table.js";
 import { framesFromSignals, levelTagStyleOf, setLevelTagStyle, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, ensureFrameZero, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame, targetsOf } from "./levelframes.js";
-import { resolveLogic } from "./logic.js";
+import { logicModeOf, resolveLogic, setLogicMode } from "./logic.js";
 import { zipStore } from "./zip.js";
 
 const AUTOSAVE = "figure-editor-beta/autosave";
@@ -167,6 +167,11 @@ export async function mount(root, options = {}) {
         <label class="form-label">Figure id <input class="form-control form-control-sm" name="fe-id" spellcheck="false"></label>
         <label class="form-label">Title <input class="form-control form-control-sm" name="fe-title"></label>
       </details>
+      <details data-views="figure timing slide" class="fe-pane fe-logic-mode" name="fe-doc">
+        <summary class="label-mono">Logic</summary>
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-logic-calculation" checked> <span class="form-check-label">Calculate logic levels</span></label>
+        <p class="fe-hint">Turn this off to clear calculated levels and set them manually. This choice is saved with the figure.</p>
+      </details>
       <details data-views="figure slide" class="fe-pane fe-export" name="fe-doc">
         <summary class="label-mono">Export</summary>
         <label class="form-label">Scale (%) <input class="form-control form-control-sm" type="number" name="fe-scale" min="10" max="1000" step="5"></label>
@@ -261,7 +266,7 @@ export async function mount(root, options = {}) {
 
   const $ = (s) => root.querySelector(s);
   const svg = $(".fe-canvas"), statusEl = $(".fe-status"), fileInput = $(".fe-file"), themeInput = $(".fe-theme-file");
-  const idInput = $('[name="fe-id"]'), titleInput = $('[name="fe-title"]'), propsEl = $(".fe-props"), selectionPane = $(".fe-selection-pane"), helpEl = $(".fe-help"), exportDialog = $(".fe-export-dialog");
+  const idInput = $('[name="fe-id"]'), titleInput = $('[name="fe-title"]'), logicCalculationInput = $('[name="fe-logic-calculation"]'), propsEl = $(".fe-props"), selectionPane = $(".fe-selection-pane"), helpEl = $(".fe-help"), exportDialog = $(".fe-export-dialog");
   const scaleInput = $('[name="fe-scale"]'), ptInput = $('[name="fe-labelpt"]'), tagPtInput = $('[name="fe-tagpt"]'), tagsInput = $('[name="fe-tags"]'), tagColourInput = $('[name="fe-tagcolour"]'), netNamesInput = $('[name="fe-netnames"]'), draftsInput = { checked: false }, canvasInput = $('[name="fe-canvas"]'), exportDarkInput = $('[name="fe-exportdark"]');
   const view = createView(svg, loaded);
   // The editor fills the window below the site header; measure the header so the two never overlap.
@@ -286,7 +291,7 @@ export async function mount(root, options = {}) {
   let loadWarnings = [];
   let spaceHeld = false;
   let lastDrawing = null;
-  let selectedFrame = -1;            // the frame chosen in the Frames list (level frames, F11.2)
+  let selectedFrame = 0;             // the frame chosen in the Frames list (level frames, F11.2)
   let timingTool = null, fitTimingWhenReady = false, refreshFramesWhenTimingReady = false;
   const pendingTimingSteps = new Set();
   let refreshTruthPortList = () => {};
@@ -585,6 +590,7 @@ export async function mount(root, options = {}) {
   document.addEventListener("pointerdown", (e) => { if (familyPop && !familyPop.contains(e.target) && !e.target.closest(".fe-part")) closeFamily(); });
 
   function updateUI() {
+    logicCalculationInput.checked = logicModeOf(doc) === "calculated";
     const has = total(selection) > 0;
     const set = (cmd, enabled) => { const b = root.querySelector(`[data-cmd="${cmd}"]`); b.disabled = !enabled; };
     const mirrorable = (placing && pack.mirrorable(placing.type)) ||
@@ -1101,6 +1107,7 @@ export async function mount(root, options = {}) {
     },
     new() {   // clears the figure and the Timing Diagram together (the figure can be brought back with Undo; the diagram cannot)
       if (timingTool) timingTool.clear(); else { store.remove(TIMING_SOURCE); store.remove(TIMING_SEND); }
+      selectedFrame = 0;
       commit(D.newDoc(), "New: the figure and the timing diagram are cleared (Undo brings the figure back)."); selection = none(); loadWarnings = []; view.fit(null); render(); },
     open: () => fileInput.click(),
     save() {
@@ -1475,7 +1482,7 @@ export async function mount(root, options = {}) {
     try { drawing(next, pack, { typeset }); D.lint(next, pack); } catch (e) { throw new Error(`the figure could not be drawn (${e.message})`); }   // a dry run: nothing changes if it fails
     loadWarnings = D.netsMatch(nets, D.deriveNets(next, pack)) ? [] :
       ["The file's nets did not match its drawing. Saving writes the nets the drawing makes."];
-    if (record) { selectedFrame = -1; commit(next, `Opened ${next.id}.`); }
+    if (record) { selectedFrame = 0; commit(next, `Opened ${next.id}.`); }
     else { doc = next; history.clear(); timingTool?.setCircuit(D.serialize(doc, pack)); }
     refreshTruthPortList();
     unsaved = false;   // what was just opened matches a file
@@ -1596,9 +1603,10 @@ export async function mount(root, options = {}) {
     };
     const showResults = (result) => {
       const passed = result.checks.filter((item) => item.pass).length;
+      const unresolved = result.checks.reduce((count, item) => count + item.outputs.filter((output) => output.unresolved).length, 0);
       results.removeAttribute("data-error");
-      results.innerHTML = `<p>${passed} of ${result.checks.length} cases match the circuit.</p><ol>${result.checks.map((item) => {
-        const detail = item.outputs.map((output) => output.pass ? `${output.name}: PASS` : `${output.name}: expected ${output.expected}, got ${output.actual}`).join("; ");
+      results.innerHTML = `<p>${passed} of ${result.checks.length} cases match the circuit.${unresolved ? ` ${unresolved} output(s) unresolved (X).` : ""}</p><ol>${result.checks.map((item) => {
+        const detail = item.outputs.map((output) => output.unresolved ? `${output.name}: UNRESOLVED (expected ${output.expected}, got X)` : output.pass ? `${output.name}: PASS` : `${output.name}: expected ${output.expected}, got ${output.actual}`).join("; ");
         return `<li data-pass="${item.pass}">Case ${item.case} (${Object.entries(item.inputs).map(([name, value]) => `${esc(name)}=${value}`).join(", ")}): ${esc(detail)}</li>`;
       }).join("")}</ol>`;
     };
@@ -1707,7 +1715,8 @@ export async function mount(root, options = {}) {
           const checked = parseTruthTable(tableInput.value, doc, pack);
           showResults(checked);
           const passed = checked.checks.filter((item) => item.pass).length;
-          applyResult(checked, `${passed} of ${checked.checks.length} truth-table cases match the circuit.`, false);
+          const unresolved = checked.checks.reduce((count, item) => count + item.outputs.filter((output) => output.unresolved).length, 0);
+          applyResult(checked, `${passed} of ${checked.checks.length} truth-table cases match the circuit.${unresolved ? ` ${unresolved} output(s) unresolved (X).` : ""}`, false);
         } else if (action === "save-copy") {
           const latex = refreshLatex();
           if (!latex) throw new Error(latexStatus.textContent || "Enter a valid truth table before saving a copy.");
@@ -2008,6 +2017,12 @@ export async function mount(root, options = {}) {
     const next = D.clone(doc);
     if (titleInput.value) next.title = titleInput.value; else delete next.title;
     commit(next, "Title changed.");
+  });
+  logicCalculationInput.addEventListener("change", () => {
+    const mode = logicCalculationInput.checked ? "calculated" : "manual";
+    commit(setLogicMode(doc, pack, mode), mode === "manual"
+      ? "Calculated levels cleared. Set logic levels manually."
+      : "Calculated logic levels are on.");
   });
 
   /** The resize handle of the one selected block under the pointer, if any: {id, el}. */

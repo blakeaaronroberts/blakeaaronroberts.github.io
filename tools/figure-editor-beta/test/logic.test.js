@@ -1,6 +1,6 @@
 import { addElement, addWire, deleteSelection, newDoc, parse, serialize, setLevel } from "../src/doc.js";
 import { drawing } from "../src/export.js";
-import { resolveLogic } from "../src/logic.js";
+import { logicModeOf, resolveLogic, setLogicMode } from "../src/logic.js";
 import { setWireLabels } from "../src/levelframes.js";
 import { assert, assertEquals, pack } from "./helpers.js";
 
@@ -118,6 +118,29 @@ Deno.test("computed output levels survive save and are recalculated when reopene
   const reopened = resolveLogic(parse(text).doc, pack);
   assertEquals(reopened.wires.find((wire) => wire.id === scene.output).level, "1");
   assertEquals(serialize(reopened, pack), text);
+});
+
+Deno.test("manual logic mode clears calculated outputs, preserves manual levels, and persists with the figure", () => {
+  const scene = gate("and_gate", ["1", "1"]);
+  const calculated = resolveLogic(scene.doc, pack);
+  assertEquals(calculated.wires.find((wire) => wire.id === scene.output).level, "1");
+
+  const manual = setLogicMode(calculated, pack, "manual");
+  assertEquals(logicModeOf(manual), "manual");
+  assertEquals(manual.groups.logic_generated_levels, undefined);
+  assertEquals(manual.wires.filter((wire) => wire.id !== scene.output).map((wire) => wire.level), ["1", "1"]);
+  assertEquals(manual.wires.find((wire) => wire.id === scene.output).level, undefined);
+  assertEquals(resolveLogic(manual, pack), manual);
+
+  const edited = setLevel(manual, [scene.output], "X", [], pack);
+  assertEquals(drawing(edited, pack).wires.find((wire) => wire.id === scene.output).level, "X");
+  const reopened = parse(serialize(edited, pack)).doc;
+  assertEquals(logicModeOf(reopened), "manual");
+  assertEquals(resolveLogic(reopened, pack).wires.find((wire) => wire.id === scene.output).level, "X");
+
+  const automatic = setLogicMode(reopened, pack, "calculated");
+  assertEquals(logicModeOf(automatic), "calculated");
+  assertEquals(automatic.wires.find((wire) => wire.id === scene.output).level, "1");
 });
 
 Deno.test("a gate output carries through disconnected wires with the same net label", () => {

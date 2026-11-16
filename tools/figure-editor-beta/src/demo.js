@@ -20,8 +20,11 @@ function not(x) { return x === null ? null : 1 - x; }
 
 /** Every net's level for the given input port values ({portId: 0|1}): a Map net -> 0, 1 or null (unknown). */
 export function evaluate(doc, pack, inputs) {
-  const nets = deriveNets(doc, pack), netOf = new Map();
-  for (const [name, refs] of Object.entries(nets)) for (const r of refs) netOf.set(r, name);
+  const nets = deriveNets(doc, pack), netOf = new Map(), wireNet = new Map();
+  for (const [name, refs] of Object.entries(nets)) {
+    for (const ref of refs) netOf.set(ref, name);
+    for (const id of wiresForRefs(doc, pack, refs)) wireNet.set(id, name);
+  }
   const level = new Map(Object.keys(nets).map((n) => [n, null]));
   for (const [port, v] of Object.entries(inputs)) if (netOf.has(port)) level.set(netOf.get(port), v);
   for (let pass = 0; pass < 32; pass++) {
@@ -38,24 +41,16 @@ export function evaluate(doc, pack, inputs) {
     }
     if (!changed) break;
   }
-  return { level, netOf };
+  return { level, netOf, wireNet };
 }
 
 /** Each wire's level ("0", "1" or "X") for an evaluation: a wire takes the level of the net its ends (or its junctions) are on. */
-export function wireLevels(doc, { level, netOf }) {
-  const out = {}, junctionWire = new Map(doc.junctions.map((j) => [j.id, j.on]));
-  const netOfWire = new Map();
-  for (let pass = 0; pass < 8; pass++) {
-    for (const w of doc.wires) {
-      if (netOfWire.has(w.id)) continue;
-      for (const e of [w.from, w.to]) {
-        if (typeof e !== "string") continue;
-        const n = netOf.get(e) ?? netOfWire.get(junctionWire.get(e));
-        if (n !== undefined) { netOfWire.set(w.id, n); break; }
-      }
-    }
+export function wireLevels(doc, { level, wireNet }) {
+  const out = {};
+  for (const w of doc.wires) {
+    const v = level.get(wireNet.get(w.id));
+    out[w.id] = v === null || v === undefined ? "X" : String(v);
   }
-  for (const [id, n] of netOfWire) { const v = level.get(n); out[id] = v === null || v === undefined ? "X" : String(v); }
   return out;
 }
 
@@ -200,7 +195,8 @@ export function truthTableRows(doc, pack, inputs, outputs, rows) {
     const results = outputs.map((name) => {
       const value = nodeValue(name, ev, names);
       const actual = value === null || value === undefined ? "X" : String(value);
-      return { name, expected: row.expected[name], actual, pass: actual === row.expected[name] };
+      const unresolved = actual === "X";
+      return { name, expected: row.expected[name], actual, unresolved, pass: !unresolved && actual === row.expected[name] };
     });
     const label = inputs.map((name) => `${name}=${row.inputs[name]}`).join(", ");
     frames.push({ name: label, levels: wireLevels(doc, ev) });

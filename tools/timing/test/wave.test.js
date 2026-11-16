@@ -105,12 +105,24 @@ Deno.test("text size, line width and outlined TeX names are drawing inputs", asy
   assert(tuned.svg.includes('font-size="18"') && tuned.svg.includes('stroke-width="3.2"'));
   assertEquals(naturalSize(value, 1, { fontSize: 18, nameTypeset: names }), naturalSize(value, 1, { fontSize: 12, nameTypeset: names }));
   assertEquals(tuned.natural, plain.natural);
-  assertEquals(tuned.geometry, plain.geometry);
+  assert(tuned.geometry.x0 > plain.geometry.x0, "the wave area moves right to make room for larger labels");
+  assert(tuned.geometry.stepW < plain.geometry.stepW, "the wave area stays inside the same width");
+  assertEquals([tuned.geometry.laneH, tuned.geometry.top], [plain.geometry.laneH, plain.geometry.top]);
   assertEquals(tuned.svg.match(/width="([^"]+)" height="([^"]+)"/).slice(1), plain.svg.match(/width="([^"]+)" height="([^"]+)"/).slice(1));
   assert(plain.svg.includes('font-size="12"') && plain.svg.includes('stroke-width="1.6"'));
   const hidden = drawTiming(value, { showNames: false });
   assert(!hidden.svg.includes(`${name}</text>`) && !hidden.svg.includes(">D</text>"));
   assert(hidden.natural.w < plain.natural.w);
+});
+Deno.test("large timing text reflows head and foot inside the unchanged diagram dimensions", async () => {
+  const { drawTiming } = await import("../src/draw.js");
+  const value = { signal: [{ name: "A", wave: "01" }], head: { text: "Clock", tick: 0 }, foot: { text: "Done", tock: 0 } };
+  const plain = drawTiming(value, {}), large = drawTiming(value, { fontSize: 24 });
+  assert(large.geometry.top > plain.geometry.top, "the waveform moves down for the larger header");
+  assert(large.geometry.laneH < plain.geometry.laneH, "the waveform uses the remaining fixed height");
+  assertEquals(large.natural, plain.natural);
+  assertEquals(large.svg.match(/width="([^"]+)" height="([^"]+)"/).slice(1), plain.svg.match(/width="([^"]+)" height="([^"]+)"/).slice(1));
+  assert(large.svg.includes('font-size="24"') && large.svg.includes('y="36"'), "header text uses its selected font size and reserved space");
 });
 Deno.test("beta look settings persist in WaveDrom config with unchanged defaults", async () => {
   const { empty, lineWidthOf, setLineWidth, setTextSize, textSizeOf, toWaveDrom } = await import("../src/model.js");
