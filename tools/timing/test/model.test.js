@@ -141,7 +141,7 @@ Deno.test("data and arrow appearance overrides are saved, bounded and reset inde
   eq(setArrowHeadSize(value, 20).config.arrowHeadSize, 16);
   const reset = resetTimingColours(value);
   eq([reset.config.edgeLineWidth, reset.config.arrowHeadSize, reset.config.dataColours, reset.config.edgeLineColour, reset.config.arrowHeadColour], [2.4, 9.5, undefined, undefined, undefined]);
-  eq(setEdgeLineWidth(reset, 1).config.edgeLineWidth, undefined);
+  eq(setEdgeLineWidth(reset, 1.25).config.edgeLineWidth, undefined);
   eq(setArrowHeadSize(reset, 6).config.arrowHeadSize, undefined);
 });
 
@@ -183,6 +183,28 @@ Deno.test("arrow shape colour and dotted state persist independently", async () 
   eq(edgeStyleOf(value, "curved"), { colour: "#123456", dotted: false });
   const reset = resetTimingColours(setEdgeStyle(value, "straight", { colour: "#654321", dotted: true }));
   eq(edgeStyleOf(reset, "straight"), { colour: null, dotted: true });
+});
+
+Deno.test("beta straight arrows default to dotted accent and retain solid or custom overrides", async () => {
+  const { edgeStyleOf, edgeStylesFor, empty, fromWaveDrom, resetTimingColours, resetTimingLook, setArrowHeadColour, setEdgeLineColour, setEdgeStyle, toWaveDrom } = await import("../src/model.js");
+  const accent = "#0072B2", value = empty();
+  eq(edgeStylesFor(value, accent).straight, { colour: accent, dotted: true, headColour: accent });
+  eq(edgeStyleOf(value, "curved"), { colour: null, dotted: false });
+  eq(edgeStyleOf(value, "square"), { colour: null, dotted: false });
+  let edited = setEdgeStyle(value, "straight", { colour: "#123456", dotted: false });
+  eq(edgeStyleOf(fromWaveDrom(toWaveDrom(edited)), "straight"), { colour: "#123456", dotted: false });
+  eq(edgeStylesFor(resetTimingColours(edited), accent).straight, { colour: accent, dotted: false, headColour: accent });
+  eq(edgeStylesFor(resetTimingLook(edited), accent).straight, { colour: accent, dotted: true, headColour: accent });
+  edited = setEdgeLineColour(value, "#654321");
+  eq(edgeStylesFor(edited, accent).straight.colour, "#654321");
+  const source = { signal: [{ name: "A", wave: "01", node: ".a" }, { name: "B", wave: "01", node: ".b" }], edge: ["a->b", "a~>b"] };
+  const svg = drawTiming(source, { lineWidth: 2, edgeStyles: edgeStylesFor(source, accent) }).svg;
+  assert(svg.includes('stroke="#0072B2" stroke-width="1.25" stroke-dasharray="2.5 2.5"') && svg.includes('fill="#0072B2"'), "straight line and arrowhead use the accent");
+  assert(svg.includes('stroke="#000000" stroke-width="1.25"'), "curved arrows retain the original style");
+  const withHead = setArrowHeadColour(value, "#ABCDEF");
+  const customHead = drawTiming(source, { lineWidth: 2, edgeStyles: edgeStylesFor(withHead, accent) }).svg;
+  assert(customHead.includes('stroke="#0072B2"') && customHead.includes('fill="#ABCDEF"'), "an explicit arrowhead colour remains independent of the default line colour");
+  eq(edgeStylesFor(setEdgeStyle(withHead, "straight", { colour: "#123456" }), accent).straight.headColour, "#123456");
 });
 
 Deno.test("resetTimingLook removes visual overrides but preserves waveform content and unrelated config", async () => {

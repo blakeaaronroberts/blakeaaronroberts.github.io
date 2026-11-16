@@ -14,6 +14,7 @@ import { exportSvg } from "./export.js";
 import { MODULE_CM, fmt } from "./geometry.js";
 import { applyFrame, framesOf } from "./levelframes.js";
 import { drawTiming } from "../../timing/src/draw.js";
+import { arrowLabelSizeOf, edgeStylesFor, lineWidthOf, signalNameSizeOf, textSizeOf } from "../../timing/src/model.js";
 
 export { FORMATS };
 export const KINDS = { schematic: "Schematic", timing: "Timing diagram", text: "Text (PowerPoint)" };
@@ -164,15 +165,16 @@ function schematicIn(doc, pack, r, opts) {
 }
 
 /** The timing diagram laid out at the region's size (px at 96 dpi), placed in modules. */
-function timingIn(r, t) {
+function timingIn(r, t, index) {
   if (!t?.source) return "";
   const targetW = r.w * PX_PER_MODULE, targetH = r.h * PX_PER_MODULE;
   const drawn = drawTiming(t.source, {
-    centerTransitions: true, fitText: true,
+    centerTransitions: true, fitText: true, idPrefix: `slide-timing-${index}-`,
     width: r.w * PX_PER_MODULE, height: r.h * PX_PER_MODULE, ink: t.ink, accent: t.accent,
     marker: t.marker ?? null, levelColour: t.levelColour ?? null, dataFills: t.dataFills ?? [], levelFills: t.levelFills ?? {}, signalLineColour: t.signalLineColour ?? t.ink, paper: t.paper ?? null,
-    fontSize: t.fontSize ?? 12, signalNameSize: t.signalNameSize ?? t.fontSize ?? 12, arrowLabelSize: t.arrowLabelSize ?? (t.fontSize ?? 12) * 10 / 12,
-    lineWidth: t.lineWidth ?? 1.6, showNames: t.showNames ?? true, nameTypeset: t.nameTypeset ?? null, edgeLabelTypeset: t.edgeLabelTypeset ?? t.nameTypeset ?? null,
+    fontSize: t.fontSize ?? textSizeOf(t.source), signalNameSize: t.signalNameSize ?? signalNameSizeOf(t.source), arrowLabelSize: t.arrowLabelSize ?? arrowLabelSizeOf(t.source),
+    lineWidth: t.lineWidth ?? lineWidthOf(t.source), showNames: t.showNames ?? true, nameTypeset: t.nameTypeset ?? null, edgeLabelTypeset: t.edgeLabelTypeset ?? t.nameTypeset ?? null,
+    edgeStyles: edgeStylesFor(t.source, t.accent),
   });
   const svg = drawn.svg;
   const inner = svg.slice(svg.indexOf(">") + 1, svg.lastIndexOf("</svg>"));
@@ -204,13 +206,13 @@ export function slideSvg(doc, pack, s, opts = {}) {
     out.push(`  <rect x="0" y="0" width="${fmt(w)}" height="${fmt(a.y)}" fill="${accent}" fill-opacity="0.06"/>`);
     out.push(`  <rect x="0" y="${fmt(a.y + a.h)}" width="${fmt(w)}" height="${fmt(h - a.y - a.h)}" fill="${accent}" fill-opacity="0.06"/>`);
   }
-  for (const r of s.regions) {
+  for (const [index, r] of s.regions.entries()) {
     if (part && r !== part) continue;
     if (r.kind === "schematic") {
       const f = Number.isInteger(r.frame) ? r.frame : opts.frame;
       const at = Number.isInteger(f) && frames[f] ? applyFrame(doc, frames[f]) : doc;
       out.push(schematicIn(at, pack, r, opts));
-    } else if (r.kind === "timing") out.push(timingIn(r, opts.timing));
+    } else if (r.kind === "timing") out.push(timingIn(r, opts.timing ? { ...opts.timing, ink: opts.timing.ink ?? ink, accent: opts.timing.accent ?? accent } : null, index));
     else if (opts.preview) out.push(`  <rect x="${fmt(r.x)}" y="${fmt(r.y)}" width="${fmt(r.w)}" height="${fmt(r.h)}" fill="${muted}" fill-opacity="0.08" stroke="${muted}" stroke-width="0.06" stroke-dasharray="0.3 0.2"/>`);
   }
   out.push("</svg>", "");

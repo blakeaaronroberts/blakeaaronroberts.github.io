@@ -73,9 +73,17 @@ Deno.test("the slide timing region keeps the viewer's text and line settings and
   const labels = new Map([[name, parsed], [edgeLabel, parsed]]);
   const svg = slideSvg(doc(), pack, s, { typeset, only: timingRegion.id, timing: {
     source: { signal: [{ name, wave: "01", node: "a." }, { name: "D", wave: "01", node: ".b" }], edge: [`a->b ${edgeLabel}`] },
-    fontSize: 18, lineWidth: 2.4, nameTypeset: labels, edgeLabelTypeset: labels,
+    fontSize: 18, signalNameSize: 18, arrowLabelSize: 15, lineWidth: 2.4, nameTypeset: labels, edgeLabelTypeset: labels,
   } });
   assert(svg.includes('class="td-name-math"') && svg.includes('class="td-edge-label-math"') && svg.includes('font-size="18"') && svg.includes('stroke-width="2.4"'));
+});
+
+Deno.test("slide timing uses the beta default sizes, line width and dotted accent arrows", () => {
+  const s = withLayout(defaultSlide(), "over"), region = s.regions.find((r) => r.kind === "timing");
+  const source = { signal: [{ name: "A", wave: "01", node: ".a" }, { name: "B", wave: "01", node: ".b" }], edge: ["a->b delay"] };
+  const svg = slideSvg(doc(), pack, s, { only: region.id, timing: { source } });
+  assert(/font-size="32"[^>]*>A<\/text>/.test(svg) && /font-size="30"[^>]*>delay<\/text>/.test(svg), "default label sizes reach the slide");
+  assert(svg.includes('stroke-width="2"') && svg.includes(`stroke="${pack.theme.roles.accent}" stroke-width="1.25" stroke-dasharray="2.5 2.5"`), "default lines and arrows reach the slide");
 });
 
 Deno.test("slide timing aligns arrows and grid with centered transitions", () => {
@@ -103,6 +111,19 @@ Deno.test("slide timing keeps independent large label sizes and fits the region"
   const [x, y, scale] = transform.slice(1).map(Number);
   assert(scale < 1 / pxPerModule, "oversized text is scaled to fit");
   assert(x >= region.x - 0.001 && y >= region.y - 0.001 && x + drawing.geometry.width * scale <= region.x + region.w + 0.01 && y + drawing.geometry.height * scale <= region.y + region.h + 0.01, "the entire timing drawing fits inside the region");
+});
+
+Deno.test("slide timing diagrams keep all lanes and steps and have isolated clip and hatch IDs", () => {
+  const base = defaultSlide(), region = base.regions.find((r) => r.kind === "timing");
+  const s = { ...base, regions: [region, { ...region, id: "another", x: region.x + 1 }] };
+  const source = { signal: Array.from({ length: 20 }, (_, i) => ({ name: `S${i}`, wave: "0x".repeat(40) })), head: { tick: 0 } };
+  const svg = slideSvg(doc(), pack, s, { timing: { source } });
+  const clips = [...svg.matchAll(/<clipPath id="([^"]+)"><rect x="[^"]+" y="0" width="[^"]+" height="([^"]+)"/g)];
+  const patterns = [...svg.matchAll(/<pattern id="([^"]+)"/g)];
+  assert(clips.length === 2 && clips[0][1] !== clips[1][1] && clips.every((m) => m[1] !== "plot"), "each slide region has its own clip, distinct from the timing pane");
+  assert(patterns.length === 2 && patterns[0][1] !== patterns[1][1] && patterns.every((m) => m[1] !== "hatch"), "each slide region has its own hatch");
+  for (const [, id] of clips) assert(svg.includes(`url(#${id})`), "waveforms reference their region's clip");
+  for (const [, id] of patterns) assert(svg.includes(`url(#${id})`), "unknown states reference their region's hatch");
 });
 
 Deno.test("a 2 by 2 grid draws each frame's own levels", () => {

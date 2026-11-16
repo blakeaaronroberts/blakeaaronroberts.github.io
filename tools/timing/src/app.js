@@ -4,7 +4,7 @@
 import { parseSource, tidy } from "./wave.js";
 import { drawTiming, naturalSize, lanesOf, stepsOf } from "./draw.js";
 import { nodesOf, unknownNames, framesIn } from "./nodes.js";
-import { addEdge, addSignal, addSpacer, arrowHeadColourOf, arrowHeadSizeOf, arrowLabelSizeOf, cellsOf, dataAt, dataColoursOf, EDGE_OPS, edgeLineColourOf, edgeLineWidthOf, edgeStyleOf, edgesOf, empty, fromWaveDrom, isCalculatedCell, isClock, LABEL, lineWidthOf, moveSignal, nextLetter, nextValue, nodeLetters, removeEdge, removeSignal, resetTimingColours, resetTimingLook, setArrowHeadSize, setArrowLabelSize, setBand, setCalculatedLevels, setCell, setClock, setDataColour, setDelay, setEdge, setEdgeLineWidth, setEdgeStyle, setHscale, setLineWidth, setNode, setProp, setShowNames, setSignalLineColour, setSignalNameSize, setSlant, setSteps, setTextSize, showNamesOf, signalLineColourOf, signalNameSizeOf, slantOf, stepCount, textSizeOf, toWaveDrom, WAVE } from "./model.js";
+import { addEdge, addSignal, addSpacer, arrowHeadColourOf, arrowHeadSizeOf, arrowLabelSizeOf, cellsOf, dataAt, dataColoursOf, EDGE_OPS, edgeLineColourOf, edgeLineWidthOf, edgeStyleOf, edgeStylesFor, edgesOf, empty, fromWaveDrom, isCalculatedCell, isClock, LABEL, lineWidthOf, moveSignal, nextLetter, nextValue, nodeLetters, removeEdge, removeSignal, resetTimingColours, resetTimingLook, setArrowHeadSize, setArrowLabelSize, setBand, setCalculatedLevels, setCell, setClock, setDataColour, setDelay, setEdge, setEdgeLineWidth, setEdgeStyle, setHscale, setLineWidth, setNode, setProp, setShowNames, setSignalLineColour, setSignalNameSize, setSlant, setSteps, setTextSize, showNamesOf, signalLineColourOf, signalNameSizeOf, slantOf, stepCount, textSizeOf, toWaveDrom, WAVE } from "./model.js";
 import { dockSettings, dockShell, pageShell } from "./shell.js";
 
 const store = {
@@ -77,16 +77,16 @@ export function mount(root, {
   const inlineMath = (text) => {
     const parsed = betaFeatures ? nameTypesets.get(text) : null;
     if (!parsed?.ok) return esc(text);
-    const size = signalNameSizeOf(value), x = parsed.left * 1000, y = -parsed.height * 1000;
+    const size = textSizeOf(value), x = parsed.left * 1000, y = -parsed.height * 1000;
     const width = parsed.width * 1000, height = (parsed.height + parsed.depth) * 1000;
     return `<svg class="td-inline-math" role="img" aria-label="${esc(text)}" viewBox="${x} ${y} ${width} ${height}" width="${parsed.width * size}" height="${(parsed.height + parsed.depth) * size}" style="vertical-align:-${parsed.depth * size}px"><g color="currentColor">${nodesMarkup(parsed.nodes)}</g></svg>`;
   };
   /** The diagram as SVG text in the figure roles: light unless `dark` (exports always ask for light). */
   const drawNow = (dark) => {
-    const role = figureRole, ink = role(dark ? "--fig-dark-ink" : "--fig-ink");
+    const role = figureRole, ink = role(dark ? "--fig-dark-ink" : "--fig-ink"), accent = role(dark ? "--fig-dark-accent" : "--fig-accent");
     return drawTiming(toWaveDrom(value), {
       width: Number(wIn.value) || natural.w, height: Number(hIn.value) || natural.h,
-      ink, accent: role(dark ? "--fig-dark-accent" : "--fig-accent"),
+      ink, accent,
       dataFills: dataColoursOf(value, dataDefaults(dark)), paper: role(dark ? "--fig-dark-background" : "--fig-background"), marker: frame >= 0 && frame < frameNames.length ? frame : null,
       ...(betaFeatures ? {
         centerTransitions: true,
@@ -94,6 +94,7 @@ export function mount(root, {
         lineWidth: lineWidthOf(value), signalLineColour: signalLineColourOf(value, ink),
         levelFills: { unknown: role(dark ? "--fig-dark-unknown" : "--fig-unknown"), floating: role(dark ? "--fig-dark-floating" : "--fig-floating") },
         nameTypeset: nameTypesets, edgeLabelTypeset: nameTypesets, showNames: showNamesOf(value),
+        edgeStyles: edgeStylesFor(value, accent),
         edgeLineWidth: edgeLineWidthOf(value, lineWidthOf(value)), edgeLineColour: edgeLineColourOf(value, ink),
         arrowHeadSize: arrowHeadSizeOf(value), arrowHeadColour: arrowHeadColourOf(value, ink),
       } : {}),
@@ -158,7 +159,8 @@ export function mount(root, {
     if (edgeWidthIn && document.activeElement !== edgeWidthIn) edgeWidthIn.value = edgeLineWidthOf(value, lineWidthOf(value)).toFixed(2);
     if (headSizeIn && document.activeElement !== headSizeIn) headSizeIn.value = String(arrowHeadSizeOf(value));
     for (const input of $$('[data-look="edgeColour"]')) {
-      if (document.activeElement !== input) input.value = pickerColour(edgeStyleOf(value, input.dataset.edgeType).colour ?? edgeLineColourOf(value, ink));
+      const accent = figureRole(dark ? "--fig-dark-accent" : "--fig-accent");
+      if (document.activeElement !== input) input.value = pickerColour(edgeStyleOf(value, input.dataset.edgeType).colour ?? edgeLineColourOf(value, input.dataset.edgeType === "straight" ? accent : ink));
     }
     for (const input of $$('[data-look="edgeDotted"]')) {
       if (document.activeElement !== input) input.checked = edgeStyleOf(value, input.dataset.edgeType).dotted;

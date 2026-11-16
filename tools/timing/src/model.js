@@ -236,8 +236,8 @@ export function setTextSize(v, x) {
   return d;
 }
 
-export const signalNameSizeOf = (v) => v?.config?.signalNameSize === undefined ? textSizeOf(v) : Math.min(64, Math.max(8, Number(v.config.signalNameSize) || 12));
-export const arrowLabelSizeOf = (v) => v?.config?.arrowLabelSize === undefined ? textSizeOf(v) * 10 / 12 : Math.min(64, Math.max(6, Number(v.config.arrowLabelSize) || 10));
+export const signalNameSizeOf = (v) => Math.min(64, Math.max(8, Number(v?.config?.signalNameSize) || 32));
+export const arrowLabelSizeOf = (v) => Math.min(64, Math.max(6, Number(v?.config?.arrowLabelSize) || 30));
 const setLabelSize = (v, key, x, min) => {
   const d = clone(v);
   d.config = { ...(d.config ?? {}) };
@@ -248,11 +248,11 @@ const setLabelSize = (v, key, x, min) => {
 export const setSignalNameSize = (v, x) => setLabelSize(v, "signalNameSize", x, 8);
 export const setArrowLabelSize = (v, x) => setLabelSize(v, "arrowLabelSize", x, 6);
 
-export const lineWidthOf = (v) => Math.min(4, Math.max(0.5, Number(v?.config?.lineWidth) || 1.6));
+export const lineWidthOf = (v) => Math.min(4, Math.max(0.5, Number(v?.config?.lineWidth) || 2));
 export function setLineWidth(v, x) {
-  const d = clone(v), k = Math.round(Math.max(0.5, Math.min(4, Number(x) || 1.6)) * 10) / 10;
+  const d = clone(v), k = Math.round(Math.max(0.5, Math.min(4, Number(x) || 2)) * 10) / 10;
   d.config = { ...(d.config ?? {}) };
-  if (k === 1.6) delete d.config.lineWidth; else d.config.lineWidth = k;
+  if (k === 2) delete d.config.lineWidth; else d.config.lineWidth = k;
   return d;
 }
 
@@ -308,8 +308,12 @@ export const edgeStyleOf = (v, type) => {
   const style = EDGE_TYPES.includes(type) ? v?.config?.edgeStyles?.[type] : null;
   return {
     colour: isHexColour(style?.colour) ? style.colour : null,
-    dotted: style?.dotted === true,
+    dotted: typeof style?.dotted === "boolean" ? style.dotted : type === "straight",
   };
+};
+export const edgeStylesFor = (v, accent) => {
+  const straight = edgeStyleOf(v, "straight"), colour = straight.colour ?? edgeLineColourOf(v, accent);
+  return { ...(v?.config?.edgeStyles ?? {}), straight: { ...straight, colour, headColour: straight.colour ?? arrowHeadColourOf(v, colour) } };
 };
 export function setEdgeStyle(v, type, patch) {
   if (!EDGE_TYPES.includes(type)) throw new Error("arrow type must be straight, curved or square");
@@ -321,8 +325,8 @@ export function setEdgeStyle(v, type, patch) {
     else delete style.colour;
   }
   if (patch.dotted !== undefined) {
-    if (patch.dotted === true) style.dotted = true;
-    else delete style.dotted;
+    if (patch.dotted === (type === "straight")) delete style.dotted;
+    else style.dotted = patch.dotted === true;
   }
   if (Object.keys(style).length) styles[type] = style; else delete styles[type];
   if (Object.keys(styles).length) d.config.edgeStyles = styles; else delete d.config.edgeStyles;

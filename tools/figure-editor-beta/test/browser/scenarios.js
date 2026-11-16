@@ -915,19 +915,19 @@ scenarios.timing = async (ctx) => {
         spacerButton: !!document.querySelector('[data-do="add-spacer"]'),
       };
     })()`);
-    res.push([controls.shown && controls.controlsInSidebar && controls.noInlineControls && controls.chartVisible && controls.showNames === true && controls.font === "12" && controls.width === "1.6" && controls.spacing && controls.sizeFields, `diagram fills its pane while Look and Size controls stay in the sidebar (${JSON.stringify(controls)})`]);
+    res.push([controls.shown && controls.controlsInSidebar && controls.noInlineControls && controls.chartVisible && controls.showNames === true && controls.font === "12" && controls.width === "2" && controls.spacing && controls.sizeFields, `diagram fills its pane while Look and Size controls stay in the sidebar (${JSON.stringify(controls)})`]);
     res.push([controls.dataColours === 7 && controls.arrowLine && controls.arrowHead && controls.arrowColours === 3 && controls.arrowDotted === 3 && controls.resetLook && controls.lockAspect && controls.spacerButton && controls.fit, `sidebar look controls include per-shape arrow styling, aspect lock, reset, Fit and the WaveDrom spacer tool (${JSON.stringify(controls)})`]);
     const aspect = await page.eval(`(() => {
       const width = document.querySelector('[data-size="w"]'), height = document.querySelector('[data-size="h"]'), lock = document.querySelector('[data-size="lockAspect"]');
-      width.value = "240"; width.dispatchEvent(new Event("input", { bubbles: true }));
-      height.value = "100"; height.dispatchEvent(new Event("input", { bubbles: true }));
+      width.value = "1600"; width.dispatchEvent(new Event("input", { bubbles: true }));
+      height.value = "1000"; height.dispatchEvent(new Event("input", { bubbles: true }));
       lock.checked = true; lock.dispatchEvent(new Event("change", { bubbles: true }));
-      width.value = "360"; width.dispatchEvent(new Event("input", { bubbles: true }));
+      width.value = "2400"; width.dispatchEvent(new Event("input", { bubbles: true }));
       const heightAfterWidth = Number(height.value);
-      height.value = "120"; height.dispatchEvent(new Event("input", { bubbles: true }));
+      height.value = "1200"; height.dispatchEvent(new Event("input", { bubbles: true }));
       return { heightAfterWidth, widthAfterHeight: Number(width.value) };
     })()`);
-    res.push([aspect.heightAfterWidth === 150 && aspect.widthAfterHeight === 288, `locked sizing preserves its ratio in either direction (${JSON.stringify(aspect)})`]);
+    res.push([aspect.heightAfterWidth === 1500 && aspect.widthAfterHeight === 1920, `locked sizing preserves its ratio in either direction (${JSON.stringify(aspect)})`]);
 
     await page.eval(`window.figureEditor.load(JSON.stringify({
       schema: "circuit/0.2", id: "timing_connected_wires", grid_cm: 0.25,
@@ -983,7 +983,7 @@ scenarios.timing = async (ctx) => {
       const source = JSON.parse(localStorage.getItem("figure-editor-beta/timing-source") ?? "{}");
       return {
         math: !!s?.querySelector(".td-name-math path"), editorMath: !!document.querySelector(".td-name .td-inline-math path"),
-        edgeMath: !!s?.querySelector(".td-edge-label-math path"), textSized: !!s?.querySelector('.td-name-math[transform*="scale(0.018)"]'),
+        edgeMath: !!s?.querySelector(".td-edge-label-math path"), textSized: !!s?.querySelector('.td-name-math[transform*="scale(0.032)"]') && !!s?.querySelector('text[font-size="18"]'),
         thickLine: !!s?.querySelector('[stroke-width="2.6"]'), dataColour: !!s?.querySelector('[fill="#123456"]'),
         signalLine: !!s?.querySelector('[stroke="#112233"]'), arrowLine: !!s?.querySelector('[stroke="#654321"][stroke-width="2.4"][stroke-dasharray]'), arrowHead: !!s?.querySelector('[fill="#654321"]'),
         widths: Array.from(s?.querySelectorAll("[stroke-width]") ?? []).map((t) => t.getAttribute("stroke-width")), config: source.config,
@@ -994,11 +994,11 @@ scenarios.timing = async (ctx) => {
     res.push([svg.editorMath, "the Edit view also renders TeX signal names"]);
     res.push([svg.edgeMath, "WaveDrom edge titles render as TeX paths"]);
     res.push([svg.textSized && svg.thickLine, `text size and line width update the diagram (${JSON.stringify(svg)})`]);
-    res.push([svg.dataColour && svg.signalLine && svg.arrowLine && svg.arrowHead && svg.config?.dataColours?.[0] === "#123456" && svg.config.signalLineColour === "#112233" && svg.config.edgeLineWidth === 2.4 && svg.config.arrowHeadSize === 10 && svg.config.edgeStyles?.straight?.colour === "#654321" && svg.config.edgeStyles?.straight?.dotted === true && svg.config.edgeStyles?.curved?.colour === "#ABCDEF", `data, signal and per-shape arrow styles save; arrow colour matches the head (${JSON.stringify(svg)})`]);
+    res.push([svg.dataColour && svg.signalLine && svg.arrowLine && svg.arrowHead && svg.config?.dataColours?.[0] === "#123456" && svg.config.signalLineColour === "#112233" && svg.config.edgeLineWidth === 2.4 && svg.config.arrowHeadSize === 10 && svg.config.edgeStyles?.straight?.colour === "#654321" && svg.config.edgeStyles?.curved?.colour === "#ABCDEF", `data, signal and per-shape arrow styles save; arrow colour matches the head (${JSON.stringify(svg)})`]);
     const resetColours = await page.eval(`(() => {
       document.querySelector('[data-do="reset-look-colours"]').click();
       const source = JSON.parse(localStorage.getItem("figure-editor-beta/timing-source") ?? "{}");
-      return !source.config?.dataColours && !source.config?.signalLineColour && !source.config?.edgeLineColour && !source.config?.arrowHeadColour && source.config?.edgeStyles?.straight?.colour === undefined && source.config?.edgeStyles?.straight?.dotted === true;
+      return !source.config?.dataColours && !source.config?.signalLineColour && !source.config?.edgeLineColour && !source.config?.arrowHeadColour && source.config?.edgeStyles?.straight?.colour === undefined && document.querySelector('[data-look="edgeDotted"][data-edge-type="straight"]').checked;
     })()`);
     res.push([resetColours, "theme-colour reset clears custom colours but keeps dotted arrow lines"]);
     const resetLook = await page.eval(`(() => {
@@ -1059,6 +1059,101 @@ scenarios.timingAlignment = async (ctx) => {
   return res;
 };
 
+scenarios.timingDefaults = async (ctx) => {
+  const res = [], page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(`${ctx.url}?view=timing`);
+    await page.waitFor(`!!document.querySelector(".td-tabs") && !!window.figureEditor`);
+    await page.eval(`(() => {
+      document.querySelector('[data-view="source"]').click();
+      document.querySelector(".td-srctext").value = JSON.stringify({
+        signal: [{ name: "A", wave: "0.1.", node: "..a." }, { name: "B", wave: "0.1.", node: "..b." }],
+        edge: ["a->b delay"], head: { tick: 0 }
+      });
+      document.querySelector('[data-do="src-apply"]').click();
+      document.querySelector('[data-view="diagram"]').click();
+      document.querySelector(".td-side-look").open = true;
+    })()`);
+    await page.waitFor(`document.querySelector("#WaveDrom_Display_0 .td-name-math path") && document.querySelector("#WaveDrom_Display_0 .td-edge-label-math path")`, 30000);
+    const defaults = await page.eval(`(() => {
+      const svg = document.querySelector("#WaveDrom_Display_0 svg");
+      const accent = getComputedStyle(document.documentElement).getPropertyValue("--fig-accent").trim().toLowerCase();
+      const line = [...svg.querySelectorAll("path[stroke-dasharray]")].find(p => p.getAttribute("stroke")?.toLowerCase() === accent);
+      return {
+        sizes: ["signalNameSize", "arrowLabelSize", "lineWidth"].map(k => document.querySelector('[data-look="' + k + '"]').value),
+        dotted: document.querySelector('[data-look="edgeDotted"][data-edge-type="straight"]').checked,
+        picker: document.querySelector('[data-look="edgeColour"][data-edge-type="straight"]').value.toLowerCase(),
+        accent, line: line?.outerHTML, name: svg.querySelector(".td-name-math").getAttribute("transform"),
+        label: svg.querySelector(".td-edge-label-math").getAttribute("transform"),
+        signalWidth: !!svg.querySelector('path[clip-path][stroke-width="2"]'),
+        head: !![...svg.querySelectorAll("path[fill]")].find(p => p.getAttribute("fill")?.toLowerCase() === accent)
+      };
+    })()`);
+    res.push([defaults.sizes.join(",") === "32,30,2" && defaults.dotted && defaults.picker === defaults.accent && defaults.line && defaults.head && defaults.signalWidth && defaults.name.includes("scale(0.032)") && defaults.label.includes("scale(0.03)"), `default sizes and dotted accent arrows render in the timing viewer (${JSON.stringify(defaults)})`]);
+    await page.shot(`${ctx.out}/beta-timing-defaults.png`);
+    await page.eval(`(() => {
+      const dotted = document.querySelector('[data-look="edgeDotted"][data-edge-type="straight"]');
+      dotted.checked = false; dotted.dispatchEvent(new Event("change", { bubbles: true }));
+    })()`);
+    await page.goto(`${ctx.url}?view=timing`);
+    await page.waitFor(`!!document.querySelector(".td-tabs")`);
+    const solid = await page.eval(`(() => {
+      const source = JSON.parse(localStorage.getItem("figure-editor-beta/timing-source"));
+      return source.config.edgeStyles.straight.dotted === false && !document.querySelector('[data-look="edgeDotted"][data-edge-type="straight"]').checked;
+    })()`);
+    res.push([solid, "choosing a solid straight arrow persists after reload"]);
+    await page.eval(`document.querySelector('[data-do="reset-look"]').click()`);
+    const reset = await page.eval(`document.querySelector('[data-look="edgeDotted"][data-edge-type="straight"]').checked && document.querySelector('[data-look="signalNameSize"]').value === "32" && document.querySelector('[data-look="arrowLabelSize"]').value === "30" && document.querySelector('[data-look="lineWidth"]').value === "2"`);
+    res.push([reset, "Reset look restores the new defaults"]);
+    res.push([page.errors.length === 0, `no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};
+
+scenarios.slideTimingBounds = async (ctx) => {
+  const res = [], page = await ctx.launch({ scheme: "light", port: nextPort++ });
+  try {
+    await page.goto(`${ctx.url}?view=timing`);
+    await page.waitFor(`!!document.querySelector(".td-tabs") && !!window.figureEditor`);
+    await page.eval(`(() => {
+      document.querySelector('[data-view="source"]').click();
+      document.querySelector(".td-srctext").value = JSON.stringify({
+        signal: Array.from({ length: 20 }, (_, i) => ({ name: "S" + i, wave: i === 0 ? "0x" + "01".repeat(49) : "01".repeat(50) })),
+        head: { tick: 0 }
+      });
+      document.querySelector('[data-do="src-apply"]').click();
+      document.querySelector('[data-view="diagram"]').click();
+      document.querySelector('[data-sec-bar="slide"]').click();
+    })()`);
+    const inspect = `(() => {
+      const svg = document.querySelector(".fe-slideview");
+      const clip = svg.querySelector("clipPath"), box = clip?.querySelector("rect");
+      if (!clip || !box) return null;
+      const group = clip.closest("g"), id = clip.id;
+      const paths = [...group.querySelectorAll('path[clip-path]')];
+      const rect = { x: Number(box.getAttribute("x")), y: Number(box.getAttribute("y")), w: Number(box.getAttribute("width")), h: Number(box.getAttribute("height")) };
+      const outside = paths.filter(path => {
+        const b = path.getBBox();
+        return b.x < rect.x - 0.1 || b.y < rect.y - 0.1 || b.x + b.width > rect.x + rect.w + 0.1 || b.y + b.height > rect.y + rect.h + 0.1;
+      }).length;
+      const hatch = group.querySelector("pattern");
+      return { id, correctClip: document.getElementById(id) === clip, hatchId: hatch?.id, correctHatch: !!hatch && document.getElementById(hatch.id) === hatch, pathCount: paths.length, outside, rect };
+    })()`;
+    for (const layout of ["threeRows", "threeColumns"]) {
+      await page.waitFor(`!!document.querySelector('[data-layout="${layout}"]')`);
+      await page.eval(`document.querySelector('[data-layout="${layout}"]').click()`);
+      await page.waitFor(`document.querySelector('.fe-slideview clipPath')`);
+      const bounds = await page.eval(inspect);
+      res.push([bounds?.correctClip && bounds.correctHatch && bounds.id !== "plot" && bounds.hatchId !== "hatch" && bounds.pathCount >= 20 && bounds.outside === 0, `${layout}: every waveform is inside its own slide clip (${JSON.stringify(bounds)})`]);
+    }
+    await page.eval(`document.querySelector('[data-layout="threeRows"]').click()`);
+    await page.sleep(300);
+    await page.shot(`${ctx.out}/beta-slide-timing-bounds.png`);
+    res.push([page.errors.length === 0, `no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+  } finally { await page.close(); }
+  return res;
+};
+
 scenarios.timingTextSizes = async (ctx) => {
   const res = [], page = await ctx.launch({ scheme: "light", port: nextPort++ });
   try {
@@ -1111,7 +1206,7 @@ scenarios.timingTextSizes = async (ctx) => {
     await page.shot(`${ctx.out}/beta-timing-text-sizes.png`);
     await page.eval(`document.querySelector('[data-do="reset-look"]').click()`);
     const reset = await page.eval(`JSON.parse(localStorage.getItem("figure-editor-beta/timing-source")).config`);
-    res.push([!reset?.fontSize && !reset?.signalNameSize && !reset?.arrowLabelSize, "Reset look restores inherited default sizes"]);
+    res.push([!reset?.fontSize && !reset?.signalNameSize && !reset?.arrowLabelSize, "Reset look restores default sizes"]);
     res.push([page.errors.length === 0, `no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
   } finally { await page.close(); }
   return res;

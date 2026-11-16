@@ -124,25 +124,36 @@ Deno.test("large timing text reflows head and foot inside the unchanged diagram 
   assertEquals(large.svg.match(/width="([^"]+)" height="([^"]+)"/).slice(1), plain.svg.match(/width="([^"]+)" height="([^"]+)"/).slice(1));
   assert(large.svg.includes('font-size="24"') && large.svg.includes('y="36"'), "header text uses its selected font size and reserved space");
 });
+Deno.test("beta fitted diagrams reserve space for every lane and step at ordinary text sizes", async () => {
+  const { drawTiming } = await import("../src/draw.js");
+  const value = { signal: Array.from({ length: 20 }, (_, i) => ({ name: `S${i}`, wave: "01".repeat(40) })), head: { tick: 0 }, foot: { text: "End" } };
+  const result = drawTiming(value, { width: 100, height: 40, fitText: true });
+  const g = result.geometry;
+  assert(g.top + 20 * g.laneH <= g.height - 5, "all lanes lie inside the SVG");
+  assert(g.x0 + g.steps * g.stepW <= g.width - 8, "all steps lie inside the SVG");
+  const clip = /<clipPath id="plot"><rect x="[^"]+" y="0" width="[^"]+" height="([^"]+)"/.exec(result.svg);
+  assert(clip && +clip[1] >= g.top + 20 * g.laneH, "the plot clip includes every lane");
+});
 Deno.test("beta look settings persist in WaveDrom config with unchanged defaults", async () => {
   const { empty, lineWidthOf, setLineWidth, setTextSize, textSizeOf, toWaveDrom } = await import("../src/model.js");
   let value = setTextSize(setLineWidth(empty(), 2.4), 18);
   assertEquals([textSizeOf(value), lineWidthOf(value), toWaveDrom(value).config.fontSize, toWaveDrom(value).config.lineWidth], [18, 2.4, 18, 2.4]);
   value = setTextSize(setLineWidth(value, 1.6), 12);
-  assertEquals([textSizeOf(value), lineWidthOf(value), value.config.fontSize, value.config.lineWidth], [12, 1.6, undefined, undefined]);
+  assertEquals([textSizeOf(value), lineWidthOf(value), value.config.fontSize, value.config.lineWidth], [12, 1.6, undefined, 1.6]);
+  assertEquals([lineWidthOf(setLineWidth(value, 2)), setLineWidth(value, 2).config.lineWidth], [2, undefined]);
 });
 Deno.test("signal names and arrow labels have independently saved sizes up to 64", async () => {
   const { empty, textSizeOf, setTextSize, signalNameSizeOf, setSignalNameSize, arrowLabelSizeOf, setArrowLabelSize, resetTimingLook, fromWaveDrom, toWaveDrom } = await import("../src/model.js");
   let value = setTextSize(empty(), 64);
-  assertEquals([textSizeOf(value), signalNameSizeOf(value), arrowLabelSizeOf(value)], [64, 64, 64 * 10 / 12]);
+  assertEquals([textSizeOf(value), signalNameSizeOf(value), arrowLabelSizeOf(value)], [64, 32, 30]);
   value = setArrowLabelSize(setSignalNameSize(value, 40), 64);
   value = setTextSize(value, 18);
   assertEquals([textSizeOf(value), signalNameSizeOf(value), arrowLabelSizeOf(value)], [18, 40, 64]);
   assertEquals([signalNameSizeOf(fromWaveDrom(toWaveDrom(value))), arrowLabelSizeOf(fromWaveDrom(toWaveDrom(value)))], [40, 64]);
   assertEquals([signalNameSizeOf(setSignalNameSize(value, 100)), arrowLabelSizeOf(setArrowLabelSize(value, 2)), textSizeOf(setTextSize(value, 100))], [64, 6, 64]);
-  assertEquals([signalNameSizeOf(setSignalNameSize(value, "")), arrowLabelSizeOf(setArrowLabelSize(value, ""))], [18, 15]);
+  assertEquals([signalNameSizeOf(setSignalNameSize(value, "")), arrowLabelSizeOf(setArrowLabelSize(value, ""))], [32, 30]);
   const reset = resetTimingLook(value);
-  assertEquals([textSizeOf(reset), signalNameSizeOf(reset), arrowLabelSizeOf(reset)], [12, 12, 10]);
+  assertEquals([textSizeOf(reset), signalNameSizeOf(reset), arrowLabelSizeOf(reset)], [12, 32, 30]);
 });
 
 Deno.test("independent name and arrow sizes apply to plain and outlined labels, including large layouts", async () => {
