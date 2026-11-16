@@ -25,7 +25,7 @@
 ::: {.tb-rev}
 [REV · {{< meta date-modified >}}]{.tb-stamp}
 
-[[GitHub](https://github.com/blakeaaronroberts) [LinkedIn](https://www.linkedin.com/in/blakeaaronroberts/) [Email](mailto:blake.roberts@oregonstate.edu)]{.tb-links}
+[[GitHub](https://github.com/blakeaaronroberts) [LinkedIn](https://www.linkedin.com/in/blakeaaronroberts/)]{.tb-links}
 :::
 
 :::
