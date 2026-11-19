@@ -4,6 +4,7 @@
 import { parseSource, tidy } from "./wave.js";
 import { drawTiming, naturalSize, lanesOf, stepsOf } from "./draw.js";
 import { nodesOf, unknownNames, framesIn } from "./nodes.js";
+import { editorDataOf } from "../../schematic-editor/src/index.js";
 import { addEdge, addSignal, addSpacer, arrowHeadColourOf, arrowHeadSizeOf, arrowLabelSizeOf, cellsOf, dataAt, dataColoursOf, EDGE_OPS, edgeLineColourOf, edgeLineWidthOf, edgeStyleOf, edgeStylesFor, edgesOf, empty, fromWaveDrom, isCalculatedCell, isClock, LABEL, lineWidthOf, moveSignal, nextLetter, nextValue, nodeLetters, removeEdge, removeSignal, resetTimingColours, resetTimingLook, setArrowHeadSize, setArrowLabelSize, setBand, setCalculatedLevels, setCell, setClock, setDataColour, setDelay, setEdge, setEdgeLineWidth, setEdgeStyle, setHscale, setLineWidth, setNode, setProp, setShowNames, setSignalLineColour, setSignalNameSize, setSlant, setSteps, setTextSize, showNamesOf, signalLineColourOf, signalNameSizeOf, slantOf, stepCount, textSizeOf, toWaveDrom, WAVE } from "./model.js";
 import { dockSettings, dockShell, pageShell } from "./shell.js";
 
@@ -21,7 +22,7 @@ export function mount(root, {
   docked = false, onSend = null, onStatus = null, onChange = null, onFrameChange = null, betaFeatures = false,
   controlsRoot = null, storageKey = KEY, sendKey = SEND_KEY, editorKey = EDITOR_KEY, mergeConnectedNodes = false, allowTexSignalNames = false, typesetSignalNames = null, texSignalName = null,
 } = {}) {
-  root.classList.add(docked ? "td-dock" : "fe");   // standalone: the Figure Editor's shell (editor.css); docked: a pane inside the editor
+  root.classList.add(...(docked ? ["td-dock"] : ["fe", "td-page"]));   // standalone: the Figure Editor's shell (editor.css); docked: a pane inside the editor
   if (betaFeatures) root.classList.add("td-beta");
   const header = document.querySelector("#quarto-header");
   const fit = () => root.style.setProperty("--fe-top", `${header ? Math.round(header.getBoundingClientRect().bottom) : 0}px`);
@@ -578,7 +579,7 @@ export function mount(root, {
   root.addEventListener("click", (e) => {
     if (!e.target.closest("[data-do=fit-slide]")) return;
     let region = null;
-    try { region = (JSON.parse(store.get(editorKey) ?? "{}").groups?.slide?.regions ?? []).find((r) => r?.kind === "timing"); } catch { region = null; }
+    try { region = (editorDataOf(JSON.parse(store.get(editorKey) ?? "{}")).slide?.regions ?? []).find((r) => r?.kind === "timing"); } catch { region = null; }
     if (!region) return say("The slide has no timing region: pick a layout with one in the Figure Editor's Slide pane.", true);
     const px = (m) => Math.round(((m * 0.5) / 2.54) * 96 * 100) / 100;
     wIn.value = px(region.w); hIn.value = px(region.h);

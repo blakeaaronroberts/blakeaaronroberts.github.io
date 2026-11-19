@@ -1,3 +1,4 @@
+import { editorDataOf } from "../../schematic-editor/src/index.js";
 // DOM-free: the labelled nodes of a circuit file (ports and net names), starter WaveDrom lines, unknown-name check.
 // The file is untrusted: it is parsed as data, only strings of a safe shape are kept, and the count is capped.
 
@@ -52,7 +53,7 @@ export function nodesOf(text, { mergeConnected = false, allowTexNames = false } 
     const connectedWires = mergeConnected ? wireIdsForRefs(members, startWireIds) : new Set();
     for (const w of Array.isArray(doc.wires) ? doc.wires : []) {   // a wire's net label, then its bus label, name the net
       if (mergeConnected ? !connectedWires.has(w?.id) : ![w?.from, w?.to].some((e) => typeof e === "string" && members.has(e))) continue;
-      const n = clean(doc.groups?.wire_labels?.[w.id]) ?? clean(w.bus);
+      const n = clean(editorDataOf(doc).wire_labels?.[w.id]) ?? clean(w.bus);
       if (n) return n;
     }
     for (const p of doc.ports ?? []) if (members.has(p?.id) && clean(p.label)) return clean(p.label);   // a port's own label
@@ -101,7 +102,7 @@ export function unknownNames(names, nodes) {
 export function framesIn(text) {
   let doc;
   try { doc = JSON.parse(String(text)); } catch { return []; }
-  const list = doc?.groups?.frames;
+  const list = editorDataOf(doc).frames;
   if (!Array.isArray(list)) return [];
   return list.slice(0, 200).map((f, i) => (typeof f?.name === "string" && f.name.trim() ? f.name.trim().slice(0, 60) : `Frame ${i + 1}`));
 }

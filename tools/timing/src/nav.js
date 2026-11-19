@@ -1,6 +1,6 @@
 // The tools navigation: one list, one look, used by every tool's toolbar (Figure Editor, Timing Diagram, and any tool added later).
 
-export const TOOLS = [["figure-editor", "Figure Editor"], ["timing-diagram", "Timing Diagram"]];
+export const TOOLS = [["figure-editor", "Figure Editor"], ["schematic-editor", "Schematic Editor"], ["timing-diagram", "Timing Diagram"]];
 
 /** The navigation buttons for a toolbar, the current tool pressed. `extra` goes at the end of the group (the editor's help button). */
 export const navHtml = (current, extra = "") =>

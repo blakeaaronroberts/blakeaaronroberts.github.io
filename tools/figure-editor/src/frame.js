@@ -8,7 +8,7 @@
 //
 // Points are in SVG modules (y down, 0.5 cm a module), as the drawing is.
 
-import { MODULE_CM } from "./geometry.js";
+import { MODULE_CM } from "../../schematic-editor/src/index.js";
 
 /** Slide sizes in cm: PowerPoint's own 13.333 x 7.5 in (16:9) and 10 x 7.5 in (4:3). */
 export const FORMATS = {

@@ -1,10 +1,10 @@
 // F10: the slide frame. Real slide sizes, regions, centring, and an export that is exactly the frame at 1:1.
 
-import { drawing, exportSize, exportSvg } from "../src/export.js";
+import { drawing, exportSize, exportSvg } from "../../schematic-editor/src/export.js";
 import { FORMATS, LAYOUTS, centreOn, cleanFrame, defaultFrame, frameBox, overflow, regions, sizeOf } from "../src/frame.js";
-import { MODULE_CM } from "../src/geometry.js";
-import { buildClaChevron } from "../examples/cla-chevron.js";
-import { assert, assertClose, assertEquals, pack, typeset } from "./helpers.js";
+import { MODULE_CM } from "../../schematic-editor/src/geometry.js";
+import { buildClaChevron } from "../../schematic-editor/examples/cla-chevron.js";
+import { assert, assertClose, assertEquals, pack, typeset } from "../../schematic-editor/test/helpers.js";
 
 const frameOf = (o = {}) => ({ ...defaultFrame(), ...o });
 const rootOf = (svg) => {

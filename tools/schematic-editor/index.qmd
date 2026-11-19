@@ -1,0 +1,20 @@
+---
+title: "Schematic Editor"
+page-layout: full
+css:
+  - editor.css
+---
+
+```{=html}
+<div id="schematic-editor" class="fe-mount"></div>
+<noscript><p>The Schematic Editor needs JavaScript.</p></noscript>
+<script type="module">
+  import { mount } from "./src/index.js";
+  const tool = await mount(document.getElementById("schematic-editor"), {
+    pack: "./symbol-pack/",
+    open: new URLSearchParams(location.search).get("open"),
+  });
+  window.schematicEditorTool = tool;
+  window.figureEditor = tool.app;
+</script>
+```
