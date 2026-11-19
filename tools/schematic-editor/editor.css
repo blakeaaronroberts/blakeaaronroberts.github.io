@@ -1,0 +1,281 @@
+/* Figure editor page. No colours or fonts are set here. The chrome uses the site's role properties
+   (--role-*, published by custom.scss and swapped with the site's light and dark stylesheets), the
+   canvas plate uses the figure roles (--fig-*, always the light Okabe-Ito set), and the drawing itself
+   takes every colour from the symbol pack's theme.json. Shapes follow the site: square corners, hairline
+   rules, mono labels. */
+
+/* The tool is the page: it fills the window below the site header and nothing scrolls. */
+html:has(.fe), body:has(.fe) { overflow: hidden; }
+body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sidebar, footer.footer, nav.page-navigation) { display: none; }
+[hidden] { display: none !important; }
+
+.fe {
+  position: fixed; top: var(--fe-top, 0); right: 0; bottom: 0; left: 0; z-index: 10;
+  display: grid; grid-template-columns: minmax(0, var(--fe-left-width, 15rem)) 6px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto;
+  background: var(--role-background); color: var(--role-ink);
+  font-size: .85rem;
+}
+.fe p { margin: 0; }
+.fe, .fe * { scrollbar-width: none; -ms-overflow-style: none; }
+.fe::-webkit-scrollbar, .fe *::-webkit-scrollbar { display: none; }
+
+/* ---- toolbar ---- */
+.fe-toolbar {
+  grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: .25rem .5rem;
+  padding: .3rem .75rem; background: var(--role-surface); border-bottom: 1px solid var(--role-rule);
+}
+.fe-group { display: flex; align-items: center; gap: 2px; padding-right: .5rem; border-right: 1px solid var(--role-rule); }
+.fe-group-end { margin-left: auto; border-right: 0; padding-right: 0; }
+.fe-grouplabel { padding: 0 .35rem 0 0; }
+
+.fe .fe-btn {
+  --bs-btn-padding-x: .45rem; --bs-btn-padding-y: 0; --bs-btn-border-radius: 0; --bs-btn-border-width: 1px;
+  --bs-btn-color: var(--role-ink); --bs-btn-bg: transparent; --bs-btn-border-color: transparent;
+  --bs-btn-hover-color: var(--role-ink); --bs-btn-hover-bg: var(--role-background); --bs-btn-hover-border-color: var(--role-rule);
+  --bs-btn-active-color: var(--role-ink); --bs-btn-active-bg: var(--role-background); --bs-btn-active-border-color: var(--role-accent);
+  --bs-btn-disabled-color: var(--role-muted); --bs-btn-disabled-bg: transparent; --bs-btn-disabled-border-color: transparent;
+  --bs-btn-focus-shadow-rgb: 0, 0, 0;
+  display: inline-flex; align-items: center; justify-content: center; min-width: 2rem; height: 2rem;
+  font-family: var(--bs-font-monospace); font-size: .8rem; line-height: 1;
+}
+.fe .fe-btn:disabled { opacity: .4; }
+.fe .fe-btn[aria-pressed="true"] { background: var(--role-accent); border-color: var(--role-accent); color: var(--role-background); }
+.fe .fe-btn[aria-pressed="true"]:hover { background: var(--role-accent-hover); border-color: var(--role-accent-hover); color: var(--role-background); }
+.fe-icon { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---- panes: grouped, collapsible sections ---- */
+.fe-left { grid-column: 1; grid-row: 2; min-width: 0; min-height: 0; overflow-y: auto; border-right: 1px solid var(--role-rule); scrollbar-width: none; }
+.fe-left::-webkit-scrollbar { display: none; }
+.fe-resizer {
+  grid-row: 2; display: flex; align-items: stretch; justify-content: center; min-width: 0; padding: 0; border: 0;
+  background: transparent; touch-action: none; cursor: col-resize;
+}
+.fe-resizer[data-resize="left"] { grid-column: 2; }
+.fe-resizer::after { content: ""; width: 1px; background: var(--role-rule); }
+.fe-resizer:hover::after, .fe-resizer:focus-visible::after { width: 2px; background: var(--role-accent); }
+.fe-resizer:focus-visible { outline: 0; }
+
+.fe-pane { border-bottom: 1px solid var(--role-rule); }
+.fe-palette.fe-pane { border-bottom: 1px solid var(--role-rule); }
+.fe-pane > summary { margin: 0; padding: .35rem .75rem; font-size: .8rem; font-weight: 600; color: var(--role-muted, inherit); cursor: pointer; border-top: 1px solid var(--role-rule); list-style: none; user-select: none; }
+.fe-left .fe-pane > summary { position: sticky; top: 0; z-index: 1; background: var(--role-background); }
+.fe-pane > summary::-webkit-details-marker { display: none; }
+.fe-pane > summary:hover { color: var(--role-accent); }
+.fe-pane.fe-palette > summary { border-top: 0; }
+.fe-pane.fe-elements > summary { border-top: 0; }
+.fe-cat > summary {
+  display: flex; align-items: center; gap: .5rem; padding: .5rem .75rem; cursor: pointer; list-style: none; user-select: none;
+}
+.fe-cat > summary::-webkit-details-marker { display: none; }
+.fe-cat > summary::before {
+  content: ""; width: .4rem; height: .4rem; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(-45deg); transition: transform .12s ease;
+}
+.fe-cat[open] > summary::before { transform: rotate(45deg) translate(-1px, -1px); }
+.fe-cat > summary:hover { color: var(--role-accent); }
+.fe-pane > :not(summary) { margin-left: .75rem; margin-right: .75rem; }
+.fe-pane[open] { padding-bottom: .75rem; }
+.fe-pane .form-label { display: block; margin-top: .4rem; margin-bottom: 0; font-size: .8rem; }
+.fe-pane .form-label:first-of-type { margin-top: 0; }
+.fe-pane .form-check { margin: .5rem .75rem 0; }
+.fe-pane .form-control, .fe-pane .form-select { margin-top: .15rem; }
+.fe-node-level { display: grid; grid-template-columns: minmax(0, 1fr) 5rem; align-items: center; gap: .5rem; margin-top: .3rem; }
+.fe-node-level span { overflow-wrap: anywhere; }
+.fe-props dl { margin: 0; }
+.fe-props dt { font-weight: 600; margin-top: .35rem; }
+.fe-props dd { margin: 0; }
+.fe-hint, .fe-size, .fe-theme-note { margin-top: .4rem; color: var(--role-muted); font-size: .8rem; }
+.fe-level { margin: .5rem 0 0; font-weight: 600; }
+.fe-warnings ul { margin: 0; padding-left: 1.1rem; color: var(--role-accent); }
+.fe-theme-buttons { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .5rem; }
+.fe-theme-buttons .fe-btn { flex: 1 1 auto; border-color: var(--role-rule); }
+
+/* ---- element palette: a compact grid of tiles ---- */
+.fe-drafts { display: block; margin: 0 .75rem .5rem; font-size: .8rem; }
+.fe-palette ul { list-style: none; margin: 0; padding: 0 .5rem .5rem; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.fe-part {
+  width: 100%; display: flex; flex-direction: column; align-items: center; gap: .2rem;
+  padding: .25rem .15rem; border: 1px solid transparent; border-radius: 0;
+  background: none; color: inherit; font-family: var(--bs-font-monospace); font-size: .6rem; line-height: 1.1; text-align: center; overflow-wrap: anywhere;
+}
+.fe-part:hover { border-color: var(--role-accent); }
+.fe-thumb { flex: none; width: 100%; height: 1.7rem; background: var(--fig-background); border: 1px solid var(--fig-rule); }
+
+/* ---- canvas: fills everything between the panes; it pans and zooms inside ---- */
+.fe-stage { grid-column: 2; position: relative; min-width: 0; min-height: 0; overflow: hidden; background: var(--fig-background); }
+.fe-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; user-select: none; background: var(--fig-background); }
+.fe-canvas[data-tool="wire"], .fe-canvas[data-tool="place"] { cursor: crosshair; }
+
+/* ---- status bar ---- */
+.fe-status {
+  grid-column: 1 / -1; min-height: 1.75rem; padding: .3rem .75rem; display: flex; align-items: center;
+  background: var(--role-surface); border-top: 1px solid var(--role-rule);
+  font-family: var(--bs-font-monospace); font-size: .72rem; color: var(--role-muted);
+}
+
+/* ---- keys dialog ---- */
+.fe-help { max-width: min(44rem, 94vw); border: 1px solid var(--role-rule); border-radius: 0; background: var(--role-background); color: var(--role-ink); }
+.fe-help::backdrop { background: color-mix(in srgb, var(--role-ink) 40%, transparent); }
+.fe-help table { border-collapse: collapse; margin-bottom: .75rem; }
+.fe-help th { text-align: left; white-space: nowrap; padding: .2rem .9rem .2rem 0; vertical-align: top; font-family: var(--bs-font-monospace); font-weight: 500; font-size: .8rem; }
+.fe-help td { padding: .2rem 0; font-size: .85rem; }
+.fe-help .fe-btn { border-color: var(--role-rule); padding: 0 .75rem; }
+
+/* Visible focus everywhere, including the canvas. */
+.fe :focus-visible { outline: 2px solid var(--role-accent); outline-offset: 2px; }
+.fe-canvas:focus-visible { outline-offset: -2px; }
+
+@media (max-width: 900px) { .fe { --fe-left-width: 11rem; } }
+
+/* ---- dark canvas: the plate follows the dark figure roles; the drawing itself is mapped by the editor ---- */
+[data-canvas="dark"] .fe-stage, [data-canvas="dark"] .fe-canvas { background: var(--fig-dark-background); }
+[data-canvas="dark"] .fe-thumb { background: var(--fig-dark-background); border-color: var(--role-rule); }
+
+/* ---- beta marker ---- */
+.fe-badge { margin-right: .5rem; padding: 0 .4rem; border: 1px solid var(--role-accent); color: var(--role-accent); font-size: .7rem; line-height: 1.4rem; }
+.fe-badge-link { margin-right: .75rem; font-size: .7rem; color: var(--role-muted); text-decoration: underline; text-underline-offset: 2px; }
+.fe-badge-link:hover { color: var(--role-accent); }
+
+/* ---- wires: the cursor shows which way a run slides ---- */
+.fe-canvas[data-hit="wire-h"] { cursor: ns-resize; }
+.fe-canvas[data-hit="wire-v"] { cursor: ew-resize; }
+.fe-canvas[data-hit="wire-diagonal"] { cursor: move; }
+
+/* ---- errors in the status line ---- */
+.fe-status[data-error] { color: var(--role-ink); font-weight: 700; }
+
+/* ---- block presets: a second palette group ---- */
+.fe-palette-head { margin: .25rem .75rem .25rem; font-size: .8rem; font-weight: 600; color: var(--role-muted, inherit); }
+
+/* ---- backdrop panel: the two shift fields sit side by side ---- */
+.fe-pair { display: flex; gap: .35rem; }
+.fe-pair input { min-width: 0; }
+
+/* ---- Elements pane sections (F16) ---- */
+.fe-count { font-weight: 400; opacity: .7; }
+.fe-count::before { content: "("; } .fe-count::after { content: ")"; }
+
+.fe-frame-list { list-style: none; margin: .4rem 0; padding: 0; display: grid; gap: .2rem; max-height: 14rem; overflow: auto; }
+.fe-frame-item { width: 100%; text-align: left; padding: .2rem .5rem; border: 1px solid var(--role-rule, currentColor); background: transparent; color: inherit; font: inherit; border-radius: 4px; }
+.fe-frame-item.is-selected { background: var(--role-accent, #0072B2); color: var(--role-background, #fff); }
+
+
+/* ---- the slide view (F19): the slide as it exports, regions dragged on the module grid ---- */
+.fe-slideview { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; user-select: none; background: var(--fig-background); }
+[data-canvas="dark"] .fe-slideview { background: var(--fig-dark-background); }
+.fe-stage.is-slide .fe-canvas { visibility: hidden; }
+.fe-slide-regions { list-style: none; margin: .4rem 0; padding: 0; display: grid; gap: .4rem; }
+.fe-region { display: grid; gap: .2rem; padding: .3rem; border: 1px solid var(--role-rule); }
+.fe-slidebar { position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; flex-wrap: nowrap; align-items: stretch; gap: .35rem; padding: .4rem .6rem; overflow-x: auto; background: var(--role-surface); border-bottom: 1px solid var(--role-rule); }
+.fe .fe-slidebar { scrollbar-width: thin; scrollbar-color: var(--role-accent) var(--role-surface); }
+.fe .fe-slidebar::-webkit-scrollbar { display: block; height: .45rem; }
+.fe .fe-slidebar::-webkit-scrollbar-track { background: var(--role-surface); }
+.fe .fe-slidebar::-webkit-scrollbar-thumb { background: var(--role-accent); border-radius: .25rem; }
+.fe-slidebar > .label-mono { align-self: center; margin-right: .2rem; }
+.fe-layout { flex: 0 0 6.6rem; display: grid; justify-items: center; gap: .15rem; width: 6.6rem; padding: .25rem; border: 1px solid var(--role-rule); background: var(--role-background); color: var(--role-ink); font-size: .65rem; line-height: 1.15; cursor: pointer; }
+.fe-layout svg { width: 100%; height: auto; display: block; color: var(--role-muted); }
+.fe-layout:hover { border-color: var(--role-accent); }
+.fe-layout[aria-pressed="true"] { border-color: var(--role-accent); box-shadow: inset 0 0 0 1px var(--role-accent); }
+.fe-slidebar-end { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+.fe-slidebar { justify-content: flex-start; }
+.fe-stage.is-slide .fe-slideview { top: var(--slidebar-h, 6.5rem); height: calc(100% - var(--slidebar-h, 6.5rem)); }
+.fe-toolbar { column-gap: .3rem; }
+.fe-group { padding-right: .3rem; }
+.fe .fe-toolbar .fe-btn { --bs-btn-padding-x: .35rem; }
+.fe-splits { border: 1px solid var(--role-rule); padding: .4rem .5rem; margin: .4rem 0; display: grid; gap: .3rem; }
+.fe-splits legend { float: none; width: auto; padding: 0 .3rem; margin: 0; font-size: .7rem; }
+
+/* ---- level colours (F17) ---- */
+.fe-levelcolours { border: 1px solid var(--role-rule); padding: .4rem .5rem; margin: .5rem 0; display: grid; gap: .3rem; }
+.fe-levelcolours legend { float: none; width: auto; padding: 0 .3rem; margin: 0; font-size: .7rem; }
+.fe-lc-head, .fe-lc-row { display: grid; grid-template-columns: 1fr 2.6rem 2.6rem 2rem; gap: .3rem; align-items: center; }
+.fe-lc-head { font-size: .65rem; color: var(--role-muted); text-align: center; }
+.fe-lc-name small { color: var(--role-muted); }
+.fe-lc-row input[type="color"] { width: 100%; height: 1.7rem; padding: 0; border: 1px solid var(--role-rule); background: transparent; cursor: pointer; }
+.fe-lc-row input.is-custom { outline: 2px solid var(--role-accent); outline-offset: 1px; }
+.fe-lc-warnings { list-style: none; margin: 0; padding: 0; font-size: .75rem; display: grid; gap: .2rem; }
+.fe-lc-warnings li::before { content: "⚠ "; }
+
+/* ---- one tool, three views (Figure Editor, Timing Diagram, Slide) ---- */
+.fe-stepper { display: inline-flex; align-items: center; gap: 2px; margin-right: .5rem; padding-right: .5rem; border-right: 1px solid var(--role-rule); }
+.fe-stepper[hidden] { display: none; }
+.fe-stepno { min-width: 3rem; text-align: center; font-size: .75rem; }
+
+/* Timing Diagram view: the pane takes the whole workspace; the toolbar stays on one row */
+.fe-toolbar { flex-wrap: nowrap; overflow-x: auto; }
+.fe-grouplabel { display: none; }
+.fe-group-end .fe-btn { padding-left: .35rem; padding-right: .35rem; font-size: .72rem; }
+
+/* ---- panes open and close smoothly ---- */
+:root { interpolate-size: allow-keywords; }
+.fe-pane::details-content, .fe-cat::details-content { block-size: 0; overflow: clip; transition: block-size .22s ease, content-visibility .22s ease allow-discrete; }
+.fe-pane[open]::details-content, .fe-cat[open]::details-content { block-size: auto; }
+@media (prefers-reduced-motion: reduce) { .fe-pane::details-content, .fe-cat::details-content { transition: none; } }
+
+/* ---- the frame stepper in the navbar ---- */
+.fe-stepinput { width: 3.2rem; height: 1.7rem; padding: 0 .2rem; text-align: center; font: inherit; font-size: .75rem; border: 1px solid var(--role-rule); background: var(--role-background); color: var(--role-ink); appearance: textfield; -moz-appearance: textfield; }
+.fe-stepinput::-webkit-inner-spin-button, .fe-stepinput::-webkit-outer-spin-button { margin: 0; appearance: none; }
+.fe-stepper .fe-btn:disabled { opacity: .35; }
+.fe-stepno { min-width: 2.2rem; text-align: left; font-size: .7rem; }
+.fe-toolbar .fe-btn { white-space: nowrap; }
+
+/* Beta interface sizing: improve legibility without scaling the drawing canvas. */
+.fe { font-size: 1.05rem; }
+.fe .fe-btn { height: 2.4rem; font-size: 1rem; }
+.fe-pane > summary { padding: .4rem .85rem; font-size: 1rem; }
+.fe-pane .form-label { font-size: 1rem; }
+.fe-hint, .fe-size, .fe-theme-note { font-size: 1rem; }
+.fe-status { font-size: .9rem; }
+.fe-part { font-size: .75rem; }
+.fe-grouplabel, .fe-stepno { font-size: .9rem; }
+.fe-slidebar > .label-mono { font-size: .9rem; }
+.fe-layout { font-size: .8rem; }
+
+.fe-export-dialog { max-width: min(28rem, 94vw); border: 1px solid var(--role-rule); border-radius: 0; background: var(--role-background); color: var(--role-ink); }
+.fe-export-dialog::backdrop { background: color-mix(in srgb, var(--role-ink) 40%, transparent); }
+.fe-export-dialog h2 { font-size: 1.1rem; }
+.fe-export-options { display: flex; flex-wrap: wrap; gap: .5rem; }
+.fe-export-options .fe-btn { border-color: var(--role-rule); }
+
+/* ---- drafts and families in the Elements pane (F21.1) ---- */
+.fe-part { position: relative; }
+.fe-part .fe-draft { position: absolute; top: 1px; right: 1px; padding: 0 .25rem; font-style: normal; font-size: .55rem; letter-spacing: .04em; text-transform: uppercase; border: 1px solid var(--role-muted); color: var(--role-muted); background: var(--role-background); }
+.fe-part.is-draft { border-style: dashed; }
+.fe-part .fe-fam { position: absolute; top: 1px; left: 2px; font-style: normal; font-size: .55rem; color: var(--role-accent); }
+.fe-popover { position: fixed; z-index: 60; width: 15rem; padding: .6rem .7rem; display: grid; gap: .5rem; background: var(--role-background); color: var(--role-ink); border: 1px solid var(--role-rule); box-shadow: 0 4px 14px rgb(0 0 0 / .18); }
+.fe-popover p { margin: 0; }
+.fe-popover fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: .25rem; }
+.fe-popover legend { float: none; width: auto; padding: 0; margin: 0; font-size: .75rem; color: var(--role-muted); }
+.fe-pop-values { display: flex; flex-wrap: wrap; gap: 3px; }
+.fe-pop-values button { min-width: 2rem; height: 1.9rem; border: 1px solid var(--role-rule); background: transparent; color: inherit; font-family: var(--bs-font-monospace); cursor: pointer; }
+.fe-pop-values button:hover { border-color: var(--role-accent); }
+.fe-pop-values button[aria-pressed="true"] { background: var(--role-accent); border-color: var(--role-accent); color: var(--role-background); }
+
+/* ---- one stack, three sliding sections: Figure Editor, Timing Diagram, Slide ---- */
+.fe-stack { grid-column: 3; grid-row: 2; min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, var(--fe-figure-pane, 1fr)) 6px auto minmax(0, var(--fe-timing-pane, 0fr)) 6px auto minmax(0, var(--fe-slide-pane, 0fr)); transition: grid-template-rows .22s ease; background: var(--role-background); }
+.fe-sec { min-height: 0; overflow: hidden; position: relative; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.fe-sec[data-sec="figure"] { grid-template-rows: minmax(0, 1fr); }
+.fe-sec[data-sec="timing"] { grid-template-rows: minmax(0, 1fr); }
+.fe-sec .fe-stage { grid-column: auto; position: relative; min-height: 0; }
+.fe-sec-bar { display: flex; align-items: center; gap: .6rem; width: 100%; padding: .35rem .75rem; border: 0; border-top: 1px solid var(--role-rule); border-bottom: 1px solid var(--role-rule); background: var(--role-surface); color: var(--role-muted); text-align: left; cursor: pointer; }
+.fe-sec-bar:first-child { border-top: 0; }
+.fe-sec-bar:hover { color: var(--role-ink); }
+.fe-sec-bar[aria-expanded="true"] { color: var(--role-ink); box-shadow: inset 3px 0 0 var(--role-accent); }
+.fe-sec-chev { margin-left: auto; width: .45rem; height: .45rem; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg) translate(-2px, -2px); transition: transform .25s ease; }
+.fe-sec-bar[aria-expanded="true"] .fe-sec-chev { transform: rotate(-135deg) translate(-1px, -1px); }
+.fe-sec-bar:focus-visible { outline: 2px solid var(--role-accent); outline-offset: -2px; }
+.fe-stack-resizer { min-height: 0; position: relative; touch-action: none; cursor: row-resize; }
+.fe-stack-resizer::after { content: ""; position: absolute; top: 2px; right: 0; bottom: 2px; left: 0; background: var(--role-rule); }
+.fe-stack-resizer:hover::after, .fe-stack-resizer:focus-visible::after { top: 1px; bottom: 1px; background: var(--role-accent); }
+.fe-stack-resizer:focus-visible { outline: 0; }
+.fe-sec .fe-slidebar { position: static; }
+.fe-sec .fe-slideview { position: relative; inset: auto; width: 100%; height: 100%; min-height: 0; }
+.fe-sec .fe-timing-body { min-height: 0; }
+.fe-pane[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .fe-stack, .fe-sec-chev { transition: none; } }
+
+/* ---- the Schematic Editor on its own page (R1): only the drawing; the composite's parts are absent ---- */
+[data-parts="schematic"] .fe-sec-bar, [data-parts="schematic"] .fe-stack-resizer,
+[data-parts="schematic"] .fe-sec:not([data-sec="figure"]),
+[data-parts="schematic"] [data-cmd="projectzip"], [data-parts="schematic"] [data-cmd="frametosignal"],
+[data-parts="schematic"] .fe-slide-pane, [data-parts="schematic"] .fe-timing-controls { display: none !important; }
+[data-parts="schematic"] .fe-stack { grid-template-rows: minmax(0, 1fr); }   /* one visible child: hidden ones leave the grid flow */

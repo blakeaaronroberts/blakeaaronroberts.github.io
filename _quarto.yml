@@ -40,6 +40,8 @@ website:
         menu:
           - text: Figure Editor
             href: tools/figure-editor/index.qmd
+          - text: Schematic Editor
+            href: tools/schematic-editor/index.qmd
           - text: Timing Diagram
             href: tools/timing-diagram/index.qmd
     right:

@@ -2,7 +2,7 @@
 title: "Figure Editor"
 page-layout: full
 css:
-  - editor.css
+  - ../schematic-editor/editor.css
   - ../timing/src/timing.css
 ---
 
@@ -10,10 +10,14 @@ css:
 <div id="figure-editor" class="fe-mount"></div>
 <noscript><p>The Figure Editor needs JavaScript.</p></noscript>
 <script type="module">
-  import { mount } from "./src/app.js";
-  window.figureEditor = await mount(document.getElementById("figure-editor"), {
-    pack: "./symbol-pack/",
-    open: new URLSearchParams(location.search).get("open"),
+  import { mount } from "./src/index.js";
+  // The samples ship with the Schematic Editor: ?open=examples/... means its examples.
+  const open = new URLSearchParams(location.search).get("open");
+  const tool = await mount(document.getElementById("figure-editor"), {
+    pack: "../schematic-editor/symbol-pack/",
+    open: open && open.startsWith("examples/") ? `../schematic-editor/${open}` : open,
   });
+  window.figureEditorTool = tool;   // the shared interface (load, save, on, command, ...)
+  window.figureEditor = tool.app;   // the editor's own API, for the page and its browser checks
 </script>
 ```

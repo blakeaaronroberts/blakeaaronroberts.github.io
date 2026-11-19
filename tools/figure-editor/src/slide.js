@@ -10,10 +10,9 @@
 // Text placeholders show where PowerPoint text goes; they are never exported.
 
 import { FORMATS } from "./frame.js";
-import { exportSvg } from "./export.js";
-import { MODULE_CM, fmt } from "./geometry.js";
-import { applyFrame, framesOf } from "./levelframes.js";
-import { drawTiming } from "../../timing/src/draw.js";
+import { applyFrame, exportSvg, framesOf, fmt, MODULE_CM } from "../../schematic-editor/src/index.js";
+import { drawTiming } from "../../timing/src/index.js";
+import { arrowHeadSizeOf, arrowLabelSizeOf, edgeLineWidthOf, edgeStylesFor, lineWidthOf, signalNameSizeOf, textSizeOf } from "../../timing/src/index.js";
 
 export { FORMATS };
 export const KINDS = { schematic: "Schematic", timing: "Timing diagram", text: "Text (PowerPoint)" };
@@ -56,6 +55,31 @@ export const LAYOUTS = {
     },
   },
   textleft: { name: "Text left, figure right", defaults: { v: 40 }, uses: ["v"], make: (a, p) => { const l = Math.round(a.w * p.v / 100); return [R("r1", "text", a.x, a.y, l - 1, a.h, { label: "Text" }), R("r2", "schematic", a.x + l, a.y, a.w - l, a.h)]; } },
+  schematicOnly: { name: "Schematic only", defaults: {}, uses: [], make: (a) => [R("r1", "schematic", a.x, a.y, a.w, a.h)] },
+  textOnly: { name: "Text placeholder only", defaults: {}, uses: [], make: (a) => [R("r1", "text", a.x, a.y, a.w, a.h, { label: "Text" })] },
+  timingOver: { name: "Timing diagram over schematic", defaults: { h: 45 }, uses: ["h"], make: (a, p) => { const t = Math.round(a.h * p.h / 100); return [R("r1", "timing", a.x, a.y, a.w, t - 1), R("r2", "schematic", a.x, a.y + t, a.w, a.h - t)]; } },
+  figureText: { name: "Schematic left, text right", defaults: { v: 62 }, uses: ["v"], make: (a, p) => { const l = Math.round(a.w * p.v / 100); return [R("r1", "schematic", a.x, a.y, l - 1, a.h), R("r2", "text", a.x + l, a.y, a.w - l, a.h, { label: "Text" })]; } },
+  timingText: { name: "Timing diagram left, text right", defaults: { v: 62 }, uses: ["v"], make: (a, p) => { const l = Math.round(a.w * p.v / 100); return [R("r1", "timing", a.x, a.y, l - 1, a.h), R("r2", "text", a.x + l, a.y, a.w - l, a.h, { label: "Text" })]; } },
+  threeColumns: {
+    name: "Text, schematic and timing in three columns", defaults: {}, uses: [], make: (a) => {
+      const w = Math.floor((a.w - 2) / 3), last = a.w - 2 * w - 2;
+      return [R("r1", "text", a.x, a.y, w, a.h, { label: "Text" }), R("r2", "schematic", a.x + w + 1, a.y, w, a.h), R("r3", "timing", a.x + 2 * (w + 1), a.y, last, a.h)];
+    },
+  },
+  threeRows: {
+    name: "Schematic, timing and text stacked", defaults: {}, uses: [], make: (a) => {
+      const top = Math.round(a.h * 0.45), middle = Math.round(a.h * 0.3);
+      return [R("r1", "schematic", a.x, a.y, a.w, top - 1), R("r2", "timing", a.x, a.y + top, a.w, middle - 1), R("r3", "text", a.x, a.y + top + middle, a.w, a.h - top - middle, { label: "Text" })];
+    },
+  },
+  captionTop: { name: "Caption above schematic", defaults: { c: 20 }, uses: ["c"], make: (a, p) => { const c = Math.max(3, Math.round(a.h * p.c / 100)); return [R("r1", "text", a.x, a.y, a.w, c - 1, { label: "Caption" }), R("r2", "schematic", a.x, a.y + c, a.w, a.h - c)]; } },
+  timingCaption: { name: "Timing diagram with caption", defaults: { c: 20 }, uses: ["c"], make: (a, p) => { const c = Math.max(3, Math.round(a.h * p.c / 100)); return [R("r1", "timing", a.x, a.y, a.w, a.h - c - 1), R("r2", "text", a.x, a.y + a.h - c, a.w, c, { label: "Caption" })]; } },
+  twoSchematics: {
+    name: "Two schematic frames side by side", defaults: { v: 50 }, uses: ["v"], make: (a, p) => {
+      const l = Math.round(a.w * p.v / 100);
+      return [R("r1", "schematic", a.x, a.y, l - 1, a.h, { label: "Frame 0", frame: 0 }), R("r2", "schematic", a.x + l, a.y, a.w - l, a.h, { label: "Frame 1", frame: 1 })];
+    },
+  },
 };
 
 /** What each divider is called, its allowed range (percent) and what it measures. */
@@ -139,11 +163,22 @@ function schematicIn(doc, pack, r, opts) {
 }
 
 /** The timing diagram laid out at the region's size (px at 96 dpi), placed in modules. */
-function timingIn(r, t) {
+function timingIn(r, t, index) {
   if (!t?.source) return "";
-  const svg = drawTiming(t.source, { width: r.w * PX_PER_MODULE, height: r.h * PX_PER_MODULE, ink: t.ink, accent: t.accent, marker: t.marker ?? null, levelColour: t.levelColour ?? null, dataFills: t.dataFills ?? [], paper: t.paper ?? null }).svg;
+  const targetW = r.w * PX_PER_MODULE, targetH = r.h * PX_PER_MODULE;
+  const drawn = drawTiming(t.source, {
+    centerTransitions: true, fitText: true, idPrefix: `slide-timing-${index}-`,
+    width: r.w * PX_PER_MODULE, height: r.h * PX_PER_MODULE, ink: t.ink, accent: t.accent,
+    marker: t.marker ?? null, levelColour: t.levelColour ?? null, dataFills: t.dataFills ?? [], levelFills: t.levelFills ?? {}, signalLineColour: t.signalLineColour ?? t.ink, paper: t.paper ?? null,
+    fontSize: t.fontSize ?? textSizeOf(t.source), signalNameSize: t.signalNameSize ?? signalNameSizeOf(t.source), arrowLabelSize: t.arrowLabelSize ?? arrowLabelSizeOf(t.source),
+    lineWidth: t.lineWidth ?? lineWidthOf(t.source), showNames: t.showNames ?? true, nameTypeset: t.nameTypeset ?? null, edgeLabelTypeset: t.edgeLabelTypeset ?? t.nameTypeset ?? null,
+    edgeStyles: edgeStylesFor(t.source, t.accent), edgeLineWidth: edgeLineWidthOf(t.source), arrowHeadSize: arrowHeadSizeOf(t.source), arrowHeadMax: 32,
+  });
+  const svg = drawn.svg;
   const inner = svg.slice(svg.indexOf(">") + 1, svg.lastIndexOf("</svg>"));
-  return `  <g transform="translate(${fmt(r.x)} ${fmt(r.y)}) scale(${fmt(1 / PX_PER_MODULE)})">${inner}</g>`;
+  const fit = Math.min(1, targetW / drawn.geometry.width, targetH / drawn.geometry.height);
+  const tx = r.x + (targetW - drawn.geometry.width * fit) / (2 * PX_PER_MODULE), ty = r.y + (targetH - drawn.geometry.height * fit) / (2 * PX_PER_MODULE);
+  return `  <g transform="translate(${fmt(tx)} ${fmt(ty)}) scale(${fmt(fit / PX_PER_MODULE)})">${inner}</g>`;
 }
 
 /**
@@ -169,13 +204,13 @@ export function slideSvg(doc, pack, s, opts = {}) {
     out.push(`  <rect x="0" y="0" width="${fmt(w)}" height="${fmt(a.y)}" fill="${accent}" fill-opacity="0.06"/>`);
     out.push(`  <rect x="0" y="${fmt(a.y + a.h)}" width="${fmt(w)}" height="${fmt(h - a.y - a.h)}" fill="${accent}" fill-opacity="0.06"/>`);
   }
-  for (const r of s.regions) {
+  for (const [index, r] of s.regions.entries()) {
     if (part && r !== part) continue;
     if (r.kind === "schematic") {
       const f = Number.isInteger(r.frame) ? r.frame : opts.frame;
       const at = Number.isInteger(f) && frames[f] ? applyFrame(doc, frames[f]) : doc;
       out.push(schematicIn(at, pack, r, opts));
-    } else if (r.kind === "timing") out.push(timingIn(r, opts.timing));
+    } else if (r.kind === "timing") out.push(timingIn(r, opts.timing ? { ...opts.timing, ink: opts.timing.ink ?? ink, accent: opts.timing.accent ?? accent } : null, index));
     else if (opts.preview) out.push(`  <rect x="${fmt(r.x)}" y="${fmt(r.y)}" width="${fmt(r.w)}" height="${fmt(r.h)}" fill="${muted}" fill-opacity="0.08" stroke="${muted}" stroke-width="0.06" stroke-dasharray="0.3 0.2"/>`);
   }
   out.push("</svg>", "");
