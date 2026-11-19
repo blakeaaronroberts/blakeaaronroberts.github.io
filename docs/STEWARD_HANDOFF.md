@@ -48,7 +48,7 @@ Sync of 2026-11-19, 13:00 (Pacific). Facts only; work lives in the batches below
 
 ## Batches
 
-**Order of work (Blake, 2026-11-14, v2).** One builder per repository; the editor and the small tools are separate modules joined by versioned formats pinned by tag. Site order: finish F14 and F17 (needs circuit-model C9 tag), then **F18, F19, F20, F21**; **T2** alongside; **L1** as soon as circuit-model C10 is tagged, then L2 and L3 (a second site session scoped to `tools/logic/` and `tools/equations/` only is allowed if Blake starts one); **F9 and F11** on the C7 tag; **F22** after C11. Archived batches: `docs/handoff-archive.md`.
+**Order of work (Blake, 2026-11-19).** R1.1 (plan, stop) first; R1.2 and R1.3; R1.4 and R1.5 after circuit-model tags `model-v0.7.0` (C13). Then F20, T2.3, F21.2 to F21.3, then F9 and F11 (simulator tag exists), then F8. F13 follows circuit-model C8; F22 follows C11 (engine memo). A second site session may work L1, then L2, then L3, inside `tools/logic/` and `tools/equations/` only. Archived batches: `docs/handoff-archive.md`.
 
 | Batch | Intent | Status | Approved by Blake |
 |---|---|---|---|
@@ -72,6 +72,7 @@ Sync of 2026-11-19, 13:00 (Pacific). Facts only; work lives in the batches below
 | L1 | Logic mini-tools: truth table, K-map, SOP and POS, Boolean solver | Open | 2026-11-14 |
 | L2 | Converters from chapters 1 to 5 | Open | 2026-11-14 |
 | L3 | Equation library, core 100 to 300 level | Open | 2026-11-14 |
+| R1 | Reconcile the Copilot beta into modular tools: Schematic Editor (drawing pane) and Figure Editor (composite), one copy of the code, simulator from circuit-model | Open | 2026-11-19 |
 
 ---
 
@@ -372,6 +373,32 @@ Intent: a toolbox of the equations a student meets in 100 to 300 level ECE (Ohm 
 | L3.1 | Entry template and one worked entry for review | Steward, approved by Blake 2026-11-14 | Open | |
 | L3.2 | Next four entries and an index with search | Steward, approved by Blake 2026-11-14 | Open | |
 | L3.3 | Remaining core list agreed with Blake after review | Steward, approved by Blake 2026-11-14 | Open | |
+
+---
+
+### R1: Reconcile the beta into modular tools
+
+Intent: GitHub Copilot's Nov 15-16 work (see Current state) is kept in full, but the fork goes away and the code becomes modular, so the same drawing pane can serve the Figure Editor now and a simulator later.
+
+**Blake's decisions (2026-11-19; VISION sections 4 and 6).**
+- **Schematic Editor** = the drawing pane: elements, wires, labels, levels, frames of levels, import and export of `circuit`. Its own page, `tools/schematic-editor/`.
+- **Timing Diagram** = the timing module already in `tools/timing/`; its own page stays.
+- **Figure Editor** = the composite at `tools/figure-editor/`: Schematic Editor plus Timing Diagram plus slide export, ZIP export and the links between them.
+- Each tool mounts on its own page and inside a composite through one small documented interface (for example `mount(el, options)` returning `load`, `save`, `on("change")`, plus the shared formats `circuit`, `scenario`, `trace`, `function`). No tool imports another tool's internals.
+- Every tool gets its own entry in the site's Tools menu.
+- Keep every Copilot feature: straight wire legs, manual logic mode (manual values override computed ones), level sync both ways between schematic and timing, Frame 0 neutral frame, ten slide layouts, ZIP export, LaTeX truth-table export, net-level tags, resizable and maximisable panes, all timing-module additions.
+- Behaviour comes from circuit-model's simulator (tag `model-v0.7.0`, batch C13): delete `logic.js` and `sequential.js` only after the same tests pass against the simulator. Lift Copilot's calculation limits (period 1, zero phase and delay, direct pulse clocks) where the simulator allows; report any it cannot.
+- Wire legs: `circuit/0.3` from the C13 tag; snap to 45 degrees by default, a modifier key for a free angle; remove `pending_schema` from MODEL_PIN.json.
+- Beta URL redirects to the Figure Editor; saved work under `figure-editor-beta/*` and `figure-editor/*` keys migrates once, nothing lost; tag `editor-before-r1` first.
+- Replace the hard-coded colour defaults in `tools/timing/src/draw.js` with role lookups.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| R1.1 | Plan only: a feature inventory (stable vs beta, every Copilot feature listed), the module boundaries and the mount interface, the file moves, and the test plan. REVIEW STOP for Blake | Steward, approved by Blake 2026-11-19 | Open | |
+| R1.2 | Tag `editor-before-r1`; build the Schematic Editor module from the merged code (beta features folded in) with its own page | Steward, approved by Blake 2026-11-19 | Open | |
+| R1.3 | Build the Figure Editor as the composite; beta and old URLs redirect; storage migration; Tools menu entries for each tool | Steward, approved by Blake 2026-11-19 | Open | |
+| R1.4 | After the C13 tag: switch to the circuit-model simulator with parity tests, lift the calculation limits, adopt `circuit/0.3` with 45-degree snap | Steward, approved by Blake 2026-11-19 | Open | |
+| R1.5 | Colour roles in draw.js; full test run; one screenshot per page in light and dark; REVIEW STOP | Steward, approved by Blake 2026-11-19 | Open | |
 
 ---
 

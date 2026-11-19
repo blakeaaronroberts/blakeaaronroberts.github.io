@@ -2,6 +2,11 @@
 
 History of `VISION.md`. Newest first. Written by the Steward only.
 
+- 2026-11-19 (Blake): tools are modular. The Schematic Editor is the drawing
+  pane, the Figure Editor is the composite (schematic, timing, slides); every
+  tool has its own page in the Tools menu and a mount interface so composites
+  (Figure Editor, later the simulator) embed it (sections 4 and 6).
+
 - 2026-11-14: **v2** (approved by Blake). Scope 200 to 600 level plus analog;
   FERPA-by-design and clean-IP rules (both ownership doors open); interface
   table adds `scenario`, `trace`, `function` and SystemVerilog in and out;
