@@ -139,35 +139,38 @@ export async function mount(root, options = {}) {
       <div class="fe-group" role="group" aria-label="File">
         ${btn("new", "New")}${btn("open", "Open…")}${btn("save", "Save", "Control+S")}${btn("export", "Export SVG")}${btn("png", "Copy as PNG")}
       </div>
-      <div class="fe-group fe-group-end" role="navigation" aria-label="Views"><span class="fe-stepper">${btn("frameprev", "◀", "", "", "Previous frame")}<input class="fe-stepinput" type="number" min="1" step="1" aria-label="Go to frame" title="Type a frame number and press Enter"><span class="fe-stepno label-mono"></span>${btn("framenext", "▶", "", "", "Next frame")}${btn("navframes", "Export frames", "", "", "Export every frame: the schematic, the timing diagram or the slide, whichever view you are in")}</span>${btn("viewfigure", "Figure Editor")}${btn("viewtiming", "Timing Diagram")}${btn("viewslide", "Slide")}${btn("help", "?", "?", ' aria-label="Keys"')}</div>
+      <div class="fe-group fe-group-end" role="navigation" aria-label="Views"><span class="fe-stepper">${btn("frameprev", "◀", "", "", "Previous frame")}<input class="fe-stepinput" type="number" min="1" step="1" aria-label="Go to frame" title="Type a frame number and press Enter"><span class="fe-stepno label-mono"></span>${btn("framenext", "▶", "", "", "Next frame")}${btn("navframes", "Export frames", "", "", "Export every frame: the schematic, the timing diagram or the slide, whichever view you are in")}</span>${btn("help", "?", "?", ' aria-label="Keys"')}</div>
       <input type="file" class="fe-file" accept=".json,.svg,application/json,image/svg+xml" hidden>
       <input type="file" class="fe-theme-file" accept=".json,application/json" hidden>
     </div>
-    <details class="fe-palette fe-pane" open>
+    <details class="fe-palette fe-pane" data-views="figure" open>
       <summary class="label-mono">Elements</summary>
       <div class="fe-cats"></div>
     </details>
-    <div class="fe-stage">
-      <svg class="fe-canvas" tabindex="0" role="application" aria-label="Figure canvas" xmlns="http://www.w3.org/2000/svg"></svg>
-      <div class="fe-slidebar" hidden role="toolbar" aria-label="Slide layouts"></div>
-      <svg class="fe-slideview" hidden role="img" aria-label="Slide view: drag a region to move it, drag its corner to resize it" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
-    </div>
-    <div class="fe-timing" data-open="false" role="region" aria-label="Timing Diagram">
-      <div class="fe-splitter" role="separator" aria-orientation="horizontal" aria-label="Resize the Timing Diagram pane" tabindex="0" title="Drag to resize (or use the arrow keys)"></div>
-      <div class="fe-timing-head"><button type="button" class="${BUTTON}" data-cmd="timingtoggle" aria-expanded="false" title="Show or minimise the Timing Diagram pane">Timing Diagram ▴</button></div>
-      <div class="fe-timing-body"></div>
+    <div class="fe-stack" role="region" aria-label="Workspace: Figure Editor, Timing Diagram and Slide">
+      <button type="button" class="fe-sec-bar" data-cmd="viewfigure" data-sec-bar="figure" aria-expanded="false"><span class="label-mono">Figure Editor</span><span class="fe-sec-chev" aria-hidden="true"></span></button>
+      <div class="fe-sec" data-sec="figure"><div class="fe-stage">
+        <svg class="fe-canvas" tabindex="0" role="application" aria-label="Figure canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div></div>
+      <button type="button" class="fe-sec-bar" data-cmd="viewtiming" data-sec-bar="timing" aria-expanded="false"><span class="label-mono">Timing Diagram</span><span class="fe-sec-chev" aria-hidden="true"></span></button>
+      <div class="fe-sec" data-sec="timing"><div class="fe-timing-body"></div></div>
+      <button type="button" class="fe-sec-bar" data-cmd="viewslide" data-sec-bar="slide" aria-expanded="false"><span class="label-mono">Slide</span><span class="fe-sec-chev" aria-hidden="true"></span></button>
+      <div class="fe-sec" data-sec="slide">
+        <div class="fe-slidebar" role="toolbar" aria-label="Slide layouts"></div>
+        <svg class="fe-slideview" role="img" aria-label="Slide view: drag a region to move it, drag its corner to resize it" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
     </div>
     <div class="fe-side" role="region" aria-label="Figure properties">
-      <details class="fe-pane">
+      <details data-views="figure" class="fe-pane">
         <summary class="label-mono">Selection</summary>
         <section class="fe-props" aria-label="Selection"></section>
       </details>
-      <details class="fe-pane" name="fe-doc">
+      <details data-views="figure timing slide" class="fe-pane" name="fe-doc">
         <summary class="label-mono">Figure</summary>
         <label class="form-label">Figure id <input class="form-control form-control-sm" name="fe-id" spellcheck="false"></label>
         <label class="form-label">Title <input class="form-control form-control-sm" name="fe-title"></label>
       </details>
-      <details class="fe-pane fe-export" name="fe-doc">
+      <details data-views="figure slide" class="fe-pane fe-export" name="fe-doc">
         <summary class="label-mono">Export</summary>
         <label class="form-label">Scale (%) <input class="form-control form-control-sm" type="number" name="fe-scale" min="10" max="1000" step="5"></label>
         <label class="form-label">Label size (pt) <input class="form-control form-control-sm" type="number" name="fe-labelpt" min="4" max="48" step="0.5"></label>
@@ -175,7 +178,7 @@ export async function mount(root, options = {}) {
         <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-exportdark"> <span class="form-check-label">Export in dark theme</span></label>
         <p class="fe-size" aria-live="polite"></p>
       </details>
-      <details class="fe-pane fe-theme" name="fe-doc">
+      <details data-views="figure timing slide" class="fe-pane fe-theme" name="fe-doc">
         <summary class="label-mono">Theme</summary>
         <label class="form-label">Canvas <select class="form-select form-select-sm" name="fe-canvas"><option value="auto">Auto (follows system)</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
         <p class="fe-theme-note"></p>
@@ -188,7 +191,7 @@ export async function mount(root, options = {}) {
           <div class="fe-theme-buttons">${btn("levelsreset", "Reset all to the defaults")}</div>
         </fieldset>
       </details>
-      <details class="fe-pane fe-slide-pane" name="fe-doc">
+      <details data-views="slide" class="fe-pane fe-slide-pane" name="fe-doc">
         <summary class="label-mono">Slide</summary>
         <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-slide-show"> <span class="form-check-label">Show the slide (instead of the canvas)</span></label>
         <label class="form-label">Slide size <select class="form-select form-select-sm" name="fe-slide-format">${Object.entries(FORMATS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("")}</select></label>
@@ -202,7 +205,7 @@ export async function mount(root, options = {}) {
         <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-tmarker"> <span class="form-check-label">Mark the selected frame's step on the timing diagram</span></label>
         <label class="form-check"><input class="form-check-input" type="checkbox" name="fe-tcolour"> <span class="form-check-label">Colour the timing diagram like the nets (by level)</span></label>
       </details>
-      <details class="fe-pane fe-frames-pane" name="fe-doc">
+      <details data-views="figure timing slide" class="fe-pane fe-frames-pane" name="fe-doc">
         <summary class="label-mono">Frames</summary>
         <p class="fe-hint">A frame is a snapshot of the wire and element levels, one per transition. Set the levels, then Capture. Frames are saved in the figure file.</p>
         <div class="fe-theme-buttons" role="group" aria-label="Frames">${btn("framesfromtiming", "Fill from timing diagram")}${btn("framecapture", "Capture frame")}${btn("framerecapture", "Update selected")}</div>
@@ -212,7 +215,7 @@ export async function mount(root, options = {}) {
         <div class="fe-theme-buttons" role="group" aria-label="Export frames">${btn("framesexport", "Export frames")}${btn("framesslide", "Export all on one slide")}</div>
         <p class="fe-hint">Export frames writes one SVG and one PNG per frame, numbered 01, 02, … (your browser may ask to allow several downloads). The one-slide export lays every frame out as a grid of small figures, labelled with their names, at the slide's size.</p>
       </details>
-      <details class="fe-pane fe-backdrop-pane" name="fe-doc">
+      <details data-views="figure" class="fe-pane fe-backdrop-pane" name="fe-doc">
         <summary class="label-mono">Backdrop</summary>
         <p class="fe-hint fe-backdrop-note">Open an SVG that this editor did not make to trace over it. It sits behind the grid, locked, and is never saved or exported.</p>
         <div class="fe-backdrop-controls" hidden>
@@ -882,7 +885,6 @@ export async function mount(root, options = {}) {
     addtext: () => addRegion("text"),
     levelsreset() { commit(D.setStyleLevels(doc, {}), "Level colours are back to the theme's defaults."); },
     framesfromtiming() { populateFromTiming(); },
-    timingtoggle() { opt.timingPane.open = !opt.timingPane.open; saveOptions(); showTimingPane(); },
     framecapture() {
       commit(captureFrame(doc), null);
       const frames = framesOf(doc);
@@ -1089,45 +1091,25 @@ export async function mount(root, options = {}) {
     const preset = pre && presetById(pre.dataset.preset);
     if (preset) startPlacing(BLOCK, e.detail === 0, structuredClone(preset.params));
   });
-  // ---- the docked Timing Diagram pane (F18): the same module as the Timing Diagram page ----------------------------
-  const tpEl = $(".fe-timing"), tpBody = $(".fe-timing-body"), tpToggle = $('[data-cmd="timingtoggle"]'), splitter = $(".fe-splitter");
-  opt.timingPane = { open: opt.timingPane?.open === true, h: Number(opt.timingPane?.h) || 256 };
-
-  async function showTimingPane() {
-    tpEl.dataset.open = String(opt.timingPane.open);
-    tpEl.style.setProperty("--tp-h", `${opt.timingPane.h}px`);
-    tpToggle.setAttribute("aria-expanded", String(opt.timingPane.open));
-    tpToggle.textContent = `Timing Diagram ${opt.timingPane.open ? "▾" : "▴"}`;
-    if (opt.timingPane.open && !timingTool) {
-      const { mount: mountTiming } = await import("../../timing/src/app.js");
-      timingTool = mountTiming(tpBody, { docked: true, onStatus: (m, err) => status(m, err), onChange: () => { if (!framesOf(doc).length) populateFromTiming(true); if (opt.slideView) syncSlide(); } });
-    }
-    if (opt.timingPane.open && timingTool) { timingTool.setCircuit(D.serialize(doc, pack)); if (!framesOf(doc).length) populateFromTiming(true); }
+  // ---- the Timing Diagram section (F18): the same module as before, mounted once ----------------------------
+  const tpBody = $(".fe-timing-body");
+  async function mountTiming() {
+    if (timingTool) return;
+    const { mount } = await import("../../timing/src/app.js");
+    timingTool = mount(tpBody, { docked: true, onStatus: (m, err) => status(m, err), onChange: () => { if (!framesOf(doc).length) populateFromTiming(true); if (opt.slideView) syncSlide(); } });
+    timingTool.setCircuit(D.serialize(doc, pack));
+    if (!framesOf(doc).length) populateFromTiming(true);
   }
-  splitter.addEventListener("pointerdown", (e) => {
-    const y0 = e.clientY, h0 = tpEl.getBoundingClientRect().height, max = window.innerHeight * 0.7;
-    splitter.setPointerCapture(e.pointerId);
-    const move = (ev) => { opt.timingPane.h = Math.round(Math.min(max, Math.max(120, h0 - (ev.clientY - y0)))); tpEl.style.setProperty("--tp-h", `${opt.timingPane.h}px`); };
-    const up = () => { splitter.removeEventListener("pointermove", move); saveOptions(); };
-    splitter.addEventListener("pointermove", move);
-    splitter.addEventListener("pointerup", up, { once: true });
-  });
-  splitter.addEventListener("keydown", (e) => {
-    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
-    e.preventDefault();
-    opt.timingPane.h = Math.min(window.innerHeight * 0.7, Math.max(120, opt.timingPane.h + (e.key === "ArrowUp" ? 16 : -16)));
-    tpEl.style.setProperty("--tp-h", `${opt.timingPane.h}px`); saveOptions();
-  });
-  /** The three views share one toolbar and panes: Figure Editor (canvas), Timing Diagram (the pane slides all the way up), Slide. */
+  /**
+   * The three workspaces are sections of one stack: the one in view takes the whole window, the others slide away to their title bars
+   * (CSS animates the rows). The side panes follow: each pane lists the workspaces it belongs to (data-views).
+   */
   function setView(v) {
     opt.view = v; opt.slideView = v === "slide";
-    const stage = $(".fe-stage");
-    if (v === "timing") { opt.timingPane.open = true; tpEl.style.setProperty("--tp-h", `${stage.offsetHeight + tpEl.offsetHeight}px`); }
-    else { opt.timingPane.open = false; }
-    tpEl.classList.toggle("is-full", v === "timing");
     root.dataset.workspace = v;
-    for (const [c, k] of [["viewfigure", "figure"], ["viewtiming", "timing"], ["viewslide", "slide"]]) $(`[data-cmd="${c}"]`).setAttribute("aria-pressed", String(v === k));
-    saveOptions(); showTimingPane(); syncSlide();
+    for (const b of root.querySelectorAll("[data-sec-bar]")) b.setAttribute("aria-expanded", String(b.dataset.secBar === v));
+    for (const p of root.querySelectorAll("[data-views]")) p.hidden = !p.dataset.views.split(" ").includes(v);
+    saveOptions(); mountTiming(); syncSlide();
   }
   /** Step through the frames from the toolbar: the canvas shows that frame's levels, the timing diagram marks its step. */
   function goToFrame(n) {
@@ -1148,7 +1130,6 @@ export async function mount(root, options = {}) {
     timingTool?.setFrame(selectedFrame);
     renderFrames();
   }
-  showTimingPane();
 
   // ---- level colours (F17) ----------------------------------------------------------------------------
   const lcRows = [...root.querySelectorAll(".fe-lc-row")], lcWarn = $(".fe-lc-warnings");
@@ -1218,9 +1199,6 @@ export async function mount(root, options = {}) {
         <span class="fe-theme-buttons">${r.kind === "text" ? "" : `<button type="button" class="${BUTTON}" data-part="svg">SVG</button><button type="button" class="${BUTTON}" data-part="png">PNG</button>`}<button type="button" class="${BUTTON}" data-part="del" aria-label="Delete region ${esc(r.id)}">Delete</button></span>
       </li>`).join("") || `<li class="fe-hint">No regions: pick a layout or add one.</li>`;
     }
-    $(".fe-stage").classList.toggle("is-slide", opt.slideView);
-    slideView.toggleAttribute("hidden", !opt.slideView);   // an SVG element has no .hidden property
-    slideBar.hidden = !opt.slideView;
     if (opt.slideView) renderSlideView();
   }
   /** The slide view: the slide as it will export (with the header, footer and text boxes shown), and each region's outline and resize handle. */
@@ -1238,7 +1216,6 @@ export async function mount(root, options = {}) {
       <rect data-handle="1" x="${r.x + r.w - 1}" y="${r.y + r.h - 1}" width="1" height="1" fill="${roles.accent}" style="cursor:nwse-resize"/>
     </g>`).join("");
     slideBar.innerHTML = `<span class="label-mono">Layout</span>${Object.entries(SLIDE_LAYOUTS).map(([k, v]) => `<button type="button" class="fe-layout" data-layout="${k}" aria-pressed="${s.layout === k}" title="${esc(v.name)}">${layoutThumb(k, s, roles)}<span>${esc(v.name)}</span></button>`).join("")}<span class="fe-slidebar-end">${btn("slidesvg", "Slide as SVG")}${btn("slidepng", "Slide as PNG")}</span>`;
-    $(".fe-stage").style.setProperty("--slidebar-h", `${slideBar.offsetHeight}px`);   // the slide sits below the layout strip
     slideView.setAttribute("viewBox", `-1 -1 ${w + 2} ${h + 2}`);
     slideView.innerHTML = `<rect x="0" y="0" width="${w}" height="${h}" fill="none" stroke="${roles.accent}" stroke-width="${lw * 1.5}"/>${body}${outlines}`;
   }
@@ -1443,7 +1420,10 @@ export async function mount(root, options = {}) {
         const index = nearestOnPolyline(p, c).segment;
         drag = { kind: "segment", id: k, index, horizontal: c[index][1] === c[index + 1][1], start: p, base: doc, d: 0 };
         status(`Wire ${k} selected. Drag it sideways to move this run; Delete removes the wire.`);
-      } else drag = { kind: "move", start: p, base: doc, sel: structuredClone(selection), delta: [0, 0] };
+      } else {
+        drag = { kind: "move", start: p, base: doc, sel: structuredClone(selection), delta: [0, 0] };
+        if (c) status(`Wire ${k} selected. Drag to move the whole wire; Delete removes it.`);
+      }
     } else {
       if (!e.shiftKey) selection = none();
       drag = { kind: "box", start: p, add: e.shiftKey ? structuredClone(selection) : null };
