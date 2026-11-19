@@ -14,19 +14,24 @@ file.
 
 ## Current state
 
-Sync of 2026-11-14, 19:30 (Pacific). Facts only; work lives in the batches below.
+Sync of 2026-11-19, 13:00 (Pacific). Facts only; work lives in the batches below.
 
-**Changed since the last sync**
-- VISION.md is now v2 (approved by Blake 2026-11-14), identical in all three repositories; its history is in `VISION_CHANGELOG.md`. New: scope 200 to 600 level plus analog; clean-IP and FERPA-by-design rules; formats `scenario`, `trace`, `function`; SystemVerilog import and export is part of the finished editor and simulator; five weekly report-only reviewers; token rules; every prompt between agents states model, effort and intent.
-- The editor will be called Figure Editor, with a minimisable Timing pane (F18). Slide export, frames, N-input variants, SystemVerilog and the small tools are queued as F19 to F22 and L1 to L3.
-- Finished batches were moved to `docs/handoff-archive.md`. Some table rows above still show old statuses; step statuses are the truth.
-- circuit-model is private until ownership and licence are decided.
+**Changed since the last sync (2026-11-14)**
+- Claude site builder, Nov 14: F17, F18, F19 (slide export, six layouts; F10 folded in), F21.1 (symbols-v0.3.0, drafts in the Elements pane, family popover), T2.1 and T2.2 done and deployed.
+- **GitHub Copilot, Nov 15 to 16, 23 commits, authorised by Blake, not from a queued batch.** All on `main`, all deployed (CI green). Copilot reports 198 beta and 185 stable tests passing; not re-run by the Steward.
+  - Re-created `tools/figure-editor-beta/` as a full copy of the Figure Editor (page title "Schematic Editor (beta)"), now differing from stable in 39 files (`src/app.js` 2,607 lines against 1,643). The stable Figure Editor is unchanged.
+  - Beta-only features: Shift-click straight (diagonal) wire legs under a draft `circuit/0.3` declared in this repo (`MODEL_PIN.json` `pending_schema`); a built-in logic evaluator (`src/logic.js`, `src/sequential.js`) for gates, cross-coupled NAND latches, D latches and D/JK/T flip-flops; a manual logic mode; schematic-to-timing and timing-to-schematic level sync; Frame 0 as a neutral frame; ten slide layouts; a client-side ZIP export (schematic, timing, `source.json`); LaTeX truth-table export; net-level tags; resizable and maximisable panes.
+  - Shared timing module `tools/timing/`: WaveDrom source editor, TeX signal names and edge labels, data-value colours, separate arrow line and head controls, sequential timing calculation, beta-only centred transitions.
+  - Theme: `unknown` (reddish purple) and `floating` (blue) roles added to `themes/okabe-ito/figures.scss` and published as `--fig-unknown` and `--fig-floating`.
+  - Privacy: the work email was removed from `_title-block.qmd`.
+  - Nine dated notes for the Scribe were added under "Notes for the Scribe"; the beta and timing READMEs are not updated.
+- Drift from VISION.md v2 found by the Steward (decisions for Blake, not yet work): (1) two editors again, against F18; (2) simulation inside the editor rather than the circuit-model simulator (tag model-v0.4.0 has d_latch and d_flipflop; no SR, JK or T yet); (3) a `circuit/0.3` format declared here rather than released by circuit-model; (4) the beta page name "Schematic Editor" against "Figure Editor"; (5) hard-coded colour defaults in `tools/timing/src/draw.js` (`#000000`, `#0072B2`).
 
 **Waiting**
-- Site builder: F14 (snapshot done, promote step open), F17 (needs circuit-model C9 tag), then F18 to F21.
-- circuit-model builder: C9, C6, C7, C10, C8, C11 (C11 waits for Blake's decision on the engine memo).
-- Toolbox builder: E8 (expanded symbols as drafts).
-- Scribe: documentation update for v2; reviewers' first reports.
+- Blake: decide how to reconcile the Copilot beta (proposed batch R1) and this week's priorities.
+- Site builder: nothing started until Blake names a batch. Open: F20, F21.2 to F21.3, T2.3, F22 (blocked on C11), L1 to L3 (C10 is tagged model-v0.6.0, so L1 is unblocked).
+- Scribe: the nine queued notes, plus v2 documentation if not yet done.
+- Several Batches table rows are stale; step statuses are the truth.
 
 ## How builders use this file
 
