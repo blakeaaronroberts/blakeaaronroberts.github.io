@@ -24,7 +24,7 @@ import { checkedBackdrop, circuitFromSvg, sanitizeSvg, MAX_SVG_BYTES } from "./s
 import { orient } from "./geometry.js";
 import { namedNetNames, parseTruthTable, truthTable } from "./demo.js";
 import { framesFromSignals, levelTagStyleOf, setCalculatedFrames, setLevelTagStyle, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, ensureFrameZero, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame, targetsOf } from "./levelframes.js";
-import { logicModeOf, resolveLogic, setLogicMode, timingCalculator } from "./logic.js";
+import { drivenWireIds, logicModeOf, resolveLogic, setLogicMode, timingCalculator } from "./logic.js";
 import { migrateR1 } from "./migrate.js";
 
 // Browser storage keys, set by mount() from options.storage (the tool's own prefix: "schematic-editor/" on its page,
@@ -110,6 +110,31 @@ const btn = (cmd, label, keys = "", extra = "", title = label) => {
   const name = ICONS[cmd] ? ` aria-label="${label}"` : "";
   return `<button type="button" class="${BUTTON}" data-cmd="${cmd}"${name} title="${title}${keys ? ` (${keys})` : ""}"${keys ? ` aria-keyshortcuts="${keys}"` : ""}${extra}>${art}</button>`;
 };
+
+/**
+ * The Schematic Editor's toolbar, as groups of buttons (R1). Its own page puts them in its toolbar; a host such as the
+ * Figure Editor builds its own toolbar from them and adds its own. Every button carries data-cmd, so the editor handles it
+ * wherever the host puts it, as long as it is inside the element the editor is mounted on.
+ */
+export function toolbarGroups() {
+  return {
+    tool: `${btn("select", "Select", "Escape", ' aria-pressed="true"')}${btn("wire", "Wire", "W", ' aria-pressed="false"')}${btn("port", "Port", "P", ' aria-pressed="false"')}${btn("label", "Label", "T", ' aria-pressed="false"')}${btn("solder", "Solder dot", "", ' aria-pressed="false"', "Connect crossing wires")}`,
+    edit: `${btn("rotate", "Rotate", "R")}${btn("mirror", "Mirror", "M")}${btn("delete", "Delete", "Delete")}`,
+    history: `${btn("undo", "Undo", "Control+Z")}${btn("redo", "Redo", "Control+Y")}`,
+    clipboard: `${btn("copy", "Copy", "Control+C")}${btn("paste", "Paste", "Control+V")}`,
+    view: `${btn("zoomout", "Zoom out", "-")}${btn("zoomin", "Zoom in", "+")}${btn("fit", "Fit", "F")}`,
+    grid: `<span class="fe-grouplabel label-mono" aria-hidden="true">Grid</span>${btn("gridhalf", "½", "", ' aria-pressed="true"', "Snap parts to half a module")}${btn("gridfull", "1", "", ' aria-pressed="false"', "Snap parts to a whole module")}`,
+    file: `${btn("new", "New")}${btn("open", "Open…")}${btn("save", "Save", "Control+S")}${btn("export", "Export", "", "", "Export the active view as SVG or PNG")}`,
+    frames: `${btn("frameprev", "◀", "", "", "Previous frame")}<input class="fe-stepinput" type="number" min="0" step="1" aria-label="Go to frame" title="Type a frame number and press Enter"><span class="fe-stepno label-mono"></span>${btn("framenext", "▶", "", "", "Next frame")}${btn("navframes", "Export frames", "", "", "Export each frame in the active workspace as SVG or PNG")}`,
+    help: `${btn("help", "Keys", "?")}`,
+    // buttons that act on the Figure Editor's parts (the Timing Diagram, ZIP); a host that lends those parts adds them
+    projectzip: `${btn("projectzip", "Project ZIP", "", "", "Download the schematic, timing diagram, and editable project JSON as a ZIP file")}`,
+    frametosignal: `${btn("frametosignal", "Send current frame to timing", "", "", "Send the current schematic state to a timing step")}`,
+    inputs: `<input type="file" class="fe-file" accept=".json,.svg,application/json,image/svg+xml" hidden><input type="file" class="fe-theme-file" accept=".json,application/json" hidden>`,
+  };
+}
+const group = (label, html, end = false) => `<div class="fe-group${end ? " fe-group-end" : ""}" role="group" aria-label="${label}">${html}</div>`;
+
 export async function mount(root, options = {}) {
   const prefix = options.storage ?? "schematic-editor/", tprefix = options.timingStorage ?? `${prefix}timing-`;
   AUTOSAVE = `${prefix}autosave`; SAVES = `${prefix}saves`; OPTIONS = `${prefix}options`; THEME = `${prefix}private-theme`;
@@ -123,7 +148,8 @@ export async function mount(root, options = {}) {
   const emit = options.emit ?? (() => {});
   if (options.migrate) migrateR1((k) => { try { return localStorage.getItem(k); } catch { return null; } }, (k, v) => { try { localStorage.setItem(k, v); } catch { /* storage unavailable */ } });
   const base = new URL(options.pack ?? "./symbol-pack/", document.baseURI);
-  root.innerHTML = `<p class="fe-status" role="status">Loading the symbol pack…</p>`;
+  const say0 = (html) => { const s = options.host && root.querySelector(`[data-slot="status"]`); if (s) s.innerHTML = html; else root.innerHTML = html; };   // a host's shell is never wiped
+  say0(`<p class="fe-status" role="status">Loading the symbol pack…</p>`);
   let loaded;
   try {
     loaded = await loadPack(async (p) => {
@@ -132,39 +158,15 @@ export async function mount(root, options = {}) {
       return r.text();
     });
   } catch (e) {
-    root.innerHTML = `<p class="fe-status" role="alert">Could not load the symbol pack: ${esc(e.message)}</p>`;
+    say0(`<p class="fe-status" role="alert">Could not load the symbol pack: ${esc(e.message)}</p>`);
     return null;
   }
   let pack = loaded;                                   // the active pack: the loaded one, or it drawn with a private theme
 
-  root.innerHTML = `
-  <div class="fe">
-    <div class="fe-toolbar" role="toolbar" aria-label="Schematic Editor">
-      <div class="fe-group" role="group" aria-label="Tool">
-        ${btn("select", "Select", "Escape", ' aria-pressed="true"')}${btn("wire", "Wire", "W", ' aria-pressed="false"')}${btn("port", "Port", "P", ' aria-pressed="false"')}${btn("label", "Label", "T", ' aria-pressed="false"')}${btn("solder", "Solder dot", "", ' aria-pressed="false"', "Connect crossing wires")}
-      </div>
-      <div class="fe-group" role="group" aria-label="Edit">
-        ${btn("rotate", "Rotate", "R")}${btn("mirror", "Mirror", "M")}${btn("delete", "Delete", "Delete")}
-      </div>
-      <div class="fe-group" role="group" aria-label="History">
-        ${btn("undo", "Undo", "Control+Z")}${btn("redo", "Redo", "Control+Y")}
-      </div>
-      <div class="fe-group" role="group" aria-label="Clipboard">
-        ${btn("copy", "Copy", "Control+C")}${btn("paste", "Paste", "Control+V")}
-      </div>
-      <div class="fe-group" role="group" aria-label="View">
-        ${btn("zoomout", "Zoom out", "-")}${btn("zoomin", "Zoom in", "+")}${btn("fit", "Fit", "F")}
-      </div>
-      <div class="fe-group" role="group" aria-label="Part grid: snap step for parts">
-        <span class="fe-grouplabel label-mono" aria-hidden="true">Grid</span>${btn("gridhalf", "½", "", ' aria-pressed="true"', "Snap parts to half a module")}${btn("gridfull", "1", "", ' aria-pressed="false"', "Snap parts to a whole module")}
-      </div>
-      <div class="fe-group" role="group" aria-label="File">
-        ${btn("new", "New")}${btn("open", "Open…")}${btn("save", "Save", "Control+S")}${btn("export", "Export", "", "", "Export the active view as SVG or PNG")}${btn("projectzip", "Project ZIP", "", "", "Download the schematic, timing diagram, and editable project JSON as a ZIP file")}
-      </div>
-      <div class="fe-group fe-group-end" role="navigation" aria-label="Views"><span class="fe-stepper">${btn("frameprev", "◀", "", "", "Previous frame")}<input class="fe-stepinput" type="number" min="0" step="1" aria-label="Go to frame" title="Type a frame number and press Enter"><span class="fe-stepno label-mono"></span>${btn("framenext", "▶", "", "", "Next frame")}${btn("frametosignal", "Send current frame to timing", "", "", "Send the current schematic state to a timing step")}${btn("navframes", "Export frames", "", "", "Export each frame in the active workspace as SVG or PNG")}</span>${btn("help", "Keys", "?")}</div>
-      <input type="file" class="fe-file" accept=".json,.svg,application/json,image/svg+xml" hidden>
-      <input type="file" class="fe-theme-file" accept=".json,application/json" hidden>
-    </div>
+  // The editor's parts. On its own page it lays them out itself; embedded (options.host), the host has built the shell
+  // (toolbar, section stack) and the editor fills the slots it finds: left, resizer, status (with dialogs), and each section.
+  const tg = toolbarGroups();
+  const leftHtml = `
     <div class="fe-left" role="region" aria-label="Editor controls">
       <details class="fe-palette fe-pane" data-views="figure">
         <summary class="label-mono">Elements</summary>
@@ -248,23 +250,9 @@ export async function mount(root, options = {}) {
         <summary class="label-mono">Warnings</summary>
         <ul></ul>
       </details>
-    </div>
-    <div class="fe-resizer" data-resize="left" role="separator" aria-label="Resize controls pane" aria-orientation="vertical" tabindex="0"></div>
-    <div class="fe-stack" role="region" aria-label="Workspace: Schematic Editor, Timing Diagram and Slide">
-      <button type="button" class="fe-sec-bar" data-cmd="viewfigure" data-sec-bar="figure" aria-expanded="false"><span class="label-mono">Schematic Editor</span><span class="fe-sec-chev" aria-hidden="true"></span></button>
-      <div class="fe-sec" data-sec="figure"><div class="fe-stage">
-        <svg class="fe-canvas" tabindex="0" role="application" aria-label="Figure canvas" xmlns="http://www.w3.org/2000/svg"></svg>
-      </div></div>
-      <div class="fe-stack-resizer" data-stack-resize="figure-timing" role="separator" aria-label="Resize Schematic Editor and Timing Diagram panes" aria-orientation="horizontal" tabindex="0"></div>
-      <button type="button" class="fe-sec-bar" data-cmd="viewtiming" data-sec-bar="timing" aria-expanded="false"><span class="label-mono">Timing Diagram</span><span class="fe-sec-chev" aria-hidden="true"></span></button>
-      <div class="fe-sec" data-sec="timing"><div class="fe-timing-body"></div></div>
-      <div class="fe-stack-resizer" data-stack-resize="timing-slide" role="separator" aria-label="Resize Timing Diagram and Slide panes" aria-orientation="horizontal" tabindex="0"></div>
-      <button type="button" class="fe-sec-bar" data-cmd="viewslide" data-sec-bar="slide" aria-expanded="false"><span class="label-mono">Slide</span><span class="fe-sec-chev" aria-hidden="true"></span></button>
-      <div class="fe-sec" data-sec="slide">
-        <div class="fe-slidebar" role="toolbar" aria-label="Slide layouts"></div>
-        <svg class="fe-slideview" role="img" aria-label="Slide view: drag a region to move it, drag its corner to resize it" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
-      </div>
-    </div>
+    </div>`;
+  const resizerHtml = `<div class="fe-resizer" data-resize="left" role="separator" aria-label="Resize controls pane" aria-orientation="vertical" tabindex="0"></div>`;
+  const statusHtml = `
     <p class="fe-status" role="status" aria-live="polite"></p>
     <dialog class="fe-help" aria-labelledby="fe-help-title">
       <h2 id="fe-help-title">Keys</h2>
@@ -280,8 +268,33 @@ export async function mount(root, options = {}) {
           <button type="submit" class="${BUTTON}">Cancel</button>
         </div>
       </form>
-    </dialog>
+    </dialog>`;
+  const sectionHtml = {
+    figure: `<div class="fe-stage">
+        <svg class="fe-canvas" tabindex="0" role="application" aria-label="Figure canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>`,
+    timing: `<div class="fe-timing-body"></div>`,
+    slide: `<div class="fe-slidebar" role="toolbar" aria-label="Slide layouts"></div>
+        <svg class="fe-slideview" role="img" aria-label="Slide view: drag a region to move it, drag its corner to resize it" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>`,
+  };
+  if (options.host) {
+    const slot = (name, html) => { const el = root.querySelector(`[data-slot="${name}"]`); if (el) el.outerHTML = html; };
+    slot("left", leftHtml); slot("resizer", resizerHtml); slot("status", statusHtml + tg.inputs);
+    for (const [name, html] of Object.entries(sectionHtml)) { const sec = root.querySelector(`.fe-sec[data-sec="${name}"]`); if (sec) sec.innerHTML = html; }
+  } else {
+    root.innerHTML = `
+  <div class="fe">
+    <div class="fe-toolbar" role="toolbar" aria-label="Schematic Editor">
+      ${group("Tool", tg.tool)}${group("Edit", tg.edit)}${group("History", tg.history)}${group("Clipboard", tg.clipboard)}${group("View", tg.view)}${group("Part grid: snap step for parts", tg.grid)}${group("File", tg.file)}
+      <div class="fe-group fe-group-end" role="navigation" aria-label="Frames"><span class="fe-stepper">${tg.frames}</span>${tg.help}</div>
+      ${tg.inputs}
+    </div>${leftHtml}
+    ${resizerHtml}
+    <div class="fe-stack" role="region" aria-label="Schematic Editor">
+      <div class="fe-sec" data-sec="figure">${sectionHtml.figure}</div>
+    </div>${statusHtml}
   </div>`;
+  }
 
   const $ = (s) => root.querySelector(s);
   const svg = $(".fe-canvas"), statusEl = $(".fe-status"), fileInput = $(".fe-file"), themeInput = $(".fe-theme-file");
@@ -616,7 +629,7 @@ export async function mount(root, options = {}) {
     if (timingLogicInput) timingLogicInput.checked = logicCalculationInput.checked;
     renderNodeLevels();
     const has = total(selection) > 0;
-    const set = (cmd, enabled) => { const b = root.querySelector(`[data-cmd="${cmd}"]`); b.disabled = !enabled; };
+    const set = (cmd, enabled) => { const b = root.querySelector(`[data-cmd="${cmd}"]`); if (b) b.disabled = !enabled;   /* a host may leave out any button */ };
     const mirrorable = (placing && pack.mirrorable(placing.type)) ||
       selection.elements.some((id) => pack.mirrorable(doc.elements.find((e) => e.id === id)?.type));
     set("rotate", placing || selection.elements.length);
@@ -626,9 +639,9 @@ export async function mount(root, options = {}) {
     set("paste", !!clipboard);
     set("undo", history.canUndo);
     set("redo", history.canRedo);
-    for (const t of ["select", "wire", "port", "label", "solder"]) root.querySelector(`[data-cmd="${t}"]`).setAttribute("aria-pressed", String(tool === t));
-    root.querySelector(`[data-cmd="gridhalf"]`).setAttribute("aria-pressed", String(opt.grid === 1));
-    root.querySelector(`[data-cmd="gridfull"]`).setAttribute("aria-pressed", String(opt.grid === 2));
+    for (const t of ["select", "wire", "port", "label", "solder"]) root.querySelector(`[data-cmd="${t}"]`)?.setAttribute("aria-pressed", String(tool === t));
+    root.querySelector(`[data-cmd="gridhalf"]`)?.setAttribute("aria-pressed", String(opt.grid === 1));
+    root.querySelector(`[data-cmd="gridfull"]`)?.setAttribute("aria-pressed", String(opt.grid === 2));
     svg.dataset.tool = tool;
     if (document.activeElement !== idInput) idInput.value = doc.id;
     if (document.activeElement !== titleInput) titleInput.value = doc.title ?? "";
@@ -961,10 +974,11 @@ export async function mount(root, options = {}) {
     const wires = D.levelWireIds(doc, selection.wires, pack);
     const n = wires.length + selection.elements.length;
     const noun = selection.elements.length ? "item" : "wire";
+    const driven = drivenWireIds(doc, pack), overridesOutput = wires.some((id) => driven.has(id));
     let next = setPortLevelsForWires(D.setLevel(doc, selection.wires, level, selection.elements, pack), wires, level);
     if (selectedFrame >= 0) next = recaptureFrame(next, selectedFrame, [...wires, ...selection.elements, ...next.ports.filter((port) => D.wiresForRefs(next, pack, [port.id]).some((id) => wires.includes(id))).map((port) => port.id)]);
     const message = level ? `Level ${level} (${name}) set on ${count(n, noun)}.` : "Level cleared.";
-    commit(next, selectedFrame > 0 && logicModeOf(doc) === "calculated" ? `${message} Recalculate timing to update computed levels.` : message, { preserveLevels: selectedFrame >= 0 });
+    commit(next, selectedFrame > 0 && logicModeOf(doc) === "calculated" ? `${message} Recalculate timing to update computed levels.` : message, { preserveLevels: overridesOutput }   /* an input recalculates what it drives (and changed() syncs a timing frame's new values to its step); an output set by hand is a manual override and is kept */);
     if (selectedFrame > 0 && level) syncEditedNodeToTiming(wires, [], level, selection.elements);
   }
 
@@ -1515,17 +1529,17 @@ export async function mount(root, options = {}) {
   function renderFrames() {
     const frames = framesOf(doc);
     if (selectedFrame >= frames.length) selectedFrame = frames.length - 1;
-    $(".fe-stepno").textContent = frames.length ? `/ ${frames.length - 1}` : "no frames";
+    const stepNo = $(".fe-stepno"); if (stepNo) stepNo.textContent = frames.length ? `/ ${frames.length - 1}` : "no frames";
     const stepIn = $(".fe-stepinput");
-    stepIn.min = "0"; stepIn.max = String(Math.max(0, frames.length - 1)); stepIn.disabled = !frames.length;
-    if (document.activeElement !== stepIn) stepIn.value = selectedFrame >= 0 ? String(selectedFrame) : "";
-    $(`[data-cmd="frameprev"]`).disabled = selectedFrame <= 0;
-    $(`[data-cmd="framenext"]`).disabled = !frames.length || selectedFrame >= frames.length - 1;
-    $(`[data-cmd="navframes"]`).disabled = !frames.length;
-    $(`[data-cmd="framerecapture"]`).disabled = selectedFrame <= 0;
-    for (const c of ["framerename", "framedelete"]) $(`[data-cmd="${c}"]`).disabled = selectedFrame <= 0;
-    $(`[data-cmd="frameup"]`).disabled = selectedFrame <= 1;
-    $(`[data-cmd="framedown"]`).disabled = selectedFrame <= 0 || selectedFrame >= frames.length - 1;
+    if (stepIn) { stepIn.min = "0"; stepIn.max = String(Math.max(0, frames.length - 1)); stepIn.disabled = !frames.length;
+    if (document.activeElement !== stepIn) stepIn.value = selectedFrame >= 0 ? String(selectedFrame) : ""; }
+    { const b = $(`[data-cmd="frameprev"]`); if (b) b.disabled = selectedFrame <= 0; }
+    { const b = $(`[data-cmd="framenext"]`); if (b) b.disabled = !frames.length || selectedFrame >= frames.length - 1; }
+    { const b = $(`[data-cmd="navframes"]`); if (b) b.disabled = !frames.length; }
+    { const b = $(`[data-cmd="framerecapture"]`); if (b) b.disabled = selectedFrame <= 0; }
+    for (const c of ["framerename", "framedelete"]) { const b = $(`[data-cmd="${c}"]`); if (b) b.disabled = selectedFrame <= 0; }
+    { const b = $(`[data-cmd="frameup"]`); if (b) b.disabled = selectedFrame <= 1; }
+    { const b = $(`[data-cmd="framedown"]`); if (b) b.disabled = selectedFrame <= 0 || selectedFrame >= frames.length - 1; }
     const ol = $(".fe-frame-list");
     ol.innerHTML = frames.length ? frames.map((f, i) => `<li><button type="button" class="fe-frame-item${i === selectedFrame ? " is-selected" : ""}" data-frame="${i}" aria-pressed="${i === selectedFrame}">${numbered(i, frames.length)} ${esc(f.name)}</button></li>`).join("") : `<li class="fe-hint">No frames yet.</li>`;
   }
@@ -1575,10 +1589,19 @@ export async function mount(root, options = {}) {
     }
     const previousFrame = selectedFrame;
     const r = framesFromSignals(doc, D.deriveNets(doc, pack), sent?.signals ?? [], pack);
+    // Automatic syncing never fills a figure from a diagram that names nothing in it (say a full-adder diagram and a lone block):
+    // that would only add empty frames. Pressing Send, or a diagram that matches, still syncs.
+    if (auto && (sent?.signals?.length ?? 0) > 0 && !r.matched.length) return;
+    let synced = r.doc;
+    if (auto) {   // frames captured past the diagram's last step stay until they are sent to timing; a resync must not wipe them
+      const old = framesOf(doc), fresh = framesOf(synced);
+      if (old.length > fresh.length) synced = { ...synced, groups: { ...(synced.groups ?? {}), frames: [...fresh, ...old.slice(fresh.length)] } };
+    }
     const step = timingTool?.frame ?? -1;
-    selectedFrame = step >= 0 ? Math.min(step + 1, r.steps) : previousFrame < 0 ? -1 : Math.min(previousFrame, r.steps);
-    const frames = framesOf(r.doc);
-    const next = selectedFrame >= 0 && frames[selectedFrame] ? applyFrame(r.doc, frames[selectedFrame]) : r.doc;
+    const last = framesOf(synced).length - 1;
+    selectedFrame = step >= 0 ? Math.min(step + 1, last) : previousFrame < 0 ? -1 : Math.min(previousFrame, last);
+    const frames = framesOf(synced);
+    const next = selectedFrame >= 0 && frames[selectedFrame] ? applyFrame(synced, frames[selectedFrame]) : synced;
     commit(next, null, { preserveLevels: true });
     renderFrames();
     timingTool?.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
@@ -2018,8 +2041,8 @@ export async function mount(root, options = {}) {
     timingTool?.setFrame(selectedFrame > 0 ? selectedFrame - 1 : -1);
     renderFrames();
   }
-  $(".fe-stepinput").addEventListener("change", (e) => goToFrame(Number(e.target.value)));
-  $(".fe-stepinput").addEventListener("keydown", (e) => { if (e.key === "Enter") goToFrame(Number(e.target.value)); e.stopPropagation(); });
+  $(".fe-stepinput")?.addEventListener("change", (e) => goToFrame(Number(e.target.value)));
+  $(".fe-stepinput")?.addEventListener("keydown", (e) => { if (e.key === "Enter") goToFrame(Number(e.target.value)); e.stopPropagation(); });
   function stepFrame(by) {
     const frames = framesOf(doc);
     if (!frames.length) return;
@@ -2116,7 +2139,7 @@ export async function mount(root, options = {}) {
     slideView.setAttribute("viewBox", `-1 -1 ${w + 2} ${h + 2}`);
     slideView.innerHTML = `<rect x="0" y="0" width="${w}" height="${h}" fill="none" stroke="${roles.accent}" stroke-width="${lw * 1.5}"/>${body}${outlines}`;
   }
-  slideView.addEventListener("pointerdown", (e) => {
+  slideView?.addEventListener("pointerdown", (e) => {
     const g = e.target.closest("[data-region]");
     if (!g) return;
     const id = g.dataset.region, resize = !!e.target.closest("[data-handle]"), base = currentSlide();
@@ -2137,7 +2160,7 @@ export async function mount(root, options = {}) {
     slideView.addEventListener("pointermove", move);
     slideView.addEventListener("pointerup", up, { once: true });
   });
-  slideBar.addEventListener("click", (e) => { const b = e.target.closest("[data-layout]"); if (b) setSlide(withLayout(currentSlide(), b.dataset.layout, { reset: true }), `Layout: ${SLIDE_LAYOUTS[b.dataset.layout].name}.`); });
+  slideBar?.addEventListener("click", (e) => { const b = e.target.closest("[data-layout]"); if (b) setSlide(withLayout(currentSlide(), b.dataset.layout, { reset: true }), `Layout: ${SLIDE_LAYOUTS[b.dataset.layout].name}.`); });
   for (const k of Object.keys(SPLITS)) $(`[name="fe-split-${k}"]`).addEventListener("change", (e) => {
     const s = currentSlide();
     if (!(s.layout in SLIDE_LAYOUTS)) return status("Pick a layout first: dividers belong to a layout.");
@@ -2617,7 +2640,7 @@ export async function mount(root, options = {}) {
   return {
     get doc() { return doc; },
     /** Run a toolbar command by name (the interface's command()). */
-    command: (name) => { if (!commands[name]) throw new Error(`the Schematic Editor has no command "${name}"`); return commands[name](); },
+    command: (name, args) => { if (!commands[name]) throw new Error(`the Schematic Editor has no command "${name}"`); return commands[name](args); },
     commandNames: () => Object.keys(commands),
     load: (text) => load(text),
     /** Typeset what the figure needs, then the SVG as exported (options as set on the page). */

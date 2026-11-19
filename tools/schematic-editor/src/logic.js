@@ -406,3 +406,20 @@ export function timingCalculator(doc, pack, initialLevels = {}) {
     },
   };
 }
+
+/**
+ * Wires on a net that an element drives (a gate's Y, a latch's or flip-flop's Q and Qn). Setting one of them by hand is a
+ * manual override of a calculated value, so the editor keeps it rather than recalculating it away; setting any other
+ * wire (an input) recalculates what it drives.
+ */
+export function drivenWireIds(doc, pack) {
+  const { keyForRef, wiresByKey } = networkOf(doc, pack), out = new Set();
+  for (const el of doc.elements) {
+    for (const pin of ["Y", "Q", "Qn"]) {
+      if (!pack.defFor(el)?.pins?.[pin]) continue;
+      const key = keyForRef(`${el.id}.${pin}`);
+      for (const id of (key === null ? [] : wiresByKey.get(key) ?? [])) out.add(id);
+    }
+  }
+  return out;
+}

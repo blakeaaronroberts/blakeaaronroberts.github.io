@@ -31,6 +31,9 @@ export async function mount(element, options = {}) {
   };
 }
 
+/** The editor's toolbar button groups, for a host that builds its own toolbar (the Figure Editor, later a simulator). */
+export async function toolbarGroups() { return (await import("./app.js")).toolbarGroups(); }
+
 // What other tools may use from the drawing code (DOM-free).
 export { exportSvg, drawing } from "./export.js";
 export { applyFrame, framesOf } from "./levelframes.js";

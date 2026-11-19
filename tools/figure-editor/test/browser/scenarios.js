@@ -404,9 +404,11 @@ scenarios.blocks = async (ctx) => {
     const px = (gx, gy) => page.eval(`(() => { const s = document.querySelector("svg.fe-canvas"), p = s.createSVGPoint(); p.x = ${gx} / 2; p.y = -${gy} / 2; const q = p.matrixTransform(s.getScreenCTM()); return [q.x, q.y]; })()`);
     const perStep = await page.eval(`document.querySelector("svg.fe-canvas").getScreenCTM().a / 2`);
     const block = () => page.eval(`JSON.stringify(window.figureEditor.doc.elements[0])`).then((t) => JSON.parse(t));
-    const centre = (sel) => page.eval(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); e.closest("details.fe-cat")?.setAttribute("open", ""); e.scrollIntoView({ block: "center" }); const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; })()`);
+    const centre = (sel) => page.eval(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); for (let d = e.closest("details"); d; d = d.parentElement?.closest("details")) d.open = true; e.scrollIntoView({ block: "center" }); const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; })()`);
     const setField = (name, value) => page.eval(`(() => { const i = document.querySelector('[data-field="${name}"]'); i.value = ${JSON.stringify(value)}; i.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
 
+    await page.eval(`window.figureEditor.load(JSON.stringify({ schema: "circuit/0.2", id: "blank", grid_cm: 0.25, elements: [], nets: {} }))`);   // the editor starts with the full adder
+    await page.sleep(800);
     const btn = await centre('[data-preset="generic"]');
     await page.click(btn[0], btn[1]);
     const at = await px(0, 0);
@@ -456,7 +458,9 @@ scenarios.blocks = async (ctx) => {
     await page.goto(ctx.url);
     await page.waitFor(ready);
     await page.sleep(800);
-    res.push([(await page.eval(`window.figureEditor.save()`)) === saved, "a reload restores the block from the autosave"]);
+    const after = await page.eval(`window.figureEditor.save()`);
+    if (after !== saved) { const i = [...saved].findIndex((c, k) => c !== after[k]); console.log("BLOCKS DIFF", JSON.stringify({ saved: saved.slice(i - 80, i + 160), after: after.slice(i - 80, i + 160) })); }
+    res.push([after === saved, "a reload restores the block from the autosave"]);
     res.push([page.errors.length === 0, `no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
   } finally { await page.close(); }
   return res;
@@ -660,6 +664,7 @@ scenarios.logic = async (ctx) => {
       ],
     };
     await page.eval(`window.figureEditor.load(${JSON.stringify(JSON.stringify(figure))})`);
+    await page.sleep(1500);   // the view refits to the loaded figure after typesetting; canvas clicks need that
     const initial = await page.eval(`window.figureEditor.doc.wires.find((wire) => wire.id === "w3").level`);
     res.push([initial === "1", `AND output resolves to 1 from inputs 1 and 1 (${initial})`]);
 
@@ -805,6 +810,7 @@ scenarios.import = async (ctx) => {
 
 /** F10: the slide frame on the canvas, in light and dark; its exports (SVG and PNG at real size); and a reload. */
 scenarios.frame = async (ctx) => {
+  // F10's slide frame on the canvas was folded into F19: the Slide section shows the slide and exports it at its real size.
   const res = [];
   for (const scheme of ["light", "dark"]) {
     const page = await ctx.launch({ scheme, port: nextPort++ });
@@ -812,43 +818,32 @@ scenarios.frame = async (ctx) => {
       await page.goto(`${ctx.url}?open=examples/cla-chevron.json`);
       await page.waitFor(ready);
       await page.sleep(2500);
-      const set = (name, value) => page.eval(`(() => { const i = document.querySelector('[name="${name}"]'); if (i.type === "checkbox") i.checked = ${JSON.stringify(value)}; else i.value = ${JSON.stringify(value)}; i.dispatchEvent(new Event("change", { bubbles: true })); })()`);
-      const frameRects = () => page.eval(`document.querySelectorAll(".fe-overlay rect[stroke-dasharray]").length`);
-      res.push([(await frameRects()) === 0, `${scheme}: no frame until asked for`]);
-      await set("fe-frame-show", true); await set("fe-frame-layout", "below"); await page.sleep(200);
-      await page.eval(`document.querySelector('[data-cmd="framecentre"]').click()`);
-      await page.eval(`document.querySelector('[data-cmd="fit"]').click()`);   // fit the figure; the frame is bigger, so zoom out to see it all
-      for (let i = 0; i < 4; i++) await page.eval(`document.querySelector('[data-cmd="zoomout"]').click()`);
-      await page.sleep(500);
-      res.push([(await frameRects()) >= 1, `${scheme}: the frame is drawn on the canvas (${await frameRects()} dashed rectangle)`]);
+      await page.eval(`document.querySelector('[data-sec-bar="slide"]').click()`);
+      await page.sleep(800);
+      const regions = await page.eval(`document.querySelectorAll(".fe-slideview [data-region]").length`);
+      res.push([regions >= 1, `${scheme}: the Slide section shows the slide with its regions (${regions})`]);
       await page.shot(`${ctx.out}/beta-frame-${scheme}.png`);
-      const note = await page.eval(`document.querySelector(".fe-frame-note").textContent`);
-      res.push([note === "", `${scheme}: the figure fits the schematic's part of the frame (note "${note}")`]);
       if (scheme === "dark") {
         const px = await page.eval(PIXELS(await page.shotData())), scene = await page.eval(SCENE);
-        res.push([px.canvas.black === 0 && scene.black.length === 0, `dark: no black pixels with the frame shown (${px.canvas.black})`]);
+        res.push([px.canvas.black === 0 && scene.black.length === 0, `dark: no black pixels with the slide shown (${px.canvas.black})`]);
       }
-      // The frame export is exactly the slide.
-      const svg = await page.eval(`(async () => { const o = window.figureEditor; return await o.exportSvg(true); })()`);
-      const g = (n) => new RegExp(`<svg[^>]* ${n}="([^"]*)"`).exec(svg)?.[1];
-      res.push([g("width") === "33.867cm" && g("height") === "19.05cm" && g("overflow") === "hidden", `${scheme}: the frame export is ${g("width")} by ${g("height")}`]);
-      const png = await page.eval(`(async () => { const b = await window.figureEditor.png(true); const m = await createImageBitmap(b); return [m.width, m.height]; })()`);
-      res.push([Math.abs(png[0] / png[1] - 16 / 9) < 0.01 && png[0] > 3000, `${scheme}: the frame PNG is 16:9 at 300 dpi (${png[0]} x ${png[1]})`]);
-      // 4:3 and a reload.
-      await set("fe-frame-format", "4:3"); await page.sleep(200);
-      const svg43 = await page.eval(`window.figureEditor.exportSvg(true)`);
-      res.push([/width="25\.4cm"/.test(svg43), `${scheme}: 4:3 gives 25.4 cm wide`]);
-      await page.sleep(300);
-      await page.goto(ctx.url); await page.waitFor(ready); await page.sleep(800);
-      const back = await page.eval(`({ show: document.querySelector('[name="fe-frame-show"]').checked, format: document.querySelector('[name="fe-frame-format"]').value, layout: document.querySelector('[name="fe-frame-layout"]').value })`);
-      res.push([back.show && back.format === "4:3" && back.layout === "below", `${scheme}: the frame settings come back after a reload (${JSON.stringify(back)})`]);
+      const size = await page.eval(`(async () => {
+        const made = []; const orig = URL.createObjectURL; URL.createObjectURL = (blob) => { made.push(blob); return orig(blob); };
+        await window.figureEditor.command("export", "svg");   // the active view (Slide) as SVG
+        await new Promise((r) => setTimeout(r, 1500));
+        URL.createObjectURL = orig;
+        const svg = await made.find((b) => b.type.includes("svg"))?.text();
+        const g = (n) => new RegExp('<svg[^>]* ' + n + '="([^"]*)"').exec(svg ?? "")?.[1];
+        return JSON.stringify([g("width"), g("height")]);
+      })()`);
+      const [w, h] = JSON.parse(size);
+      res.push([w === "33.867cm" && h === "19.05cm", `${scheme}: the slide export is the slide's real size (${w} by ${h})`]);
       res.push([page.errors.length === 0, `${scheme}: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
     } finally { await page.close(); }
   }
   return res;
 };
 
-/** F11.2: capture two frames, select one, export all on one slide (the file is intercepted, not downloaded). */
 scenarios.frames = async (ctx) => {
   const res = [];
   const page = await ctx.launch({ scheme: "light", port: nextPort++ });
@@ -1454,6 +1449,7 @@ scenarios.logicSync = async (ctx) => {
       groups: { wire_labels: { w1: "A", w2: "B", w3: "Y" } },
     };
     await page.eval(`window.figureEditor.load(${JSON.stringify(JSON.stringify(figure))})`);
+    await page.sleep(1500);   // the view refits to the loaded figure after typesetting; canvas clicks need that
     await page.eval(`document.querySelector('[data-sec-bar="timing"]').click()`);
     await page.waitFor(`!!document.querySelector(".td-tabs")`);
     const source = JSON.stringify({ signal: [{ name: "A", wave: "1" }, { name: "B", wave: "1" }, { name: "Y", wave: "1" }] });
@@ -1463,6 +1459,7 @@ scenarios.logicSync = async (ctx) => {
       input.value = ${JSON.stringify(source)};
       document.querySelector('[data-do="src-apply"]').click();
     })()`);
+    await page.sleep(500);
     await page.eval(`document.querySelector('[data-sec-bar="figure"]').click()`);
     await page.waitFor(`document.querySelectorAll(".fe-frame-item").length === 2`, 10000);
     await page.sleep(300);
@@ -2226,18 +2223,31 @@ scenarios.interface = async (ctx) => {
       const text = t.save("circuit");
       t.load("circuit", text.replace('"from_beta"', '"round_trip"'));
       let refused = false; try { t.save("trace"); } catch { refused = true; }
-      return JSON.stringify({ path: location.pathname + location.search, migrated, id: window.figureEditor.doc.id, events: [...new Set(events)], refused, commands: t.commands().includes("new"), flag: !!localStorage.getItem("figure-editor/migrated-r1") });
+      const toolbars = [...document.querySelectorAll(".fe-toolbar")].map((x) => x.getAttribute("aria-label")).join();
+      return JSON.stringify({ path: location.pathname + location.search, migrated, id: window.figureEditor.doc.id, events: [...new Set(events)], refused, commands: t.commands().includes("new"), flag: !!localStorage.getItem("figure-editor/migrated-r1"), toolbars, bars: document.querySelectorAll(".fe-stack > .fe-sec-bar").length });
     })()`));
     res.push([r.path === "/tools/figure-editor/?x=1", `redirect: the beta URL lands on the Figure Editor with its query (${r.path})`]);
     res.push([r.migrated === "from_beta" && r.flag, `migration: the beta's autosave opens in the Figure Editor (${r.migrated})`]);
     res.push([r.id === "round_trip" && r.events.includes("change:circuit") && r.events.includes("status"), `Figure Editor interface: load and save circuit, change and status events (${r.events.join(", ")})`]);
     res.push([r.refused && r.commands, "Figure Editor interface: an unsupported format is refused; commands are listed"]);
+    res.push([r.toolbars === "Figure Editor" && r.bars === 3, `Figure Editor: one toolbar, its own, and the three section bars (toolbars: ${r.toolbars}; bars: ${r.bars}); the Schematic Editor inside has none`]);
     // the Schematic Editor alone: no timing or slide sections
     await page.goto(base + "schematic-editor/");
     await page.sleep(2500);
-    const s = JSON.parse(await page.eval(`JSON.stringify({ ok: !!window.schematicEditorTool, parts: document.querySelector("[data-parts]")?.dataset.parts, save: window.schematicEditorTool?.save("circuit").includes("circuit/0.2"), timingBar: getComputedStyle(document.querySelector('[data-sec-bar="timing"]')).display })`));
+    const s = JSON.parse(await page.eval(`JSON.stringify({ ok: !!window.schematicEditorTool, parts: document.querySelector("[data-parts]")?.dataset.parts, save: window.schematicEditorTool?.save("circuit").includes("circuit/0.2"), timingBar: document.querySelector('[data-sec-bar]') ? "present" : "none", toolbars: [...document.querySelectorAll('.fe-toolbar')].map((t) => t.getAttribute('aria-label')).join() })`));
     res.push([s.ok && s.save && s.parts === "schematic", `Schematic Editor page: mounts alone and saves a circuit (parts: ${s.parts})`]);
-    res.push([s.timingBar === "none", `Schematic Editor page: no Timing or Slide section (timing bar display: ${s.timingBar})`]);
+    res.push([s.timingBar === "none" && s.toolbars === "Schematic Editor", `Schematic Editor page: its own toolbar, no Timing or Slide section (bars: ${s.timingBar}; toolbars: ${s.toolbars})`]);
+    // a simulator-style host: no toolbar, no parts, only the drawing section and the slots
+    const sim = JSON.parse(await page.eval(String.raw`(async () => {
+      const { mount } = await import("./src/index.js");
+      const el = document.createElement("div");
+      el.innerHTML = '<div class="fe"><div data-slot="left"></div><div class="fe-stack"><div class="fe-sec" data-sec="figure"></div></div><div data-slot="status"></div></div>';
+      document.body.append(el);
+      const t = await mount(el, { pack: "./symbol-pack/", host: true, storage: "simulator-test/" });
+      t.load("circuit", JSON.stringify({ schema: "circuit/0.2", id: "sim", grid_cm: 0.25, elements: [], nets: {} }));
+      return JSON.stringify({ toolbar: !!el.querySelector(".fe-toolbar"), canvas: !!el.querySelector(".fe-canvas"), id: JSON.parse(t.save("circuit")).id });
+    })()`));
+    res.push([!sim.toolbar && sim.canvas && sim.id === "sim", `a host without a toolbar (as a simulator page would be) mounts the Schematic Editor embedded: no toolbar of its own, a canvas, load and save work (${JSON.stringify(sim)})`]);
     // the Timing Diagram alone, sharing the composite's saved diagram
     await page.goto(base + "timing-diagram/");
     await page.sleep(1500);
