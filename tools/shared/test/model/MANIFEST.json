@@ -1,0 +1,44 @@
+{
+  "note": "Written by tools/shared/scripts/copy-model.js. Do not edit this folder by hand.",
+  "source": "circuit-model",
+  "ref": "model-v0.7.0",
+  "commit": "b1a9a08a07b458c9f96bea169b8a97f0462e269a",
+  "files": [
+    {
+      "name": "jsonschema.mjs",
+      "from": "validate/jsonschema.mjs",
+      "bytes": 5487,
+      "sha256": "550740b1ea87d887ece50f33503686c2518bac70cbff1f3544e21d184628cf23"
+    },
+    {
+      "name": "formats.mjs",
+      "from": "validate/formats.mjs",
+      "bytes": 6343,
+      "sha256": "28c2c7a69f21150683d9a4f6dcddbf51a6a40c560d4dcbda06d3841c33d4838f"
+    },
+    {
+      "name": "circuit.schema.json",
+      "from": "schema/circuit.schema.json",
+      "bytes": 12567,
+      "sha256": "ead1cb7427780efc1e2ccf978ec103b4022ed0799667172d7103e89c7f0cee45"
+    },
+    {
+      "name": "scenario.schema.json",
+      "from": "schema/scenario.schema.json",
+      "bytes": 2642,
+      "sha256": "01b61b4e4edc15af95bd06c414d4fbecf292776561e895a296fa47b80c0edcf9"
+    },
+    {
+      "name": "trace.schema.json",
+      "from": "schema/trace.schema.json",
+      "bytes": 3948,
+      "sha256": "1402f676856c29dbd3d9e35163c6290b94e82416f60f494ae4bdd365023ba53e"
+    },
+    {
+      "name": "nand_sr_latch.json",
+      "from": "examples/nand_sr_latch.json",
+      "bytes": 1633,
+      "sha256": "05206ca301c286f5fdf650b10f13a31882c7046146988bfca49cba1baec55c3a"
+    }
+  ]
+}

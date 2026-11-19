@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "trace/0.1",
+  "title": "Trace schema v0.1",
+  "description": "The simulator's output: the level of every signal over time. A signal is a net id (\"c1\") or an element output (\"fa0.S\"). Every signal starts at \"X\" before time 0. `changes` lists every change of level with its time, in time order; `steps` gives each scenario step's interval and the level of every signal at the end of it. Levels are the strings \"0\", \"1\", \"X\" and \"Z\". Structure only: that the steps are contiguous and that `changes` replays to the step values is a separate semantic check (see validate/).",
+  "type": "object",
+  "required": ["schema", "circuit", "scenario", "signals", "end", "steps", "changes"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "trace/0.1", "description": "Format and version. Readers reject an unknown major version." },
+    "circuit": { "type": "string", "minLength": 1, "description": "Path of the circuit file that was simulated, relative to the repository root." },
+    "scenario": { "$ref": "#/$defs/id", "description": "Id of the scenario that drove the simulation." },
+    "signals": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/signal" },
+      "description": "Every net and every element output that was simulated, in display order."
+    },
+    "end": { "type": "integer", "minimum": 1, "description": "Total time simulated: the end of the last step." },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/step" }
+    },
+    "changes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/change" },
+      "description": "Every change of level, from the all-X start, sorted by time. With zero delay all of a step's changes happen at its start time."
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/warning" },
+      "description": "Problems met while simulating, such as a combinational loop. A signal in a loop is reported and left at X; the simulator never hangs."
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" },
+    "signal": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_+-]+)?$",
+      "description": "A net id, or \"element.pin\" for an element output."
+    },
+    "level": { "enum": ["0", "1", "X", "Z"] },
+    "step": {
+      "type": "object",
+      "required": ["index", "start", "end", "values"],
+      "additionalProperties": false,
+      "properties": {
+        "index": { "type": "integer", "minimum": 0, "description": "Position of the matching step in the scenario." },
+        "label": { "type": "string", "description": "Copied from the scenario step." },
+        "start": { "type": "integer", "minimum": 0 },
+        "end": { "type": "integer", "minimum": 1 },
+        "values": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/signal" },
+          "additionalProperties": { "$ref": "#/$defs/level" },
+          "description": "Level of every signal at the end of the step (after everything has settled or the step's time has run out)."
+        }
+      }
+    },
+    "change": {
+      "type": "object",
+      "required": ["t", "signal", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "t": { "type": "integer", "minimum": 0 },
+        "signal": { "$ref": "#/$defs/signal" },
+        "value": { "$ref": "#/$defs/level" }
+      }
+    },
+    "warning": {
+      "type": "object",
+      "required": ["kind", "step", "signals"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["loop"] },
+        "step": { "type": "integer", "minimum": 0 },
+        "signals": { "type": "array", "items": { "$ref": "#/$defs/signal" }, "minItems": 1 },
+        "message": { "type": "string" }
+      }
+    }
+  }
+}

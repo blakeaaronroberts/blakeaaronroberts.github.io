@@ -29,7 +29,8 @@ Deno.test("every schema field survives: title, ports, labels, groups, params, ro
     [[90, undefined, "$G_1$", { delay: { Y: 2 } }], [undefined, true, undefined, undefined]]);
   assertEquals(doc.wires[0].first, "v");
   assertEquals(doc.wires.map((w) => w.level), [undefined, "X"]);
-  assertEquals(doc.groups, { bus: ["A", "B"] });
+  assertEquals(doc.buses, { bus: ["A", "B"] });   // a file's groups are buses (circuit/0.3); editor data is doc.groups
+  assertEquals(doc.groups, undefined);
   assertEquals(doc.labels, [{ text: "A note", at: [0, 10], side: "up" }]);
 });
 
