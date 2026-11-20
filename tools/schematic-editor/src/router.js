@@ -5,6 +5,22 @@
 // horizontal (or both vertical), a Z whose middle leg sits on the grid halfway.
 // test/router.test.js checks this port against fixtures made by the Python route().
 
+/**
+ * Snap a straight leg from `from` towards `to` (grid points) to the nearest multiple of `degrees` (45 by default in
+ * the editor; circuit/0.3 allows any angle, so this is an editor setting). Returns a grid point; 0 or less: `to` as is.
+ */
+export function snapAngle(from, to, degrees = 45) {
+  const dx = to[0] - from[0], dy = to[1] - from[1];
+  if (!(degrees > 0) || (!dx && !dy)) return to;
+  const step = (degrees * Math.PI) / 180, angle = Math.round(Math.atan2(dy, dx) / step) * step;
+  const ux = Math.round(Math.cos(angle) * 1e9) / 1e9, uy = Math.round(Math.sin(angle) * 1e9) / 1e9;
+  // Along an axis or a diagonal every grid step lies on the line: keep the pointer's reach along it.
+  const reach = ux && uy && Math.abs(Math.abs(ux) - Math.abs(uy)) < 1e-9 ? Math.round((Math.abs(dx) + Math.abs(dy)) / 2) : null;
+  if (reach !== null) return [from[0] + Math.sign(ux) * reach, from[1] + Math.sign(uy) * reach];
+  const r = dx * ux + dy * uy;
+  return [from[0] + Math.round(r * ux), from[1] + Math.round(r * uy)];
+}
+
 const axisOf = (d) => (d == null ? null : Math.abs(d[0]) >= Math.abs(d[1]) ? "h" : "v");
 
 /** Python's round(): halves go to the even neighbour (the toolbox's style.snap). */

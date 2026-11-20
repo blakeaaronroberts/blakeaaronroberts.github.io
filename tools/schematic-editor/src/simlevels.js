@@ -1,5 +1,5 @@
 // Calculated logic levels from circuit-model's simulator (R1.4; pinned copy in tools/shared/src/sim/, tag model-v0.7.0).
-// No DOM. The editor's own evaluator (logic.js, sequential.js) is retired; behaviour is the simulator's.
+// No DOM. Copilot's evaluator (logic.js, sequential.js) was retired after the parity suite passed (commit 902f74e).
 //
 // The adapter:
 // - Nets are the editor's nets (doc.deriveNets) joined by net labels: wires with the same label are one net.

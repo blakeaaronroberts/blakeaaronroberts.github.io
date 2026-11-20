@@ -147,10 +147,11 @@ Deno.test("data and arrow appearance overrides are saved, bounded and reset inde
   eq([edgeLineWidthOf(fromWaveDrom(toWaveDrom(setEdgeLineWidth(empty(), 1.25)))), arrowHeadSizeOf(fromWaveDrom(toWaveDrom(setArrowHeadSize(empty(), 32))))], [1.25, 32]);
 });
 
+// R1.5: with no theme (tests run without a page) the default ink is currentColor; in the page it is the --fig-ink role.
 Deno.test("beta arrowhead maximum renders at 32 while the legacy renderer retains its limit", () => {
   const source = { signal: [{ name: "A", wave: "01", node: ".a" }, { name: "B", wave: "01", node: ".b" }], edge: ["a->b"], config: { arrowHeadSize: 32 } };
   const headLength = (svg) => {
-    const m = /<path d="M ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+) L [\d.]+ [\d.]+ Z" fill="#000000"/.exec(svg);
+    const m = /<path d="M ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+) L [\d.]+ [\d.]+ Z" fill="currentColor"/.exec(svg);
     assert(m, "arrowhead exists");
     return Math.abs(Number(m[2]) - Number(m[4]));
   };
@@ -165,7 +166,7 @@ Deno.test("data fills and arrow-line styling are independent of arrowhead stylin
   };
   const parsed = { ok: true, left: 0, width: 0.9, height: 0.7, depth: 0.2, nodes: [{ tag: "path", attrs: [["d", "M0 0L1 1"], ["fill", "currentColor"]], children: [] }] };
   const defaults = drawTiming(value, { lineWidth: 3.2 }).svg;
-  assert(defaults.includes('stroke="#000000" stroke-width="2"'), "the default edge width follows the existing line-width ratio");
+  assert(defaults.includes('stroke="currentColor" stroke-width="2"'), "the default edge width follows the existing line-width ratio");
   const styled = drawTiming(value, {
     lineWidth: 3.2, edgeLineWidth: 2.2, edgeLineColour: "#112233", arrowHeadSize: 11,
     arrowHeadColour: "#445566", dataFills: ["#111111"], edgeLabelTypeset: new Map([["$t_{pd}$", parsed]]),
@@ -174,7 +175,7 @@ Deno.test("data fills and arrow-line styling are independent of arrowhead stylin
   assert(styled.includes('fill="#111111"'), "the selected data-signal fill is used");
   assert(styled.includes('stroke="#112233" stroke-width="2.2"'), "the arrow line has its own colour and width");
   assert(styled.includes('fill="#445566"'), "the arrowhead has its own colour");
-  assert(headPath(styled, "#445566") !== headPath(defaults, "#000000"), "the arrowhead size is independent of line width");
+  assert(headPath(styled, "#445566") !== headPath(defaults, "currentColor"), "the arrowhead size is independent of line width");
   assert(styled.includes('class="td-edge-label-math"') && styled.includes('scale(0.01)'), "the edge title is drawn from the typeset paths at label size");
 });
 
@@ -213,7 +214,7 @@ Deno.test("beta straight arrows default to dotted accent and retain solid or cus
   const source = { signal: [{ name: "A", wave: "01", node: ".a" }, { name: "B", wave: "01", node: ".b" }], edge: ["a->b", "a~>b"] };
   const svg = drawTiming(source, { lineWidth: 2, edgeStyles: edgeStylesFor(source, accent) }).svg;
   assert(svg.includes('stroke="#0072B2" stroke-width="1.25" stroke-dasharray="2.5 2.5"') && svg.includes('fill="#0072B2"'), "straight line and arrowhead use the accent");
-  assert(svg.includes('stroke="#000000" stroke-width="1.25"'), "curved arrows retain the original style");
+  assert(svg.includes('stroke="currentColor" stroke-width="1.25"'), "curved arrows retain the original style");
   const withHead = setArrowHeadColour(value, "#ABCDEF");
   const customHead = drawTiming(source, { lineWidth: 2, edgeStyles: edgeStylesFor(withHead, accent) }).svg;
   assert(customHead.includes('stroke="#0072B2"') && customHead.includes('fill="#ABCDEF"'), "an explicit arrowhead colour remains independent of the default line colour");

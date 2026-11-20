@@ -5,7 +5,7 @@
 //   quarto run tools/figure-editor/test/browser/check.js [dark] [wires] [saves] [--out <dir>]
 
 const CHROME = ["C:/Program Files/Google/Chrome/Application/chrome.exe", "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"];
-const TYPES = { html: "text/html", js: "text/javascript", css: "text/css", json: "application/json", svg: "image/svg+xml", woff2: "font/woff2", png: "image/png", xml: "application/xml" };
+const TYPES = { html: "text/html", js: "text/javascript", mjs: "text/javascript", css: "text/css", json: "application/json", svg: "image/svg+xml", woff2: "font/woff2", png: "image/png", xml: "application/xml" };
 
 export function serve(root, port) {
   const server = Deno.serve({ port, hostname: "127.0.0.1", onListen() {} }, async (req) => {

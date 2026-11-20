@@ -14,7 +14,7 @@ import { drawing, exportDocument, exportSize, exportSvg, exportGridSvg, labelBox
 import { hitTest, inBox } from "./hit.js";
 import { packLabelPt, texNeeded, texOf } from "./labels.js";
 import { typesetAll } from "./mathjax.js";
-import { nearestOnPolyline, route } from "./router.js";
+import { nearestOnPolyline, route, snapAngle } from "./router.js";
 import { createView, thumbnail, blockThumbnail } from "./view.js";
 import { junctionCounts } from "./junctions.js";
 import { BLOCK, formatPins, handlesOf, parsePins, SHAPES, geometryOf } from "./block.js";
@@ -53,7 +53,7 @@ const total = (s) => s.elements.length + s.wires.length + s.ports.length + s.lab
 
 /** The keys, in one place: the "?" panel shows this table. */
 export const KEYS = [
-  ["W", "Wire tool: hold Shift while clicking a corner to draw the preceding leg straight; clicks without Shift keep orthogonal routing. Click a pin, junction or wire to finish; Enter ends the wire where it is; Backspace removes a corner"],
+  ["W", "Wire tool: hold Shift while clicking a corner to draw the preceding leg straight (at 45-degree steps; Shift+Alt for any angle); clicks without Shift keep orthogonal routing. Click a pin, junction or wire to finish; Enter ends the wire where it is; Backspace removes a corner"],
   ["P", "Port tool: click a point, a pin tip or a wire end to put an input or output port there"],
   ["T", "Label tool: click a point, then type the label (TeX such as $A_0$) in the panel and press Enter"],
   ["R", "Rotate the selected parts 90° counter-clockwise (or the part being placed)"],
@@ -1100,6 +1100,10 @@ export async function mount(root, options = {}) {
     if (wiring && !e.shiftKey) {
       const last = wiring.via.at(-1) ?? wiring.fromAt;
       at = Math.abs(at[0] - last[0]) >= Math.abs(at[1] - last[1]) ? [at[0], last[1]] : [last[0], at[1]];
+    } else if (wiring && !e.altKey) {
+      // A straight leg snaps to 45 degrees (annotations snap_degrees, editor data, can change it); Alt gives any angle.
+      const snap = Number(doc.groups?.snap_degrees ?? 45);
+      at = snapAngle(wiring.via.at(-1) ?? wiring.fromAt, at, snap);
     }
     return { kind: "point", at };
   }
@@ -1108,15 +1112,15 @@ export async function mount(root, options = {}) {
     const t = wireTarget(p, e);
     if (!wiring) {
       wiring = { from: t, fromAt: t.at, via: [], routes: [] };
-      status("Wire: click to add orthogonal corners; hold Shift while clicking for a straight leg. Click a pin, junction or wire to finish; click twice or press Enter to end here; Esc cancels.");
-      updateRubber(p, e.shiftKey);
+      status("Wire: click to add orthogonal corners; hold Shift while clicking for a straight leg (45-degree steps; Shift+Alt for any angle). Click a pin, junction or wire to finish; click twice or press Enter to end here; Esc cancels.");
+      updateRubber(p, e);
       return;
     }
     if (t.kind === "point") {
       if (same(t.at, wiring.via.at(-1) ?? wiring.fromAt)) return finishWire(t, e);
       wiring.via.push(t.at);
       wiring.routes.push(e.shiftKey ? "straight" : "auto");
-      updateRubber(p, e.shiftKey);
+      updateRubber(p, e);
       return;
     }
     finishWire(t, e);
@@ -1137,9 +1141,10 @@ export async function mount(root, options = {}) {
     render();
   }
 
-  function updateRubber(p, shiftKey = false) {
+  function updateRubber(p, mods = {}) {
     if (!wiring) { rubber = null; return; }
-    const t = wireTarget(p, { shiftKey });
+    const shiftKey = !!mods.shiftKey;
+    const t = wireTarget(p, { shiftKey, altKey: !!mods.altKey });
     rubber = route(endFor(wiring.from), endFor(t), wiring.via, null, [...wiring.routes, shiftKey ? "straight" : "auto"]);
     hover = t.kind !== "point" ? t.at : null;
     render();
@@ -1202,7 +1207,7 @@ export async function mount(root, options = {}) {
   // ---- commands ----------------------------------------------------------------------------
   const commands = {
     select: () => { setTool("select"); status("Select: click or drag a box; drag to move."); },
-    wire: () => { setTool("wire"); status("Wire: click a pin, junction, wire or empty grid point to start; hold Shift while drawing a straight leg."); },
+    wire: () => { setTool("wire"); status("Wire: click a pin, junction, wire or empty grid point to start; hold Shift for a straight leg at 45-degree steps, Shift+Alt for any angle."); },
     port: () => { setTool("port"); status("Port: click a point, a pin tip or a wire end."); },
     label: () => { setTool("label"); status("Label: click where the label goes."); },
     solder: () => { setTool("solder"); status("Solder dot: click the crossing to connect its wires."); },
@@ -2490,7 +2495,7 @@ export async function mount(root, options = {}) {
     if (tool === "select" && !drag) updateHoverWire(p);
     if (tool === "place" && placing) { ghost = { type: placing.type, at: snapPart(p), rotation: placing.rotation, params: placing.params }; render(); return; }
     if (tool === "wire") {
-      if (wiring) updateRubber(p, e.shiftKey);
+      if (wiring) updateRubber(p, e);
       else { const t = wireTarget(p, e); const h = t.kind !== "point" ? t.at : null; if (!same(h, hover)) { hover = h; render(); } }
     }
   });
