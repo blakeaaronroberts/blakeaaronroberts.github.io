@@ -48,7 +48,7 @@ Sync of 2026-11-19, 13:00 (Pacific). Facts only; work lives in the batches below
 
 ## Batches
 
-**Order of work (Blake, 2026-11-19).** R1.1 to R1.5 are merged. Next F24 (editor uses C14), then F23.1 (FSM plan, C15 is tagged), then F20, T2.3, F21.2 to F21.3, then F9 and F11 (simulator tag exists), then F8. F13 follows circuit-model C8; F22 follows C11 (engine memo); F23 follows circuit-model C15 and the R1 merge. A second site session may work L1, then L2, then L3, inside `tools/logic/` and `tools/equations/` only. Archived batches: `docs/handoff-archive.md`.
+**Order of work (Blake, 2026-11-19).** R1.1 to R1.5 are merged. Next F24 (editor uses C14), then F25 (hardening and records), then F23.1 (FSM plan, C15 is tagged), then F27 (figure fixes), then F20, T2.3, F21.2 to F21.3, then F9 and F11 (simulator tag exists), then F8. F13 follows circuit-model C8; F22 follows C11 (engine memo); F23 follows circuit-model C15 and the R1 merge. F26 runs before launch. A second site session may work L1, then L2, then L3, inside `tools/logic/` and `tools/equations/` only. Archived batches: `docs/handoff-archive.md`.
 
 | Batch | Intent | Status | Approved by Blake |
 |---|---|---|---|
@@ -73,6 +73,9 @@ Sync of 2026-11-19, 13:00 (Pacific). Facts only; work lives in the batches below
 | L2 | Converters from chapters 1 to 5 | Open | 2026-11-14 |
 | L3 | Equation library, core 100 to 300 level | Open | 2026-11-14 |
 | F24 | Editor uses scenario `initial` and `force` (circuit-model C14) instead of its own hand-set Frame 0 values | Open | 2026-11-19 |
+| F25 | Hardening and records from the 2026-11-20 reviews: CI gates, privacy scan, integrity hashes, housekeeping, licence table | Open | 2026-11-20 |
+| F26 | Self-host fonts, MathJax, WaveDrom and DigitalJS (before launch) | Open (before launch) | 2026-11-20 |
+| F27 | Figure fixes from the Aesthetic review: K-map page, DigitalJS plate, editor demo | Open | 2026-11-20 |
 | F23 | FSM tool: state diagram, transition table and equations kept in sync (waits for circuit-model C15) | Open | 2026-11-19 |
 | R1 | Reconcile the Copilot beta into modular tools: Schematic Editor (drawing pane) and Figure Editor (composite), one copy of the code, simulator from circuit-model | Open | 2026-11-19 |
 
@@ -348,7 +351,9 @@ Intent: finish the R1 simulator hand-over. Circuit-model C14 (tag `model-v0.8.0`
 |---|---|---|---|---|
 | F24.1 | Pin the newest circuit-model tag. Frame 0 hand-set Q on a stateful element writes `initial`; for a gate-level latch with no stored state the start is a `force` on that net for step 0 (as C14's `nand_latch_forced_start` example shows). A forced level in a later frame writes a `force` entry with `from` and `to`. Files saved before this change still load and are converted, nothing lost | Steward, approved by Blake 2026-11-19 | Open | |
 | F24.2 | Show forced stretches from `trace.forced` in the schematic and the timing pane (marked by more than colour); remove the editor's own forced-level and hand-set evaluation code; the import-boundary test still passes | Steward, approved by Blake 2026-11-19 | Open | |
-| F24.3 | Tests: latch with a hand-set start, a forced node feeding downstream gates, release returning to the driven value, an old file converted. One screenshot of the latch page. REVIEW STOP | Steward, approved by Blake 2026-11-19 | Open | |
+| F24.3 | Tests: latch with a hand-set start, a forced node feeding downstream gates, release returning to the driven value, an old file converted. One screenshot of the latch page. | Steward, approved by Blake 2026-11-19 | Open | |
+| F24.4 | Adapter fixes from the Code Review (reviews/site/code-review.md), each with a failing test first: re-pin to the newest circuit-model tag; `resolveLogic` returns and shows simulator warnings; when the 64-step history window trims, keep the replayed state as `initial` so a latch does not revert to X; pulse-only keys are added to the input keys so a pulsed clock gets its edge; `knownDriven` memoises only results computed without a cycle cut (test on a cross-coupled circuit); level tag and bus label no longer overlap | Steward, approved by Blake 2026-11-20 | Open | |
+| F24.5 | Handover: tests pass, privacy scan, report in 5 lines. REVIEW STOP | Steward, approved by Blake 2026-11-20 | Open | |
 
 ---
 
@@ -432,23 +437,41 @@ Intent: GitHub Copilot's Nov 15-16 work (see Current state) is kept in full, but
 
 ---
 
-## Reviews (Blake, 2026-11-13)
+### F25: Hardening and records from the reviews
 
-Four reviewer agents are report-only. Each runs on demand when Blake names it,
-reads this repository (and the live site where relevant), and writes only its
-own file `reviews/<agent>.md` here: date, then its top 10 findings ranked, each
-with file and line, why it matters, and a suggested fix. They never change code,
-docs, config or this file. The Steward triages findings into batches; Blake
-approves them.
+Intent: close the CI, privacy and record-keeping gaps the Security, Engineer and IP Inspector reported (`reviews/site/*.md`, private). Approved by Blake 2026-11-20. Branch protection on `main` is a GitHub setting only Blake can change; the builder must not claim it is done.
 
-| Agent | Looks for |
-|---|---|
-| security | Exposed private data (emails, phone numbers, CV files, student data), secrets and tokens, private-repo content leaking into public output, unsafe dependencies, web vulnerabilities (XSS in label and import paths, unsafe file parsing) |
-| engineer | Accuracy: logic, timing, symbols, pin placement and simulation results against the textbook behaviour; then features that are close to done |
-| aesthetic | Design consistency across the suite against the style files and the site theme; improvements using lightweight open-source tools only |
-| code-review | Correctness, duplication, dead code, test gaps and refactors, proposed as batches, never done directly |
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F25.1 | `publish.yml`: a test job (Quarto's Deno) that the build job needs, so failing tests stop the deploy; `permissions: contents: read` on build and `pages` and `id-token` only on deploy; every action pinned to a commit SHA; a privacy scan step that fails on phone numbers, `*_CV_*` files and any email other than the one Blake published, over the source and the rendered site; `.gitignore` widened for CVs and resumes (`*[Cc][Vv]*.pdf`, `*resume*`, `*.docx`) | Steward, approved by Blake 2026-11-20 | Open | |
+| F25.2 | Integrity hashes and `crossorigin="anonymous"` on the MathJax, WaveDrom and DigitalJS tags; where a loader cannot take a hash (the editor's dynamic MathJax import) say so in DECISIONS.md; `data-circuit` limited to same-site files. These are interim until F26 | Steward, approved by Blake 2026-11-20 | Open | |
+| F25.3 | Housekeeping: a test that recomputes each pinned copy's SHA-256 against its MANIFEST in CI; the model pin written in one place (`copy-model.js` reads `MODEL_PIN.json`); stale paths fixed in `copy-symbol-pack.js`, its manifest note and `test/run.js`; `tools/figure-editor-beta/` either carries `noindex` or is deleted (ask Blake) | Steward, approved by Blake 2026-11-20 | Open | |
+| F25.4 | `assets/wavedrom/lecture.js`: fonts changed to STIX Two Text and Fira Mono, and WaveDrom's MIT notice added as a third-party notice comment | Steward, approved by Blake 2026-11-20 | Open | |
+| F25.5 | Records in DECISIONS.md: a dated licence table (DigitalJS 0.14.2 BSD-2-Clause, WaveDrom 3.7.0 MIT, MathJax 4.1.3 Apache-2.0 with the mathjax-stix2 font OFL, IBM Plex, STIX Two and Fira Mono OFL, Quarto with Deno and Observable Plot, the IEEE CSL style CC BY-SA 3.0 used unmodified and kept separate); Blake's decisions of 2026-11-20 (the work email in early commits is accepted; AI commits keep the AI as author; the published circuit-model copies are accepted and their paths listed; planning documents stay public until launch; the shared Pages `localStorage` origin noted); an open item that co-author consent for the PLL project and the advisor's or IP office's OK for the CSNN project are not recorded yet (Blake confirms, the builder never writes them as done). REVIEW STOP | Steward, approved by Blake 2026-11-20 | Open | |
 
 ---
+
+### F26: Self-host third-party assets (before launch)
+
+Intent: the public pages stop calling outside services, so visitors' addresses go nowhere and every file has a recorded licence. Fonts (IBM Plex, STIX Two, Fira Mono as woff2 with their OFL texts), MathJax 4 with the mathjax-stix2 bundle, WaveDrom and DigitalJS move under `assets/`, pinned, with licence texts. Remove every CDN reference; remove the integrity-hash interim. Plan first and stop: sizes, where each file lives, how the Quarto build copies them. Approved by Blake 2026-11-20; runs before launch.
+
+---
+
+### F27: Figure fixes from the Aesthetic review
+
+Intent: make the first things a visitor sees consistent with the figure rules. No prose by the builder; figures and notation only. Approved by Blake 2026-11-20.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F27.1 | K-map page: the Q-bar in the timing figure uses the TeX signal name (`\overline{Q}`) instead of a combining character; the figure uses overbars like the text, not primes; `kmap.svg` regenerated from the role colours with outlined STIX Two glyphs and no literal hex colours; each loop labelled with its term or given its own dash pattern | Steward, approved by Blake 2026-11-20 | Open | |
+| F27.2 | DigitalJS plate: wire and port colours from `--fig-high` and `--fig-ink`, labels in the figure font, paper sized to the circuit | Steward, approved by Blake 2026-11-20 | Open | |
+| F27.3 | Editor demo: name the ports (A, B, Cin, S, Cout) and draw unselected port markers at full opacity. One screenshot of each changed page. REVIEW STOP | Steward, approved by Blake 2026-11-20 | Open | |
+
+---
+
+## Reviews (updated 2026-11-20)
+
+Five reviewers (security, engineer, code-review, aesthetic, ip-inspector) are report-only and run when Blake asks, before big milestones. They work from the private `reviews` repository, write only there (`<repo>/<agent>.md`) and never change this repository. Items Blake has decided are in `reviews/DECISIONS.md`. The Steward triages findings into batches; Blake approves.
 
 ## Notes for the Scribe
 
