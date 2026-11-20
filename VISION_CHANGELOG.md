@@ -2,6 +2,11 @@
 
 History of `VISION.md`. Newest first. Written by the Steward only.
 
+- 2026-11-19 (Blake): FSM tool approved. New `fsm` format in the interface
+  table (section 4) and an FSM tool among the products: state diagram, transition
+  table and next-state and output equations, kept in sync, sending a circuit and
+  a trace to the other tools.
+
 - 2026-11-19 (Blake): engine memo approved. SystemVerilog front end is slang
   (with Yosys and yosys-slang for behavioural code), run offline first and in the
   browser if a spike passes; no SystemVerilog simulator ships in Phase 1; Icarus

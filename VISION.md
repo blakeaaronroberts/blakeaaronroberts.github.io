@@ -89,7 +89,7 @@ Four layers; everything above layer 2 depends only on the core model.
    generators, lab checks.
 4. **Products.** Small tools that each work on their own page and also mount
    inside other tools through a documented interface: the Schematic Editor
-   (the drawing pane), the Timing Diagram, the logic tools; and composites built
+   (the drawing pane), the Timing Diagram, the logic tools, the FSM tool; and composites built
    from them, such as the Figure Editor (Schematic Editor, Timing Diagram and
    slide export together) and later the simulator. Then Explorations, Practice,
    Labs and the reference sites.
@@ -108,6 +108,7 @@ another repository's code directly.
 | `trace` | Every net's value at every step, produced by a simulator |
 | SystemVerilog | Source text in, source text out: import to a `circuit` (and `scenario`), export from a `circuit`; the language itself is the interface, handled by open-source front ends |
 | `function` | A Boolean function: truth table, expressions (SOP, POS, minimised), variable names |
+| `fsm` | A finite state machine: states, inputs, outputs, transitions with conditions, Moore or Mealy, reset state, state encoding |
 
 Each tool also exposes a small mount interface (load, save, change events) so a
 composite can embed it; every tool has its own page in the site's Tools menu.

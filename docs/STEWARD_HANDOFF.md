@@ -48,7 +48,7 @@ Sync of 2026-11-19, 13:00 (Pacific). Facts only; work lives in the batches below
 
 ## Batches
 
-**Order of work (Blake, 2026-11-19).** R1.1 (plan, stop) first; R1.2 and R1.3; R1.4 and R1.5 after circuit-model tags `model-v0.7.0` (C13). Then F20, T2.3, F21.2 to F21.3, then F9 and F11 (simulator tag exists), then F8. F13 follows circuit-model C8; F22 follows C11 (engine memo). A second site session may work L1, then L2, then L3, inside `tools/logic/` and `tools/equations/` only. Archived batches: `docs/handoff-archive.md`.
+**Order of work (Blake, 2026-11-19).** R1.1 (plan, stop) first; R1.2 and R1.3; R1.4 and R1.5 after circuit-model tags `model-v0.7.0` (C13). Then F20, T2.3, F21.2 to F21.3, then F9 and F11 (simulator tag exists), then F8. F13 follows circuit-model C8; F22 follows C11 (engine memo); F23 follows circuit-model C15 and the R1 merge. A second site session may work L1, then L2, then L3, inside `tools/logic/` and `tools/equations/` only. Archived batches: `docs/handoff-archive.md`.
 
 | Batch | Intent | Status | Approved by Blake |
 |---|---|---|---|
@@ -72,6 +72,7 @@ Sync of 2026-11-19, 13:00 (Pacific). Facts only; work lives in the batches below
 | L1 | Logic mini-tools: truth table, K-map, SOP and POS, Boolean solver | Open | 2026-11-14 |
 | L2 | Converters from chapters 1 to 5 | Open | 2026-11-14 |
 | L3 | Equation library, core 100 to 300 level | Open | 2026-11-14 |
+| F23 | FSM tool: state diagram, transition table and equations kept in sync (waits for circuit-model C15) | Open | 2026-11-19 |
 | R1 | Reconcile the Copilot beta into modular tools: Schematic Editor (drawing pane) and Figure Editor (composite), one copy of the code, simulator from circuit-model | Open | 2026-11-19 |
 
 ---
@@ -335,6 +336,22 @@ Intent: the finished editor and simulator speak SystemVerilog (VISION section 6,
 | F22.2 | Hierarchy: instantiate modules as blocks, open a block to see its inside | Steward, approved by Blake 2026-11-14 | Open | |
 | F22.3 | Export circuit as .sv module and testbench; download; round trip check on the course examples | Steward, approved by Blake 2026-11-14 | Open | |
 | F22.4 | Testbench or scenario drives the Timing pane through the simulator | Steward, approved by Blake 2026-11-14 | Open | |
+
+---
+
+### F23: FSM tool
+
+Intent: a standalone tool, one job: describe a finite state machine as a state diagram, a transition table or next-state and output equations, and edit any of the three while the others follow. Reads and writes the `fsm` format (circuit-model C15, tag `model-v0.9.0`); all conversions and simulation come from circuit-model, never reimplemented here. Follows the tool rules in VISION section 4: own page under `tools/fsm/`, a Tools-menu entry, the standard mount interface, import-boundary test. Approved by Blake 2026-11-19. Waits for C15 and for R1 to be merged.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F23.1 | Plan, no code: file layout, mount interface, how the three views stay in sync, state-diagram layout approach (automatic first placement, then drag), edge routing for curved arrows and self-loops, labels through MathJax. REVIEW STOP | Steward, approved by Blake 2026-11-19 | Open | |
+| F23.2 | Transition table view and equations view (editable), encoding and flip-flop choices, Moore and Mealy | Steward, approved by Blake 2026-11-19 | Open | |
+| F23.3 | State diagram view: draw and edit states and arrows, conditions on arrows, outputs on states or arrows; three views in sync; errors from C15 shown against the state and input combination | Steward, approved by Blake 2026-11-19 | Open | |
+| F23.4 | Run it: step through inputs, highlight the current state, trace to the Timing Diagram; send the circuit to the Figure Editor; download the diagram as SVG in the default theme; `fsm` file download and upload | Steward, approved by Blake 2026-11-19 | Open | |
+| F23.5 | README stub, tests, REVIEW STOP | Steward, approved by Blake 2026-11-19 | Open | |
+
+Later, not queued: state minimisation, encoding comparison, SystemVerilog `case` export and recovery (with C11), a state-diagram animation in the toolbox.
 
 ---
 
