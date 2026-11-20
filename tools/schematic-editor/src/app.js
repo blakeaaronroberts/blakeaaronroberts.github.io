@@ -460,6 +460,7 @@ export async function mount(root, options = {}) {
 
   /** The status line. An error is bold and announced at once, and stays until the next message. */
   let statusRevision = 0;
+  let lastLabelProblems = "";
   const status = (msg, error = false) => {
     emit("status", { text: msg, error });
     statusRevision++;
@@ -647,7 +648,14 @@ export async function mount(root, options = {}) {
     if (document.activeElement !== titleInput) titleInput.value = doc.title ?? "";
     renderProps();
     const warnings = [...loadWarnings, ...D.lint(doc, pack)];
-    if (lastDrawing) warnings.push(...lastDrawing.problems.filter((p) => !p.endsWith("not typeset yet")));
+    const labelProblems = lastDrawing ? lastDrawing.problems.filter((p) => !p.endsWith("not typeset yet")) : [];
+    warnings.push(...labelProblems);
+    // A label that cannot be drawn is left out of the drawing: say so in the status line, once per new set of problems.
+    const labelKey = labelProblems.join("; ");
+    if (labelKey !== lastLabelProblems) {
+      lastLabelProblems = labelKey;
+      if (labelProblems.length) status(`Not drawn: ${labelProblems.join("; ")}.`, true);
+    }
     $(".fe-warnings ul").innerHTML = warnings.map((w) => `<li>${esc(w)}</li>`).join("");
     $(".fe-warnings").hidden = !warnings.length;
     if (lastDrawing) {

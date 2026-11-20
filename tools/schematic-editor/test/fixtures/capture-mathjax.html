@@ -79,6 +79,9 @@ const LIST = [
   "K",
   "\\int",
   "\\text{4}",
+  "\\overline{S}",
+  "\\overline{R}",
+  "\\overline{Q}",
 ];
 // As the editor does (src/mathjax.js): load the dynamic glyph files, typeset synchronously, and insist on a
 // single <svg> per label (with line breaking on, MathJax would split "A + B" into several).
@@ -86,7 +89,7 @@ MathJax.startup.promise.then(async () => {
   await MathJax.startup.output.font.loadDynamicFiles();
   const out = {};
   for (const tex of LIST) {
-    const svgs = MathJax.tex2svg(tex, { display: false }).querySelectorAll("svg");
+    const svgs = MathJax.tex2svg(tex, { display: false }).querySelectorAll(":scope > svg");
     if (svgs.length !== 1) throw new Error(JSON.stringify(tex) + ": " + svgs.length + " svg elements");
     out[tex] = new XMLSerializer().serializeToString(svgs[0]);
   }

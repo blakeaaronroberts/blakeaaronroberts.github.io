@@ -42,7 +42,7 @@ export function loadMathJax() {
 /** Typeset one TeX string to SVG text (or throw MathJax's error). */
 function tex2svgText(MathJax, tex) {
   const node = MathJax.tex2svg(tex, { display: false });
-  const svgs = node.querySelectorAll("svg");
+  const svgs = node.querySelectorAll(":scope > svg");   // MathJax 4 nests an <svg> for a stretched piece (the bar of overline)
   if (svgs.length !== 1) throw new Error(svgs.length ? "MathJax broke the label over several lines" : "MathJax produced no SVG");
   return new XMLSerializer().serializeToString(svgs[0]);
 }
