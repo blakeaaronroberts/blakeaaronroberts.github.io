@@ -48,7 +48,7 @@ Sync of 2026-11-19, 13:00 (Pacific). Facts only; work lives in the batches below
 
 ## Batches
 
-**Order of work (Blake, 2026-11-19).** R1.1 (plan, stop) first; R1.2 and R1.3; R1.4 and R1.5 after circuit-model tags `model-v0.7.0` (C13). Then F20, T2.3, F21.2 to F21.3, then F9 and F11 (simulator tag exists), then F8. F13 follows circuit-model C8; F22 follows C11 (engine memo); F23 follows circuit-model C15 and the R1 merge. A second site session may work L1, then L2, then L3, inside `tools/logic/` and `tools/equations/` only. Archived batches: `docs/handoff-archive.md`.
+**Order of work (Blake, 2026-11-19).** R1.1 to R1.5 are merged. Next F24 (editor uses C14), then F23.1 (FSM plan, C15 is tagged), then F20, T2.3, F21.2 to F21.3, then F9 and F11 (simulator tag exists), then F8. F13 follows circuit-model C8; F22 follows C11 (engine memo); F23 follows circuit-model C15 and the R1 merge. A second site session may work L1, then L2, then L3, inside `tools/logic/` and `tools/equations/` only. Archived batches: `docs/handoff-archive.md`.
 
 | Batch | Intent | Status | Approved by Blake |
 |---|---|---|---|
@@ -72,6 +72,7 @@ Sync of 2026-11-19, 13:00 (Pacific). Facts only; work lives in the batches below
 | L1 | Logic mini-tools: truth table, K-map, SOP and POS, Boolean solver | Open | 2026-11-14 |
 | L2 | Converters from chapters 1 to 5 | Open | 2026-11-14 |
 | L3 | Equation library, core 100 to 300 level | Open | 2026-11-14 |
+| F24 | Editor uses scenario `initial` and `force` (circuit-model C14) instead of its own hand-set Frame 0 values | Open | 2026-11-19 |
 | F23 | FSM tool: state diagram, transition table and equations kept in sync (waits for circuit-model C15) | Open | 2026-11-19 |
 | R1 | Reconcile the Copilot beta into modular tools: Schematic Editor (drawing pane) and Figure Editor (composite), one copy of the code, simulator from circuit-model | Open | 2026-11-19 |
 
@@ -336,6 +337,18 @@ Intent: the finished editor and simulator speak SystemVerilog (VISION section 6,
 | F22.2 | Hierarchy: instantiate modules as blocks, open a block to see its inside | Steward, approved by Blake 2026-11-14 | Open | |
 | F22.3 | Export circuit as .sv module and testbench; download; round trip check on the course examples | Steward, approved by Blake 2026-11-14 | Open | |
 | F22.4 | Testbench or scenario drives the Timing pane through the simulator | Steward, approved by Blake 2026-11-14 | Open | |
+
+---
+
+### F24: Editor hands Frame 0 and forced levels to the simulator
+
+Intent: finish the R1 simulator hand-over. Circuit-model C14 (tag `model-v0.8.0`; C15 is tagged `model-v0.9.0`, pin the newest) gave `scenario` two fields, `initial` (start state of flip-flops and latches) and `force` (a net held at a level over a range of steps), and `trace.forced` (forced stretches). The Schematic Editor stops keeping private hand-set values and forced levels and writes them into those fields; the simulator remains the only source of behaviour. Approved by Blake 2026-11-19.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F24.1 | Pin the newest circuit-model tag. Frame 0 hand-set Q on a stateful element writes `initial`; for a gate-level latch with no stored state the start is a `force` on that net for step 0 (as C14's `nand_latch_forced_start` example shows). A forced level in a later frame writes a `force` entry with `from` and `to`. Files saved before this change still load and are converted, nothing lost | Steward, approved by Blake 2026-11-19 | Open | |
+| F24.2 | Show forced stretches from `trace.forced` in the schematic and the timing pane (marked by more than colour); remove the editor's own forced-level and hand-set evaluation code; the import-boundary test still passes | Steward, approved by Blake 2026-11-19 | Open | |
+| F24.3 | Tests: latch with a hand-set start, a forced node feeding downstream gates, release returning to the driven value, an old file converted. One screenshot of the latch page. REVIEW STOP | Steward, approved by Blake 2026-11-19 | Open | |
 
 ---
 
