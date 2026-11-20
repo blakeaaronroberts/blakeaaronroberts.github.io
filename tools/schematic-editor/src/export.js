@@ -18,7 +18,7 @@ import { dots, joints } from "./junctions.js";
 import { colourNodes, emModules, labelItems, levelTagTex, packLabelPt, placeLabel, REFERENCE_TEX } from "./labels.js";
 import { attr, walk, writeXml } from "./xml.js";
 import { frameTex, gridShape, levelTagStyleOf, SIDES } from "./levelframes.js";
-import { resolveLogic } from "./logic.js";
+import { resolveLogic } from "./simlevels.js";
 
 export class ExportError extends Error {}
 

@@ -24,7 +24,7 @@ import { checkedBackdrop, circuitFromSvg, sanitizeSvg, MAX_SVG_BYTES } from "./s
 import { orient } from "./geometry.js";
 import { namedNetNames, parseTruthTable, truthTable } from "./demo.js";
 import { framesFromSignals, levelTagStyleOf, setCalculatedFrames, setLevelTagStyle, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, ensureFrameZero, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame, targetsOf } from "./levelframes.js";
-import { drivenWireIds, logicModeOf, resolveLogic, setLogicMode, timingCalculator } from "./logic.js";
+import { calculateSteps, drivenWireIds, logicModeOf, resolveLogic, setLogicMode } from "./simlevels.js";
 import { migrateR1 } from "./migrate.js";
 
 // Browser storage keys, set by mount() from options.storage (the tool's own prefix: "schematic-editor/" on its page,
@@ -1612,32 +1612,31 @@ export async function mount(root, options = {}) {
     if (logicModeOf(doc) !== "calculated") return status("Enable calculated logic levels before calculating timing.", true);
     const signals = timingTool.getSignals();
     if (!signals.length) return status("Add timing signals before calculating.", true);
-    const shifted = signals.find((signal) => signal.period !== 1 || signal.phase || signal.delay);
-    if (shifted) return status(`Calculation needs period 1 and zero phase and delay: ${shifted.name}.`, true);
+    // Behaviour is circuit-model's simulator (simlevels.js). What it cannot calculate: a level that changes inside a step
+    // (a fractional period or shift: each frame holds one level per step), and a calculated signal drawn with a period
+    // or a shift (its calculated cells are its own wave characters).
+    const inexact = signals.find((signal) => signal.exact === false);
+    if (inexact) return status(`Cannot calculate with ${inexact.name}: with period ${inexact.period}, phase ${inexact.phase || 0} and delay ${inexact.delay || 0} its level changes inside a step, and a frame holds one level per step.`, true);
     const nets = D.deriveNets(doc, pack);
     const synced = framesFromSignals(doc, nets, signals, pack).doc;
-    const frames = framesOf(synced), results = [];
-    let problem = null;
+    const driven = drivenWireIds(synced, pack);
+    const shiftedOutput = signals.find((signal) => (signal.period !== 1 || signal.phase || signal.delay) && targetsOf(synced, nets, signal.name, pack).wires.some((id) => driven.has(id)));
+    if (shiftedOutput) return status(`Cannot calculate ${shiftedOutput.name}: a calculated signal needs period 1 and zero phase and delay.`, true);
+    const frames = framesOf(synced);
+    let problem = null, results = [];
     try {
-      const calculator = timingCalculator(synced, pack, frames[0].levels);
-      for (let i = 1; i < frames.length; i++) {
-        const frame = frames[i], manual = { ...frame.levels };
+      const levels = frames.map((frame) => {
+        const manual = { ...frame.levels };
         for (const [id, level] of Object.entries(frame.calculated ?? {})) if (manual[id] === level) delete manual[id];
-        const pulseIds = signals.filter((signal) => signal.pulses[i - 1]).flatMap((signal) => {
-          const target = targetsOf(synced, nets, signal.name, pack);
-          return [...target.wires, ...target.ports];
-        });
-        const generated = calculator.step(manual, (reason) => {
-          while (true) {
-            const answer = window.prompt(`${reason}\nChoose Q: 0, 1, or X. Cancel stops calculation.`, "X");
-            if (answer === null) return null;
-            const level = answer.trim().toUpperCase();
-            if (["0", "1", "X"].includes(level)) return level;
-          }
-        }, pulseIds);
-        if (generated === null) { problem = "Calculation cancelled."; break; }
-        results.push(generated);
-      }
+        return manual;
+      });
+      const pulses = frames.slice(1).map((_, i) => signals.filter((signal) => signal.pulses[i]).flatMap((signal) => {
+        const target = targetsOf(synced, nets, signal.name, pack);
+        return [...target.wires, ...target.ports];
+      }));
+      const run = calculateSteps(synced, pack, levels, pulses);
+      results = run.results;
+      if (run.warnings.length) problem = `Feedback did not settle in ${run.warnings.length === 1 ? "one step" : `${run.warnings.length} steps`}; those outputs are X.`;
     } catch (error) {
       problem = `Calculation stopped: ${error.message}`;
     }
@@ -1660,7 +1659,7 @@ export async function mount(root, options = {}) {
       if (Object.keys(updates).length) timingTool.setCalculatedLevels(updates);
       renderFrames();
     }
-    status(problem ? `${problem} Kept ${results.length} completed timing steps.` : `Calculated ${results.length} timing steps.`, !!problem);
+    status(problem ? `Calculated ${results.length} timing steps. ${problem}` : `Calculated ${results.length} timing steps.`, !!problem);
   }
   function selectTimingFrame(step) {
     if (!Number.isInteger(step) || step < 0) return;
