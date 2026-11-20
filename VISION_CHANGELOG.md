@@ -2,6 +2,13 @@
 
 History of `VISION.md`. Newest first. Written by the Steward only.
 
+- 2026-11-19 (Blake): engine memo approved. SystemVerilog front end is slang
+  (with Yosys and yosys-slang for behavioural code), run offline first and in the
+  browser if a spike passes; no SystemVerilog simulator ships in Phase 1; Icarus
+  Verilog and Verilator are CI reference checks only; analog is ngspice in
+  WebAssembly in Phase 3. The engines item leaves section 9; section 4 points to
+  the memo.
+
 - 2026-11-19 (Blake): tools are modular. The Schematic Editor is the drawing
   pane, the Figure Editor is the composite (schematic, timing, slides); every
   tool has its own page in the Tools menu and a mount interface so composites

@@ -124,7 +124,7 @@ delays as an option. SystemVerilog arrives with it: the simulator runs the circu
 SystemVerilog import and export described in Phase 1 use proven open-source front
 ends and engines. Then analog (SPICE-class) simulation,
 using proven open-source engines compiled to run in the browser where that is
-practical, unless the engine research memo shows a better path. We do not write
+practical (engine choices: `proposals/engine-memo.md` in the site repository, approved by Blake 2026-11-19). We do not write
 our own Verilator or SPICE.
 
 ## 5. Repository map
@@ -264,5 +264,4 @@ and where to stop.
 
 - Ownership and licence (both doors open, section 3).
 - The suite's real name.
-- Engines for SystemVerilog import, simulation and analog (research memo; decides the front end and the browser route).
 - FERPA confirmation against the institution's own guidance (research memo).

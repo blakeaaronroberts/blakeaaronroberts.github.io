@@ -29,7 +29,7 @@ Sync of 2026-11-19, 13:00 (Pacific). Facts only; work lives in the batches below
 
 **Waiting**
 - Blake: decide how to reconcile the Copilot beta (proposed batch R1) and this week's priorities.
-- Site builder: nothing started until Blake names a batch. Open: F20, F21.2 to F21.3, T2.3, F22 (blocked on C11), L1 to L3 (C10 is tagged model-v0.6.0, so L1 is unblocked).
+- Site builder: nothing started until Blake names a batch. Open: F20, F21.2 to F21.3, T2.3, F22 (blocked on C11; engines decided 2026-11-19, see proposals/engine-memo.md), L1 to L3 (C10 is tagged model-v0.6.0, so L1 is unblocked).
 - Scribe: the nine queued notes, plus v2 documentation if not yet done.
 - Several Batches table rows are stale; step statuses are the truth.
 
@@ -68,7 +68,7 @@ Sync of 2026-11-19, 13:00 (Pacific). Facts only; work lives in the batches below
 | F19 | Slide export: sizes, regions, layouts, parts and whole | Open | 2026-11-14 |
 | F20 | Frames: frame window or playhead, per-frame export | Open | 2026-11-14 |
 | F21 | N-input and N-output variants and a calmer Elements pane | Open | 2026-11-14 |
-| F22 | SystemVerilog in the Figure Editor (blocked on C11) | Open | 2026-11-14 |
+| F22 | SystemVerilog in the Figure Editor (blocked on C11; import runs in the browser only if the C11.0 spike passes, otherwise the editor loads the importer's JSON) | Open | 2026-11-14 |
 | L1 | Logic mini-tools: truth table, K-map, SOP and POS, Boolean solver | Open | 2026-11-14 |
 | L2 | Converters from chapters 1 to 5 | Open | 2026-11-14 |
 | L3 | Equation library, core 100 to 300 level | Open | 2026-11-14 |
