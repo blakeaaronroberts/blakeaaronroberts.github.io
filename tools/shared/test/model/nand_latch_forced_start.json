@@ -1,0 +1,17 @@
+{
+  "schema": "scenario/0.2",
+  "id": "nand_latch_forced_start",
+  "title": "NAND latch started at Q = 1 by holding Q for step 0, then reset",
+  "circuit": "examples/nand_sr_latch.json",
+  "circuit_id": "nand_sr_latch",
+  "inputs": ["Sn", "Rn"],
+  "force": [
+    { "net": "Q", "level": "1", "from": 0, "to": 0 }
+  ],
+  "steps": [
+    { "label": "Q held at 1", "duration": 1, "values": { "Sn": "1", "Rn": "1" } },
+    { "label": "released: the latch keeps 1", "duration": 1, "values": {} },
+    { "label": "reset", "duration": 1, "values": { "Rn": "0" } },
+    { "label": "hold", "duration": 1, "values": { "Rn": "1" } }
+  ]
+}

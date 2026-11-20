@@ -28,6 +28,32 @@
       "items": { "$ref": "#/$defs/change" },
       "description": "Every change of level, from the all-X start, sorted by time. With zero delay all of a step's changes happen at its start time."
     },
+    "forced": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/forced" },
+      "description": "Optional. The nets the scenario forced and the steps (inclusive) over which they were held, so renderers can mark forced stretches. The step values and changes already record the forced level."
+    },
+    "state": {
+      "type": "object",
+      "required": ["fsm", "bits", "codes", "names"],
+      "additionalProperties": false,
+      "properties": {
+        "fsm": { "$ref": "#/$defs/id", "description": "Id of the fsm the circuit was built from." },
+        "bits": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/signal" }, "description": "The state bit signals, most significant first." },
+        "codes": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/id" },
+          "additionalProperties": { "type": "string", "pattern": "^[01]+$" },
+          "description": "State id to code."
+        },
+        "names": {
+          "type": "array",
+          "items": { "oneOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+          "description": "The state at the end of each step: the id whose code the bits hold, or null when they hold no state's code (X, or an unused code)."
+        }
+      },
+      "description": "Optional, for a circuit built from an fsm: the state name at every step, so renderers can label it."
+    },
     "warnings": {
       "type": "array",
       "items": { "$ref": "#/$defs/warning" },
@@ -57,6 +83,16 @@
           "additionalProperties": { "$ref": "#/$defs/level" },
           "description": "Level of every signal at the end of the step (after everything has settled or the step's time has run out)."
         }
+      }
+    },
+    "forced": {
+      "type": "object",
+      "required": ["net", "from", "to"],
+      "additionalProperties": false,
+      "properties": {
+        "net": { "$ref": "#/$defs/id" },
+        "from": { "type": "integer", "minimum": 0 },
+        "to": { "type": "integer", "minimum": 0 }
       }
     },
     "change": {

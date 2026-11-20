@@ -140,6 +140,11 @@ export function createView(svg, basePack) {
       const w = d.wires.find((x) => x.id === state.hoverWire);
       if (w) o.push(`<path stroke="${roles.accent}" stroke-opacity="0.22" stroke-width="${fmt(lw * 4)}" stroke-linejoin="round" stroke-linecap="round" d="${pathData(w.points)}"/>`);
     }
+    // Wires the simulator held by a scenario force in this frame (F24): a dashed halo, so the mark is a pattern, not only a colour.
+    for (const id of state.forced ?? []) {
+      const w = d.wires.find((x) => x.id === id);
+      if (w) o.push(`<path data-forced="${w.id}" stroke="${roles.accent}" stroke-opacity="0.6" stroke-width="${fmt(lw * 3)}" stroke-dasharray="${fmt(lw * 1.5)} ${fmt(lw * 1.5)}" stroke-linecap="butt" fill="none" d="${pathData(w.points)}"><title>Forced by the scenario in this frame</title></path>`);
+    }
     // Ports have no symbol of their own: the editor marks them (never exported) so they can be found and selected.
     for (const p of state.doc.ports) {
       const [x, y] = toSvg(p.at);

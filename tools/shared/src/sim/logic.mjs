@@ -110,10 +110,11 @@ const UNKNOWN = { q: "X", Q: "X", Qn: "X" };
  * "X" when the change might be an edge (for rising: 0 to X, or X to 1). A clock
  * that has not changed is never an edge, so re-evaluating at one instant is safe.
  */
-function edgeOf(state, clk, falling) {
+function edgeOf(state, clk, falling, start = false) {
   const before = state.clk;
   const now = read(clk);
   state.clk = now;
+  if (start) return "0"; // leaving the all-X start at time 0 is not an edge
   const [from, to] = falling ? ["1", "0"] : ["0", "1"];
   if (before === now) return "0";
   if (before === from && now === to) return "1";
@@ -169,8 +170,8 @@ function flipflop(dataPins, next, controls = LOW_CONTROLS) {
     sequential: true,
     check: (e) => oneOf(e, "edge", ["rising", "falling"]),
     init: () => ({ q: "X", clk: "X" }),
-    evaluate: (inputs, state, params) => {
-      const edge = edgeOf(state, inputs.CLK, params.edge === "falling");
+    evaluate: (inputs, state, params, ctx = {}) => {
+      const edge = edgeOf(state, inputs.CLK, params.edge === "falling", ctx.start === true);
       const levels = { q: state.q, edge, CE: inputs.CE };
       for (const p of [...dataPins, ...controls.pins]) levels[p] = inputs[p];
       const rule = (b) => controls.apply(b, () => qOut(b.edge === "1" && b.CE === "1" ? next(b) : b.q));
@@ -214,6 +215,11 @@ export const MODELS = {
     outputs: ["S", "Cout"],
     evaluate: ({ A, B, Cin }) => ({ S: xor(A, B, Cin), Cout: majority(A, B, Cin) }),
   },
+
+  // Power symbols: a constant 1 and a constant 0 on pin 1 (so a pin tied to
+  // VCC or GND in an imported schematic simulates as tied).
+  vdd: { inputs: [], outputs: ["1"], evaluate: () => ({ 1: "1" }) },
+  ground: { inputs: [], outputs: ["1"], evaluate: () => ({ 1: "0" }) },
 
   // SR latch. params.active "high" (default, the NOR latch: S and R are
   // active-high) or "low" (the NAND latch: S and R are active-low). Optional EN

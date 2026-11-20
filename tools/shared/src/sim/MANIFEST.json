@@ -1,26 +1,26 @@
 {
   "note": "Written by tools/shared/scripts/copy-model.js. Do not edit this folder by hand.",
   "source": "circuit-model",
-  "ref": "model-v0.7.0",
-  "commit": "b1a9a08a07b458c9f96bea169b8a97f0462e269a",
+  "ref": "model-v0.9.0",
+  "commit": "c57e6900e23bfb424e435a8d9a611900d9d5f137",
   "files": [
     {
       "name": "simulate.mjs",
       "from": "sim/simulate.mjs",
-      "bytes": 12939,
-      "sha256": "096c57438648410e250219916b6b3c18534f7d5e84f4cb9202e0a4389190bcd7"
+      "bytes": 15547,
+      "sha256": "c34dc1455be639979a331cde6d25174ee7b82506c0ebdfbe61bcd65053daae40"
     },
     {
       "name": "logic.mjs",
       "from": "sim/logic.mjs",
-      "bytes": 10309,
-      "sha256": "10e662fdf603db6d6713d41ccb674d993de9b598fa3368a6cbec2e2b8dd4fecf"
+      "bytes": 10711,
+      "sha256": "cf85dc8a279293f072738dbc93d1cc23a05d892bf92385127fe81cd2cf592980"
     },
     {
       "name": "README.md",
       "from": "sim/README.md",
-      "bytes": 2526,
-      "sha256": "3a44ef4accdfeeb87fb2d995e052a72e907004d882709fe75576aa0a99627dca"
+      "bytes": 2950,
+      "sha256": "8cc14c54ef14fc4cee326a39c0cc28690f878d9b8d11ac6f3057e091c1c3754a"
     }
   ]
 }

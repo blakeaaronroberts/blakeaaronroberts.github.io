@@ -2010,9 +2010,12 @@ scenarios.sequentialTiming = async (ctx) => {
       status: document.querySelector(".fe-status").textContent
     }))()`);
     const lane = (name) => level.source.signal.find((signal) => signal.name === name);
-    // Simulator (R1.4): Frame 0 is the first step and its hand-set Q is not state, so Q is X until the first rising edge.
-    res.push([lane("Q")?.wave === "x111" && lane("Qn")?.wave === "x000", `0/1 clocks calculate the expected Q and complement (${JSON.stringify(level)})`]);
-    res.push([level.frames.slice(1).map((frame) => frame.levels.wq).join("") === "X111", "calculated values populate the schematic frames"]);
+    // F24: the file is from before F24, so its hand-set Frame 0 Q = 0 is converted to the flip-flop's scenario initial
+    // state, and Q starts at 0 until the first rising edge loads D = 1.
+    const record = JSON.parse(initialDocument).annotations?.["schematic-editor"]?.scenario;
+    res.push([record?.initial?.ff === "0", `an old file's hand-set Frame 0 Q becomes scenario initial (${JSON.stringify(record)})`]);
+    res.push([lane("Q")?.wave === "0111" && lane("Qn")?.wave === "1000", `0/1 clocks calculate the expected Q and complement (${JSON.stringify(level)})`]);
+    res.push([level.frames.slice(1).map((frame) => frame.levels.wq).join("") === "0111", "calculated values populate the schematic frames"]);
 
     await page.eval(`(() => {
       const cell = document.querySelector('[data-s="2"] [data-step="1"]');
@@ -2065,6 +2068,7 @@ scenarios.sequentialTiming = async (ctx) => {
     await page.eval(`(() => {
       const doc = JSON.parse(${JSON.stringify(initialDocument)});
       doc.annotations["schematic-editor"].frames[0].levels = {};
+      delete doc.annotations["schematic-editor"].scenario;   // no hand-set start at all
       window.figureEditor.load(JSON.stringify(doc));
       window.__prompts = 0;
       window.prompt = () => { window.__prompts++; return "1"; };   // never asked now
@@ -2087,7 +2091,7 @@ scenarios.sequentialTiming = async (ctx) => {
       prompts: window.__prompts
     }))()`);
     const q = cancelled.source.signal.find((s) => s.name === "Q")?.wave;
-    res.push([cancelled.prompts === 0 && q === "xxx0" && cancelled.frames[4].levels.wq === "0" && cancelled.status.includes("Calculated 4"), `an unknown D at an edge gives X, no prompt; the next known edge sets Q (${JSON.stringify({ q, status: cancelled.status })})`]);
+    res.push([cancelled.prompts === 0 && q === "0xx0" && cancelled.frames[4].levels.wq === "0" && cancelled.status.includes("Calculated 4"), `an unknown D at an edge gives X, no prompt; the next known edge sets Q (${JSON.stringify({ q, status: cancelled.status })})`]);
     await source([{ name: "D", wave: "1111" }, { name: "CLK", wave: "pp", period: 2 }]);
     await page.eval(`document.querySelector('[data-do="calculate-timing"]').click()`);
     const slow = await page.eval(`JSON.parse(localStorage.getItem("timing-diagram/source")).signal.find((s) => s.name === "Q")?.wave`);

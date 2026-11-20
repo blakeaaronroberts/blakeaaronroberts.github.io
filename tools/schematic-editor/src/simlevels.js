@@ -1,4 +1,4 @@
-// Calculated logic levels from circuit-model's simulator (R1.4; pinned copy in tools/shared/src/sim/, tag model-v0.7.0).
+// Calculated logic levels from circuit-model's simulator (R1.4; pinned copy in tools/shared/src/sim/, tag in MODEL_PIN.json).
 // No DOM. Copilot's evaluator (logic.js, sequential.js) was retired after the parity suite passed (commit 902f74e).
 //
 // The adapter:
@@ -11,10 +11,13 @@
 //   (logic_history), kept only for circuits that can store a level (a sequential element or feedback).
 // - Timing (calculateSteps): Frame 0 is the first step and sets state the way hardware would; each timing step is one
 //   scenario step; a clock pulse is two steps (0, then 1).
+// - A level set by hand on a driven net is not evaluated here (F24): scenario.js records it as scenario/0.2 `initial`
+//   or `force`, and the simulator applies it; the trace's `forced` says which nets were held in which frames.
 
 import { simulate } from "../../shared/src/sim/simulate.mjs";
 import { MODELS } from "../../shared/src/sim/logic.mjs";
 import { clone, deriveNets, wiresForRefs } from "./doc.js";
+import { liveScenario } from "./scenario.js";
 
 const GENERATED = "logic_generated_levels";
 const MODE = "logic_mode";
@@ -125,9 +128,11 @@ function byKey(net, driven, levels) {
 
 /**
  * Run the simulator. `steps` is a list of { key: level } maps for undriven nets (an input missing from a step floats, Z);
- * `pulses[i]` (a Set of keys) makes those inputs a pulse in step i: 0, then 1. Returns, per step, a Map of every net's level.
+ * `pulses[i]` (a Set of keys) makes those inputs a pulse in step i: 0, then 1. `hand` is the scenario record from
+ * liveScenario(): `initial` by element id, and `force` entries { id, level, from, to } in these steps' indices.
+ * Returns, per step, a Map of every net's level, and `forced[i]`, the Set of net keys held in step i.
  */
-function run(sim, steps, pulses = []) {
+function run(sim, steps, pulses = [], hand = { initial: {}, force: [] }) {
   const inputKeys = [...new Set(steps.flatMap((s) => [...s.keys()]))];
   const portOf = new Map(inputKeys.map((key, i) => [key, `in${i}`]));
   const circuit = clone(sim.circuit);
@@ -135,8 +140,9 @@ function run(sim, steps, pulses = []) {
     circuit.ports.push({ id: port, dir: "in" });
     circuit.nets[sim.netId.get(key)].push(port);
   }
-  const scenarioSteps = [], report = [];
+  const scenarioSteps = [], report = [], first = [];
   steps.forEach((step, i) => {
+    first.push(scenarioSteps.length);
     const values = Object.fromEntries(inputKeys.map((key) => [portOf.get(key), step.get(key) ?? "Z"]));
     const pulse = pulses[i] ?? new Set();
     if ([...pulse].some((key) => portOf.has(key))) {
@@ -146,9 +152,17 @@ function run(sim, steps, pulses = []) {
     scenarioSteps.push({ duration: 1, values });
     report.push(scenarioSteps.length - 1);
   });
-  const trace = simulate(circuit, { schema: "scenario/0.1", id: "editor", circuit: circuit.id, inputs: [...portOf.values()], steps: scenarioSteps });
+  const force = hand.force.filter((f) => f.from < steps.length).map((f) => ({
+    net: sim.netId.get(hand.net.keyOf(f.id)), level: f.level, from: first[f.from], to: report[Math.min(f.to, steps.length - 1)],
+  })).filter((f) => f.net);
+  const initial = Object.fromEntries(Object.entries(hand.initial).filter(([id]) => sim.circuit.elements.some((e) => e.id === id)));
+  const scenario = { schema: "scenario/0.2", id: "editor", circuit: circuit.id, inputs: [...portOf.values()], steps: scenarioSteps };
+  if (Object.keys(initial).length) scenario.initial = initial;
+  if (force.length) scenario.force = force;
+  const trace = simulate(circuit, scenario);
   const levels = report.map((j) => new Map([...sim.keyOfNet].map(([id, key]) => [key, trace.steps[j].values[id]])));
-  return { levels, warnings: trace.warnings ?? [] };
+  const forced = report.map((j) => new Set((trace.forced ?? []).filter((f) => f.from <= j && j <= f.to).map((f) => sim.keyOfNet.get(f.net))));
+  return { levels, forced, warnings: trace.warnings ?? [] };
 }
 
 /** The driven nets that depend on at least one input with a level: the rest stay uncoloured until a value is known. */
@@ -238,9 +252,12 @@ export function resolveLogic(doc, pack) {
   const steps = history.map(keyed);
   let ids = history;
   if (!sameStep(steps.at(-1), keyed(current))) { ids = [...history, current].slice(-HISTORY_STEPS); }
-  const { levels } = run(sim, ids.map(keyed));
+  // Frame 0's hand-set levels start the history: initial state, and forces held for its first step.
+  const live = liveScenario(base, pack, 1);
+  const hand = { net: sim.net, initial: live.initial, force: live.force.map((f) => ({ ...f, from: 0, to: 0 })) };
+  const { levels } = run(sim, ids.map(keyed), [], hand);
   const last = levels.at(-1);
-  const generated = idsOf(base, sim, last, knownDriven(sim, keyed(current)));
+  const generated = idsOf(base, sim, last, knownDriven(sim, new Map([...keyed(current), ...handKeys(sim, hand)])));
   const next = clone(base);
   for (const wire of next.wires) {
     if (!sim.driven.has(sim.net.wireNet.get(wire.id))) continue;
@@ -252,21 +269,30 @@ export function resolveLogic(doc, pack) {
   return withGroups(next, groups);
 }
 
+/** Nets the hand-set record makes known: forced nets, and the nets a latch or flip-flop with an initial state drives. */
+function handKeys(sim, hand) {
+  const out = new Map();
+  for (const f of hand.force) { const key = hand.net.keyOf(f.id); if (key !== null && key !== undefined) out.set(key, f.level); }
+  for (const id of Object.keys(hand.initial)) for (const key of sim.drives.get(id) ?? []) out.set(key, "X");
+  return out;
+}
+
 /**
  * Calculate timing steps. `frames[0]` holds Frame 0's levels (by wire or port id) and is the first step; frames[1..]
- * are the timing steps. `pulses[i]` lists the ids pulsed in frames[i + 1]. Returns { results, warnings }: results[i] is
- * the calculated level of every wire and port on a driven net in frames[i + 1], except where that frame sets it by hand.
+ * are the timing steps. Only levels on nets no element drives are inputs; hand-set levels on driven nets come from the
+ * document's scenario record (scenario.js) and the simulator applies them. `pulses[i]` lists the ids pulsed in
+ * frames[i + 1]. Returns { results, forced, warnings }: results[i] is the level of every wire and port on a driven net
+ * in frames[i + 1]; forced[i] lists the wire and port ids the trace reports as held in frames[i] (frame 0 included).
  */
 export function calculateSteps(doc, pack, frames, pulses = []) {
   const sim = circuitOf(doc, pack);
   const steps = frames.map((levels) => byKey(sim.net, sim.driven, levels));
   const pulseKeys = [new Set(), ...pulses.map((ids) => new Set(ids.map((id) => sim.net.keyOf(id)).filter((k) => k !== null && k !== undefined)))];
-  const { levels, warnings } = run(sim, steps, pulseKeys);
-  const results = levels.slice(1).map((map, i) => {
-    const manual = new Set(Object.keys(frames[i + 1] ?? {}).map((id) => sim.net.keyOf(id)).filter((k) => sim.driven.has(k)));
-    return idsOf(doc, sim, map, new Set([...sim.driven].filter((k) => !manual.has(k))));
-  });
-  return { results, warnings };
+  const live = liveScenario(doc, pack, frames.length);
+  const { levels, forced, warnings } = run(sim, steps, pulseKeys, { net: sim.net, initial: live.initial, force: live.force });
+  const results = levels.slice(1).map((map) => idsOf(doc, sim, map));
+  const forcedIds = forced.map((keys) => Object.keys(idsOf(doc, sim, new Map([...keys].map((k) => [k, "0"])), keys)));
+  return { results, forced: forcedIds, warnings };
 }
 
 /**

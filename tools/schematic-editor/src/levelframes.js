@@ -3,7 +3,9 @@
 // A frame is a named snapshot of the logic levels on the wires and elements: an initial Frame 0 followed
 // by one frame per timing step. Frames live in the figure's own free-form `groups`
 // map, under the key "frames", so the circuit/0.2 file stays valid and Save and Open keep them. Each frame is
-// { name, levels: { "<wire or element id>": "0" | "1" | "X" | "Z" } }; anything not listed has no level.
+// { name, levels: { "<wire or element id>": "0" | "1" | "X" | "Z" } }; anything not listed has no level. After timing is
+// calculated a frame may also carry `forced`: the wire and port ids the simulator's trace reports as held by a scenario
+// force in that frame (F24; the forces themselves are groups.scenario, scenario.js).
 //
 // Every function returns a new document; none changes its argument.
 
@@ -11,22 +13,25 @@ import { clone, connectedWireIds, wiresForRefs } from "./doc.js";
 
 export const KEY = "frames";
 
-const zeroFrame = (levels = {}) => ({
+const zeroFrame = (levels = {}, forced = null) => ({
   name: "Frame 0",
   levels: structuredClone(levels),
+  ...(Array.isArray(forced) && forced.length ? { forced: [...forced] } : {}),
 });
 
 /** The frames a document carries (a copy), always beginning with Frame 0. */
 export function framesOf(doc) {
   const saved = Array.isArray(doc.groups?.[KEY]) ? structuredClone(doc.groups[KEY]) : [];
-  return [zeroFrame(saved[0]?.name === "Frame 0" ? saved[0].levels ?? {} : {}), ...(saved[0]?.name === "Frame 0" ? saved.slice(1) : saved)];
+  const zero = saved[0]?.name === "Frame 0" ? saved[0] : null;
+  return [zeroFrame(zero?.levels ?? {}, zero?.forced), ...(zero ? saved.slice(1) : saved)];
 }
 
 function withFrames(doc, frames) {
   const d = clone(doc);
   const groups = { ...(d.groups ?? {}) };
   const rest = frames[0]?.name === "Frame 0" ? frames.slice(1) : frames;
-  groups[KEY] = [zeroFrame(frames[0]?.name === "Frame 0" ? frames[0].levels ?? {} : {}), ...rest];
+  const zero = frames[0]?.name === "Frame 0" ? frames[0] : null;
+  groups[KEY] = [zeroFrame(zero?.levels ?? {}, zero?.forced), ...rest];
   if (Object.keys(groups).length) d.groups = groups; else delete d.groups;
   return d;
 }
@@ -69,14 +74,34 @@ export const renameFrame = (doc, i, name) => {
   return withFrames(doc, frames);
 };
 
-export const removeFrame = (doc, i) => i <= 0 ? withFrames(doc, framesOf(doc)) : withFrames(doc, framesOf(doc).filter((_, k) => k !== i));
+/** Scenario forces (groups.scenario.force) count frames: keep them on the same frames when frames move or go. */
+function remapForces(doc, map) {
+  const force = doc.groups?.scenario?.force;
+  if (!Array.isArray(force)) return doc;
+  const out = [];
+  for (const f of force) {
+    const kept = [];
+    for (let k = f.from; k <= f.to; k++) { const j = map(k); if (j !== null) kept.push(j); }
+    kept.sort((a, b) => a - b);
+    for (const j of kept) { const last = out.at(-1); if (last && last.id === f.id && last.level === f.level && last.to === j - 1 && last.src === f) last.to = j; else out.push({ ...f, from: j, to: j, src: f }); }
+  }
+  const scenario = { ...doc.groups.scenario };
+  const next = out.map(({ src, ...f }) => f);
+  if (next.length) scenario.force = next; else delete scenario.force;
+  const groups = { ...doc.groups };
+  if (Object.keys(scenario).length) groups.scenario = scenario; else delete groups.scenario;
+  return { ...doc, groups };
+}
+
+export const removeFrame = (doc, i) => i <= 0 ? withFrames(doc, framesOf(doc))
+  : remapForces(withFrames(doc, framesOf(doc).filter((_, k) => k !== i)), (k) => k === i ? null : k > i ? k - 1 : k);
 
 /** Move frame i by `by` places (-1 earlier, +1 later). */
 export function moveFrame(doc, i, by) {
   const frames = framesOf(doc), j = i + by;
   if (i === 0 || j <= 0 || !frames[i] || j >= frames.length) return withFrames(doc, frames);
   [frames[i], frames[j]] = [frames[j], frames[i]];
-  return withFrames(doc, frames);
+  return remapForces(withFrames(doc, frames), (k) => k === i ? j : k === j ? i : k);
 }
 
 /** Replace frame i's levels with the document's current ones. */
@@ -94,8 +119,9 @@ export function recaptureFrame(doc, i, editedIds = null) {
 }
 
 /** Replace calculated levels for completed timing steps, keeping explicitly edited levels. */
-export function setCalculatedFrames(doc, results) {
+export function setCalculatedFrames(doc, results, forced = null) {
   const frames = framesOf(doc);
+  if (forced) frames.forEach((frame, i) => { if (forced[i]?.length) frame.forced = [...forced[i]]; else delete frame.forced; });
   for (const [i, generated] of results.entries()) {
     const frame = frames[i + 1];
     if (!frame) throw new Error(`Missing timing frame ${i + 1}.`);
@@ -220,7 +246,8 @@ export function framesFromSignals(doc, nets, signals, pack = null) {
   const frames = [old[0], ...Array.from({ length: steps }, (_, i) => {
     const levels = Object.fromEntries(Object.entries(old[i + 1]?.levels ?? {}).filter(([id]) => !driven.has(id)));
     const calculated = Object.fromEntries(Object.entries(old[i + 1]?.calculated ?? {}).filter(([id, value]) => !driven.has(id) && levels[id] === value));
-    return { name: `Step ${i + 1}`, levels, ...(Object.keys(calculated).length ? { calculated } : {}) };
+    const forced = old[i + 1]?.forced;
+    return { name: `Step ${i + 1}`, levels, ...(Object.keys(calculated).length ? { calculated } : {}), ...(forced?.length ? { forced: [...forced] } : {}) };
   })];
   const manual = frames.map(() => new Set());
   const matched = [], unmatched = [];
