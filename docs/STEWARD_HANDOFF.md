@@ -73,6 +73,7 @@ Sync of 2026-11-19, 13:00 (Pacific). Facts only; work lives in the batches below
 | L2 | Converters from chapters 1 to 5 | Open | 2026-11-14 |
 | L3 | Equation library, core 100 to 300 level | Open | 2026-11-14 |
 | F24 | Editor uses scenario `initial` and `force` (circuit-model C14) instead of its own hand-set Frame 0 values | Open | 2026-11-19 |
+| F25 | CI, privacy and record-keeping gaps from the reviews | Open | 2026-11-20 |
 | F23 | FSM tool: state diagram, transition table and equations kept in sync (waits for circuit-model C15) | Open | 2026-11-19 |
 | R1 | Reconcile the Copilot beta into modular tools: Schematic Editor (drawing pane) and Figure Editor (composite), one copy of the code, simulator from circuit-model | Open | 2026-11-19 |
 
@@ -350,6 +351,17 @@ Intent: finish the R1 simulator hand-over. Circuit-model C14 (tag `model-v0.8.0`
 | F24.2 | Show forced stretches from `trace.forced` in the schematic and the timing pane (marked by more than colour); remove the editor's own forced-level and hand-set evaluation code; the import-boundary test still passes | Steward, approved by Blake 2026-11-19 | Done | Schematic: wires a frame's `forced` lists (from trace.forced, saved per frame) get a dashed accent halo. Timing pane not marked: that would change the Timing Diagram's own features, which this batch excludes (question for Blake). calculateSteps no longer holds hand-set levels out of its results; they reach the simulator as scenario/0.2. Import-boundary test passes. |
 | F24.3 | Tests: latch with a hand-set start, a forced node feeding downstream gates, release returning to the driven value, an old file converted. One screenshot of the latch page. REVIEW STOP | Steward, approved by Blake 2026-11-19 | Done | test/scenario.test.js (7 tests). Browser sequentialTiming updated: its old fixture's hand-set Frame 0 Q = 0 now converts to `initial`, so Q is 0111, not x111. Tests 228/51/30; browser 304 pass. Screenshot C:\Users\blake\r1-review\f24-latch-light.png. REVIEW STOP. |
 
+
+### F25: CI, privacy and record-keeping gaps
+
+Intent: close the gaps the reviewers found: tests gate the deploy, tighter workflow permissions with pinned actions, an automatic privacy scan, integrity hashes on third-party scripts, housekeeping, and a licence table.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F25.1 | Tests gate the deploy; workflow permissions per job; actions pinned to commits; Dependabot for actions | Steward, Blake 2026-11-20 | Done | Branch f25, not merged. `publish.yml`: `test` job (schematic, timing, figure-editor tests, privacy scan) then `build` then `deploy`; top level `permissions: {}`. Branch protection on `main` is NOT set: only Blake can set it. |
+| F25.2 | Automatic privacy scan | Steward, Blake 2026-11-20 | Done | `scripts/privacy-scan.js` (tracked files and `_site`): CV files, phone numbers, GPA, emails not in `scripts/privacy-allow.json`. Runs in CI before build and after render. `_csl/` and `_site/site_libs/` carry third-party authors' emails and are skipped for email only. |
+| F25.3 | Integrity hashes on third-party scripts | Steward, Blake 2026-11-20 | Done | `scripts/third-party.json`, `scripts/sri.js` (Quarto post-render adds them; `--check` in CI), `MATHJAX_SRI` in the editor loader. Google Fonts CSS and MathJax's dynamic font files cannot be hashed. |
+| F25.4 | Housekeeping and licence table | Steward, Blake 2026-11-20 | Done | Licence table in `DECISIONS.md`; no licence of Blake's own is stated. Co-author consent and the advisor's OK are open items, not recorded. REVIEW STOP. |
 ---
 
 ### F23: FSM tool

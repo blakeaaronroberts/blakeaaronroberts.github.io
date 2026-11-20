@@ -5,6 +5,7 @@
 project:
   type: website
   output-dir: _site
+  post-render: scripts/sri.js   # integrity hashes on third-party scripts (scripts/third-party.json)
   render:
     - "*.qmd"
     - "explorations/*/*.qmd"
