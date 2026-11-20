@@ -3,6 +3,7 @@
 // our own vector drawing (draw.js); and WaveDrom source, to copy a diagram out or paste one in. Signals are added from the circuit's nodes, which follow the Figure Editor live.
 import { parseSource, tidy } from "./wave.js";
 import { drawTiming, naturalSize, lanesOf, stepsOf } from "./draw.js";
+import { stepLevels } from "./steplevels.js";
 import { nodesOf, unknownNames, framesIn } from "./nodes.js";
 import { editorDataOf } from "../../schematic-editor/src/index.js";
 import { addEdge, addSignal, addSpacer, arrowHeadColourOf, arrowHeadSizeOf, arrowLabelSizeOf, cellsOf, dataAt, dataColoursOf, EDGE_OPS, edgeLineColourOf, edgeLineWidthOf, edgeStyleOf, edgeStylesFor, edgesOf, empty, fromWaveDrom, isCalculatedCell, isClock, LABEL, lineWidthOf, moveSignal, nextLetter, nextValue, nodeLetters, removeEdge, removeSignal, resetTimingColours, resetTimingLook, setArrowHeadSize, setArrowLabelSize, setBand, setCalculatedLevels, setCell, setClock, setDataColour, setDelay, setEdge, setEdgeLineWidth, setEdgeStyle, setHscale, setLineWidth, setNode, setProp, setShowNames, setSignalLineColour, setSignalNameSize, setSlant, setSteps, setTextSize, showNamesOf, signalLineColourOf, signalNameSizeOf, slantOf, stepCount, textSizeOf, toWaveDrom, WAVE } from "./model.js";
@@ -553,17 +554,13 @@ export function mount(root, {
   const signalLevels = () => lanesOf(toWaveDrom(value)).filter((l) => l.name).map((l) => {
     const original = value.signal.find((signal) => signal?.name === l.name);
     const steps = stepsOf(l.wave);
-    const level = (s) => ({ 0: "0", l: "0", d: "0", n: "0", N: "0", 1: "1", h: "1", u: "1", p: "1", P: "1", x: "X", z: "Z" })[s.c] ?? null;
-    const levels = Array.from({ length: Math.ceil(steps.length * l.period) }, (_, i) => {
-      const start = Math.floor(i / l.period), end = Math.min(steps.length, Math.ceil((i + 1) / l.period));
-      const values = [...new Set(steps.slice(start, end).map(level))];
-      return values.length === 1 ? values[0] : "X";
-    });
+    const { levels, pulses, exact } = stepLevels(steps, l.period, l.phase, l.delay);   // as drawn (steplevels.js)
     return {
       name: l.name,
       levels,
       calculated: l.period === 1 ? steps.map((_, i) => isCalculatedCell(original, i)) : [],
-      pulses: l.period === 1 ? steps.map((s) => /^[pPnN]$/.test(s.c)) : [],
+      pulses,
+      exact,
       period: l.period, phase: l.phase, delay: l.delay,
     };
   });

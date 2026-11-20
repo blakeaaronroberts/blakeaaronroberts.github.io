@@ -55,6 +55,39 @@ export const levelTagTex = (level) => `\\mathrm{${level}}`;
 // ---- MathJax output to clean nodes ----------------------------------------------------
 
 const KEEP_TAGS = new Set(["g", "path", "rect"]);
+
+/**
+ * A nested <svg> as plain nodes. MathJax 4 draws a stretched piece in one (the bar of \overline): a rectangle path,
+ * possibly scaled, clipped to the nested svg's viewBox, which is placed at its x, y, width, height. The clip matters
+ * (the bar is drawn longer than the letter and cut to it), so each rectangle is cut here and drawn as a <rect>.
+ * Returns {nodes} or {error} for content that is not rectangles.
+ */
+const RECT_PATH = /^M\s*(-?[\d.]+)[\s,]+(-?[\d.]+)\s*L\s*(-?[\d.]+)[\s,]+(-?[\d.]+)\s*L\s*(-?[\d.]+)[\s,]+(-?[\d.]+)\s*L\s*(-?[\d.]+)[\s,]+(-?[\d.]+)\s*Z$/i;
+const SCALE = /^scale\(\s*(-?[\d.]+)(?:[\s,]+(-?[\d.]+))?\s*\)$/;
+function nestedSvgRects(n) {
+  const num = (k) => Number(attr(n, k) ?? 0);
+  const vb = (attr(n, "viewBox") ?? "").trim().split(/[\s,]+/).map(Number);
+  const x = num("x"), y = num("y"), w = num("width"), h = num("height");
+  if (vb.length !== 4 || ![...vb, x, y, w, h].every(Number.isFinite) || !(vb[2] > 0 && vb[3] > 0 && w > 0 && h > 0)) return { error: "a stretched piece MathJax drew has no usable viewBox" };
+  const sx = w / vb[2], sy = h / vb[3];
+  if (Math.abs(sx - sy) > 1e-6) return { error: "a stretched piece MathJax drew is not scaled evenly" };
+  const nodes = [];
+  for (const c of n.children) {
+    const m = c.tag === "path" && RECT_PATH.exec((attr(c, "d") ?? "").trim());
+    const tf = attr(c, "transform"), sc = tf ? SCALE.exec(tf.trim()) : [null, "1", "1"];
+    if (!m || !sc) return { error: `a stretched piece MathJax drew is not a plain bar (<${c.tag}>)` };
+    const kx = Number(sc[1]), ky = Number(sc[2] ?? sc[1]);
+    const xs = [m[1], m[3], m[5], m[7]].map((v) => Number(v) * kx), ys = [m[2], m[4], m[6], m[8]].map((v) => Number(v) * ky);
+    const x0 = Math.max(Math.min(...xs), vb[0]), x1 = Math.min(Math.max(...xs), vb[0] + vb[2]);
+    const y0 = Math.max(Math.min(...ys), vb[1]), y1 = Math.min(Math.max(...ys), vb[1] + vb[3]);
+    if (x1 <= x0 || y1 <= y0) continue;
+    const at = (px, py) => [x + (px - vb[0]) * sx, y + (py - vb[1]) * sy];
+    const [ax, ay] = at(x0, y0), [bx, by] = at(x1, y1);
+    nodes.push({ tag: "rect", attrs: [["x", fmt(ax)], ["y", fmt(ay)], ["width", fmt(bx - ax)], ["height", fmt(by - ay)]], children: [] });
+  }
+  return { nodes };
+}
+
 const DROP_ATTRS = new Set(["id", "class", "style", "role", "focusable", "aria-hidden"]);
 
 /**
@@ -70,6 +103,11 @@ export function parseTypeset(svgText) {
   if (vb.length !== 4 || vb.some((v) => !Number.isFinite(v))) return { ok: false, error: "MathJax gave no viewBox" };
   let problem = null;
   const clean = (n) => {
+    if (n.tag === "svg") {
+      const r = nestedSvgRects(n);
+      if (r.error) { problem ??= r.error; return []; }
+      return r.nodes;
+    }
     if (!KEEP_TAGS.has(n.tag)) {
       problem ??= n.tag === "text" ? "a glyph is not in the STIX2 font (it would need a font)" : `unexpected <${n.tag}> in the typeset label`;
       return [];

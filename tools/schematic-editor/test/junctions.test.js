@@ -49,7 +49,7 @@ Deno.test("a solder dot joins crossing wires and persists without joining other 
   assertEquals(moved.groups.solder_crossings[0].at, [4, 2]);
   assertEquals(dots(moved, pack).length, 1);
   const invalid = JSON.parse(serialize(joined, pack));
-  invalid.groups.solder_crossings[0].wires = null;
+  invalid.annotations["schematic-editor"].solder_crossings[0].wires = null;   // editor data lives in annotations (circuit/0.3)
   assertThrows(() => parse(JSON.stringify(invalid)), /solder_crossings.*wires/);
 });
 

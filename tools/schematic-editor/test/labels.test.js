@@ -168,3 +168,29 @@ Deno.test("every TeX string the labelled sample needs is in the captured MathJax
   const doc = buildFullAdderLevels(pack);
   for (const tex of texNeeded(doc, pack, { levelTags: true })) assert(typeset.get(tex)?.ok, `${JSON.stringify(tex)} is not in fixtures/mathjax.json (add it to capture-mathjax.html)`);
 });
+
+Deno.test("TeX with \\overline draws: the latch example's Sn and Rn port labels (circuit-model examples/nand_sr_latch.json)", () => {
+  // MathJax 4 draws the bar in a nested <svg>; it becomes a placed <g>.
+  const doc = { ...newDoc(), ports: [
+    { id: "Sn", dir: "in", at: [-10, 1], label: "$\\overline{S}$", side: "left" },
+    { id: "Rn", dir: "in", at: [-10, -9], label: "$\\overline{R}$", side: "left" },
+  ] };
+  for (const tex of ["\\overline{S}", "\\overline{R}"]) {
+    const t = ts(tex);
+    assert(t.ok, t.error);
+    assert(t.height > ts("S").height, "the bar sits above the letter");
+    const tags = [];
+    walk({ tag: "g", attrs: [], children: t.nodes }, (n) => tags.push(n.tag));
+    assert(!tags.includes("svg"), "no nested svg is kept");
+    assert(tags.includes("path") && tags.includes("rect"), "letter and bar");
+    // The bar is cut to the label's box, as the nested svg clips it (it is drawn longer than the letter).
+    walk({ tag: "g", attrs: [], children: t.nodes }, (n) => {
+      if (n.tag !== "rect") return;
+      const a = Object.fromEntries(n.attrs), x = +a.x, w = +a.width;
+      assert(x >= t.left * 1000 - 1e-6 && x + w <= (t.left + t.width) * 1000 + 1e-6, `bar ${x}..${x + w} outside the box`);
+    });
+  }
+  const d = drawing(doc, pack, { typeset });
+  assertEquals(d.problems, []);
+  assertEquals(d.labels.length, 2);
+});

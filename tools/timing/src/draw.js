@@ -14,6 +14,7 @@
 // - edge: arrows between nodes, straight (-), curved (~) or square (-| |- -|-), with < and > heads and a label;
 // - config.hscale (step width in the natural size); our config.slant (how far an edge leans, in px; 0 is square, 5 is WaveDrom's).
 
+import { figureRole } from "../../shared/src/roles.js";   // colours are roles (R1.5): the theme's --fig-* properties
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const n2 = (v) => String(Math.round(v * 100) / 100);
 const n4 = (v) => String(Math.round(v * 10000) / 10000);
@@ -120,7 +121,7 @@ export function parseEdge(s) {
  * A source's config.dataColours can override the seven data fills.
  * Returns {svg, natural, geometry: {x0, stepW, laneH, steps, top}}.
  */
-export function drawTiming(value, { width, height, ink = "#000000", accent = "#0072B2", marker = null, levelColour = null, dataFills = [], levelFills = {}, signalLineColour = ink, paper = null, fontSize = FONT, signalNameSize = fontSize, arrowLabelSize = fontSize * 10 / FONT, fitText = false, lineWidth = 1.6, edgeLineWidth = lineWidth / 1.6, edgeLineColour = null, arrowHeadSize = 6, arrowHeadMax = 16, arrowHeadColour = null, edgeStyles = value?.config?.edgeStyles ?? {}, nameTypeset = null, edgeLabelTypeset = nameTypeset, showNames = true, centerTransitions = false, idPrefix = "" } = {}) {
+export function drawTiming(value, { width, height, ink = figureRole("ink") ?? "currentColor", accent = figureRole("accent") ?? "currentColor", marker = null, levelColour = null, dataFills = [], levelFills = {}, signalLineColour = ink, paper = null, fontSize = FONT, signalNameSize = fontSize, arrowLabelSize = fontSize * 10 / FONT, fitText = false, lineWidth = 1.6, edgeLineWidth = lineWidth / 1.6, edgeLineColour = null, arrowHeadSize = 6, arrowHeadMax = 16, arrowHeadColour = null, edgeStyles = value?.config?.edgeStyles ?? {}, nameTypeset = null, edgeLabelTypeset = nameTypeset, showNames = true, centerTransitions = false, idPrefix = "" } = {}) {
   if (typeof idPrefix !== "string" || !/^[A-Za-z0-9_-]*$/.test(idPrefix)) throw new Error("invalid timing diagram ID prefix");
   const plotId = `${idPrefix}plot`, hatchId = `${idPrefix}hatch`;
   const lanes = lanesOf(value);

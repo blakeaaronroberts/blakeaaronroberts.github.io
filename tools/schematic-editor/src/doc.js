@@ -8,7 +8,7 @@ import { elementBox, orient, pinOf } from "./geometry.js";
 import { BLOCK, canonicalParams, geometryOf, minSize, normalizeBlock } from "./block.js";
 import { directionProblems, onPolyline, onSegment, route, snapOntoPolyline } from "./router.js";
 import { checkedBackdrop } from "./svgimport.js";
-import { editorDataOf, FILE_KEY, hasEditorData } from "./annotations.js";
+import { annotationsFor, busesOf, editorDataOf } from "./annotations.js";
 
 export const SCHEMA = "circuit/0.3";
 const LEGACY_SCHEMA = "circuit/0.2";
@@ -825,7 +825,7 @@ export function setStyleLevels(doc, levels) {
 // ---- save and load ---------------------------------------------------------------------
 
 const ORDER = {
-  top: ["schema", "id", "title", "grid_cm", "style", "elements", "ports", "nets", "wires", "junctions", "groups", "labels"],
+  top: ["schema", "id", "title", "grid_cm", "style", "elements", "ports", "nets", "wires", "junctions", "groups", "labels", "annotations"],
   element: ["id", "type", "at", "rotation", "mirror", "label", "level", "params"],
   port: ["id", "dir", "at", "label", "side"],
   wire: ["id", "from", "to", "via", "route", "first", "arrow", "bus", "level"],
@@ -870,7 +870,8 @@ export function serialize(doc, pack) {
   };
   const nets = deriveNets(doc, pack);
   const parts = {
-    schema: JSON.stringify(doc.wires.some((w) => w.route?.includes("straight")) ? SCHEMA : doc.schema),
+    // circuit/0.3 whenever the file needs it: straight wire legs, editor data (annotations) or buses kept apart from it
+    schema: JSON.stringify(doc.wires.some((w) => w.route?.includes("straight")) || (doc.groups && Object.keys(doc.groups).length) || doc.buses ? SCHEMA : doc.schema),
     id: JSON.stringify(doc.id),
     title: doc.title !== undefined ? JSON.stringify(doc.title) : undefined,
     grid_cm: JSON.stringify(doc.grid_cm),
@@ -881,8 +882,10 @@ export function serialize(doc, pack) {
       ? `{\n${Object.entries(nets).map(([k, v]) => `    ${JSON.stringify(k)}: ${inline(v)}`).join(",\n")}\n  }` : "{}",
     wires: doc.wires.length ? block(doc.wires.map(wire)) : undefined,
     junctions: doc.junctions.length ? block(doc.junctions.map((j) => inline(ordered(j, ORDER.junction)))) : undefined,
-    groups: doc.groups && Object.keys(doc.groups).length
-      ? `{\n${Object.entries(doc.groups).map(([k, v]) => `    ${JSON.stringify(k)}: ${inline(v)}`).join(",\n")}\n  }` : undefined,
+    groups: doc.buses && Object.keys(doc.buses).length   // buses, in the schema's sense
+      ? `{\n${Object.entries(doc.buses).map(([k, v]) => `    ${JSON.stringify(k)}: ${inline(v)}`).join(",\n")}\n  }` : undefined,
+    annotations: doc.groups && Object.keys(doc.groups).length   // the editor's own data, one object per tool (annotations.js)
+      ? `{\n${Object.entries(annotationsFor(doc.groups)).map(([tool, data]) => `    ${JSON.stringify(tool)}: {\n${Object.entries(data).map(([k, v]) => `      ${JSON.stringify(k)}: ${inline(v)}`).join(",\n")}\n    }`).join(",\n")}\n  }` : undefined,
     labels: doc.labels.length ? block(doc.labels.map((l) => inline(ordered(l, ORDER.label)))) : undefined,
   };
   const body = ORDER.top.filter((k) => parts[k] !== undefined).map((k) => `  ${JSON.stringify(k)}: ${parts[k]}`);
@@ -902,7 +905,9 @@ export function parse(text) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("not a circuit file: expected one JSON object with a \"schema\" field");
   if (![LEGACY_SCHEMA, SCHEMA].includes(raw.schema)) fail(`schema is ${JSON.stringify(raw.schema)}; this editor reads "${LEGACY_SCHEMA}" and "${SCHEMA}"`);
   if (raw.grid_cm !== 0.25) fail(`grid_cm is ${raw.grid_cm}; expected 0.25`);
-  if (hasEditorData(raw)) { const data = editorDataOf(raw); raw = { ...raw }; delete raw[FILE_KEY]; raw.groups = data; }   // in memory, editor data is doc.groups (annotations.js)
+  // In memory, editor data is doc.groups and buses are doc.buses; in the file they sit where annotations.js says.
+  const buses = busesOf(raw);
+  { const data = editorDataOf(raw); raw = { ...raw }; delete raw.annotations; delete raw.groups; if (Object.keys(data).length) raw.groups = data; }
   only(raw, ORDER.top, "file");
   for (const k of ["elements", "ports", "wires", "junctions", "labels"]) if (raw[k] !== undefined && !Array.isArray(raw[k])) fail(`${k} must be a list`);
   const doc = {
@@ -940,6 +945,7 @@ export function parse(text) {
     doc.groups = { ...raw.groups };
     if (raw.groups.backdrop !== undefined) doc.groups.backdrop = checkedBackdrop(raw.groups.backdrop);
   }
+  if (buses) doc.buses = structuredClone(buses);   // a circuit/0.3 file's groups: buses, kept as they are
   if (raw.style !== undefined) doc.style = checkStyle(raw.style, fail);
   const seen = new Set();
   const unique = (v, where) => { if (seen.has(v)) fail(`${where}: id "${v}" used twice`); seen.add(v); };

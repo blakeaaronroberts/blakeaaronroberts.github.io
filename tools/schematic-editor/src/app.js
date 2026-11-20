@@ -14,7 +14,7 @@ import { drawing, exportDocument, exportSize, exportSvg, exportGridSvg, labelBox
 import { hitTest, inBox } from "./hit.js";
 import { packLabelPt, texNeeded, texOf } from "./labels.js";
 import { typesetAll } from "./mathjax.js";
-import { nearestOnPolyline, route } from "./router.js";
+import { nearestOnPolyline, route, snapAngle } from "./router.js";
 import { createView, thumbnail, blockThumbnail } from "./view.js";
 import { junctionCounts } from "./junctions.js";
 import { BLOCK, formatPins, handlesOf, parsePins, SHAPES, geometryOf } from "./block.js";
@@ -24,7 +24,7 @@ import { checkedBackdrop, circuitFromSvg, sanitizeSvg, MAX_SVG_BYTES } from "./s
 import { orient } from "./geometry.js";
 import { namedNetNames, parseTruthTable, truthTable } from "./demo.js";
 import { framesFromSignals, levelTagStyleOf, setCalculatedFrames, setLevelTagStyle, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, ensureFrameZero, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame, targetsOf } from "./levelframes.js";
-import { drivenWireIds, logicModeOf, resolveLogic, setLogicMode, timingCalculator } from "./logic.js";
+import { calculateSteps, drivenWireIds, logicModeOf, resolveLogic, setLogicMode } from "./simlevels.js";
 import { migrateR1 } from "./migrate.js";
 
 // Browser storage keys, set by mount() from options.storage (the tool's own prefix: "schematic-editor/" on its page,
@@ -53,7 +53,7 @@ const total = (s) => s.elements.length + s.wires.length + s.ports.length + s.lab
 
 /** The keys, in one place: the "?" panel shows this table. */
 export const KEYS = [
-  ["W", "Wire tool: hold Shift while clicking a corner to draw the preceding leg straight; clicks without Shift keep orthogonal routing. Click a pin, junction or wire to finish; Enter ends the wire where it is; Backspace removes a corner"],
+  ["W", "Wire tool: hold Shift while clicking a corner to draw the preceding leg straight (at 45-degree steps; Shift+Alt for any angle); clicks without Shift keep orthogonal routing. Click a pin, junction or wire to finish; Enter ends the wire where it is; Backspace removes a corner"],
   ["P", "Port tool: click a point, a pin tip or a wire end to put an input or output port there"],
   ["T", "Label tool: click a point, then type the label (TeX such as $A_0$) in the panel and press Enter"],
   ["R", "Rotate the selected parts 90° counter-clockwise (or the part being placed)"],
@@ -460,6 +460,7 @@ export async function mount(root, options = {}) {
 
   /** The status line. An error is bold and announced at once, and stays until the next message. */
   let statusRevision = 0;
+  let lastLabelProblems = "";
   const status = (msg, error = false) => {
     emit("status", { text: msg, error });
     statusRevision++;
@@ -647,7 +648,14 @@ export async function mount(root, options = {}) {
     if (document.activeElement !== titleInput) titleInput.value = doc.title ?? "";
     renderProps();
     const warnings = [...loadWarnings, ...D.lint(doc, pack)];
-    if (lastDrawing) warnings.push(...lastDrawing.problems.filter((p) => !p.endsWith("not typeset yet")));
+    const labelProblems = lastDrawing ? lastDrawing.problems.filter((p) => !p.endsWith("not typeset yet")) : [];
+    warnings.push(...labelProblems);
+    // A label that cannot be drawn is left out of the drawing: say so in the status line, once per new set of problems.
+    const labelKey = labelProblems.join("; ");
+    if (labelKey !== lastLabelProblems) {
+      lastLabelProblems = labelKey;
+      if (labelProblems.length) status(`Not drawn: ${labelProblems.join("; ")}.`, true);
+    }
     $(".fe-warnings ul").innerHTML = warnings.map((w) => `<li>${esc(w)}</li>`).join("");
     $(".fe-warnings").hidden = !warnings.length;
     if (lastDrawing) {
@@ -1100,6 +1108,10 @@ export async function mount(root, options = {}) {
     if (wiring && !e.shiftKey) {
       const last = wiring.via.at(-1) ?? wiring.fromAt;
       at = Math.abs(at[0] - last[0]) >= Math.abs(at[1] - last[1]) ? [at[0], last[1]] : [last[0], at[1]];
+    } else if (wiring && !e.altKey) {
+      // A straight leg snaps to 45 degrees (annotations snap_degrees, editor data, can change it); Alt gives any angle.
+      const snap = Number(doc.groups?.snap_degrees ?? 45);
+      at = snapAngle(wiring.via.at(-1) ?? wiring.fromAt, at, snap);
     }
     return { kind: "point", at };
   }
@@ -1108,15 +1120,15 @@ export async function mount(root, options = {}) {
     const t = wireTarget(p, e);
     if (!wiring) {
       wiring = { from: t, fromAt: t.at, via: [], routes: [] };
-      status("Wire: click to add orthogonal corners; hold Shift while clicking for a straight leg. Click a pin, junction or wire to finish; click twice or press Enter to end here; Esc cancels.");
-      updateRubber(p, e.shiftKey);
+      status("Wire: click to add orthogonal corners; hold Shift while clicking for a straight leg (45-degree steps; Shift+Alt for any angle). Click a pin, junction or wire to finish; click twice or press Enter to end here; Esc cancels.");
+      updateRubber(p, e);
       return;
     }
     if (t.kind === "point") {
       if (same(t.at, wiring.via.at(-1) ?? wiring.fromAt)) return finishWire(t, e);
       wiring.via.push(t.at);
       wiring.routes.push(e.shiftKey ? "straight" : "auto");
-      updateRubber(p, e.shiftKey);
+      updateRubber(p, e);
       return;
     }
     finishWire(t, e);
@@ -1137,9 +1149,10 @@ export async function mount(root, options = {}) {
     render();
   }
 
-  function updateRubber(p, shiftKey = false) {
+  function updateRubber(p, mods = {}) {
     if (!wiring) { rubber = null; return; }
-    const t = wireTarget(p, { shiftKey });
+    const shiftKey = !!mods.shiftKey;
+    const t = wireTarget(p, { shiftKey, altKey: !!mods.altKey });
     rubber = route(endFor(wiring.from), endFor(t), wiring.via, null, [...wiring.routes, shiftKey ? "straight" : "auto"]);
     hover = t.kind !== "point" ? t.at : null;
     render();
@@ -1202,7 +1215,7 @@ export async function mount(root, options = {}) {
   // ---- commands ----------------------------------------------------------------------------
   const commands = {
     select: () => { setTool("select"); status("Select: click or drag a box; drag to move."); },
-    wire: () => { setTool("wire"); status("Wire: click a pin, junction, wire or empty grid point to start; hold Shift while drawing a straight leg."); },
+    wire: () => { setTool("wire"); status("Wire: click a pin, junction, wire or empty grid point to start; hold Shift for a straight leg at 45-degree steps, Shift+Alt for any angle."); },
     port: () => { setTool("port"); status("Port: click a point, a pin tip or a wire end."); },
     label: () => { setTool("label"); status("Label: click where the label goes."); },
     solder: () => { setTool("solder"); status("Solder dot: click the crossing to connect its wires."); },
@@ -1612,32 +1625,31 @@ export async function mount(root, options = {}) {
     if (logicModeOf(doc) !== "calculated") return status("Enable calculated logic levels before calculating timing.", true);
     const signals = timingTool.getSignals();
     if (!signals.length) return status("Add timing signals before calculating.", true);
-    const shifted = signals.find((signal) => signal.period !== 1 || signal.phase || signal.delay);
-    if (shifted) return status(`Calculation needs period 1 and zero phase and delay: ${shifted.name}.`, true);
+    // Behaviour is circuit-model's simulator (simlevels.js). What it cannot calculate: a level that changes inside a step
+    // (a fractional period or shift: each frame holds one level per step), and a calculated signal drawn with a period
+    // or a shift (its calculated cells are its own wave characters).
+    const inexact = signals.find((signal) => signal.exact === false);
+    if (inexact) return status(`Cannot calculate with ${inexact.name}: with period ${inexact.period}, phase ${inexact.phase || 0} and delay ${inexact.delay || 0} its level changes inside a step, and a frame holds one level per step.`, true);
     const nets = D.deriveNets(doc, pack);
     const synced = framesFromSignals(doc, nets, signals, pack).doc;
-    const frames = framesOf(synced), results = [];
-    let problem = null;
+    const driven = drivenWireIds(synced, pack);
+    const shiftedOutput = signals.find((signal) => (signal.period !== 1 || signal.phase || signal.delay) && targetsOf(synced, nets, signal.name, pack).wires.some((id) => driven.has(id)));
+    if (shiftedOutput) return status(`Cannot calculate ${shiftedOutput.name}: a calculated signal needs period 1 and zero phase and delay.`, true);
+    const frames = framesOf(synced);
+    let problem = null, results = [];
     try {
-      const calculator = timingCalculator(synced, pack, frames[0].levels);
-      for (let i = 1; i < frames.length; i++) {
-        const frame = frames[i], manual = { ...frame.levels };
+      const levels = frames.map((frame) => {
+        const manual = { ...frame.levels };
         for (const [id, level] of Object.entries(frame.calculated ?? {})) if (manual[id] === level) delete manual[id];
-        const pulseIds = signals.filter((signal) => signal.pulses[i - 1]).flatMap((signal) => {
-          const target = targetsOf(synced, nets, signal.name, pack);
-          return [...target.wires, ...target.ports];
-        });
-        const generated = calculator.step(manual, (reason) => {
-          while (true) {
-            const answer = window.prompt(`${reason}\nChoose Q: 0, 1, or X. Cancel stops calculation.`, "X");
-            if (answer === null) return null;
-            const level = answer.trim().toUpperCase();
-            if (["0", "1", "X"].includes(level)) return level;
-          }
-        }, pulseIds);
-        if (generated === null) { problem = "Calculation cancelled."; break; }
-        results.push(generated);
-      }
+        return manual;
+      });
+      const pulses = frames.slice(1).map((_, i) => signals.filter((signal) => signal.pulses[i]).flatMap((signal) => {
+        const target = targetsOf(synced, nets, signal.name, pack);
+        return [...target.wires, ...target.ports];
+      }));
+      const run = calculateSteps(synced, pack, levels, pulses);
+      results = run.results;
+      if (run.warnings.length) problem = `Feedback did not settle in ${run.warnings.length === 1 ? "one step" : `${run.warnings.length} steps`}; those outputs are X.`;
     } catch (error) {
       problem = `Calculation stopped: ${error.message}`;
     }
@@ -1660,7 +1672,7 @@ export async function mount(root, options = {}) {
       if (Object.keys(updates).length) timingTool.setCalculatedLevels(updates);
       renderFrames();
     }
-    status(problem ? `${problem} Kept ${results.length} completed timing steps.` : `Calculated ${results.length} timing steps.`, !!problem);
+    status(problem ? `Calculated ${results.length} timing steps. ${problem}` : `Calculated ${results.length} timing steps.`, !!problem);
   }
   function selectTimingFrame(step) {
     if (!Number.isInteger(step) || step < 0) return;
@@ -2491,7 +2503,7 @@ export async function mount(root, options = {}) {
     if (tool === "select" && !drag) updateHoverWire(p);
     if (tool === "place" && placing) { ghost = { type: placing.type, at: snapPart(p), rotation: placing.rotation, params: placing.params }; render(); return; }
     if (tool === "wire") {
-      if (wiring) updateRubber(p, e.shiftKey);
+      if (wiring) updateRubber(p, e);
       else { const t = wireTarget(p, e); const h = t.kind !== "point" ? t.at : null; if (!same(h, hover)) { hover = h; render(); } }
     }
   });

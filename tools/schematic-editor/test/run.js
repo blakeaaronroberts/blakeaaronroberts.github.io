@@ -9,8 +9,9 @@ const dir = new URL(".", import.meta.url);
 const path = decodeURIComponent(dir.pathname).replace(/^\/([A-Za-z]:)/, "$1");
 const pack = decodeURIComponent(new URL("../symbol-pack/", dir).pathname).replace(/^\/([A-Za-z]:)/, "$1");
 const examples = decodeURIComponent(new URL("../examples/", dir).pathname).replace(/^\/([A-Za-z]:)/, "$1");
+const shared = decodeURIComponent(new URL("../../shared/", dir).pathname).replace(/^\/([A-Za-z]:)/, "$1");   // the pinned simulator, validator and schemas
 const r = await new Deno.Command(Deno.execPath(), {
-  args: ["test", "--no-config", "--no-lock", "--no-remote", `--allow-read=${path},${pack},${examples}`, path],
+  args: ["test", "--no-config", "--no-lock", "--no-remote", `--allow-read=${path},${pack},${examples},${shared}`, path],
   stdout: "inherit", stderr: "inherit",
 }).output();
 Deno.exit(r.code);

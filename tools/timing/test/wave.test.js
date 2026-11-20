@@ -299,3 +299,25 @@ Deno.test("beta centered transitions remain ordered at short periods and near th
   const center = box.geometry.x0 + 0.1 * box.geometry.stepW;
   assert(Math.abs((+shape[1] + +shape[2]) / 2 - center) < 0.01, "partially clipped box still centers at its timing boundary");
 });
+
+// R1.4: a signal's level in each step, as drawn (steplevels.js), for the editor's frames and calculated timing.
+import { stepLevels } from "../src/steplevels.js";
+const cs = (wave) => [...wave].map((c) => ({ c }));
+Deno.test("step levels: period 1 marks pulses; a whole-number period gives exact levels; a pulse spans high, then low", () => {
+  const one = stepLevels(cs("0p1"), 1);
+  if (JSON.stringify(one) !== JSON.stringify({ levels: ["0", "1", "1"], pulses: [false, true, false], exact: true })) throw new Error(JSON.stringify(one));
+  const two = stepLevels(cs("pp"), 2);
+  if (JSON.stringify(two.levels) !== JSON.stringify(["1", "0", "1", "0"]) || !two.exact) throw new Error(JSON.stringify(two));
+  const neg = stepLevels(cs("n"), 2);
+  if (JSON.stringify(neg.levels) !== JSON.stringify(["0", "1"])) throw new Error(JSON.stringify(neg));
+});
+Deno.test("step levels: a whole-step phase shifts left, a delay right (holding the first level); a fraction is not exact", () => {
+  const delayed = stepLevels(cs("01"), 1, 0, 1);
+  if (JSON.stringify(delayed.levels) !== JSON.stringify(["0", "0"]) || !delayed.exact) throw new Error(JSON.stringify(delayed));
+  const early = stepLevels(cs("01"), 1, 1, 0);
+  if (JSON.stringify(early.levels) !== JSON.stringify(["1", null])) throw new Error(JSON.stringify(early));
+  for (const [period, phase, delay] of [[1, 0.5, 0], [1, 0, 0.25], [0.5, 0, 0], [3, 0, 0]]) {
+    const r = stepLevels(cs(period === 3 ? "p" : "01"), period, phase, delay);
+    if (r.exact) throw new Error(`exact for period ${period}, phase ${phase}, delay ${delay}`);
+  }
+});

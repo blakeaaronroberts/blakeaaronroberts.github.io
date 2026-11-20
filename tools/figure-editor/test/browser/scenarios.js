@@ -627,7 +627,7 @@ scenarios.levels = async (ctx) => {
       const tagOptions = await page.eval(`(() => {
         const saved = JSON.parse(window.figureEditor.save());
         const options = JSON.parse(localStorage.getItem("figure-editor/options") || "{}");
-        return { side: saved.groups?.level_tag_style?.blk1?.side, gap: saved.groups?.level_tag_style?.blk1?.gap, size: options.levelTagPt, colour: options.levelTagColour };
+        return { side: saved.annotations?.["schematic-editor"]?.level_tag_style?.blk1?.side, gap: saved.annotations?.["schematic-editor"]?.level_tag_style?.blk1?.gap, size: options.levelTagPt, colour: options.levelTagColour };
       })()`);
       res.push([tagOptions.side === "left" && tagOptions.gap === 2 && tagOptions.size === 20 && tagOptions.colour, `${scheme}: tag position, offset, size and level colour are configurable (${JSON.stringify(tagOptions)})`]);
       await page.shot(`${ctx.out}/beta-level-${scheme}.png`);
@@ -773,7 +773,7 @@ scenarios.import = async (ctx) => {
     const decoded = await page.eval(`decodeURIComponent(document.querySelector(".fe-backdrop").getAttribute("href").split(",").slice(1).join(","))`);
     res.push([!/script|onclick|onload|http:/.test(decoded.replace("http://www.w3.org/2000/svg", "")) && /<circle/.test(decoded), "the stored image has no script, handler or external reference, and keeps the drawing"]);
     const savedBackdrop = await page.eval(`window.figureEditor.save()`);
-    res.push([!!JSON.parse(savedBackdrop).groups?.backdrop, "the backdrop is saved with the circuit"]);
+    res.push([!!JSON.parse(savedBackdrop).annotations?.["schematic-editor"]?.backdrop, "the backdrop is saved with the circuit"]);
     res.push([!(await page.eval(`window.figureEditor.exportSvg()`)).includes("<image "), "the default SVG export omits the backdrop"]);
     res.push([(await page.eval(`window.figureEditor.exportSvg(false, window.figureEditor.doc, true)`)).includes("<image "), "the SVG export can include the backdrop"]);
     await page.eval(`window.figureEditor.load(${JSON.stringify(savedBackdrop)})`);
@@ -1236,7 +1236,7 @@ scenarios.netnames = async (ctx) => {
       const shown = !!document.querySelector('svg.fe-canvas [data-label="net:w1"]') && input.checked;
       input.checked = false; input.dispatchEvent(new Event("change", { bubbles: true }));
       const hidden = !document.querySelector('svg.fe-canvas [data-label="net:w1"]');
-      const saved = JSON.parse(window.figureEditor.save()).groups.wire_labels.w1 === "$Q_{0}$";
+      const saved = JSON.parse(window.figureEditor.save()).annotations?.["schematic-editor"].wire_labels.w1 === "$Q_{0}$";
       input.checked = true; input.dispatchEvent(new Event("change", { bubbles: true }));
       return { shown, hidden, saved };
     })()`);
@@ -1958,8 +1958,8 @@ scenarios.initialNodeLevels = async (ctx) => {
       const later = JSON.parse(window.figureEditor.save());
       document.querySelector('[data-cmd="frameprev"]').click();
       const restored = JSON.parse(window.figureEditor.save());
-      return { initial: initial.groups.frames[0].levels, later: later.groups.frames[1].levels,
-        restored: restored.groups.frames[0].levels, port: initial.ports[0].id };
+      return { initial: initial.annotations?.["schematic-editor"].frames[0].levels, later: later.annotations?.["schematic-editor"].frames[1].levels,
+        restored: restored.annotations?.["schematic-editor"].frames[0].levels, port: initial.ports[0].id };
     })()`);
     res.push([state.initial[state.port] === "1" && state.restored[state.port] === "1", `initial port level survives frame navigation (${JSON.stringify(state)})`]);
     res.push([state.later[state.port] !== "1", "setting the initial frame does not change the later frame"]);
@@ -2006,12 +2006,13 @@ scenarios.sequentialTiming = async (ctx) => {
     await page.eval(`document.querySelector('[data-do="calculate-timing"]').click()`);
     const level = await page.eval(`(() => ({
       source: JSON.parse(localStorage.getItem("timing-diagram/source")),
-      frames: JSON.parse(window.figureEditor.save()).groups.frames,
+      frames: JSON.parse(window.figureEditor.save()).annotations?.["schematic-editor"].frames,
       status: document.querySelector(".fe-status").textContent
     }))()`);
     const lane = (name) => level.source.signal.find((signal) => signal.name === name);
-    res.push([lane("Q")?.wave === "0111" && lane("Qn")?.wave === "1000", `0/1 clocks calculate the expected Q and complement (${JSON.stringify(level)})`]);
-    res.push([level.frames.slice(1).map((frame) => frame.levels.wq).join("") === "0111", "calculated values populate the schematic frames"]);
+    // Simulator (R1.4): Frame 0 is the first step and its hand-set Q is not state, so Q is X until the first rising edge.
+    res.push([lane("Q")?.wave === "x111" && lane("Qn")?.wave === "x000", `0/1 clocks calculate the expected Q and complement (${JSON.stringify(level)})`]);
+    res.push([level.frames.slice(1).map((frame) => frame.levels.wq).join("") === "X111", "calculated values populate the schematic frames"]);
 
     await page.eval(`(() => {
       const cell = document.querySelector('[data-s="2"] [data-step="1"]');
@@ -2045,7 +2046,7 @@ scenarios.sequentialTiming = async (ctx) => {
     await page.key("0", "Digit0", 48);
     const editedWire = await page.eval(`(() => ({
       source: JSON.parse(localStorage.getItem("timing-diagram/source")),
-      frame: JSON.parse(window.figureEditor.save()).groups.frames[2]
+      frame: JSON.parse(window.figureEditor.save()).annotations?.["schematic-editor"].frames[2]
     }))()`);
     const editedQ = editedWire.source.signal.find((s) => s.name === "Q");
     const untouchedQn = editedWire.source.signal.find((s) => s.name === "Qn");
@@ -2059,14 +2060,14 @@ scenarios.sequentialTiming = async (ctx) => {
       signal: JSON.parse(localStorage.getItem("timing-diagram/source")).signal.find((s) => s.name === "Q"),
       status: document.querySelector(".fe-status").textContent
     }))()`);
-    res.push([pulse.signal?.wave === "0010", `clock pulses calculate after the first timing step (${JSON.stringify(pulse)})`]);
+    res.push([pulse.signal?.wave === "1010", `a clock pulse is a rising edge in its own step, the first included (${JSON.stringify(pulse)})`]);
 
     await page.eval(`(() => {
       const doc = JSON.parse(${JSON.stringify(initialDocument)});
-      doc.groups.frames[0].levels = {};
+      doc.annotations["schematic-editor"].frames[0].levels = {};
       window.figureEditor.load(JSON.stringify(doc));
       window.__prompts = 0;
-      window.prompt = () => { window.__prompts++; return "1"; };
+      window.prompt = () => { window.__prompts++; return "1"; };   // never asked now
     })()`);
     await source([{ name: "D", wave: "0000" }, { name: "CLK", wave: "0101" }]);
     await page.eval(`document.querySelector('[data-do="calculate-timing"]').click()`);
@@ -2074,21 +2075,27 @@ scenarios.sequentialTiming = async (ctx) => {
       prompts: window.__prompts,
       source: JSON.parse(localStorage.getItem("timing-diagram/source"))
     }))()`);
-    res.push([prompted.prompts === 1 && prompted.source.signal.find((s) => s.name === "Q")?.wave === "1000" && prompted.source.signal.find((s) => s.name === "Qn")?.wave === "0111", "unknown initial state prompts for Q and derives its complement"]);
+    res.push([prompted.prompts === 0 && prompted.source.signal.find((s) => s.name === "Q")?.wave === "x000" && prompted.source.signal.find((s) => s.name === "Qn")?.wave === "x111", `an unknown state is X until a clock edge sets it, with no prompt (${JSON.stringify(prompted)})`]);
 
     await page.eval(`window.figureEditor.load(${JSON.stringify(initialDocument)})`);
     await source([{ name: "D", wave: "1x00" }, { name: "CLK", wave: "0101" }]);
-    await page.eval(`window.prompt = () => null; document.querySelector('[data-do="calculate-timing"]').click()`);
+    await page.eval(`window.__prompts = 0; window.prompt = () => { window.__prompts++; return null; }; document.querySelector('[data-do="calculate-timing"]').click()`);
     const cancelled = await page.eval(`(() => ({
       source: JSON.parse(localStorage.getItem("timing-diagram/source")),
-      frames: JSON.parse(window.figureEditor.save()).groups.frames,
-      status: document.querySelector(".fe-status").textContent
+      frames: JSON.parse(window.figureEditor.save()).annotations?.["schematic-editor"].frames,
+      status: document.querySelector(".fe-status").textContent,
+      prompts: window.__prompts
     }))()`);
-    res.push([cancelled.status.includes("cancelled") && cancelled.status.includes("1 completed") && cancelled.frames[1].levels.wq === "0", `cancelling retains the completed timing step (${JSON.stringify(cancelled)})`]);
+    const q = cancelled.source.signal.find((s) => s.name === "Q")?.wave;
+    res.push([cancelled.prompts === 0 && q === "xxx0" && cancelled.frames[4].levels.wq === "0" && cancelled.status.includes("Calculated 4"), `an unknown D at an edge gives X, no prompt; the next known edge sets Q (${JSON.stringify({ q, status: cancelled.status })})`]);
+    await source([{ name: "D", wave: "1111" }, { name: "CLK", wave: "pp", period: 2 }]);
+    await page.eval(`document.querySelector('[data-do="calculate-timing"]').click()`);
+    const slow = await page.eval(`JSON.parse(localStorage.getItem("timing-diagram/source")).signal.find((s) => s.name === "Q")?.wave`);
+    res.push([slow === "xx11", `limit lifted: a clock of period 2 calculates (Q ${slow})`]);
     await source([{ name: "CLK", wave: "p...", period: 0.5 }]);
     await page.eval(`document.querySelector('[data-do="calculate-timing"]').click()`);
     const unsupported = await page.eval(`document.querySelector(".fe-status").textContent`);
-    res.push([unsupported.includes("period 1"), "unsupported sub-step clock periods are reported rather than miscalculated"]);
+    res.push([unsupported.includes("inside a step"), `a sub-step clock period is reported rather than miscalculated (${unsupported})`]);
     res.push([page.errors.length === 0, `sequential timing: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
   } finally { await page.close(); }
   return res;
@@ -2160,7 +2167,7 @@ scenarios.projectZip = async (ctx) => {
         name: window.__projectZipName,
         files: [...files.keys()],
         zipEnd: view.getUint32(bytes.length - 22, true) === 0x06054b50,
-        schematicJson: schematic.schema === "circuit/0.2",
+        schematicJson: ["circuit/0.2", "circuit/0.3"].includes(schematic.schema),
         schematicSvg: text("schematic.svg").includes("<svg"),
         schematicPng: png("schematic.png"),
         timingJson: Array.isArray(timing.signal) && timing.signal.length === 2,
@@ -2234,7 +2241,7 @@ scenarios.interface = async (ctx) => {
     // the Schematic Editor alone: no timing or slide sections
     await page.goto(base + "schematic-editor/");
     await page.sleep(2500);
-    const s = JSON.parse(await page.eval(`JSON.stringify({ ok: !!window.schematicEditorTool, parts: document.querySelector("[data-parts]")?.dataset.parts, save: window.schematicEditorTool?.save("circuit").includes("circuit/0.2"), timingBar: document.querySelector('[data-sec-bar]') ? "present" : "none", toolbars: [...document.querySelectorAll('.fe-toolbar')].map((t) => t.getAttribute('aria-label')).join() })`));
+    const s = JSON.parse(await page.eval(`JSON.stringify({ ok: !!window.schematicEditorTool, parts: document.querySelector("[data-parts]")?.dataset.parts, save: ["circuit/0.2", "circuit/0.3"].some((s) => (window.schematicEditorTool?.save("circuit") ?? "").includes(String.fromCharCode(34) + s + String.fromCharCode(34))), timingBar: document.querySelector('[data-sec-bar]') ? "present" : "none", toolbars: [...document.querySelectorAll('.fe-toolbar')].map((t) => t.getAttribute('aria-label')).join() })`));
     res.push([s.ok && s.save && s.parts === "schematic", `Schematic Editor page: mounts alone and saves a circuit (parts: ${s.parts})`]);
     res.push([s.timingBar === "none" && s.toolbars === "Schematic Editor", `Schematic Editor page: its own toolbar, no Timing or Slide section (bars: ${s.timingBar}; toolbars: ${s.toolbars})`]);
     // a simulator-style host: no toolbar, no parts, only the drawing section and the slots

@@ -1,0 +1,26 @@
+{
+  "note": "Written by tools/shared/scripts/copy-model.js. Do not edit this folder by hand.",
+  "source": "circuit-model",
+  "ref": "model-v0.7.0",
+  "commit": "b1a9a08a07b458c9f96bea169b8a97f0462e269a",
+  "files": [
+    {
+      "name": "simulate.mjs",
+      "from": "sim/simulate.mjs",
+      "bytes": 12939,
+      "sha256": "096c57438648410e250219916b6b3c18534f7d5e84f4cb9202e0a4389190bcd7"
+    },
+    {
+      "name": "logic.mjs",
+      "from": "sim/logic.mjs",
+      "bytes": 10309,
+      "sha256": "10e662fdf603db6d6713d41ccb674d993de9b598fa3368a6cbec2e2b8dd4fecf"
+    },
+    {
+      "name": "README.md",
+      "from": "sim/README.md",
+      "bytes": 2526,
+      "sha256": "3a44ef4accdfeeb87fb2d995e052a72e907004d882709fe75576aa0a99627dca"
+    }
+  ]
+}
