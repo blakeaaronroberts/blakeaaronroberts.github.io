@@ -135,6 +135,7 @@ our own Verilator or SPICE.
 | `blakeaaronroberts.github.io` | Quarto site: the suite's public home, tools, explorations, reference pages, this file | Public |
 | `manimations` | Animation library and circuit toolbox (CircuiTikZ symbols, Manim motion), symbol pack export, animations rendered from traces | Private |
 | `circuit-model` | Core model: formats, schemas, symbol packs, simulator, importers, Boolean-function library | Private until Blake decides licence and ownership |
+| `reviews` | Reviewer reports, one folder per reviewed repository; no code | Private, permanently (findings can expose weaknesses) |
 
 Do not create new repositories without Blake's say-so.
 
@@ -251,7 +252,7 @@ and where to stop.
   drafts until Blake approves.
 - **Reviewers** (Security, Engineer, Code Review, Aesthetic, IP Inspector):
   report-only, weekly, reading changes since their last run plus one rotating
-  deep area. Each writes only `reviews/<agent>.md` in the repos it reviews, top
+  deep area. Each writes only `<repo>/<agent>.md` in the private `reviews` repository, top
   10 findings ranked. The IP Inspector checks licences, attribution and copied
   material. The Steward triages findings into batches for Blake.
 - **Sync.** Blake types `sync`. The Steward refreshes each handoff's Current

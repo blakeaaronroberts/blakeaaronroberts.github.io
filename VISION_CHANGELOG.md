@@ -2,6 +2,10 @@
 
 History of `VISION.md`. Newest first. Written by the Steward only.
 
+- 2026-11-19 (Blake): new private repository `reviews` for reviewer reports,
+  one folder per reviewed repository (`<repo>/<agent>.md`). Reviewers write only
+  there and never commit to the repositories they read (sections 5 and 8).
+
 - 2026-11-19 (Blake): FSM tool approved. New `fsm` format in the interface
   table (section 4) and an FSM tool among the products: state diagram, transition
   table and next-state and output equations, kept in sync, sending a circuit and
