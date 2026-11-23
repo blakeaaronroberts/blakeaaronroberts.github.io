@@ -1,0 +1,16 @@
+---
+title: "Circuit analyser (draft)"
+page-layout: full
+css: src/analyze.css
+---
+
+Type a circuit or Boolean expressions. The tool says whether it is combinational and shows the truth table. Draft: it changes until Blake approves it.
+
+```{=html}
+<div id="analyzer"></div>
+<noscript><p>The analyser needs JavaScript.</p></noscript>
+<script type="module">
+  import { mount } from "./src/app.js";
+  window.analyzer = mount(document.getElementById("analyzer"));
+</script>
+```

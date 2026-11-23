@@ -1,0 +1,200 @@
+{
+  "schema": "circuit/0.3",
+  "id": "full_adder_gates",
+  "title": "One-bit full adder from 2-input gates",
+  "grid_cm": 0.25,
+  "elements": [
+    {
+      "id": "g1",
+      "type": "xor_gate",
+      "at": [
+        16,
+        0
+      ]
+    },
+    {
+      "id": "g2",
+      "type": "xor_gate",
+      "at": [
+        32,
+        0
+      ]
+    },
+    {
+      "id": "g3",
+      "type": "and_gate",
+      "at": [
+        16,
+        -8
+      ]
+    },
+    {
+      "id": "g4",
+      "type": "and_gate",
+      "at": [
+        32,
+        -8
+      ]
+    },
+    {
+      "id": "g5",
+      "type": "or_gate",
+      "at": [
+        48,
+        0
+      ]
+    }
+  ],
+  "ports": [
+    {
+      "id": "A",
+      "dir": "in",
+      "at": [
+        -8,
+        0
+      ],
+      "label": "$A$",
+      "side": "left"
+    },
+    {
+      "id": "B",
+      "dir": "in",
+      "at": [
+        -8,
+        -8
+      ],
+      "label": "$B$",
+      "side": "left"
+    },
+    {
+      "id": "Cin",
+      "dir": "in",
+      "at": [
+        -8,
+        -16
+      ],
+      "label": "$C_{in}$",
+      "side": "left"
+    },
+    {
+      "id": "S",
+      "dir": "out",
+      "at": [
+        64,
+        0
+      ],
+      "label": "$S$",
+      "side": "right"
+    },
+    {
+      "id": "Cout",
+      "dir": "out",
+      "at": [
+        64,
+        -8
+      ],
+      "label": "$C_{out}$",
+      "side": "right"
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "from": "A",
+      "to": "g1.A"
+    },
+    {
+      "id": "w2",
+      "from": "A",
+      "to": "g3.A"
+    },
+    {
+      "id": "w3",
+      "from": "B",
+      "to": "g1.B"
+    },
+    {
+      "id": "w4",
+      "from": "B",
+      "to": "g3.B"
+    },
+    {
+      "id": "w5",
+      "from": "g1.Y",
+      "to": "g2.A"
+    },
+    {
+      "id": "w6",
+      "from": "g1.Y",
+      "to": "g4.A"
+    },
+    {
+      "id": "w7",
+      "from": "Cin",
+      "to": "g2.B"
+    },
+    {
+      "id": "w8",
+      "from": "Cin",
+      "to": "g4.B"
+    },
+    {
+      "id": "w9",
+      "from": "g2.Y",
+      "to": "S"
+    },
+    {
+      "id": "w10",
+      "from": "g3.Y",
+      "to": "g5.A"
+    },
+    {
+      "id": "w11",
+      "from": "g4.Y",
+      "to": "g5.B"
+    },
+    {
+      "id": "w12",
+      "from": "g5.Y",
+      "to": "Cout"
+    }
+  ],
+  "nets": {
+    "A": [
+      "A",
+      "g1.A",
+      "g3.A"
+    ],
+    "B": [
+      "B",
+      "g1.B",
+      "g3.B"
+    ],
+    "n_g1": [
+      "g1.Y",
+      "g2.A",
+      "g4.A"
+    ],
+    "Cin": [
+      "Cin",
+      "g2.B",
+      "g4.B"
+    ],
+    "n_g2": [
+      "g2.Y",
+      "S"
+    ],
+    "n_g3": [
+      "g3.Y",
+      "g5.A"
+    ],
+    "n_g4": [
+      "g4.Y",
+      "g5.B"
+    ],
+    "n_g5": [
+      "g5.Y",
+      "Cout"
+    ]
+  }
+}

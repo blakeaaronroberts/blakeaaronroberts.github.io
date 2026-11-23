@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "function/0.1",
+  "title": "Function schema v0.1",
+  "description": "A Boolean function as data, shared by every logic tool (truth table, K-map, SOP and POS, the Boolean solver) and the figure editor. The truth table is the truth: `table` has one character per row, \"0\", \"1\" or \"-\" (don't care), and row r gives variables[0] the most significant bit of r. Every expression field must agree with the table on every row that is not a don't care. Expressions use the syntax in logic/expr.mjs: variables are a letter followed by digits, ' or ~ for NOT, juxtaposition or * for AND, ^ or ⊕ for XOR, + for OR. Structure only: agreement with the table, the SOP and POS shapes and the minimal covers are checked by validate/ (both languages).",
+  "type": "object",
+  "required": ["schema", "id", "variables", "table"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "function/0.1", "description": "Format and version. Readers reject an unknown major version." },
+    "id": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" },
+    "title": { "type": "string" },
+    "variables": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[A-Za-z][0-9]*$" },
+      "description": "Input variables, most significant first."
+    },
+    "output": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+      "description": "Name of the output, e.g. F or Y. Default F."
+    },
+    "table": {
+      "type": "string",
+      "pattern": "^[01-]+$",
+      "description": "One character per row: 0, 1 or - (don't care). Its length must be 2 to the number of variables."
+    },
+    "expression": { "type": "string", "minLength": 1, "description": "Optional: the expression the function was written as." },
+    "sop": { "type": "string", "minLength": 1, "description": "Optional: a sum of products for the function, e.g. the canonical sum of minterms." },
+    "pos": { "type": "string", "minLength": 1, "description": "Optional: a product of sums for the function, e.g. the canonical product of maxterms." },
+    "minimal": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sop": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Every minimal sum of products (fewest terms, then fewest literals). More than one entry means the choice is not unique."
+        },
+        "pos": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Every minimal product of sums, as for sop."
+        }
+      },
+      "description": "Optional: the minimised forms. When present, a list must hold exactly all the minimal covers."
+    }
+  }
+}

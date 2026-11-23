@@ -14,9 +14,12 @@ project:
                             # Drafts go in docs/_drafts/: Quarto never renders "_" folders, so nothing reaches _site.
     - "!docs/templates/"    # page templates full of placeholders, not pages
     - "tools/*/index.qmd"   # web tools (unlisted, noindex via tools/_metadata.yml)
+    - "tools/logic/*/index.qmd"   # logic tools, one folder deeper (draft until Blake approves)
   resources:
     - "assets/**"           # static files referenced from includes (e.g. WaveDrom lecture skin)
     - "tools/*/src/**"      # web tools' ES modules, loaded by the page at run time
+    - "tools/logic/*/src/**"      # the logic tools' modules and their pinned model copy
+    - "tools/logic/*/model/**"
     - "tools/*/symbol-pack/**"   # the figure editor's pinned symbol pack (fetched at run time)
     - "tools/*/examples/*.json"  # sample figures (open with ?open=examples/<file>.json)
 

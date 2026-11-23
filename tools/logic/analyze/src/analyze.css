@@ -1,0 +1,45 @@
+/* L5 analyser. Colours are roles only (--role-*); nothing here sets a colour or a font by value. */
+.an-layout { display: grid; grid-template-columns: minmax(18rem, 2fr) 3fr; gap: 1.25rem; align-items: start; }
+@media (max-width: 900px) { .an-layout { grid-template-columns: 1fr; } }
+.an-side, .an-results { min-width: 0; }
+.an-bar { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.5rem; }
+.an-bar select, .an-bar button { font: inherit; padding: 0.25rem 0.6rem; color: var(--role-ink); background: var(--role-surface); border: 1px solid var(--role-rule); border-radius: 4px; }
+.an-bar button:hover { border-color: var(--role-accent); }
+.an-editor { width: 100%; box-sizing: border-box; font-family: var(--bs-font-monospace); font-size: 0.85rem; line-height: 1.4; tab-size: 2; padding: 0.6rem; color: var(--role-ink); background: var(--role-background); border: 1px solid var(--role-rule); border-radius: 4px; resize: vertical; white-space: pre; overflow: auto; }
+.an-editor:focus { outline: 2px solid var(--role-accent); outline-offset: 1px; }
+.an-hint, .an-note, .an-status, .an-info { color: var(--role-muted); font-size: 0.85rem; margin: 0.4rem 0; }
+.an-error { color: var(--role-ink); border-left: 4px solid var(--role-accent); padding: 0.4rem 0.8rem; background: var(--role-surface); }
+.an-verdict { border: 1px solid var(--role-rule); border-left-width: 6px; border-radius: 4px; padding: 0.4rem 1rem 0.6rem; background: var(--role-surface); margin-bottom: 0.8rem; }
+.an-verdict[data-tone="yes"] { border-left-color: var(--role-accent); }
+.an-verdict[data-tone="no"] { border-left-style: double; }
+.an-verdict[data-tone="unsure"] { border-left-style: dashed; }
+.an-verdict h2 { font-size: 1.15rem; margin: 0.2rem 0; border: 0; }
+.an-mark { display: inline-block; min-width: 1.2em; font-weight: 700; }
+.an-reasons { margin: 0.3rem 0; padding-left: 1.2rem; font-size: 0.9rem; }
+.an-table-wrap { max-height: 28rem; overflow: auto; border: 1px solid var(--role-rule); border-radius: 4px; }
+.an-table { border-collapse: collapse; font-family: var(--bs-font-monospace); font-size: 0.85rem; width: auto; margin: 0; }
+.an-table th, .an-table td { padding: 0.15rem 0.6rem; text-align: center; border: 0; border-bottom: 1px solid var(--role-rule); }
+.an-table thead th { position: sticky; background: var(--role-surface); color: var(--role-ink); border-bottom: 1px solid var(--role-rule); }
+.an-table thead tr:first-child th { top: 0; font-family: inherit; }
+.an-table thead tr:last-child th { top: 1.6rem; }
+.an-table .an-out { border-left: 1px solid var(--role-rule); }
+.an-table td:not(.an-out) + td.an-out, .an-table th.an-out:first-of-type { border-left: 2px solid var(--role-ink); }
+.an-table .an-row { color: var(--role-muted); text-align: right; border-right: 1px solid var(--role-rule); }
+.an-table .an-dc { color: var(--role-muted); font-style: italic; }
+.an-table tbody tr:hover { background: var(--role-surface); }
+
+/* L5.3 to L5.6: forms, export, check */
+.an-export, .an-card, .an-check { border: 1px solid var(--role-rule); border-radius: 4px; padding: 0.3rem 1rem 0.7rem; margin: 0.9rem 0; background: var(--role-background); }
+.an-check { margin-top: 1.2rem; }
+.an-export h3, .an-card h3, .an-check h3 { font-size: 1.05rem; margin: 0.4rem 0; border: 0; }
+.an-card h3 { font-family: var(--bs-font-monospace); }
+.an-forms { list-style: none; padding: 0; margin: 0.3rem 0; }
+.an-forms li { padding: 0.25rem 0; border-bottom: 1px dotted var(--role-rule); overflow-x: auto; }
+.an-label { display: inline-block; min-width: 9.5rem; color: var(--role-muted); font-size: 0.85rem; }
+.an-cost { color: var(--role-muted); font-size: 0.8rem; white-space: nowrap; }
+.an-best { margin: 0.5rem 0; }
+.an-expected { font-size: 0.85rem; }
+.an-check-out .an-verdict h4 { font-size: 1rem; margin: 0.3rem 0; }
+.an-diff { font-size: 0.8rem; }
+.an-card .an-bar button, .an-export .an-bar button { font-size: 0.85rem; }
+.an-diff thead th { top: 0 !important; }
