@@ -131,8 +131,8 @@ Deno.test("beta fitted diagrams reserve space for every lane and step at ordinar
   const g = result.geometry;
   assert(g.top + 20 * g.laneH <= g.height - 5, "all lanes lie inside the SVG");
   assert(g.x0 + g.steps * g.stepW <= g.width - 8, "all steps lie inside the SVG");
-  const clip = /<clipPath id="plot"><rect x="[^"]+" y="0" width="[^"]+" height="([^"]+)"/.exec(result.svg);
-  assert(clip && +clip[1] >= g.top + 20 * g.laneH, "the plot clip includes every lane");
+  assert(!result.svg.includes("clipPath"), "no clipPath: geometry is clipped in code");
+  assert(result.svg.includes(`d="M ${g.x0}`) || result.svg.includes("<path"), "lanes are drawn");
 });
 Deno.test("beta look settings persist in WaveDrom config with unchanged defaults", async () => {
   const { empty, lineWidthOf, setLineWidth, setTextSize, textSizeOf, toWaveDrom } = await import("../src/model.js");
@@ -252,7 +252,7 @@ Deno.test("beta grid and arrows meet the centers of simultaneous transitions", a
     assertEquals([+edge[1], +edge[3]], [x, x]);
     assert(result.svg.includes(`<line x1="${x}"`) && result.svg.includes(`x2="${x}"`), `${wave}: grid is vertical at the transition`);
     const target = [+edge[3], +edge[4]], top = result.geometry.top + result.geometry.laneH, bottom = top + result.geometry.laneH;
-    const paths = [...result.svg.matchAll(/<path\b[^>]*clip-path="url\(#plot\)"[^>]*>/g)];
+    const paths = [...result.svg.matchAll(/<path\b[^>]*\bd="M [^"]*"[^>]*>/g)];
     const onSegment = (a, b) => {
       if (a[1] < top - 0.02 || b[1] < top - 0.02 || a[1] > bottom + 0.02 || b[1] > bottom + 0.02) return false;
       const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy);
@@ -289,15 +289,18 @@ Deno.test("beta transition centers retain phase, delay, and period offsets", asy
 Deno.test("beta centered transitions remain ordered at short periods and near the plot edge", async () => {
   const { drawTiming } = await import("../src/draw.js");
   const clock = drawTiming({ signal: [{ name: "C", wave: "p..", period: 0.25 }], config: { slant: 12 } }, { width: 100, centerTransitions: true });
-  const path = /<path d="(M [^"]+)" clip-path="url\(#plot\)"/.exec(clock.svg)[1];
+  const path = /<path d="(M [^"]+)" fill="none"/.exec(clock.svg)[1];
   const xs = [...path.matchAll(/[ML]\s+(-?[\d.]+)\s+(-?[\d.]+)/g)].map((m) => +m[1]);
   assert(xs.every((x, i) => i === 0 || x >= xs[i - 1]), "clock edges do not run backwards");
 
   const box = drawTiming({ signal: [{ name: "B", wave: "0x", phase: 0.9 }], config: { slant: 12 } }, { width: 100, centerTransitions: true });
-  const shape = /<path clip-path="url\(#plot\)" d="M ([\d.]+) [\d.]+ L ([\d.]+) [\d.]+/.exec(box.svg);
+  const shape = /<path d="(M [^"]+ Z)"/.exec(box.svg);
   assert(shape, "unknown-state box exists");
+  const pts = [...shape[1].matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map((m) => [+m[1], +m[2]]);
+  const ys = pts.map((p) => p[1]), top = Math.min(...ys), bottom = Math.max(...ys);
+  const left = (y) => Math.min(...pts.filter((p) => Math.abs(p[1] - y) < 0.01).map((p) => p[0]));   // the slanted entry edge: its top and bottom ends
   const center = box.geometry.x0 + 0.1 * box.geometry.stepW;
-  assert(Math.abs((+shape[1] + +shape[2]) / 2 - center) < 0.01, "partially clipped box still centers at its timing boundary");
+  assert(Math.abs((left(top) + left(bottom)) / 2 - center) < 0.01, "partially clipped box still centers at its timing boundary");
 });
 
 // R1.4: a signal's level in each step, as drawn (steplevels.js), for the editor's frames and calculated timing.
