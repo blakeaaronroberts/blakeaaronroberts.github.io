@@ -52,7 +52,7 @@ export function mount(root, {
     const r = parseSource(store.get(storageKey) ?? "");
     if (!r.ok) return empty();
     const waves = (r.value.signal ?? []).map((s) => s?.wave);
-    return waves.length === 3 && waves.every((w, i) => w === LEGACY[i]) ? empty() : fromWaveDrom(r.value);
+    return waves.length === 3 && waves.every((w, i) => w === LEGACY[i]) ? empty() : resetTimingLook(fromWaveDrom(r.value));   // the look (sizes, colours, line weights) starts from the defaults on every load; the waves, arrows and signal options are kept
   })();
   let natural = null, custom = false;   // custom: the reader set the size by hand
   let nodes = [], frameNames = [], frame = -1, selectedNodes = new Set();
@@ -254,10 +254,12 @@ export function mount(root, {
           <label>Period <input class="form-control form-control-sm" type="number" min="0.25" step="0.25" data-prop="period" value="${Number(s.period) || 1}"></label>
           <label>Phase <input class="form-control form-control-sm" type="number" step="0.05" data-prop="phase" value="${Number(s.phase) || 0}"></label>
           <label>Group <input class="form-control form-control-sm" data-prop="group" value="${esc(s.group ?? "")}" placeholder="none"></label>
-          <label class="form-check"><input class="form-check-input" type="checkbox" data-act="clock"${isClock(s) ? " checked" : ""}> clock</label></div>` : "";
-      return `<div class="td-row${selectedNodes.has(s.name) ? " is-node-selected" : ""}" data-s="${si}">
+          <label class="form-check"><input class="form-check-input" type="checkbox" data-act="clock"${isClock(s) ? " checked" : ""}> clock</label>
+          <label class="form-check"><input class="form-check-input" type="checkbox" data-act="hidename"${s.hideName ? " checked" : ""}> hide name</label>
+          <label class="form-check"><input class="form-check-input" type="checkbox" data-act="hide"${s.hidden ? " checked" : ""}> hide wave</label></div>` : "";
+      return `<div class="td-row${selectedNodes.has(s.name) ? " is-node-selected" : ""}${s.hidden ? " is-wave-hidden" : ""}" data-s="${si}">
         <div class="td-name"><span title="${esc(s.name)}">${inlineMath(s.name)}</span>
-          <button type="button" class="td-mini" data-act="more" aria-expanded="${open.has(si)}" title="Period, phase, group, clock">⚙</button>${tools}</div>
+          <button type="button" class="td-mini" data-act="more" aria-expanded="${open.has(si)}" title="Period, phase, group, clock">⚙</button><button type="button" class="td-mini" data-act="hide" aria-pressed="${s.hidden === true}" aria-label="Hide the wave of ${esc(s.name)}" title="${s.hidden ? "The wave is hidden (the row, name and arrow nodes stay): show it" : "Hide the wave (the row, name and arrow nodes stay)"}">${s.hidden ? "◌" : "◉"}</button>${tools}</div>
         <div class="td-cells" style="--n:${n}">${cells}</div>
         <input class="form-control form-control-sm td-delay" type="number" step="0.05" data-act="delay" value="${Number(s.delay) || 0}" aria-label="Delay of ${esc(s.name)} in steps" title="Delay in steps (fractions allowed)">
       </div>${more}`;
@@ -289,6 +291,8 @@ export function mount(root, {
     const act = e.target.closest("[data-act]")?.dataset.act;
     if (act === "more") { if (open.has(si)) open.delete(si); else open.add(si); renderGrid(); }
     if (act === "clock") commit(setClock(value, si, !isClock(value.signal[si])));
+    if (act === "hide") commit(setProp(value, si, "hidden", !value.signal[si].hidden));          // F29: hide the wave, keep the row and its nodes
+    if (act === "hidename") commit(setProp(value, si, "hideName", !value.signal[si].hideName));
     if (act === "up" || act === "down") { open.clear(); commit(moveSignal(value, si, act === "up" ? -1 : 1)); }
     if (act === "del") { open.clear(); commit(removeSignal(value, si), `Removed ${value.signal[si].name || "the spacer"}.`); }
   });
@@ -388,7 +392,7 @@ export function mount(root, {
     if (act === "add-all") { let v = value; for (const nd of nodes) v = addSignal(v, nd.name, { clock: CLOCK.test(nd.name) }); commit(v, "Added every node."); }
     if (act === "add-custom") { const name = window.prompt("Name of the signal"); if (name?.trim()) commit(addSignal(value, name.trim(), { clock: CLOCK.test(name.trim()) })); }
     if (act === "add-spacer") commit(addSpacer(value), "Added a spacer.");
-    if (act === "src-apply") { const r = parseSource(srcText.value); if (!r.ok) return say(r.error, true); commit(fromWaveDrom(r.value), "Using the pasted source."); showView("edit"); }
+    if (act === "src-apply") { const r = parseSource(srcText.value); if (!r.ok) return say(r.error, true); commit(resetTimingLook(fromWaveDrom(r.value)), "Using the source; the look is back to the defaults."); showView("edit"); }
     if (act === "src-clear" && betaFeatures) { srcText.value = ""; syncSourceLines(); srcText.focus(); say("Source editor cleared; the diagram is unchanged until you use this source."); }
     if (act === "src-upload" && betaFeatures) srcFile.click();
     if (act === "src-save") { save(new Blob([srcText.value], { type: "application/json" }), "timing-diagram.json"); say("Saved WaveDrom source as timing-diagram.json."); }
@@ -630,6 +634,6 @@ export function mount(root, {
     setCalculatedLevels(updates) { commit(setCalculatedLevels(value, updates), null); },
     get frame() { return frame; },
     get source() { return tidy(toWaveDrom(value)); },
-    set source(v) { const r = parseSource(v); if (r.ok) commit(fromWaveDrom(r.value)); },
+    set source(v) { const r = parseSource(v); if (r.ok) commit(resetTimingLook(fromWaveDrom(r.value))); },   // a source loaded by a host also starts from the default look
     get value() { return value; } };
 }

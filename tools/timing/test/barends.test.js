@@ -44,8 +44,8 @@ Deno.test("the level line after a bar starts where the slanted edge ends, with n
     assert(sig[0][0] >= xr - l.slope - 0.02 && sig[0][0] <= xr + 0.02, `${wave}: it starts at the edge's end (x ${sig[0][0]}, edge ${xr - l.slope}..${xr})`);
   }
 });
-Deno.test("bar to bar and bar to Z keep the pointed end; a bar at the end of the wave keeps it too", () => {
-  for (const wave of ["xx", "x=", "xz", "x"]) {
+Deno.test("bar to bar and bar to Z keep the pointed end (a bar at the end of the wave is cut straight: see fill.test.js)", () => {
+  for (const wave of ["xx", "x=", "xz"]) {
     const l = lane(wave), p = l.bars[0];
     assert(has(p, xAt(l, 1), l.ym), `${wave}: point at mid level`);
   }

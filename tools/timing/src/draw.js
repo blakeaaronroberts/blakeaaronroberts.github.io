@@ -8,7 +8,7 @@
 //   z (high impedance), x (unknown, hatched), = and 2 (data), 3 to 9 (data in colours), p n (clocks), P N (clocks with
 //   an arrow on the active edge), . (the step before continues), | (a gap mark; the step before continues);
 // - per signal: name, wave, data (labels for the data steps), period, phase, node (letters that edges join);
-//   and our own `delay` (a fine offset in steps) and `group` (a flat way to write a group);
+//   and our own `delay` (a fine offset in steps), `group` (a flat way to write a group), `hidden` (no wave, the row and its arrow nodes stay) and `hideName`;
 // - groups (an array whose first item is the group's name) and spacers ({});
 // - head and foot: text, tick (numbered step edges), tock (numbered step middles), every (number every Nth);
 // - edge: arrows between nodes, straight (-), curved (~) or square (-| |- -|-), with < and > heads and a label;
@@ -31,6 +31,7 @@ export function lanesOf(value) {
       name: typeof x.name === "string" ? x.name : "", wave: typeof x.wave === "string" ? x.wave : "", data,
       phase: Number(x.phase) || 0, delay: Number(x.delay) || 0, period: Math.max(0.25, Number(x.period) || 1),
       node: typeof x.node === "string" ? x.node : "", groups, spacer: !x.name && !x.wave,
+      hidden: x.hidden === true, hideName: x.hideName === true,   // our own keys: do not draw the wave, do not draw the name (the row stays)
     });
   };
   const walk = (x, path) => {
@@ -126,7 +127,7 @@ function hatchSegments(poly) {
 }
 
 const groupDepth = (lanes) => Math.max(0, ...lanes.map((l) => l.groups.length));
-const labelWidth = (lanes, nameTypeset = null, fontSize = FONT) => Math.ceil(Math.max(0, ...lanes.map((l) => {
+const labelWidth = (lanes, nameTypeset = null, fontSize = FONT) => Math.ceil(Math.max(0, ...lanes.filter((l) => !l.hideName).map((l) => {
   const parsed = nameTypeset?.get(l.name);
   return parsed?.ok ? parsed.width * fontSize : l.name.length * fontSize * 0.6;
 }))) + 8 + groupDepth(lanes) * GROUP_W;
@@ -198,12 +199,13 @@ export function drawTiming(value, { width, height, ink = figureRole("ink") ?? "c
   const W = Math.max(100, width ?? nat.w, fitText ? t.labelW + 12 + t.plotMin + t.right : 0);
   const H = Math.max(40, height ?? nat.h, fitText ? 10 + t.topExtra + headH + footH + Math.max(1, lanes.length) * t.laneMin : 0);
   const labelW = t.labelW, x0 = labelW + 12, gw = groupDepth(lanes) * GROUP_W;
-  const clipX0 = x0 - 2, clipX1 = W - 10;   // the plot area: geometry is cut to it in code (no clipPath in the export)
-  const inPlot = (x) => x >= clipX0 && x <= clipX1;
   // A fill at `alpha` over the paper colour as one solid colour (PowerPoint handles that better than translucency); without a paper colour it stays translucent.
   const fillOf = (colour, alpha) => isHexColour(colour) && isHexColour(paper) ? `fill="${mixOver(colour, paper, alpha)}"` : `fill="${colour}" fill-opacity="${alpha}"`;
   const steps = stepCount(lanes);
   const stepW = Math.max(4, (W - x0 - t.right) / steps);
+  // The plot area: waves are cut exactly at the end of the last step (and a little before x0 for line caps), in code (no clipPath in the export).
+  const clipX0 = x0 - 2, clipX1 = x0 + steps * stepW;
+  const inPlot = (x) => x >= clipX0 - 0.01 && x <= clipX1 + 0.01;
   const top0 = 5 + headH + t.topExtra;
   const laneH = Math.max(12, (H - 10 - t.topExtra - headH - footH) / Math.max(1, lanes.length));
   const cfgSlant = value?.config?.slant, slant = cfgSlant === undefined ? 5 : Math.min(12, Math.max(0, Number(cfgSlant) || 0));   // config.slant: 0 is square edges, 5 is WaveDrom's look
@@ -263,29 +265,42 @@ export function drawTiming(value, { width, height, ink = figureRole("ink") ?? "c
     const top = top0 + li * laneH, yh = top + laneH * 0.17, yl = top + laneH * 0.83, ym = (yh + yl) / 2;
     const bottom = top + laneH;
     const yOf = { hi: yh, lo: yl, mid: ym };
-    if (showNames && lane.name) {
+    if (showNames && lane.name && !lane.hideName) {
       const parsed = nameTypeset?.get(lane.name);
       out.push(parsed?.ok ? mathText(labelW, ym + signalNameSize * 0.35, parsed, "end", signalNameSize) : text(labelW, ym + signalNameSize * 0.35, lane.name, "end", signalNameSize));
     }
     if (lane.spacer) return;
-    const st = stepsOf(lane.wave), w = stepW * lane.period;
+    const base = stepsOf(lane.wave), w = stepW * lane.period;
     const slope = centerTransitions ? Math.min(baseSlope, w / 4) : baseSlope;
     const xAt = (i) => x0 + (i - lane.phase + lane.delay) * w;   // phase shifts left, delay (fine, in steps) shifts right
+    // Always edge to edge (F29): the wave is extended by whole steps, in the same way as its ends, until it covers the plot.
+    // Before the first step it repeats the first value (delay), after the last it repeats the last (phase), and one step
+    // always runs past the edge so the cut at the edge is straight. A clock's arrow letters (P, N) become plain p, n there.
+    const plain = (c) => (c === "P" ? "p" : c === "N" ? "n" : c);
+    const nb = base.length && xAt(0) > x0 + 1e-6 ? Math.ceil((xAt(0) - x0) / w - 1e-6) : 0;
+    const na = base.length ? Math.ceil((clipX1 - xAt(base.length)) / w - 1e-6) + 1 : 0;
+    const S = (i) => {   // the step at original index i, which may be before the first or after the last
+      if (!base.length) return undefined;
+      if (i < 0) return i >= -nb ? { c: plain(base[0].c), isNew: i === -nb, gap: false } : undefined;
+      if (i >= base.length) return i - base.length < Math.max(na, 1) ? { c: plain(base.at(-1).c), isNew: false, gap: false } : undefined;
+      return i === 0 && nb ? { ...base[0], isNew: false } : base[i];
+    };
     for (let i = 0; i < lane.node.length; i++) {
       const ch = lane.node[i];
       if (ch !== "." && ch !== " " && !nodes.has(ch)) {
         let nodeY = ym;
-        if (centerTransitions && i > 0 && st[i]?.isNew && LEVEL[st[i].c] && LEVEL[st[i - 1]?.c] === "mid" && LEVEL[st[i].c] !== "mid") {
-          nodeY = (ym + yOf[LEVEL[st[i].c]]) / 2;
-        } else if (centerTransitions && i > 0 && /^[pPnN]$/.test(st[i]?.c ?? "") && LEVEL[st[i - 1]?.c] === "mid") {
-          nodeY = (ym + (/^[pP]$/.test(st[i].c) ? yh : yl)) / 2;
+        if (centerTransitions && i > 0 && S(i)?.isNew && LEVEL[S(i).c] && LEVEL[S(i - 1)?.c] === "mid" && LEVEL[S(i).c] !== "mid") {
+          nodeY = (ym + yOf[LEVEL[S(i).c]]) / 2;
+        } else if (centerTransitions && i > 0 && /^[pPnN]$/.test(S(i)?.c ?? "") && LEVEL[S(i - 1)?.c] === "mid") {
+          nodeY = (ym + (/^[pP]$/.test(S(i).c) ? yh : yl)) / 2;
         }
-        nodes.set(ch, [xAt(i) + (!centerTransitions && st[i]?.isNew && i > 0 ? slope / 2 : 0), nodeY]);
+        nodes.set(ch, [xAt(i) + (!centerTransitions && S(i)?.isNew && i > 0 ? slope / 2 : 0), nodeY]);
       }
     }
+    if (lane.hidden) return;   // the wave is not drawn; the row, its name and every node above stay where they are
     const levelEnd = (i, k, xr) => {
       if (!centerTransitions) return xr;
-      const next = st[i + 1];
+      const next = S(i + 1);
       if (!next) return xr;
       if (/^[pPnN]$/.test(next.c)) return xr - slope / 2;
       if (next.isNew && LEVEL[next.c] && LEVEL[next.c] !== k) {
@@ -317,12 +332,14 @@ export function drawTiming(value, { width, height, ink = figureRole("ink") ?? "c
       const xl = centeredEntry ? xAt(run.from) - slope : Math.max(x0, xAt(run.from)), xr = xAt(run.to), hatch = run.c === "x";
       const entryWidth = centeredEntry ? slope * 2 : slope;
       // The start: from a 0 or 1 the edge runs the full height; otherwise it is a point at mid level.
-      const leftTop = run.entry === "hi" ? [xl, yh] : [xl + entryWidth, yh];
-      const leftBottom = run.entry === "lo" ? [xl, yl] : [xl + entryWidth, yl];
-      const leftPoint = run.entry === "lo" || run.entry === "hi" ? [] : [[xl, ym]];
+      // A bar that began before the plot (delay or phase fills the edge) is cut square at the left edge, with no start shape.
+      const cutLeft = run.from < 0 || xAt(run.from) < x0 - 1e-6;
+      const leftTop = cutLeft ? [x0, yh] : run.entry === "hi" ? [xl, yh] : [xl + entryWidth, yh];
+      const leftBottom = cutLeft ? [x0, yl] : run.entry === "lo" ? [xl, yl] : [xl + entryWidth, yl];
+      const leftPoint = cutLeft || run.entry === "lo" || run.entry === "hi" ? [] : [[xl, ym]];
       // The end (F28): before a 0 the top edge runs down to the low level and the bottom edge stays on it; before a 1 the
       // bottom edge runs up to the high level and the top edge stays on it. Into another bar, Z or the end of the wave it is a point.
-      const next = LEVEL[st[run.to]?.c], exit = next === "lo" || next === "hi" ? next : null;
+      const next = LEVEL[S(run.to)?.c], exit = next === "lo" || next === "hi" ? next : null;
       const end = exit === "lo" ? [[xr - slope, yh], [xr, yl]] : exit === "hi" ? [[xr, yh], [xr - slope, yl]] : [[xr - slope, yh], [xr, ym], [xr - slope, yl]];
       const pts = clipPolygon([leftTop, ...end, leftBottom, ...leftPoint], clipX0, clipX1);
       const colourIndex = /[3-9]/.test(run.c) ? +run.c - 3 : -1;
@@ -347,12 +364,9 @@ export function drawTiming(value, { width, height, ink = figureRole("ink") ?? "c
     };
     const gapMark = (x) => inPlot(x - 3) && inPlot(x + 5) && out.push(`<path d="M ${n2(x - 3)} ${n2(yl + 2)} L ${n2(x + 1)} ${n2(yh - 2)} M ${n2(x + 1)} ${n2(yl + 2)} L ${n2(x + 5)} ${n2(yh - 2)}" fill="none" stroke="${ink}" stroke-width="${n2(lw / 1.6)}"/>`);
     const arrow = (x, y, up) => inPlot(x - 3.5) && inPlot(x + 3.5) && out.push(`<path d="M ${n2(x - 3.5)} ${n2(y + (up ? 4 : -4))} L ${n2(x)} ${n2(y)} L ${n2(x + 3.5)} ${n2(y + (up ? 4 : -4))} Z" fill="${ink}"/>`);
-    if (lane.delay > 0 && st.length) {   // before a delayed lane changes, it holds its first level
-      const c0 = st[0].c, k0 = /^[pPnN]$/.test(c0) ? (c0 === "p" || c0 === "P" ? "lo" : "hi") : LEVEL[c0];
-      if (k0) { paint(k0, WEAK.has(c0)); line(x0, yOf[k0]); level = k0; }
-    }
-    for (let i = 0; i < st.length; i++) {
-      const { c, isNew, gap } = st[i], xl = xAt(i), xr = xAt(i + 1);
+    for (let i = -nb; S(i); i++) {
+      const { c, isNew, gap } = S(i), xl = xAt(i), xr = xAt(i + 1);
+      if (xl > clipX1 + 1e-6) break;   // a step that starts past the edge cannot show
       if (gap) gapMark(xl);
       if (xr <= x0) continue;
       const wasBox = prevBox; prevBox = BOX.test(c);
@@ -409,6 +423,7 @@ export function drawTiming(value, { width, height, ink = figureRole("ink") ?? "c
   for (const raw of Array.isArray(value?.edge) ? value.edge : []) {
     const e = parseEdge(raw), a = e && nodes.get(e.from), b = e && nodes.get(e.to);
     if (!a || !b) continue;
+    if (!inPlot(a[0]) || !inPlot(b[0])) continue;   // an arrow never leaves the plot: a node cut off by the edge draws no arrow
     const op = e.op.replace(/[<>]/g, "");
     const type = op.includes("~") ? "curved" : op.includes("|") ? "square" : "straight";
     const style = edgeStyles?.[type] ?? {};
