@@ -48,7 +48,7 @@ Sync of 2026-11-19, 13:00 (Pacific). Facts only; work lives in the batches below
 
 ## Batches
 
-**Order of work (Blake, 2026-11-19).** R1.1 to R1.5 are merged. **First F28 (timing-diagram shape and PowerPoint fixes, Blake's top priority, 2026-11-23),** then F24 (editor uses C14), then F25 (hardening and records), then F23.1 (FSM plan, C15 is tagged), then F27 (figure fixes), then F20, T2.3, F21.2 to F21.3, then F9 and F11 (simulator tag exists), then F8. F13 follows circuit-model C8; F22 follows C11 (engine memo); F23 follows circuit-model C15 and the R1 merge. F26 runs before launch. A second site session may work L1, then L2, then L3, inside `tools/logic/` and `tools/equations/` only. Archived batches: `docs/handoff-archive.md`.
+**Order of work (Blake, 2026-11-19).** R1.1 to R1.5 are merged. **First F28 (timing-diagram shape and PowerPoint fixes, Blake's top priority, 2026-11-23),** then F24 (editor uses C14), then F25 (hardening and records), then F23.1 (FSM plan, C15 is tagged), then F27 (figure fixes), then F20, T2.3, F21.2 to F21.3, then F9 and F11 (simulator tag exists), then F8. F13 follows circuit-model C8; F22 follows C11 (engine memo); F23 follows circuit-model C15 and the R1 merge. F26 runs before launch. A second site session may work L1, then L5 (after circuit-model C17), then L2, then L3, inside `tools/logic/` and `tools/equations/` only. Archived batches: `docs/handoff-archive.md`.
 
 | Batch | Intent | Status | Approved by Blake |
 |---|---|---|---|
@@ -70,6 +70,7 @@ Sync of 2026-11-19, 13:00 (Pacific). Facts only; work lives in the batches below
 | F21 | N-input and N-output variants and a calmer Elements pane | Open | 2026-11-14 |
 | F22 | SystemVerilog in the Figure Editor (blocked on C11; import runs in the browser only if the C11.0 spike passes, otherwise the editor loads the importer's JSON) | Open | 2026-11-14 |
 | L1 | Logic mini-tools: truth table, K-map, SOP and POS, Boolean solver | Open | 2026-11-14 |
+| L5 | Circuit analyser: from a drawn circuit (later also SystemVerilog) say whether it is fully combinational and, if so, show truth table, minterms and maxterms, SOP, POS, minimal forms and LaTeX (Blake's request, 2026-11-23; modelled on his ModelSim `module_generic.do`) | Open | 2026-11-23 |
 | L2 | Converters from chapters 1 to 5 | Open | 2026-11-14 |
 | L3 | Equation library, core 100 to 300 level | Open | 2026-11-14 |
 | F28 | Timing diagram: bars end in a slanted edge into 0 or 1, and the hatch pastes into PowerPoint as clean vector lines (no SVG pattern) | Open (top priority) | 2026-11-23 |
@@ -398,8 +399,33 @@ Intent: small standalone tools on the site, each one job, each reading and writi
 |---|---|---|---|---|
 | L1.1 | Truth table generator (from expression, or by entering rows) | Steward, approved by Blake 2026-11-14 | Open | |
 | L1.2 | K-map tool with grouping shown, SOP and POS results, don't-cares | Steward, approved by Blake 2026-11-14 | Open | |
-| L1.3 | Boolean algebra step-by-step solver showing the rule used on each line (rule names from the course) | Steward, approved by Blake 2026-11-14 | Open | |
+| L1.3 | Boolean algebra step-by-step solver showing the rule used on each line (rule names from the course) | Steward, approved by Blake 2026-11-14 | Open | Blake, 2026-11-23: wants this one. Library `L.simplify(expr).steps` exists. Each line shows the law used and the part it was applied to; check every step against the truth table in code so a wrong step can never be shown; also solve toward SOP, POS, NAND-only and NOR-only forms, and "prove two expressions equal" with a counterexample row when they are not; a "your turn" mode where the student picks the law |
 | L1.4 | Send to Figure Editor and download and upload of the `function` file on every tool | Steward, approved by Blake 2026-11-14 | Open | |
+
+---
+
+### L5: Circuit analyser (combinational check, truth table, SOP and POS, LaTeX)
+
+Intent: Blake's ModelSim script `module_generic.do` forces every input combination on a module, reads the output, and writes a Markdown report. This batch does the same in the browser, from a circuit, with no ModelSim. Folder `tools/logic/analyze/`. Waits for circuit-model C17 (tagged). Plan first, stop for Blake's OK, then one step at a time. Draft until Blake approves. Student-facing text never says "simply", "obviously" or "trivially".
+
+What the script produces, which the tool must match: the truth table with one column per input bit and per output bit (named `a[3]`, `y[0]`); the table as a LaTeX `tabular`; for every output bit the minterm list (sigma m) and maxterm list (pi M), the canonical SOP and POS with term counts, shown rendered and as copyable LaTeX; combined `aligned` blocks for all outputs; and a "best implementation" pick per output.
+
+What the tool does better (all from the existing `logic/` library):
+- A verdict first: "combinational" or not, with the reasons from C17 (sequential element, feedback loop with the nets named, tri-state, too many inputs). Not combinational means no table, and a pointer to the FSM tool when it is a clocked circuit.
+- Minimal SOP and POS by Quine-McCluskey beside the canonical ones. The script's "best" only compares canonical term counts, which is not the cheapest form.
+- Outputs that are X or Z on some rows are shown as don't-cares and flagged. The script counts anything not 1 as 0, so those rows would pass silently.
+- Several inputs and several outputs, any bus width up to the C17 cap, with a clear message above it.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| L5.1 | Plan: layout, what is in the first release, how a circuit gets in (a circuit file, the editor's current circuit; SystemVerilog arrives with C11) | Blake, 2026-11-23 | Open | Stop for Blake |
+| L5.2 | Verdict and truth table: paste or upload a `circuit`, run C17, show the verdict and the table with per-bit columns | | Open | |
+| L5.3 | Expressions: per output, sigma m and pi M, canonical and minimal SOP and POS, term and literal counts, best pick, rendered in MathJax | | Open | |
+| L5.4 | Copy and export: Markdown, LaTeX (table, aligned equations), CSV, and the `function` file; a "Copy as Verilog `assign`" for the minimal form | | Open | |
+| L5.5 | Send to: K-map tool, Boolean solver (L1.3) with the chosen expression, Figure Editor (minimal circuit) | | Open | |
+| L5.6 | Check my answer: enter an expected truth table or expression, get the first differing rows (C17.5) | | Open | |
+
+Ideas for later, not in this batch (Blake decides): hazard finder (static-1 hazards from the K-map groups, Chapter 2); gate count and longest path; NAND-only and NOR-only rewrites of the minimal form; a printable worksheet with blanks; and a "predict first" mode where the student fills in the table before it is revealed.
 
 ---
 
