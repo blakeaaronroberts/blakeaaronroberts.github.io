@@ -48,7 +48,7 @@ Sync of 2026-11-19, 13:00 (Pacific). Facts only; work lives in the batches below
 
 ## Batches
 
-**Order of work (Blake, 2026-11-19).** R1.1 to R1.5 are merged. **First F28 (timing-diagram shape and PowerPoint fixes, Blake's top priority, 2026-11-23),** then F24 (editor uses C14), then F25 (hardening and records), then F23.1 (FSM plan, C15 is tagged), then F27 (figure fixes), then F20, T2.3, F21.2 to F21.3, then F9 and F11 (simulator tag exists), then F8. F13 follows circuit-model C8; F22 follows C11 (engine memo); F23 follows circuit-model C15 and the R1 merge. F26 runs before launch. A second site session may work L1, then L5 (after circuit-model C17), then L2, then L3, inside `tools/logic/` and `tools/equations/` only. Archived batches: `docs/handoff-archive.md`.
+**Order of work (Blake, 2026-11-19).** R1.1 to R1.5 are merged. **First F29 (timing diagram edge fill and hidden signals, Blake's top priority, 2026-11-23; F28 is merged),** then F24 (editor uses C14), then F25 (hardening and records), then F23.1 (FSM plan, C15 is tagged), then F27 (figure fixes), then F20, T2.3, F21.2 to F21.3, then F9 and F11 (simulator tag exists), then F8. F13 follows circuit-model C8; F22 follows C11 (engine memo); F23 follows circuit-model C15 and the R1 merge. F26 runs before launch. A second site session may work L1, then L5 (after circuit-model C17), then L2, then L3, inside `tools/logic/` and `tools/equations/` only. Archived batches: `docs/handoff-archive.md`.
 
 | Batch | Intent | Status | Approved by Blake |
 |---|---|---|---|
@@ -360,6 +360,28 @@ Cause (read from `tools/timing/src/draw.js`, `flush()` and the `<pattern>` in `d
 | F28.5 | Check the frame-window shading and arrows paste cleanly too (same test). Look at your render with a headless screenshot at 4x, crop the bar ends and the hatch edge. Stop: ask Blake to paste the exported SVG into PowerPoint (insert as picture, then convert to shape if wanted) and zoom in and out | | Done, awaiting Blake | Marker (frame window) keeps fill-opacity 0.18, so it can still tint; arrowheads and arrows are plain paths and pass the same test. 4x screenshots (headless Chrome, plain and centred) checked at bar ends and hatch edges. Blake: paste the exported SVG into PowerPoint and zoom. Stale outside timing/: figure-editor test slide.test.js:125 and browser scenario near scenarios.js:1137 expect clipPath/pattern ids. REVIEW STOP. |
 
 Scope: `tools/timing/` only. Do not change the colour roles or the figure style. If the Schematic Editor or Figure Editor embeds its own copy of the timing drawing code, report it, do not fix it here. Review stop after F28.5 with a 5-line report.
+
+### F29: Timing diagram: right edge, phase and delay fill, hidden signals (top priority)
+
+Blake's report (2026-11-23), after F28: transitions and PDF export now look right, but (1) signals run past the right edge of the diagram; they must stop at it. (2) With phase or delay, the diagram must still be full: the missing part is filled in. (3) A new per-signal option to show or hide the wave, so a row can carry arrows and notes with no visible signal.
+
+What the code does now (`tools/timing/src/draw.js`): the plot is clipped at `W - 10` (`clipX1`), not at the end of the last step (`x0 + steps * stepW`). A signal with `period` above 1 or a positive `delay` (`xAt(i)`) runs beyond that. `delay` fills the left with the first level for level waves only (the `lane.delay > 0` branch); bars, clocks and gaps are not filled, and `phase` (shift left) leaves the right end short.
+
+Rules to build (Blake's intent: the diagram is always filled edge to edge):
+- **Right cut.** The plot area ends at `x0 + steps * stepW`. Every wave is cut exactly there, with the final segment trimmed to the edge (a bar stops at the edge with no end shape; a slanted edge that crosses the boundary is cut along the boundary, not moved). Clip the geometry in code; do not bring back `clipPath` (F28 removed it for PowerPoint). Head and foot ticks, the marker and arrows stay inside the same limit.
+- **Left fill (delay).** Before the first step the lane shows its first value: a level holds its level, a bar continues as the same bar with the label kept once, an X stays hatched, a clock continues its pattern backwards. This was Blake's wording: "fill in the missing portion on the left with the left most value".
+- **Right fill (phase).** Phase shifts the wave left; the gap that opens on the right is filled by holding the last value the same way. This is my reading of Blake's intent; Blake confirms at the review stop.
+- **Hidden signal.** A per-signal option `hidden: true` (our own key, ignored by WaveDrom, saved in the file and in `circuit` annotations when embedded). The wave is not drawn, but the row keeps its height, its name (unless the existing show-names option is off) and every node letter position, so arrows can attach to it exactly where they would be if it were visible. Include a second small option to hide the name of one signal. Exports (SVG, PDF, PNG, per-frame) all follow it. In the editor, an eye toggle on each signal row; a hidden wave stays editable and its row is shown dimmed so it is not forgotten.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F29.1 | Failing tests first: signals with `period` 2, `delay` 0.5 and `phase` 1 never put geometry right of the plot end (check the exported path coordinates); delay and phase fill with the rules above for a level, a bar, X, a clock; a lane with `hidden` draws no wave but keeps the same node coordinates as the visible lane | `tools/timing/test` | Open | |
+| F29.2 | Right cut and trimming in code for lines, bars, hatch, clock shapes, gap marks and arrows | `draw.js` | Open | |
+| F29.3 | Left fill for delay and right fill for phase, for every wave type | `draw.js` | Open | |
+| F29.4 | `hidden` (and hide-name): model field with setter and undo, drawing, node positions unchanged, row dimmed in the editor, eye toggle, saved and loaded | `model.js`, `draw.js`, `app.js` | Open | |
+| F29.5 | Look at a headless screenshot at 4x of the right edge, the left fill and a hidden row with arrows on it. Update the README. Stop: ask Blake to export to PDF and PowerPoint and look | | Open | |
+
+Scope: `tools/timing/` only. If the Figure Editor embeds its own timing code, report it, do not fix it here. Do not change colour roles. Review stop after F29.5 with a 5-line report.
 
 ### F24: Editor hands Frame 0 and forced levels to the simulator
 
