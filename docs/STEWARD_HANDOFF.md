@@ -48,7 +48,7 @@ Sync of 2026-11-19, 13:00 (Pacific). Facts only; work lives in the batches below
 
 ## Batches
 
-**Order of work (Blake, 2026-11-19).** R1.1 to R1.5 are merged. Next F24 (editor uses C14), then F25 (hardening and records), then F23.1 (FSM plan, C15 is tagged), then F27 (figure fixes), then F20, T2.3, F21.2 to F21.3, then F9 and F11 (simulator tag exists), then F8. F13 follows circuit-model C8; F22 follows C11 (engine memo); F23 follows circuit-model C15 and the R1 merge. F26 runs before launch. A second site session may work L1, then L2, then L3, inside `tools/logic/` and `tools/equations/` only. Archived batches: `docs/handoff-archive.md`.
+**Order of work (Blake, 2026-11-19).** R1.1 to R1.5 are merged. **First F28 (timing-diagram shape and PowerPoint fixes, Blake's top priority, 2026-11-23),** then F24 (editor uses C14), then F25 (hardening and records), then F23.1 (FSM plan, C15 is tagged), then F27 (figure fixes), then F20, T2.3, F21.2 to F21.3, then F9 and F11 (simulator tag exists), then F8. F13 follows circuit-model C8; F22 follows C11 (engine memo); F23 follows circuit-model C15 and the R1 merge. F26 runs before launch. A second site session may work L1, then L2, then L3, inside `tools/logic/` and `tools/equations/` only. Archived batches: `docs/handoff-archive.md`.
 
 | Batch | Intent | Status | Approved by Blake |
 |---|---|---|---|
@@ -72,6 +72,7 @@ Sync of 2026-11-19, 13:00 (Pacific). Facts only; work lives in the batches below
 | L1 | Logic mini-tools: truth table, K-map, SOP and POS, Boolean solver | Open | 2026-11-14 |
 | L2 | Converters from chapters 1 to 5 | Open | 2026-11-14 |
 | L3 | Equation library, core 100 to 300 level | Open | 2026-11-14 |
+| F28 | Timing diagram: bars end in a slanted edge into 0 or 1, and the hatch pastes into PowerPoint as clean vector lines (no SVG pattern) | Open (top priority) | 2026-11-23 |
 | F24 | Editor uses scenario `initial` and `force` (circuit-model C14) instead of its own hand-set Frame 0 values | Open | 2026-11-19 |
 | F25 | Hardening and records from the 2026-11-20 reviews: CI gates, privacy scan, integrity hashes, housekeeping, licence table | Open | 2026-11-20 |
 | F26 | Self-host fonts, MathJax, WaveDrom and DigitalJS (before launch) | Open (before launch) | 2026-11-20 |
@@ -342,6 +343,22 @@ Intent: the finished editor and simulator speak SystemVerilog (VISION section 6,
 | F22.4 | Testbench or scenario drives the Timing pane through the simulator | Steward, approved by Blake 2026-11-14 | Open | |
 
 ---
+
+### F28: Timing diagram: bar-to-level transitions and PowerPoint-safe hatching (top priority)
+
+Blake's report (2026-11-23): (1) when a filled-bar value (X, data, any bar) is followed by 0 or 1, the bar ends in a point, as a hexagon does. A typical timing diagram instead has the bar's edge run the whole way across to the new level. (2) Pasted into PowerPoint, the X hatch shows a strange background pattern that changes as the slide is zoomed.
+
+Cause (read from `tools/timing/src/draw.js`, `flush()` and the `<pattern>` in `defs`): every bar closes at a single point `[xr, ym]`; the hatch is an SVG `<pattern>` with `patternTransform="rotate(45)"` plus a `clipPath`. PowerPoint turns patterns into a tiled bitmap, so it scales oddly, and clip paths are also handled poorly.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| F28.1 | Add a failing test first: for bar then `0`, the bar's last vertex is at the low level (top edge ends at `yl`, bottom edge stays on `yl`, no point at `ym`); bar then `1` mirrors it (bottom edge rises to `yh`). Bar to bar, and bar to `z`, keep today's crossing or point shape. Check the same for X after 0 and 1 (entry side already slants; confirm) | `draw.js` `flush()` | Open | |
+| F28.2 | Fix the end shape in `flush()` using the next run's level; make sure the level line that follows joins the slanted edge with no gap or notch (round joins) | `draw.js` | Open | |
+| F28.3 | Replace the hatch pattern with explicit vector lines: compute the 45 degree segments clipped to each bar's polygon (a convex shape, so simple line clipping) and emit them as one plain `<path>` of `M L` segments, stroke only. No `<pattern>`, no `patternTransform`, no `clipPath` on bars. Spacing and stroke width stay as now so the look is unchanged | `draw.js` | Open | |
+| F28.4 | The plot-area `clipPath` also goes: clip the geometry in code instead, or confirm no shape needs it. Add a test that exported SVG contains none of `<pattern`, `patternTransform`, `clipPath`, `<filter`, `<mask`; fill-opacity on bar fills becomes a pre-mixed solid colour | `draw.js`, tests | Open | |
+| F28.5 | Check the frame-window shading and arrows paste cleanly too (same test). Look at your render with a headless screenshot at 4x, crop the bar ends and the hatch edge. Stop: ask Blake to paste the exported SVG into PowerPoint (insert as picture, then convert to shape if wanted) and zoom in and out | | Open | Builder cannot test PowerPoint; Blake confirms |
+
+Scope: `tools/timing/` only. Do not change the colour roles or the figure style. If the Schematic Editor or Figure Editor embeds its own copy of the timing drawing code, report it, do not fix it here. Review stop after F28.5 with a 5-line report.
 
 ### F24: Editor hands Frame 0 and forced levels to the simulator
 
