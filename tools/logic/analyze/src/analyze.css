@@ -27,3 +27,19 @@
 .an-table .an-row { color: var(--role-muted); text-align: right; border-right: 1px solid var(--role-rule); }
 .an-table .an-dc { color: var(--role-muted); font-style: italic; }
 .an-table tbody tr:hover { background: var(--role-surface); }
+
+/* L5.3 to L5.6: forms, export, check */
+.an-export, .an-card, .an-check { border: 1px solid var(--role-rule); border-radius: 4px; padding: 0.3rem 1rem 0.7rem; margin: 0.9rem 0; background: var(--role-background); }
+.an-check { margin-top: 1.2rem; }
+.an-export h3, .an-card h3, .an-check h3 { font-size: 1.05rem; margin: 0.4rem 0; border: 0; }
+.an-card h3 { font-family: var(--bs-font-monospace); }
+.an-forms { list-style: none; padding: 0; margin: 0.3rem 0; }
+.an-forms li { padding: 0.25rem 0; border-bottom: 1px dotted var(--role-rule); overflow-x: auto; }
+.an-label { display: inline-block; min-width: 9.5rem; color: var(--role-muted); font-size: 0.85rem; }
+.an-cost { color: var(--role-muted); font-size: 0.8rem; white-space: nowrap; }
+.an-best { margin: 0.5rem 0; }
+.an-expected { font-size: 0.85rem; }
+.an-check-out .an-verdict h4 { font-size: 1rem; margin: 0.3rem 0; }
+.an-diff { font-size: 0.8rem; }
+.an-card .an-bar button, .an-export .an-bar button { font-size: 0.85rem; }
+.an-diff thead th { top: 0 !important; }

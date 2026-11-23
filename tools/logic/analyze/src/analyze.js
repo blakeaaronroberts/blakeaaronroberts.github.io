@@ -6,6 +6,7 @@
 import { circuitToFunctions, MAX_INPUTS } from "../model/analyze/index.mjs";
 import { parse, variablesOf, truthTable, fromTable } from "../model/logic/index.mjs";
 import { compareNames } from "../model/logic/expr.mjs";
+import { formsOf } from "./forms.js";
 
 /** Most inputs a table holds. The pinned model's limit (the `function` format allows 8 variables); circuit-model raises it, not this tool. */
 export const CAP = MAX_INPUTS;
@@ -31,7 +32,7 @@ function groupsOf(functions, names) {
       rows.push({ index: r, inputs: g.inputs.map((_, i) => (r >> (n - 1 - i)) & 1), outputs: g.fns.map((fn) => fn.table[r]) });
     }
     const dontCares = g.fns.reduce((sum, fn) => sum + [...fn.table].filter((c) => c === "-").length, 0);
-    return { inputs: g.inputs, outputs: g.outputs, rows, dontCares, functions: g.fns };
+    return { inputs: g.inputs, outputs: g.outputs, rows, dontCares, functions: g.fns, forms: g.fns.map((fn, i) => formsOf(fn, g.outputs[i].shown)) };
   });
 }
 
@@ -48,9 +49,10 @@ function fromCircuit(text, cap) {
   const sequential = reasons.some((x) => x.kind === "sequential");
   const groups = r.functions ? groupsOf(r.functions, r.names) : [];
   return {
-    mode: "circuit", title: circuit.title ?? circuit.id ?? "", cap,
+    mode: "circuit", circuit, title: circuit.title ?? circuit.id ?? "", cap,
     verdict: { combinational: r.verdict.combinational, undecided, sequential, reasons },
     groups, functions: r.functions ?? [], names: r.names,
+    renames: groups.flatMap((g) => g.inputs).filter((c, i, all) => c.shown !== c.id && all.findIndex((d) => d.id === c.id) === i),
   };
 }
 
