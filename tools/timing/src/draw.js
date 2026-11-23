@@ -420,6 +420,7 @@ export function drawTiming(value, { width, height, ink = figureRole("ink") ?? "c
     const dx = p[0] - q[0], dy = p[1] - q[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, s = headSize;
     return `<path d="M ${n2(p[0])} ${n2(p[1])} L ${n2(p[0] - ux * s - uy * s * 0.45)} ${n2(p[1] - uy * s + ux * s * 0.45)} L ${n2(p[0] - ux * s + uy * s * 0.45)} ${n2(p[1] - uy * s - ux * s * 0.45)} Z" fill="${colour}"/>`;
   };
+  const pendingLabels = [];
   for (const raw of Array.isArray(value?.edge) ? value.edge : []) {
     const e = parseEdge(raw), a = e && nodes.get(e.from), b = e && nodes.get(e.to);
     if (!a || !b) continue;
@@ -454,15 +455,21 @@ export function drawTiming(value, { width, height, ink = figureRole("ink") ?? "c
     out.push(`<path d="${dpath}" fill="none" stroke="${edgeColour}" stroke-width="${n2(edgeWidth)}"${dash}/>`);
     if (e.op.endsWith(">")) out.push(head(b, bDir, headColour));
     if (e.op.startsWith("<")) out.push(head(a, aDir, headColour));
-    if (e.label) {   // on a small patch of the paper colour, so it reads over the lines
+    if (e.label) {   // placed after all the arrows, nudged clear of the other labels
       const parsed = edgeLabelTypeset?.get(e.label);
       const tw = (parsed?.ok ? parsed.width * arrowLabelSize : e.label.length * arrowLabelSize * 0.55) + 4;
-      if (paper) out.push(`<rect x="${n2(mid[0] - tw / 2)}" y="${n2(mid[1] - 4 - arrowLabelSize)}" width="${n2(tw)}" height="${n2(arrowLabelSize + 3)}" fill="${paper}"/>`);
-      out.push(parsed?.ok
-        ? mathText(mid[0], mid[1] - 4, parsed, "middle", arrowLabelSize, "td-edge-label-math", e.label)
-        : text(mid[0], mid[1] - 4, e.label, "middle", arrowLabelSize));
+      pendingLabels.push({ e, parsed, mid, x: mid[0], y: mid[1] - 2.5 - arrowLabelSize / 2, w: tw, h: arrowLabelSize + 3 });
     }
   }
+  // Labels never overlap (hotfix): overlapping labels push each other apart, each moving half the overlap, so every label stays as near as it can to where its arrow put it.
+  const placed = spreadLabels(pendingLabels, { x0: 0, y0: 0, x1: W, y1: H });
+  pendingLabels.forEach((l, i) => {
+    const { e, parsed } = l, p = placed[i], mx = p.x, my = p.y + 2.5 + arrowLabelSize / 2;   // the label's base point, as `mid` was
+    if (paper) out.push(`<rect x="${n2(p.x - p.w / 2)}" y="${n2(p.y - p.h / 2)}" width="${n2(p.w)}" height="${n2(p.h)}" fill="${paper}"/>`);   // a small patch of the paper colour, so it reads over the lines
+    out.push(parsed?.ok
+      ? mathText(mx, my - 4, parsed, "middle", arrowLabelSize, "td-edge-label-math", e.label)
+      : text(mx, my - 4, e.label, "middle", arrowLabelSize));
+  });
 
   if (marker !== null && marker >= 0 && marker < steps) {
     out.push(`<rect class="td-marker" x="${n2(x0 + marker * stepW)}" y="2" width="${n2(stepW)}" height="${n2(H - 4)}" rx="6" ry="6" fill="${accent}" fill-opacity="0.18" stroke="${accent}" stroke-width="${n2(lw * 0.75)}"/>`);
@@ -470,4 +477,27 @@ export function drawTiming(value, { width, height, ink = figureRole("ink") ?? "c
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${n2(W)}" height="${n2(H)}" viewBox="0 0 ${n2(W)} ${n2(H)}">` +
     out.join("") + `</svg>`;
   return { svg, natural: nat, geometry: { x0, stepW, laneH, steps, top: top0, groupWidth: gw, width: W, height: H } };
+}
+
+/**
+ * Push overlapping labels apart. Each is { x, y, w, h } (centre and size); returns new boxes in the same order. For every
+ * overlapping pair the two move away from each other along the axis that needs the smaller move, each by half the overlap
+ * (plus a small gap), so the difference is split; labels that do not overlap do not move. `bounds` keeps them on the canvas.
+ */
+export function spreadLabels(boxes, bounds = null, gap = 1) {
+  const b = boxes.map((l) => ({ ...l }));
+  for (let pass = 0; pass < 100; pass++) {
+    let moved = false;
+    for (let i = 0; i < b.length; i++) for (let j = i + 1; j < b.length; j++) {
+      const p = b[i], q = b[j];
+      const ox = (p.w + q.w) / 2 + gap - Math.abs(p.x - q.x), oy = (p.h + q.h) / 2 + gap - Math.abs(p.y - q.y);
+      if (ox <= 0 || oy <= 0) continue;
+      moved = true;
+      if (oy <= ox) { const s = p.y <= q.y ? -1 : 1; p.y += (s * oy) / 2; q.y -= (s * oy) / 2; }
+      else { const s = p.x <= q.x ? -1 : 1; p.x += (s * ox) / 2; q.x -= (s * ox) / 2; }
+    }
+    if (bounds) for (const l of b) { l.x = Math.min(Math.max(l.x, bounds.x0 + l.w / 2), bounds.x1 - l.w / 2); l.y = Math.min(Math.max(l.y, bounds.y0 + l.h / 2), bounds.y1 - l.h / 2); }
+    if (!moved) break;
+  }
+  return b;
 }
