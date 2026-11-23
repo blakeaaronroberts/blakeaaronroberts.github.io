@@ -1,0 +1,128 @@
+{
+  "note": "Written by tools/shared/scripts/copy-model.js. Do not edit this folder by hand.",
+  "source": "circuit-model",
+  "ref": "model-v0.10.0",
+  "commit": "a4df58d726327bb4a70341fc669e0ef4753345e1",
+  "files": [
+    {
+      "name": "sim/simulate.mjs",
+      "from": "sim/simulate.mjs",
+      "bytes": 15547,
+      "sha256": "c34dc1455be639979a331cde6d25174ee7b82506c0ebdfbe61bcd65053daae40"
+    },
+    {
+      "name": "sim/logic.mjs",
+      "from": "sim/logic.mjs",
+      "bytes": 10711,
+      "sha256": "cf85dc8a279293f072738dbc93d1cc23a05d892bf92385127fe81cd2cf592980"
+    },
+    {
+      "name": "logic/circuit.mjs",
+      "from": "logic/circuit.mjs",
+      "bytes": 4064,
+      "sha256": "0ebee28f75f4bbb9f8045c31ccc22e2982c88395eef6e0e3de96d52f2988de9c"
+    },
+    {
+      "name": "logic/compare.mjs",
+      "from": "logic/compare.mjs",
+      "bytes": 1659,
+      "sha256": "fd26d59e8e720727ce5a58390f4459558250ac690fc553f98ad5fe74f888d8ec"
+    },
+    {
+      "name": "logic/expr.mjs",
+      "from": "logic/expr.mjs",
+      "bytes": 8528,
+      "sha256": "aea28468589b19d32187bea100fd00c2b2d15aab9f6dc9fd349ad142704f500b"
+    },
+    {
+      "name": "logic/function.mjs",
+      "from": "logic/function.mjs",
+      "bytes": 7911,
+      "sha256": "88938a0bd8218428fb00ccd45eb5fc631f5ac3976f16e009a78e45d65126a2fa"
+    },
+    {
+      "name": "logic/index.mjs",
+      "from": "logic/index.mjs",
+      "bytes": 568,
+      "sha256": "57914060dbc4edf460529945fc0c44697dd2834e71c219d0a1082ac76b2ed27f"
+    },
+    {
+      "name": "logic/kmap.mjs",
+      "from": "logic/kmap.mjs",
+      "bytes": 3199,
+      "sha256": "011f40dffce0cf43f5774d140ee6953feea747ed47bcd5712209323180d57567"
+    },
+    {
+      "name": "logic/qm.mjs",
+      "from": "logic/qm.mjs",
+      "bytes": 6179,
+      "sha256": "1350dd3fe1b369544f90a5b9e6a8f1581998ace5bfc52e50bbaf7acb262a6f77"
+    },
+    {
+      "name": "logic/rewrite.mjs",
+      "from": "logic/rewrite.mjs",
+      "bytes": 13502,
+      "sha256": "96c3d41210dbd1287fc68ecc7792d81a8826f16ce2af8de195eddd7ec9878726"
+    },
+    {
+      "name": "analyze/index.mjs",
+      "from": "analyze/index.mjs",
+      "bytes": 1710,
+      "sha256": "16365e8a9c8d73830060a77f685e2896ce1cbff6dc58077edfceda1e0d544ee0"
+    },
+    {
+      "name": "analyze/combinational.mjs",
+      "from": "analyze/combinational.mjs",
+      "bytes": 15368,
+      "sha256": "2c759828ef78f63683635f5956d44a538c554f9a15ff36795e5249925362f656"
+    },
+    {
+      "name": "validate/jsonschema.mjs",
+      "from": "validate/jsonschema.mjs",
+      "bytes": 5487,
+      "sha256": "550740b1ea87d887ece50f33503686c2518bac70cbff1f3544e21d184628cf23"
+    },
+    {
+      "name": "schema/function.schema.json",
+      "from": "schema/function.schema.json",
+      "bytes": 2928,
+      "sha256": "0748263606024a81791a4504c197ccda4cd699062aed3aff9806626aeb95bb28"
+    },
+    {
+      "name": "schema/circuit.schema.json",
+      "from": "schema/circuit.schema.json",
+      "bytes": 12567,
+      "sha256": "ead1cb7427780efc1e2ccf978ec103b4022ed0799667172d7103e89c7f0cee45"
+    },
+    {
+      "name": "examples/full_adder_gates.json",
+      "from": "examples/full_adder_gates.json",
+      "bytes": 2687,
+      "sha256": "eb365375801a7eadf14814689288f028d96427907ed4b39223c6be385d79f81c"
+    },
+    {
+      "name": "examples/comparator_2bit.json",
+      "from": "examples/comparator_2bit.json",
+      "bytes": 6532,
+      "sha256": "80f0fd6183b65497688ddc06a2f0d75ed436fe319e3531b6414f35ec93dd2859"
+    },
+    {
+      "name": "examples/bcd_to_7seg.json",
+      "from": "examples/bcd_to_7seg.json",
+      "bytes": 12141,
+      "sha256": "cdff65452d684d1a56b2195daa922bb9559a488ade040724041cf406fc0f6fc0"
+    },
+    {
+      "name": "examples/nand_sr_latch.json",
+      "from": "examples/nand_sr_latch.json",
+      "bytes": 1643,
+      "sha256": "3dcf565dfcd9f72765b2d4de54993357c3cd609d476fcbb6370bd8d404c0b526"
+    },
+    {
+      "name": "examples/d_flipflop.json",
+      "from": "examples/d_flipflop.json",
+      "bytes": 938,
+      "sha256": "5c2b3bce0542bbeef274270e14b39f2b944a39d0924de500dc16b584b58898ef"
+    }
+  ]
+}

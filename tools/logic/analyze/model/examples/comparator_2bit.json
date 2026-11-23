@@ -1,0 +1,479 @@
+{
+  "schema": "circuit/0.3",
+  "id": "comparator_2bit",
+  "title": "Two-bit magnitude comparator (A = A1 A0, B = B1 B0)",
+  "grid_cm": 0.25,
+  "elements": [
+    {
+      "id": "g1",
+      "type": "xor_gate",
+      "at": [
+        16,
+        0
+      ]
+    },
+    {
+      "id": "g2",
+      "type": "not_gate",
+      "at": [
+        32,
+        0
+      ]
+    },
+    {
+      "id": "g3",
+      "type": "xor_gate",
+      "at": [
+        16,
+        -8
+      ]
+    },
+    {
+      "id": "g4",
+      "type": "not_gate",
+      "at": [
+        32,
+        -8
+      ]
+    },
+    {
+      "id": "g5",
+      "type": "and_gate",
+      "at": [
+        48,
+        0
+      ]
+    },
+    {
+      "id": "not_B1",
+      "type": "not_gate",
+      "at": [
+        16,
+        -16
+      ]
+    },
+    {
+      "id": "g6",
+      "type": "and_gate",
+      "at": [
+        32,
+        -16
+      ]
+    },
+    {
+      "id": "not_B0",
+      "type": "not_gate",
+      "at": [
+        16,
+        -24
+      ]
+    },
+    {
+      "id": "g7",
+      "type": "and_gate",
+      "at": [
+        48,
+        -8
+      ]
+    },
+    {
+      "id": "g8",
+      "type": "and_gate",
+      "at": [
+        64,
+        0
+      ]
+    },
+    {
+      "id": "g9",
+      "type": "or_gate",
+      "at": [
+        80,
+        0
+      ]
+    },
+    {
+      "id": "not_A1",
+      "type": "not_gate",
+      "at": [
+        16,
+        -32
+      ]
+    },
+    {
+      "id": "g10",
+      "type": "and_gate",
+      "at": [
+        32,
+        -24
+      ]
+    },
+    {
+      "id": "not_A0",
+      "type": "not_gate",
+      "at": [
+        16,
+        -40
+      ]
+    },
+    {
+      "id": "g11",
+      "type": "and_gate",
+      "at": [
+        48,
+        -16
+      ]
+    },
+    {
+      "id": "g12",
+      "type": "and_gate",
+      "at": [
+        64,
+        -8
+      ]
+    },
+    {
+      "id": "g13",
+      "type": "or_gate",
+      "at": [
+        80,
+        -8
+      ]
+    }
+  ],
+  "ports": [
+    {
+      "id": "A1",
+      "dir": "in",
+      "at": [
+        -8,
+        0
+      ],
+      "label": "$A_{1}$",
+      "side": "left"
+    },
+    {
+      "id": "A0",
+      "dir": "in",
+      "at": [
+        -8,
+        -8
+      ],
+      "label": "$A_{0}$",
+      "side": "left"
+    },
+    {
+      "id": "B1",
+      "dir": "in",
+      "at": [
+        -8,
+        -16
+      ],
+      "label": "$B_{1}$",
+      "side": "left"
+    },
+    {
+      "id": "B0",
+      "dir": "in",
+      "at": [
+        -8,
+        -24
+      ],
+      "label": "$B_{0}$",
+      "side": "left"
+    },
+    {
+      "id": "EQ",
+      "dir": "out",
+      "at": [
+        96,
+        0
+      ],
+      "label": "$A = B$",
+      "side": "right"
+    },
+    {
+      "id": "GT",
+      "dir": "out",
+      "at": [
+        96,
+        -8
+      ],
+      "label": "$A > B$",
+      "side": "right"
+    },
+    {
+      "id": "LT",
+      "dir": "out",
+      "at": [
+        96,
+        -16
+      ],
+      "label": "$A < B$",
+      "side": "right"
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "from": "A1",
+      "to": "g1.A"
+    },
+    {
+      "id": "w2",
+      "from": "A1",
+      "to": "g6.A"
+    },
+    {
+      "id": "w3",
+      "from": "A1",
+      "to": "not_A1.A"
+    },
+    {
+      "id": "w4",
+      "from": "B1",
+      "to": "g1.B"
+    },
+    {
+      "id": "w5",
+      "from": "B1",
+      "to": "not_B1.A"
+    },
+    {
+      "id": "w6",
+      "from": "B1",
+      "to": "g10.B"
+    },
+    {
+      "id": "w7",
+      "from": "g1.Y",
+      "to": "g2.A"
+    },
+    {
+      "id": "w8",
+      "from": "A0",
+      "to": "g3.A"
+    },
+    {
+      "id": "w9",
+      "from": "A0",
+      "to": "g7.B"
+    },
+    {
+      "id": "w10",
+      "from": "A0",
+      "to": "not_A0.A"
+    },
+    {
+      "id": "w11",
+      "from": "B0",
+      "to": "g3.B"
+    },
+    {
+      "id": "w12",
+      "from": "B0",
+      "to": "not_B0.A"
+    },
+    {
+      "id": "w13",
+      "from": "B0",
+      "to": "g12.B"
+    },
+    {
+      "id": "w14",
+      "from": "g3.Y",
+      "to": "g4.A"
+    },
+    {
+      "id": "w15",
+      "from": "g2.Y",
+      "to": "g5.A"
+    },
+    {
+      "id": "w16",
+      "from": "g2.Y",
+      "to": "g7.A"
+    },
+    {
+      "id": "w17",
+      "from": "g2.Y",
+      "to": "g11.A"
+    },
+    {
+      "id": "w18",
+      "from": "g4.Y",
+      "to": "g5.B"
+    },
+    {
+      "id": "w19",
+      "from": "g5.Y",
+      "to": "EQ"
+    },
+    {
+      "id": "w20",
+      "from": "not_B1.Y",
+      "to": "g6.B"
+    },
+    {
+      "id": "w21",
+      "from": "g7.Y",
+      "to": "g8.A"
+    },
+    {
+      "id": "w22",
+      "from": "not_B0.Y",
+      "to": "g8.B"
+    },
+    {
+      "id": "w23",
+      "from": "g6.Y",
+      "to": "g9.A"
+    },
+    {
+      "id": "w24",
+      "from": "g8.Y",
+      "to": "g9.B"
+    },
+    {
+      "id": "w25",
+      "from": "g9.Y",
+      "to": "GT"
+    },
+    {
+      "id": "w26",
+      "from": "not_A1.Y",
+      "to": "g10.A"
+    },
+    {
+      "id": "w27",
+      "from": "not_A0.Y",
+      "to": "g11.B"
+    },
+    {
+      "id": "w28",
+      "from": "g11.Y",
+      "to": "g12.A"
+    },
+    {
+      "id": "w29",
+      "from": "g10.Y",
+      "to": "g13.A"
+    },
+    {
+      "id": "w30",
+      "from": "g12.Y",
+      "to": "g13.B"
+    },
+    {
+      "id": "w31",
+      "from": "g13.Y",
+      "to": "LT"
+    }
+  ],
+  "nets": {
+    "A1": [
+      "A1",
+      "g1.A",
+      "g6.A",
+      "not_A1.A"
+    ],
+    "B1": [
+      "B1",
+      "g1.B",
+      "not_B1.A",
+      "g10.B"
+    ],
+    "n_g1": [
+      "g1.Y",
+      "g2.A"
+    ],
+    "A0": [
+      "A0",
+      "g3.A",
+      "g7.B",
+      "not_A0.A"
+    ],
+    "B0": [
+      "B0",
+      "g3.B",
+      "not_B0.A",
+      "g12.B"
+    ],
+    "n_g3": [
+      "g3.Y",
+      "g4.A"
+    ],
+    "n_g2": [
+      "g2.Y",
+      "g5.A",
+      "g7.A",
+      "g11.A"
+    ],
+    "n_g4": [
+      "g4.Y",
+      "g5.B"
+    ],
+    "n_g5": [
+      "g5.Y",
+      "EQ"
+    ],
+    "n_not_B1": [
+      "not_B1.Y",
+      "g6.B"
+    ],
+    "n_g7": [
+      "g7.Y",
+      "g8.A"
+    ],
+    "n_not_B0": [
+      "not_B0.Y",
+      "g8.B"
+    ],
+    "n_g6": [
+      "g6.Y",
+      "g9.A"
+    ],
+    "n_g8": [
+      "g8.Y",
+      "g9.B"
+    ],
+    "n_g9": [
+      "g9.Y",
+      "GT"
+    ],
+    "n_not_A1": [
+      "not_A1.Y",
+      "g10.A"
+    ],
+    "n_not_A0": [
+      "not_A0.Y",
+      "g11.B"
+    ],
+    "n_g11": [
+      "g11.Y",
+      "g12.A"
+    ],
+    "n_g10": [
+      "g10.Y",
+      "g13.A"
+    ],
+    "n_g12": [
+      "g12.Y",
+      "g13.B"
+    ],
+    "n_g13": [
+      "g13.Y",
+      "LT"
+    ]
+  },
+  "groups": {
+    "A": [
+      "A1",
+      "A0"
+    ],
+    "B": [
+      "B1",
+      "B0"
+    ]
+  }
+}

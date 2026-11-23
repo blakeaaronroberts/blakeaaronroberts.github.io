@@ -1,0 +1,27 @@
+{
+  "schema": "circuit/0.2",
+  "id": "d_flipflop_demo",
+  "title": "A D flip-flop with its clock and data inputs",
+  "grid_cm": 0.25,
+  "elements": [
+    { "id": "ff", "type": "d_flipflop", "at": [0, 0] }
+  ],
+  "ports": [
+    { "id": "D",   "dir": "in",  "at": [-12, 2], "label": "$D$",        "side": "left" },
+    { "id": "CLK", "dir": "in",  "at": [0, -12], "label": "$CLK$",      "side": "down" },
+    { "id": "Q",   "dir": "out", "at": [12, 2],  "label": "$Q$",        "side": "right" },
+    { "id": "Qn",  "dir": "out", "at": [12, 0],  "label": "$\\bar{Q}$", "side": "right" }
+  ],
+  "wires": [
+    { "id": "wD",   "from": "D",   "to": "ff.D" },
+    { "id": "wCLK", "from": "CLK", "to": "ff.CLK" },
+    { "id": "wQ",   "from": "ff.Q",  "to": "Q" },
+    { "id": "wQn",  "from": "ff.Qn", "to": "Qn" }
+  ],
+  "nets": {
+    "D":   ["D", "ff.D"],
+    "CLK": ["CLK", "ff.CLK"],
+    "Q":   ["ff.Q", "Q"],
+    "Qn":  ["ff.Qn", "Qn"]
+  }
+}

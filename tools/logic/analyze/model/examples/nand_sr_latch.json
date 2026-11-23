@@ -1,0 +1,48 @@
+{
+  "schema": "circuit/0.3",
+  "id": "nand_sr_latch",
+  "title": "SR latch from two cross-coupled NAND gates (straight crossing legs, editor annotations)",
+  "grid_cm": 0.25,
+  "elements": [
+    { "id": "g1", "type": "nand_gate", "at": [0, 0] },
+    { "id": "g2", "type": "nand_gate", "at": [0, -8] }
+  ],
+  "ports": [
+    { "id": "Sn", "dir": "in",  "at": [-10, 1],  "label": "$\\overline{S}$", "side": "left" },
+    { "id": "Rn", "dir": "in",  "at": [-10, -9], "label": "$\\overline{R}$", "side": "left" },
+    { "id": "Q",  "dir": "out", "at": [12, 0],   "label": "$Q$", "side": "right" },
+    { "id": "Qn", "dir": "out", "at": [12, -8],  "label": "$\\overline{Q}$", "side": "right" }
+  ],
+  "wires": [
+    { "id": "wS", "from": "Sn", "to": "g1.A" },
+    { "id": "wR", "from": "Rn", "to": "g2.B" },
+    {
+      "id": "wQ", "from": "g1.Y", "to": "g2.A",
+      "via": [[8, 0], [8, -3], [-6, -5], [-6, -7]],
+      "route": ["auto", "auto", "straight", "auto", "auto"]
+    },
+    {
+      "id": "wQn", "from": "g2.Y", "to": "g1.B",
+      "via": [[8, -8], [8, -5], [-6, -3], [-6, -1]],
+      "route": ["auto", "auto", "straight", "auto", "auto"]
+    },
+    { "id": "wQo", "from": "jQ", "to": "Q" },
+    { "id": "wQno", "from": "jQn", "to": "Qn" }
+  ],
+  "junctions": [
+    { "id": "jQ", "on": "wQ", "at": [8, 0] },
+    { "id": "jQn", "on": "wQn", "at": [8, -8] }
+  ],
+  "nets": {
+    "Sn": ["Sn", "g1.A"],
+    "Rn": ["Rn", "g2.B"],
+    "Q": ["g1.Y", "g2.A", "jQ", "Q"],
+    "Qn": ["g2.Y", "g1.B", "jQn", "Qn"]
+  },
+  "annotations": {
+    "schematic-editor": {
+      "snap_degrees": 45,
+      "wire_labels": { "wQ": "Q", "wQn": "Qn" }
+    }
+  }
+}

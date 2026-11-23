@@ -418,8 +418,8 @@ What the tool does better (all from the existing `logic/` library):
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| L5.1 | Plan: layout, what is in the first release, how a circuit gets in (a circuit file, the editor's current circuit; SystemVerilog arrives with C11) | Blake, 2026-11-23 | Open | Stop for Blake |
-| L5.2 | Verdict and truth table: paste or upload a `circuit`, run C17, show the verdict and the table with per-bit columns | | Open | |
+| L5.1 | Plan: layout, what is in the first release, how a circuit gets in (a circuit file, the editor's current circuit; SystemVerilog arrives with C11) | Blake, 2026-11-23 | Done | Plan in tools/logic/analyze/PLAN.md. Blake 2026-11-23: wants a text editor for input; cap 16 inputs; show every minimal form when there are several; may touch copy-model.js and _quarto.yml. |
+| L5.2 | Verdict and truth table: paste or upload a `circuit`, run C17, show the verdict and the table with per-bit columns | | Done, review stop | Branch l5, draft, not merged. Text editor (circuit JSON or one `name = expression` per line) with samples, open file, live verdict and table. Pinned model-v0.10.0 copy in tools/logic/analyze/model/ (copy-model.js --only logic; the editors' pin is untouched). 9 tests. **Cap is 8, not 16:** circuit-model C17's MAX_INPUTS and the function/0.1 format allow 8 variables; 16 needs a circuit-model batch (function/0.2, cap 16, a speed check of the minimiser at 16 variables). Tool reads the cap from the model, so re-pinning raises it. |
 | L5.3 | Expressions: per output, sigma m and pi M, canonical and minimal SOP and POS, term and literal counts, best pick, rendered in MathJax | | Open | |
 | L5.4 | Copy and export: Markdown, LaTeX (table, aligned equations), CSV, and the `function` file; a "Copy as Verilog `assign`" for the minimal form | | Open | |
 | L5.5 | Send to: K-map tool, Boolean solver (L1.3) with the chosen expression, Figure Editor (minimal circuit) | | Open | |

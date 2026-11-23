@@ -1,0 +1,282 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "circuit/0.3",
+  "title": "Circuit schema v0.3",
+  "description": "A circuit says what is connected (nets), what is placed where (elements, ports) and how it is drawn (wires, junctions). Coordinates are integer grid steps (1 step = 0.25 cm); x points right and y points UP. Structure only: semantic checks (pins exist, drawing realises the nets, one driver per net) are a separate lint.",
+  "type": "object",
+  "required": ["schema", "id", "grid_cm", "elements", "nets"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "enum": ["circuit/0.2", "circuit/0.3"],
+      "description": "Format and version. Readers reject an unknown major version."
+    },
+    "id": { "$ref": "#/$defs/id", "description": "The concept, e.g. ripple_carry_adder_4." },
+    "title": { "type": "string", "description": "Human-readable title." },
+    "grid_cm": {
+      "const": 0.25,
+      "description": "Grid step the coordinates assume, so a reader can detect a mismatch."
+    },
+    "elements": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/element" },
+      "description": "Placed elements."
+    },
+    "ports": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/port" },
+      "description": "The circuit's own inputs and outputs."
+    },
+    "nets": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/id" },
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "$ref": "#/$defs/ref" }
+      },
+      "description": "Connectivity: net id to the endpoints it joins. The truth for simulation."
+    },
+    "wires": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/wire" },
+      "description": "Drawn connections. Routing is specified (intent), not stored (corners)."
+    },
+    "junctions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/junction" },
+      "description": "Branch points on wires."
+    },
+    "groups": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/id" },
+      "additionalProperties": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/id" }
+      },
+      "description": "Buses for display: name to port ids, most significant bit first."
+    },
+    "labels": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/label" },
+      "description": "Free text such as titles and notes."
+    },
+    "style": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "weight": {
+          "enum": ["thin", "regular", "bold"],
+          "description": "Line weight the figure is drawn with. Default regular."
+        },
+        "theme": {
+          "enum": ["default", "dark"],
+          "description": "Theme the figure is drawn with. Default default. Private themes are never named in a saved figure."
+        },
+        "levels": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "0": { "$ref": "#/$defs/level_colours" },
+            "1": { "$ref": "#/$defs/level_colours" },
+            "X": { "$ref": "#/$defs/level_colours" },
+            "Z": { "$ref": "#/$defs/level_colours" }
+          },
+          "description": "Optional: the colour the user chose for each logic level (0, 1, X unknown, Z floating). An absent key, or an absent light or dark colour, means the theme's default. A drawing annotation only: it never changes the nets or the simulation."
+        }
+      },
+      "description": "Optional, figure-level: how the figure is drawn. It never changes the nets or the simulation, and a simulator may ignore it. Absent means regular weight and the default theme."
+    },
+    "annotations": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" },
+      "additionalProperties": { "type": "object" },
+      "description": "circuit/0.3 only. Optional editor data that is not circuit structure (frames, net labels, slide, tool settings): one key per tool in lowercase kebab-case, e.g. annotations[\"schematic-editor\"], each an object that tool owns. The simulator and validators check nothing inside it. `groups` stays reserved for buses."
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+      "description": "One namespace for elements, ports, junctions and wires. Never contains a dot, so \"fa0.Cout\" is always a pin and a bare id is a port or junction."
+    },
+    "ref": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_+-]+)?$",
+      "description": "An endpoint: \"element.pin\", or a bare port or junction id. The pin part allows + and - (voltage source)."
+    },
+    "point": {
+      "type": "array",
+      "items": { "type": "integer" },
+      "minItems": 2,
+      "maxItems": 2,
+      "description": "[x, y] in grid steps."
+    },
+    "side": { "enum": ["left", "right", "up", "down"] },
+    "level_colours": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "light": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$", "description": "Colour on the light theme, as #RRGGBB." },
+        "dark": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$", "description": "Colour on the dark theme, as #RRGGBB." }
+      }
+    },
+    "tex": {
+      "type": "string",
+      "description": "TeX maths such as \"$A_0$\", limited to what MathJax 4 also renders."
+    },
+    "element": {
+      "type": "object",
+      "required": ["id", "type", "at"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "type": { "type": "string", "description": "Element name in the symbol pack, e.g. and_gate." },
+        "at": { "$ref": "#/$defs/point", "description": "Origin, in grid steps." },
+        "rotation": {
+          "enum": [0, 90, 180, 270],
+          "description": "Degrees counter-clockwise about the element origin. Default 0."
+        },
+        "mirror": {
+          "type": "boolean",
+          "description": "Added in v0.2. If true, the element is flipped left-to-right (x negated in the element's own frame) before rotation is applied. Default false."
+        },
+        "label": { "$ref": "#/$defs/tex" },
+        "level": {
+          "enum": ["0", "1", "X", "Z"],
+          "description": "Optional drawing annotation: the element's body is drawn in this logic level's colour (0, 1, X unknown, Z floating), as strings. Its leads keep the colour of the wire they connect to. Not a simulation result; never changes the nets; a simulator may ignore it."
+        },
+        "params": { "type": "object", "description": "Per-instance parameters, e.g. {\"delay\": {\"Cout\": 3}}. For type \"block\" see $defs/block_params." }
+      },
+      "if": { "properties": { "type": { "const": "block" } }, "required": ["type"] },
+      "then": {
+        "required": ["params"],
+        "properties": { "params": { "$ref": "#/$defs/block_params" } }
+      }
+    },
+    "pin_name": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_+-]+$",
+      "description": "The pin part of a ref, so \"blockid.name\" works in nets and wires."
+    },
+    "block_pin": {
+      "oneOf": [
+        { "$ref": "#/$defs/pin_name" },
+        {
+          "type": "object",
+          "required": ["name"],
+          "additionalProperties": false,
+          "properties": {
+            "name": { "$ref": "#/$defs/pin_name" },
+            "label": { "$ref": "#/$defs/tex", "description": "Optional display label drawn inside the block next to the pin." }
+          }
+        }
+      ],
+      "description": "A block pin: its name, or an object with the name and an optional display label."
+    },
+    "block_params": {
+      "type": "object",
+      "required": ["shape", "w", "h"],
+      "additionalProperties": false,
+      "description": "Parameters of the built-in element type \"block\", a configurable labelled box that is not in the symbol pack. Pin rule: pins on a side are one module apart and centred on that side; each side is at least (pins + 1) modules long, so w and h are raised to that minimum by the renderer. Because w and h are whole modules, every pin lands on a whole grid step. One module is 2 grid steps. Pins are listed in drawing order: left and right top to bottom, top and bottom left to right.",
+      "properties": {
+        "shape": { "enum": ["rect", "chevron", "triangle", "circle"] },
+        "w": { "type": "integer", "minimum": 1, "description": "Width in whole modules." },
+        "h": { "type": "integer", "minimum": 1, "description": "Height in whole modules." },
+        "label": { "type": "string", "description": "A LaTeX string drawn in the block. May be empty." },
+        "pins": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "left": { "type": "array", "items": { "$ref": "#/$defs/block_pin" } },
+            "right": { "type": "array", "items": { "$ref": "#/$defs/block_pin" } },
+            "top": { "type": "array", "items": { "$ref": "#/$defs/block_pin" } },
+            "bottom": { "type": "array", "items": { "$ref": "#/$defs/block_pin" } }
+          }
+        }
+      }
+    },
+    "port": {
+      "type": "object",
+      "required": ["id", "dir", "at"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id", "description": "Also the default net name it joins." },
+        "dir": { "enum": ["in", "out"], "description": "Inputs are driven by the scenario." },
+        "at": { "$ref": "#/$defs/point", "description": "Where its wire ends." },
+        "label": { "$ref": "#/$defs/tex" },
+        "side": { "$ref": "#/$defs/side", "description": "Which side of `at` the label sits." }
+      }
+    },
+    "wire": {
+      "type": "object",
+      "required": ["id", "from", "to"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "from": { "oneOf": [{ "$ref": "#/$defs/ref" }, { "$ref": "#/$defs/point" }] },
+        "to": { "oneOf": [{ "$ref": "#/$defs/ref" }, { "$ref": "#/$defs/point" }] },
+        "via": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/point" },
+          "description": "Waypoints."
+        },
+        "route": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "enum": ["auto", "straight"] },
+          "description": "circuit/0.3 only. Optional routing mode for each leg, from the start through every waypoint to the end. `straight` joins the stops directly; `auto` uses the orthogonal router. If absent, every leg is auto-routed."
+        },
+        "first": { "enum": ["h", "v"], "description": "Direction of the first auto-routed leg." },
+        "arrow": {
+          "enum": ["none", "start", "end", "both"],
+          "description": "Optional drawing annotation: arrowheads at the wire's start (from), end (to) or both. Default none. Never changes the nets."
+        },
+        "bus": {
+          "type": "string",
+          "description": "Optional drawing annotation: a label such as \"N\" or \"4\", drawn as a slash across the wire with that label. Never changes the nets."
+        },
+        "level": {
+          "enum": ["0", "1", "X", "Z"],
+          "description": "Optional drawing annotation: the logic level this wire is drawn to show (0, 1, X unknown, Z floating), as strings. It only says how the wire is drawn in this figure. It is not a simulation result, never changes the nets, and a simulator may ignore it. With no level the wire is drawn in the default colour."
+        }
+      }
+    },
+    "junction": {
+      "type": "object",
+      "required": ["id", "on", "at"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "on": { "$ref": "#/$defs/id", "description": "Id of the wire it taps." },
+        "at": { "$ref": "#/$defs/point", "description": "Must lie on that wire." }
+      }
+    },
+    "label": {
+      "type": "object",
+      "required": ["text", "at"],
+      "additionalProperties": false,
+      "properties": {
+        "text": { "$ref": "#/$defs/tex" },
+        "at": { "$ref": "#/$defs/point" },
+        "side": { "$ref": "#/$defs/side" }
+      }
+    }
+  },
+  "if": {
+    "properties": { "schema": { "const": "circuit/0.2" } },
+    "required": ["schema"]
+  },
+  "then": {
+    "properties": {
+      "annotations": false,
+      "wires": {
+        "items": {
+          "properties": {
+            "route": { "maxItems": 0 }
+          }
+        }
+      }
+    }
+  }
+}
