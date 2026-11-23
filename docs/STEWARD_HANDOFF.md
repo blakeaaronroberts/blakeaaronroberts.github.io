@@ -363,7 +363,7 @@ Scope: `tools/timing/` only. Do not change the colour roles or the figure style.
 
 ### F29: Timing diagram: right edge, phase and delay fill, hidden signals (top priority)
 
-Blake's report (2026-11-23), after F28: transitions and PDF export now look right, but (1) signals run past the right edge of the diagram; they must stop at it. (2) With phase or delay, the diagram must still be full: the missing part is filled in. (3) A new per-signal option to show or hide the wave, so a row can carry arrows and notes with no visible signal.
+Blake's report (2026-11-23), after F28: transitions and PDF export now look right, but (1) signals run past the right edge of the diagram; they must stop at it. (2) With phase or delay, the diagram must still be full: the missing part is filled in. (3) A new per-signal option to show or hide the wave, so a row can carry arrows and notes with no visible signal. (4) Added later the same day: the diagram should size itself to the editor's view window (F29.6).
 
 What the code does now (`tools/timing/src/draw.js`): the plot is clipped at `W - 10` (`clipX1`), not at the end of the last step (`x0 + steps * stepW`). A signal with `period` above 1 or a positive `delay` (`xAt(i)`) runs beyond that. `delay` fills the left with the first level for level waves only (the `lane.delay > 0` branch); bars, clocks and gaps are not filled, and `phase` (shift left) leaves the right end short.
 
@@ -379,6 +379,7 @@ Rules to build (Blake's intent: the diagram is always filled edge to edge):
 | F29.2 | Right cut and trimming in code for lines, bars, hatch, clock shapes, gap marks and arrows | `draw.js` | Open | |
 | F29.3 | Left fill for delay and right fill for phase, for every wave type | `draw.js` | Open | |
 | F29.4 | `hidden` (and hide-name): model field with setter and undo, drawing, node positions unchanged, row dimmed in the editor, eye toggle, saved and loaded | `model.js`, `draw.js`, `app.js` | Open | |
+| F29.6 | Auto-fit to the viewing window (Blake, 2026-11-23): in the editor's view window the diagram sizes itself to the window, both width and height, and follows window resizes and a docked pane's resizes. Today `render()` uses `max(natural.w, room)` for width and grows the height only when the window is wider than natural, so a narrow window overflows and a tall window leaves empty space. Fit in both directions, with a readable minimum (below it, scroll rather than crush text). On by default; typing a size or pressing Natural switches it off, and the existing Fit control switches it back on. Exports keep using the set or natural size, not the window size. Test the sizing function with a few window sizes; no stretched text (steps and lanes re-space, as the code comment says) | `app.js` | Open | |
 | F29.5 | Look at a headless screenshot at 4x of the right edge, the left fill and a hidden row with arrows on it. Update the README. Stop: ask Blake to export to PDF and PowerPoint and look | | Open | |
 
 Scope: `tools/timing/` only. If the Figure Editor embeds its own timing code, report it, do not fix it here. Do not change colour roles. Review stop after F29.5 with a 5-line report.
