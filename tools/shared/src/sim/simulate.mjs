@@ -1,8 +1,8 @@
 // The four-valued logic simulator: simulate(circuit, scenario, options) -> trace.
 //
 // Plain JavaScript, no dependencies, no file access: runs in the browser, under
-// Node and under Deno. Reads circuit/0.2 and scenario/0.1 objects and returns a
-// trace/0.1 object (see schema/).
+// Node and under Deno. Reads circuit/0.2 or 0.3 and scenario/0.1 or 0.2 objects
+// and returns a trace/0.1 object (see schema/).
 //
 // How it works, in brief:
 // - Nets come from circuit.nets. A closed switch joins its two nets into one
@@ -18,6 +18,11 @@
 //   bounded number of rounds is forced to X for the rest of the step, with a
 //   `loop` warning: never a hang and never an error. A loop that settles is
 //   not reported; it is ordinary feedback.
+// - scenario/0.2 `initial` sets the stored state of named flip-flops and
+//   latches before step 0; the start of step 0 is never a clock edge (signals
+//   leave the all-X start without an edge). `force` holds a net's group at a
+//   level over a range of steps, beating every driver; the trace lists the
+//   forced stretches in `forced`.
 
 import { MODELS, CONNECTORS } from "./logic.mjs";
 
@@ -119,6 +124,31 @@ export function simulate(circuit, scenario, options = {}) {
     elements.push({ element: e, model, inputPins, inputGroups, outputs, state: model.init ? model.init() : {} });
   }
 
+  // ---- scenario/0.2: initial state and forced nets ------------------------
+  for (const [id, level] of Object.entries(scenario.initial ?? {})) {
+    const el = elements.find((x) => x.element.id === id);
+    if (!el) {
+      const known = (circuit.elements ?? []).some((e) => e.id === id);
+      throw new Error(`scenario initial names "${id}", which is ${known ? "not simulated" : "not an element of the circuit"}`);
+    }
+    if (!el.model.sequential) throw new Error(`scenario initial names "${id}", a ${el.element.type}, which has no stored state`);
+    if (!["0", "1", "X"].includes(level)) throw new Error(`scenario initial "${id}" must be "0", "1" or "X", not ${JSON.stringify(level)}`);
+    el.state.q = level;
+  }
+  const lastStep = scenario.steps.length - 1;
+  const forces = (scenario.force ?? []).map((f) => {
+    if (!netOfRef.has(f.net) && !(f.net in (circuit.nets ?? {}))) throw new Error(`scenario force names "${f.net}", which is not a net of the circuit`);
+    if (!LEVELS.has(f.level)) throw new Error(`scenario force on "${f.net}" has level ${JSON.stringify(f.level)}`);
+    return { net: f.net, group: groupOf(f.net), level: f.level, from: f.from, to: f.to ?? lastStep };
+  });
+  for (let i = 0; i < forces.length; i++) for (let j = i + 1; j < forces.length; j++) {
+    const a = forces[i], b = forces[j];
+    if (a.group === b.group && a.from <= b.to && b.from <= a.to) {
+      throw new Error(`scenario forces "${a.net}" and "${b.net}" overlap on the same net between steps ${Math.max(a.from, b.from)} and ${Math.min(a.to, b.to)}`);
+    }
+  }
+  let forcedGroups = new Map(); // group -> level, for the current step
+
   // ---- signals and state ------------------------------------------------
   const outputSignals = elements.flatMap((el) => el.outputs.map((o) => o.key));
   const signals = [...netIds, ...outputSignals];
@@ -129,6 +159,7 @@ export function simulate(circuit, scenario, options = {}) {
   const groupLevel = new Map([...netsInGroup.keys()].map((g) => [g, "X"]));
 
   function resolve(group) {
+    if (forcedGroups.has(group)) return forcedGroups.get(group);
     let level = null;
     for (const key of drivers.get(group) ?? []) {
       const v = driven.get(key);
@@ -153,6 +184,7 @@ export function simulate(circuit, scenario, options = {}) {
   const maxRounds = ROUNDS_PER_ELEMENT * elements.length + 10;
   let events = 0;
   let frozen = new Set();
+  let atStart = false; // the first instant of step 0: clocks leave X without an edge
   const changes = [];
   const lastRecorded = new Map(signals.map((s) => [s, "X"]));
   const steps = [];
@@ -166,7 +198,7 @@ export function simulate(circuit, scenario, options = {}) {
       // An optional control pin left unconnected is inactive, not floating.
       inputs[pin] = g === null && pin in optional ? optional[pin] : levelOfGroup(g);
     }
-    const out = el.model.evaluate(inputs, el.state, el.element.params ?? {});
+    const out = el.model.evaluate(inputs, el.state, el.element.params ?? {}, { start: atStart });
     for (const o of el.outputs) {
       const v = out[o.pin];
       if (!LEVELS.has(v)) throw new Error(`model ${el.element.type} gave ${JSON.stringify(v)} for ${o.pin}`);
@@ -298,12 +330,17 @@ export function simulate(circuit, scenario, options = {}) {
         schedule(start, key, value);
       }
     }
-    let first = stepIndex === 0 || thawed.length > 0;
+    const nowForced = new Map(forces.filter((f) => f.from <= stepIndex && stepIndex <= f.to).map((f) => [f.group, f.level]));
+    const forceChanged = [...nowForced].map(String).join() !== [...forcedGroups].map(String).join();
+    forcedGroups = nowForced;
+    let first = stepIndex === 0 || thawed.length > 0 || forceChanged;
     if (!queue.has(start)) queue.set(start, []);
     for (;;) {
       const times = [...queue.keys()].filter((t) => t < end).sort((a, b) => a - b);
       if (times.length === 0) break;
+      atStart = stepIndex === 0 && times[0] === 0;
       instant(times[0], stepIndex, first);
+      atStart = false;
       first = false;
     }
     const values = {};
@@ -324,6 +361,7 @@ export function simulate(circuit, scenario, options = {}) {
     steps,
     changes,
   };
+  if (forces.length) trace.forced = forces.map(({ net, from, to }) => ({ net, from, to }));
   if (warnings.length) trace.warnings = warnings;
   return trace;
 }

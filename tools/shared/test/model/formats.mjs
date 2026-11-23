@@ -12,6 +12,12 @@
 
 import { validate } from "./jsonschema.mjs";
 
+/**
+ * Element types that store state, the only ones a scenario's `initial` may
+ * name. Must equal the simulator's sequential models (tests/sim.test.mjs checks).
+ */
+export const STATEFUL_TYPES = ["sr_latch", "d_latch", "d_flipflop", "d_flipflop_sr", "jk_flipflop", "t_flipflop"];
+
 function structural(schema, data) {
   return validate(schema, data).map((e) => `${e.path || "(top level)"} ${e.message}`);
 }
@@ -51,6 +57,19 @@ export function checkScenario(scenarioSchema, scenario, circuit = null) {
       problems.push(`/steps/0/values must set every input, but "${name}" is missing`);
     }
   }
+  const lastStep = scenario.steps.length - 1;
+  (scenario.force ?? []).forEach((f, i) => {
+    if (f.from > lastStep) problems.push(`/force/${i}/from is step ${f.from}, but the last step is ${lastStep}`);
+    if (f.to !== undefined && f.to > lastStep) problems.push(`/force/${i}/to is step ${f.to}, but the last step is ${lastStep}`);
+    if (f.to !== undefined && f.to < f.from) problems.push(`/force/${i}/to (${f.to}) is before from (${f.from})`);
+  });
+  const force = scenario.force ?? [];
+  force.forEach((a, i) => force.slice(i + 1).forEach((b, k) => {
+    const [aTo, bTo] = [a.to ?? lastStep, b.to ?? lastStep];
+    if (a.net === b.net && a.from <= bTo && b.from <= aTo) {
+      problems.push(`/force/${i} and /force/${i + k + 1} overlap on net "${a.net}"`);
+    }
+  }));
 
   if (circuit) {
     if (scenario.circuit_id !== undefined && scenario.circuit_id !== circuit.id) {
@@ -62,6 +81,15 @@ export function checkScenario(scenarioSchema, scenario, circuit = null) {
       if (!port) problems.push(`/inputs "${name}" is not a port of the circuit`);
       else if (port.dir !== "in") problems.push(`/inputs "${name}" is an output port, not an input`);
     }
+    const elements = new Map((circuit.elements ?? []).map((e) => [e.id, e]));
+    for (const id of Object.keys(scenario.initial ?? {})) {
+      const e = elements.get(id);
+      if (!e) problems.push(`/initial "${id}" is not an element of the circuit`);
+      else if (!STATEFUL_TYPES.includes(e.type)) problems.push(`/initial "${id}" is a ${e.type}, which has no stored state`);
+    }
+    (scenario.force ?? []).forEach((f, i) => {
+      if (!(f.net in (circuit.nets ?? {}))) problems.push(`/force/${i}/net "${f.net}" is not a net of the circuit`);
+    });
   }
   return problems;
 }
@@ -124,6 +152,29 @@ export function checkTrace(traceSchema, trace, scenario = null) {
     }
   }
 
+  (trace.forced ?? []).forEach((f, i) => {
+    if (!signals.has(f.net)) problems.push(`/forced/${i}/net "${f.net}" is not in signals`);
+    if (f.to < f.from) problems.push(`/forced/${i}/to (${f.to}) is before from (${f.from})`);
+    if (f.to >= trace.steps.length) problems.push(`/forced/${i}/to is step ${f.to}, which does not exist`);
+  });
+
+  if (trace.state) {
+    const st = trace.state;
+    for (const b of st.bits) if (!signals.has(b)) problems.push(`/state/bits "${b}" is not in signals`);
+    for (const [name, code] of Object.entries(st.codes)) {
+      if (code.length !== st.bits.length) problems.push(`/state/codes "${name}" has ${code.length} bits but there are ${st.bits.length} state bits`);
+    }
+    if (st.names.length !== trace.steps.length) problems.push(`/state/names has ${st.names.length} entries but there are ${trace.steps.length} steps`);
+    else if (problems.length === 0) {
+      const stateOf = new Map(Object.entries(st.codes).map(([n, c]) => [c, n]));
+      trace.steps.forEach((step, i) => {
+        const code = st.bits.map((b) => step.values[b]).join("");
+        const want = stateOf.get(code) ?? null;
+        if (st.names[i] !== want) problems.push(`/state/names/${i} is ${JSON.stringify(st.names[i])} but the bits hold ${code} (${JSON.stringify(want)})`);
+      });
+    }
+  }
+
   for (const [i, w] of (trace.warnings ?? []).entries()) {
     if (w.step >= trace.steps.length) problems.push(`/warnings/${i}/step ${w.step} does not exist`);
     for (const s of w.signals) {
@@ -144,6 +195,11 @@ export function checkTrace(traceSchema, trace, scenario = null) {
         if (t.label !== s.label) problems.push(`/steps/${i}/label differs from the scenario step's label`);
       });
     }
+    // forced must list the scenario's force entries, in order, with `to` resolved.
+    const last = scenario.steps.length - 1;
+    const want = (scenario.force ?? []).map((f) => `${f.net} ${f.from} ${f.to ?? last}`);
+    const got = (trace.forced ?? []).map((f) => `${f.net} ${f.from} ${f.to}`);
+    if (want.join("|") !== got.join("|")) problems.push(`/forced is [${got.join(", ")}] but the scenario forces [${want.join(", ")}]`);
   }
   return problems;
 }

@@ -17,12 +17,17 @@ describe(circuit); // { simulated: [...], notSimulated: [...] }
 | `simulate.mjs` | Nets, drivers, the event loop, loop detection |
 | `cli.mjs` | `node sim/cli.mjs <scenario.json> [--delays]` prints the trace |
 
-- Input: `circuit/0.2` or `circuit/0.3`, and `scenario/0.1`. Output:
+- Input: `circuit/0.2` or `circuit/0.3`, and `scenario/0.1` or `0.2`. Output:
   `trace/0.1` (see `schema/`).
+- `scenario/0.2` `initial` sets a flip-flop's or latch's stored state before
+  step 0 (otherwise X); the start of step 0 is not a clock edge. `force` holds
+  a net at a level over steps `from` to `to` (inclusive), beating every
+  driver; the trace lists those stretches in `forced`. Unknown names,
+  stateless elements and overlapping forces on one net are errors.
 - Gates: `and_gate`, `or_gate`, `nand_gate`, `nor_gate`, `xor_gate` (each
   with `params.n`, 2 to 8 inputs A, B, C, ...), `not_gate`, `mux2`,
-  `decoder2to4`, `full_adder`, and `switch` (`params.closed: true` joins its
-  two nets). Anything else, including `block`, is drawn but not simulated;
+  `decoder2to4`, `full_adder`, `vdd` and `ground` (a constant 1 and 0 on pin
+  1), and `switch` (`params.closed: true` joins its two nets). Anything else, including `block`, is drawn but not simulated;
   `describe()` lists them.
 - Latches: `sr_latch` (S, R; `params.active` `"high"` for NOR or `"low"` for
   NAND; optional EN makes it gated), `d_latch` (D and CLK, its enable).

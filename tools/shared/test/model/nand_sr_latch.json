@@ -26,8 +26,8 @@
       "via": [[8, -8], [8, -5], [-6, -3], [-6, -1]],
       "route": ["auto", "auto", "straight", "auto", "auto"]
     },
-    { "id": "wQo", "from": [8, 0], "to": "Q" },
-    { "id": "wQno", "from": [8, -8], "to": "Qn" }
+    { "id": "wQo", "from": "jQ", "to": "Q" },
+    { "id": "wQno", "from": "jQn", "to": "Qn" }
   ],
   "junctions": [
     { "id": "jQ", "on": "wQ", "at": [8, 0] },
@@ -36,13 +36,13 @@
   "nets": {
     "Sn": ["Sn", "g1.A"],
     "Rn": ["Rn", "g2.B"],
-    "Q": ["g1.Y", "g2.A", "Q"],
-    "Qn": ["g2.Y", "g1.B", "Qn"]
+    "Q": ["g1.Y", "g2.A", "jQ", "Q"],
+    "Qn": ["g2.Y", "g1.B", "jQn", "Qn"]
   },
   "annotations": {
     "schematic-editor": {
       "snap_degrees": 45,
-      "net_labels": { "wQ": "Q", "wQn": "Qn" }
+      "wire_labels": { "wQ": "Q", "wQn": "Qn" }
     }
   }
 }

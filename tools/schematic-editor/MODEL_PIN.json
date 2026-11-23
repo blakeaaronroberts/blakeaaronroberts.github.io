@@ -1,11 +1,11 @@
 {
   "note": "The circuit-model release this editor reads and writes (VISION.md: formats are pinned by tag). The simulator, validator and schemas are copied from the same tag by tools/shared/scripts/copy-model.js.",
   "source": "circuit-model",
-  "tag": "model-v0.7.0",
-  "commit": "b1a9a08a07b458c9f96bea169b8a97f0462e269a",
+  "tag": "model-v0.9.0",
+  "commit": "c57e6900e23bfb424e435a8d9a611900d9d5f137",
   "schema": "circuit/0.3",
   "reads": ["circuit/0.2", "circuit/0.3"],
   "schema_file": "schema/circuit.schema.json",
   "schema_sha256": "ead1cb7427780efc1e2ccf978ec103b4022ed0799667172d7103e89c7f0cee45",
-  "uses": ["style.levels (C9, F17)", "wire route: straight legs (C13)", "annotations for editor data (C13.5)", "the four-valued simulator sim/simulate.mjs (C13)"]
+  "uses": ["style.levels (C9, F17)", "wire route: straight legs (C13)", "annotations for editor data (C13.5)", "the four-valued simulator sim/simulate.mjs (C13)", "scenario/0.2 initial and force, trace.forced (C14)"]
 }

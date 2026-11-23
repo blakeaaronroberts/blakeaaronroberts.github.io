@@ -8,6 +8,9 @@ versioned yet; suite modules documented here will carry their own versions.
 ## [Unreleased]
 
 ### Added
+- F25: tests and a privacy scan gate the deploy (`.github/workflows/publish.yml`), with per-job permissions and
+  commit-pinned actions; `scripts/sri.js` and `scripts/third-party.json` add integrity hashes to CDN scripts;
+  `scripts/privacy-scan.js`; `.github/dependabot.yml`; licence table in `DECISIONS.md`.
 - `docs/SCRIBE_HANDOFF.md`, `docs/SCRIBE_TODO.md`: batch S3 (alt text) done.
 - `docs/SCRIBE_HANDOFF.md`: every draft is listed in Blake's review queue
   (https://claude.ai/artifact/FDHW1JabMUu84xd2VTm1JV), with an approval dropdown Scribe reads each session.

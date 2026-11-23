@@ -1,7 +1,7 @@
 // Copy the parts of circuit-model the tools use, pinned by tag (VISION.md section 4: modules connect through formats
 // pinned by release tag; no repository imports another's code directly, so the site keeps its own pinned copy).
 //
-//   quarto run tools/shared/scripts/copy-model.js [--source ../circuit-model] [--ref model-v0.7.0]
+//   quarto run tools/shared/scripts/copy-model.js [--source ../circuit-model] [--ref model-v0.9.0]
 //
 // The only writer of tools/shared/src/sim/ (the simulator, used at run time) and tools/shared/test/model/ (the
 // validator and schemas, used by tests to check what the tools write). Files are read from git (`git show <ref>:<path>`),
@@ -12,7 +12,7 @@ const repoRoot = new URL("../../../", here);
 const arg = (name, fallback) => { const i = Deno.args.indexOf(name); return i >= 0 && i + 1 < Deno.args.length ? Deno.args[i + 1] : fallback; };
 const path = (u) => decodeURIComponent(u.pathname).replace(/^\/([A-Za-z]:)/, "$1");
 const source = path(new URL(arg("--source", "../circuit-model"), repoRoot));
-const ref = arg("--ref", "model-v0.7.0");
+const ref = arg("--ref", "model-v0.9.0");
 
 async function git(args, binary = false) {
   const r = await new Deno.Command("git", { args: ["-C", source, ...args], stdout: "piped", stderr: "piped" }).output();
@@ -24,7 +24,7 @@ const sha256 = async (bytes) => [...new Uint8Array(await crypto.subtle.digest("S
 const commit = await git(["rev-parse", `${ref}^{commit}`]);
 const sets = [
   { dir: new URL("../src/sim/", here), files: ["sim/simulate.mjs", "sim/logic.mjs", "sim/README.md"] },
-  { dir: new URL("../test/model/", here), files: ["validate/jsonschema.mjs", "validate/formats.mjs", "schema/circuit.schema.json", "schema/scenario.schema.json", "schema/trace.schema.json", "examples/nand_sr_latch.json"] },
+  { dir: new URL("../test/model/", here), files: ["validate/jsonschema.mjs", "validate/formats.mjs", "schema/circuit.schema.json", "schema/scenario.schema.json", "schema/trace.schema.json", "examples/nand_sr_latch.json", "examples/scenarios/nand_latch_forced_start.json"] },
 ];
 for (const set of sets) {
   await Deno.mkdir(set.dir, { recursive: true });

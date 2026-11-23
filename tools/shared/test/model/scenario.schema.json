@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "scenario/0.1",
-  "title": "Scenario schema v0.1",
-  "description": "What happens to a circuit's inputs over time. A scenario names a circuit file, lists the input ports it drives, and gives a list of steps, each with the value of some inputs and a duration in integer time units. An input not mentioned in a step keeps its previous value; the first step must set every input. Levels are the strings \"0\", \"1\", \"X\" (unknown) and \"Z\" (floating). Structure only: that the circuit exists and has these input ports is a separate semantic check (see validate/).",
+  "$id": "scenario/0.2",
+  "title": "Scenario schema v0.2 (also reads v0.1)",
+  "description": "What happens to a circuit's inputs over time. A scenario names a circuit file, lists the input ports it drives, and gives a list of steps, each with the value of some inputs and a duration in integer time units. An input not mentioned in a step keeps its previous value; the first step must set every input. Levels are the strings \"0\", \"1\", \"X\" (unknown) and \"Z\" (floating). Version 0.2 adds two optional fields: `initial` (the stored state of flip-flops and latches before step 0) and `force` (a net held at a level over a range of steps); a 0.1 file may not use them. Structure only: that the circuit exists and has these input ports is a separate semantic check (see validate/).",
   "type": "object",
   "required": ["schema", "id", "circuit", "inputs", "steps"],
   "additionalProperties": false,
   "properties": {
-    "schema": { "const": "scenario/0.1", "description": "Format and version. Readers reject an unknown major version." },
+    "schema": { "enum": ["scenario/0.1", "scenario/0.2"], "description": "Format and version. Readers reject an unknown major version." },
     "id": { "$ref": "#/$defs/id", "description": "Name of this scenario, e.g. full_adder_all_inputs." },
     "title": { "type": "string", "description": "Human-readable title." },
     "circuit": {
@@ -28,7 +28,25 @@
       "minItems": 1,
       "items": { "$ref": "#/$defs/step" },
       "description": "Consecutive intervals of time. Step 0 starts at time 0."
+    },
+    "initial": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/id" },
+      "additionalProperties": { "enum": ["0", "1", "X"] },
+      "description": "Since 0.2. Element id to the level its stored state has before step 0 (Q of a flip-flop or latch). Without it the state is X. Only elements with state may be named. A clock edge, preset or clear changes it as normal; the start of step 0 is not a clock edge."
+    },
+    "force": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/force" },
+      "description": "Since 0.2. Nets held at a level whatever drives them, over a range of steps. Everything that reads the net sees the forced level; when the range ends the net returns to its driven value. Force beats element outputs and scenario inputs on that net."
     }
+  },
+  "if": {
+    "properties": { "schema": { "const": "scenario/0.1" } },
+    "required": ["schema"]
+  },
+  "then": {
+    "properties": { "initial": false, "force": false }
   },
   "$defs": {
     "id": {
@@ -36,6 +54,17 @@
       "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
     },
     "level": { "enum": ["0", "1", "X", "Z"] },
+    "force": {
+      "type": "object",
+      "required": ["net", "level", "from"],
+      "additionalProperties": false,
+      "properties": {
+        "net": { "$ref": "#/$defs/id", "description": "Id of a net in the circuit." },
+        "level": { "$ref": "#/$defs/level" },
+        "from": { "type": "integer", "minimum": 0, "description": "First step held (inclusive)." },
+        "to": { "type": "integer", "minimum": 0, "description": "Last step held (inclusive). Absent: to the end." }
+      }
+    },
     "step": {
       "type": "object",
       "required": ["duration", "values"],

@@ -2,6 +2,42 @@
 
 Notable choices for this repository (VISION.md §7): date, decision, reason. Newest first.
 
+## 2026-11-20: Third-party licences and delivery safeguards (F25)
+
+**Decision.** Every third-party piece the site ships or loads is listed here with its licence (VISION.md §3). Blake's own
+licence is still undecided: there is no LICENSE file, header or badge. Licences below are as the packages declare them
+(npm `license` field, the font families' published licence, the CSL file's own `rights` line); the IP Inspector may check
+them again.
+
+| Component | Version | Licence | Where it is used | Loaded from |
+|---|---|---|---|---|
+| MathJax 4 with the STIX2 font package | 4.1.3 | Apache-2.0 | page maths; labels in the editors | jsDelivr, pinned, SHA-384 integrity |
+| WaveDrom (and its default skin) | 3.7.0 | MIT | WaveDrom pages; the timing tool credits its source format | cdnjs, pinned, SHA-384 integrity |
+| DigitalJS | 0.14.2 | BSD-2-Clause | DigitalJS pages | unpkg, pinned, SHA-384 integrity |
+| IBM Plex Sans and Mono | Google Fonts | SIL OFL 1.1 | site pages | Google Fonts stylesheet (cannot be hashed) |
+| STIX Two Text, Fira Mono | Google Fonts | SIL OFL 1.1 | figures | Google Fonts stylesheet (cannot be hashed) |
+| IEEE citation style (`_csl/ieee.csl`) | as copied | CC BY-SA 3.0 (the file's own `rights` line) | references | in the repository |
+| Okabe-Ito palette | n/a | a published colour set, not code | figures | in the repository |
+| Quarto and its bundled OJS runtime, Bootstrap | 1.11.9 | MIT and others, each bundled with its notice | build tool; `site_libs/` | built into the site |
+| circuit-model (simulator, validator, symbol pack) | model-v0.9.0, symbols-v0.3.0 | Blake's own; licence undecided (VISION.md §3) | the editors | copied into `tools/`, pinned by tag and hash |
+| `assets/wavedrom/lecture.js` | n/a | a restyled copy of WaveDrom's default skin (MIT) | WaveDrom pages | in the repository |
+
+**Delivery safeguards.**
+
+- `.github/workflows/publish.yml`: the tests and the privacy scan run first and the deploy needs them; the workflow
+  starts with no permissions and each job asks only for what it uses; actions are pinned to commits (Dependabot proposes
+  updates).
+- `scripts/third-party.json` and `scripts/sri.js`: the CDN scripts above get `integrity` attributes after each render, and the
+  build fails if an external script has none. MathJax's dynamic font files load after the pinned bundle and carry no hash.
+- `scripts/privacy-scan.js`: fails on a tracked or rendered CV file, a phone number, a GPA, or an email address not listed in
+  `scripts/privacy-allow.json` (Blake's own). Third-party files with authors' contact lines (`_csl/`, `site_libs/`) are skipped
+  for email only.
+- **Not done, and only Blake can do it:** branch protection on `main` (require the test job before merge). **Open items,
+  not recorded as done:** co-author consent, and the advisor's OK, for what the site names.
+
+**Why.** Reviewers found that tests did not gate the deploy, workflow permissions were broad, actions floated on tags, the
+privacy scan was manual, CDN scripts had no integrity hashes, and no table of licences existed.
+
 ## 2026-11-13: Figure editor finish (F3): build choices
 
 **Decision.** Choices made while building F3, where the pack or the plan left room:

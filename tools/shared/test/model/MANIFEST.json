@@ -1,8 +1,8 @@
 {
   "note": "Written by tools/shared/scripts/copy-model.js. Do not edit this folder by hand.",
   "source": "circuit-model",
-  "ref": "model-v0.7.0",
-  "commit": "b1a9a08a07b458c9f96bea169b8a97f0462e269a",
+  "ref": "model-v0.9.0",
+  "commit": "c57e6900e23bfb424e435a8d9a611900d9d5f137",
   "files": [
     {
       "name": "jsonschema.mjs",
@@ -13,8 +13,8 @@
     {
       "name": "formats.mjs",
       "from": "validate/formats.mjs",
-      "bytes": 6343,
-      "sha256": "28c2c7a69f21150683d9a4f6dcddbf51a6a40c560d4dcbda06d3841c33d4838f"
+      "bytes": 9714,
+      "sha256": "f1a128c86e1c3bae88ab9368cdae3dc9b09b38e1a6f32164f74c5c854135884d"
     },
     {
       "name": "circuit.schema.json",
@@ -25,20 +25,26 @@
     {
       "name": "scenario.schema.json",
       "from": "schema/scenario.schema.json",
-      "bytes": 2642,
-      "sha256": "01b61b4e4edc15af95bd06c414d4fbecf292776561e895a296fa47b80c0edcf9"
+      "bytes": 4350,
+      "sha256": "a841ab57a9251dd88fb1d753ce3e34803df98728d1ca02def1960436c451ce71"
     },
     {
       "name": "trace.schema.json",
       "from": "schema/trace.schema.json",
-      "bytes": 3948,
-      "sha256": "1402f676856c29dbd3d9e35163c6290b94e82416f60f494ae4bdd365023ba53e"
+      "bytes": 5629,
+      "sha256": "a71a7bc632b29178b74f5af5005e8718b6c214953dfb67a9fd8868681a4223c2"
     },
     {
       "name": "nand_sr_latch.json",
       "from": "examples/nand_sr_latch.json",
-      "bytes": 1633,
-      "sha256": "05206ca301c286f5fdf650b10f13a31882c7046146988bfca49cba1baec55c3a"
+      "bytes": 1643,
+      "sha256": "3dcf565dfcd9f72765b2d4de54993357c3cd609d476fcbb6370bd8d404c0b526"
+    },
+    {
+      "name": "nand_latch_forced_start.json",
+      "from": "examples/scenarios/nand_latch_forced_start.json",
+      "bytes": 626,
+      "sha256": "1a8c3ef44aaab18ddbc4598e23a952f6a81708d3c673bb08b5185162c97781b4"
     }
   ]
 }

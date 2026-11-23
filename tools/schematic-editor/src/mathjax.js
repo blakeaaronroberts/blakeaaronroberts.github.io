@@ -15,6 +15,7 @@
 import { parseTypeset } from "./labels.js";
 
 export const MATHJAX_URL = "https://cdn.jsdelivr.net/npm/@mathjax/mathjax-stix2-font@4.1.3/tex-mml-svg-mathjax-stix2.js";
+export const MATHJAX_SRI = "sha384-SDJNc0t8y/svPTVN2QVIBB/4Lwf5LY6VL7XUiaNHRfEzRuZZVKpX4jwEelYA6JDK";
 
 /** The MathJax configuration the editor needs. test/fixtures/capture-mathjax.html uses the same. */
 export const MATHJAX_CONFIG = { startup: { typeset: false }, svg: { fontCache: "none", linebreaks: { inline: false } } };
@@ -27,6 +28,8 @@ export function loadMathJax() {
     window.MathJax = structuredClone(MATHJAX_CONFIG);
     const s = document.createElement("script");
     s.src = MATHJAX_URL;
+    s.integrity = MATHJAX_SRI;   // hash of the pinned file; scripts/third-party.json holds the same value
+    s.crossOrigin = "anonymous";
     s.async = true;
     s.onload = () => window.MathJax.startup.promise.then(async () => {
       // A failure here is not fatal: tex2svg then reports any character whose glyph it could not load.

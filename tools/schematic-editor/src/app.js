@@ -25,6 +25,7 @@ import { orient } from "./geometry.js";
 import { namedNetNames, parseTruthTable, truthTable } from "./demo.js";
 import { framesFromSignals, levelTagStyleOf, setCalculatedFrames, setLevelTagStyle, setWireLabelStyle, wireLabelStyleOf, setWireLabels, wireLabelOf, applyFrame, captureFrame, ensureFrameZero, frameTex, framesOf, moveFrame, numbered, recaptureFrame, removeFrame, renameFrame, targetsOf } from "./levelframes.js";
 import { calculateSteps, drivenWireIds, logicModeOf, resolveLogic, setLogicMode } from "./simlevels.js";
+import { convertHandLevels, handLevelsFromFrames, setHandLevel } from "./scenario.js";
 import { migrateR1 } from "./migrate.js";
 
 // Browser storage keys, set by mount() from options.storage (the tool's own prefix: "schematic-editor/" on its page,
@@ -564,7 +565,7 @@ export async function mount(root, options = {}) {
   function render() {
     applyLevels();
     lastDrawing = view.render({
-      doc, pack, selection, selectedJunction, ghost, rubber, hover, hoverWire, box: boxSel,
+      doc, pack, selection, selectedJunction, ghost, rubber, hover, hoverWire, box: boxSel, forced: framesOf(doc)[selectedFrame]?.forced ?? [],
       typeset, labelPt: opt.labelPt ?? undefined, levelTags: opt.levelTags,
       levelTagPt: opt.levelTagPt ?? undefined, levelTagColour: opt.levelTagColour, netNames: opt.netNames,
     });
@@ -984,6 +985,8 @@ export async function mount(root, options = {}) {
     const noun = selection.elements.length ? "item" : "wire";
     const driven = drivenWireIds(doc, pack), overridesOutput = wires.some((id) => driven.has(id));
     let next = setPortLevelsForWires(D.setLevel(doc, selection.wires, level, selection.elements, pack), wires, level);
+    // A level set by hand on a driven net is recorded for the simulator (scenario initial or force, F24), not evaluated here.
+    if (overridesOutput && selectedFrame >= 0) next = setHandLevel(next, pack, wires.filter((id) => driven.has(id)), selectedFrame, level || null);
     if (selectedFrame >= 0) next = recaptureFrame(next, selectedFrame, [...wires, ...selection.elements, ...next.ports.filter((port) => D.wiresForRefs(next, pack, [port.id]).some((id) => wires.includes(id))).map((port) => port.id)]);
     const message = level ? `Level ${level} (${name}) set on ${count(n, noun)}.` : "Level cleared.";
     commit(next, selectedFrame > 0 && logicModeOf(doc) === "calculated" ? `${message} Recalculate timing to update computed levels.` : message, { preserveLevels: overridesOutput }   /* an input recalculates what it drives (and changed() syncs a timing frame's new values to its step); an output set by hand is a manual override and is kept */);
@@ -1631,30 +1634,27 @@ export async function mount(root, options = {}) {
     const inexact = signals.find((signal) => signal.exact === false);
     if (inexact) return status(`Cannot calculate with ${inexact.name}: with period ${inexact.period}, phase ${inexact.phase || 0} and delay ${inexact.delay || 0} its level changes inside a step, and a frame holds one level per step.`, true);
     const nets = D.deriveNets(doc, pack);
-    const synced = framesFromSignals(doc, nets, signals, pack).doc;
+    // Timing-pane cells set by hand on a driven signal are forces in their frames (F24): record them from the frames.
+    const synced = handLevelsFromFrames(framesFromSignals(doc, nets, signals, pack).doc, pack, 1);
     const driven = drivenWireIds(synced, pack);
     const shiftedOutput = signals.find((signal) => (signal.period !== 1 || signal.phase || signal.delay) && targetsOf(synced, nets, signal.name, pack).wires.some((id) => driven.has(id)));
     if (shiftedOutput) return status(`Cannot calculate ${shiftedOutput.name}: a calculated signal needs period 1 and zero phase and delay.`, true);
     const frames = framesOf(synced);
-    let problem = null, results = [];
+    let problem = null, results = [], forced = null;
     try {
-      const levels = frames.map((frame) => {
-        const manual = { ...frame.levels };
-        for (const [id, level] of Object.entries(frame.calculated ?? {})) if (manual[id] === level) delete manual[id];
-        return manual;
-      });
+      const levels = frames.map((frame) => ({ ...frame.levels }));   // inputs only count; hand-set driven levels are the scenario's (F24)
       const pulses = frames.slice(1).map((_, i) => signals.filter((signal) => signal.pulses[i]).flatMap((signal) => {
         const target = targetsOf(synced, nets, signal.name, pack);
         return [...target.wires, ...target.ports];
       }));
       const run = calculateSteps(synced, pack, levels, pulses);
-      results = run.results;
+      results = run.results; forced = run.forced;
       if (run.warnings.length) problem = `Feedback did not settle in ${run.warnings.length === 1 ? "one step" : `${run.warnings.length} steps`}; those outputs are X.`;
     } catch (error) {
       problem = `Calculation stopped: ${error.message}`;
     }
     if (results.length) {
-      let next = setCalculatedFrames(synced, results);
+      let next = setCalculatedFrames(synced, results, forced);
       const current = framesOf(next)[selectedFrame];
       if (current) next = applyFrame(next, current);
       commit(next, null, { preserveLevels: true });
@@ -1710,7 +1710,7 @@ export async function mount(root, options = {}) {
   /** Open a saved file. With `record`, it is an undo step; on start-up it is not. */
   function load(text, record = true) {
     const { doc: parsed, nets } = D.parse(text);
-    const next = ensureFrameZero(resolveLogic(parsed, pack));
+    const next = ensureFrameZero(resolveLogic(convertHandLevels(parsed, pack), pack));   // files from before F24: hand-set levels to scenario fields
     try { drawing(next, pack, { typeset }); D.lint(next, pack); } catch (e) { throw new Error(`the figure could not be drawn (${e.message})`); }   // a dry run: nothing changes if it fails
     loadWarnings = D.netsMatch(nets, D.deriveNets(next, pack)) ? [] :
       ["The file's nets did not match its drawing. Saving writes the nets the drawing makes."];
