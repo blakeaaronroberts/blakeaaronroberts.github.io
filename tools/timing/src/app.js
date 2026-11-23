@@ -4,6 +4,7 @@
 import { parseSource, tidy } from "./wave.js";
 import { drawTiming, naturalSize, lanesOf, stepsOf } from "./draw.js";
 import { stepLevels } from "./steplevels.js";
+import { fitSize } from "./fit.js";
 import { nodesOf, unknownNames, framesIn } from "./nodes.js";
 import { editorDataOf } from "../../schematic-editor/src/index.js";
 import { addEdge, addSignal, addSpacer, arrowHeadColourOf, arrowHeadSizeOf, arrowLabelSizeOf, cellsOf, dataAt, dataColoursOf, EDGE_OPS, edgeLineColourOf, edgeLineWidthOf, edgeStyleOf, edgeStylesFor, edgesOf, empty, fromWaveDrom, isCalculatedCell, isClock, LABEL, lineWidthOf, moveSignal, nextLetter, nextValue, nodeLetters, removeEdge, removeSignal, resetTimingColours, resetTimingLook, setArrowHeadSize, setArrowLabelSize, setBand, setCalculatedLevels, setCell, setClock, setDataColour, setDelay, setEdge, setEdgeLineWidth, setEdgeStyle, setHscale, setLineWidth, setNode, setProp, setShowNames, setSignalLineColour, setSignalNameSize, setSlant, setSteps, setTextSize, showNamesOf, signalLineColourOf, signalNameSizeOf, slantOf, stepCount, textSizeOf, toWaveDrom, WAVE } from "./model.js";
@@ -84,10 +85,10 @@ export function mount(root, {
     return `<svg class="td-inline-math" role="img" aria-label="${esc(text)}" viewBox="${x} ${y} ${width} ${height}" width="${parsed.width * size}" height="${(parsed.height + parsed.depth) * size}" style="vertical-align:-${parsed.depth * size}px"><g color="currentColor">${nodesMarkup(parsed.nodes)}</g></svg>`;
   };
   /** The diagram as SVG text in the figure roles: light unless `dark` (exports always ask for light). */
-  const drawNow = (dark) => {
+  const drawNow = (dark, exporting = false) => {   // exporting: without a set size, an export is the natural size, not the window's
     const role = figureRole, ink = role(dark ? "--fig-dark-ink" : "--fig-ink"), accent = role(dark ? "--fig-dark-accent" : "--fig-accent");
     return drawTiming(toWaveDrom(value), {
-      width: Number(wIn.value) || natural.w, height: Number(hIn.value) || natural.h,
+      width: exporting && !custom ? natural.w : Number(wIn.value) || natural.w, height: exporting && !custom ? natural.h : Number(hIn.value) || natural.h,
       ink, accent,
       dataFills: dataColoursOf(value, dataDefaults(dark)), paper: role(dark ? "--fig-dark-background" : "--fig-background"), marker: frame >= 0 && frame < frameNames.length ? frame : null,
       ...(betaFeatures ? {
@@ -139,10 +140,16 @@ export function mount(root, {
   }
   function drawDiagram() {
     natural = naturalSize(toWaveDrom(value), Number(value.config?.hscale) || 1, betaFeatures ? { nameTypeset: nameTypesets, showNames: showNamesOf(value), fontSize: textSizeOf(value), signalNameSize: signalNameSizeOf(value), arrowLabelSize: arrowLabelSizeOf(value), fitText: true } : {});
-    if (!custom) {   // on screen the diagram fills the view's width (laid out again, not stretched); Natural size gives WaveDrom's own proportions
-      const room = view.parentElement.clientWidth;
+    if (!custom) {   // on screen the diagram fits the view window in both directions (laid out again, not stretched); Natural size gives WaveDrom's own proportions
+      const p = view.parentElement, cs = getComputedStyle(p);
+      const room = {
+        w: p.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0),
+        h: p.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0),
+      };
       const largeText = betaFeatures && Math.max(textSizeOf(value), signalNameSizeOf(value), arrowLabelSizeOf(value)) > 24;
-      wIn.value = Math.round(Math.max(natural.w, room > 0 ? room : 0)); hIn.value = Math.round(natural.h * (!largeText && room > natural.w ? Math.min(2, room / natural.w) : 1));
+      const f = fitSize(natural, room, { steps: stepCount(value), hscale: Number(value.config?.hscale) || 1, largeText });
+      wIn.value = f.w;
+      if (!hIn.value || Math.abs(f.h - Number(hIn.value)) >= 3) hIn.value = f.h;   // ignore tiny changes, so scrollbars appearing cannot make the size chase itself
     }
     if (document.activeElement !== hsIn) hsIn.value = String(value.config?.hscale ?? 1);
     if (document.activeElement !== slantIn) slantIn.value = String(slantOf(value));
@@ -475,7 +482,7 @@ export function mount(root, {
   });
 
   // ---- exports ----
-  const svgText = () => `<?xml version="1.0" encoding="UTF-8"?>\n${drawNow(false)}\n`;   // always the light figure roles, whatever the screen shows
+  const svgText = () => `<?xml version="1.0" encoding="UTF-8"?>\n${drawNow(false, true)}\n`;   // always the light figure roles, whatever the screen shows
   const save = (blob, name) => {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob); a.download = name;
@@ -571,7 +578,7 @@ export function mount(root, {
   root.addEventListener("click", (e) => {
     if (!e.target.closest("[data-do=send]")) return;
     if (!value.signal.length) return say("Nothing to send yet.", true);
-    const svg = drawNow(false), dimensions = /<svg[^>]* width="([\d.]+)" height="([\d.]+)"/.exec(svg);
+    const svg = drawNow(false, true), dimensions = /<svg[^>]* width="([\d.]+)" height="([\d.]+)"/.exec(svg);
     store.set(sendKey, JSON.stringify({ svg, w: Number(dimensions[1]), h: Number(dimensions[2]), signals: signalLevels(), source: toWaveDrom(value), at: Date.now() }));
     onSend?.();
     say("Sent: the slide's timing regions show this diagram, and the editor's frames are filled from its steps.");
