@@ -122,17 +122,13 @@ Deno.test("slide timing keeps independent large label sizes and fits the region"
   assert(x >= region.x - 0.001 && y >= region.y - 0.001 && x + drawing.geometry.width * scale <= region.x + region.w + 0.01 && y + drawing.geometry.height * scale <= region.y + region.h + 0.01, "the entire timing drawing fits inside the region");
 });
 
-Deno.test("slide timing diagrams keep all lanes and steps and have isolated clip and hatch IDs", () => {
+Deno.test("slide timing diagrams keep all lanes and steps, in two regions, with no clipPath or pattern (plain vector shapes, F28)", () => {
   const base = defaultSlide(), region = base.regions.find((r) => r.kind === "timing");
   const s = { ...base, regions: [region, { ...region, id: "another", x: region.x + 1 }] };
   const source = { signal: Array.from({ length: 20 }, (_, i) => ({ name: `S${i}`, wave: "0x".repeat(40) })), head: { tick: 0 } };
   const svg = slideSvg(doc(), pack, s, { timing: { source } });
-  const clips = [...svg.matchAll(/<clipPath id="([^"]+)"><rect x="[^"]+" y="0" width="[^"]+" height="([^"]+)"/g)];
-  const patterns = [...svg.matchAll(/<pattern id="([^"]+)"/g)];
-  assert(clips.length === 2 && clips[0][1] !== clips[1][1] && clips.every((m) => m[1] !== "plot"), "each slide region has its own clip, distinct from the timing pane");
-  assert(patterns.length === 2 && patterns[0][1] !== patterns[1][1] && patterns.every((m) => m[1] !== "hatch"), "each slide region has its own hatch");
-  for (const [, id] of clips) assert(svg.includes(`url(#${id})`), "waveforms reference their region's clip");
-  for (const [, id] of patterns) assert(svg.includes(`url(#${id})`), "unknown states reference their region's hatch");
+  assert(svg.includes("<svg") && (svg.match(/S19/g) ?? []).length >= 2, "both regions draw every lane");
+  for (const token of ["<clipPath", "<pattern", "clip-path", "url(#hatch", "url(#plot"]) assert(!svg.includes(token), `${token} is in the slide`);
 });
 
 Deno.test("a 2 by 2 grid draws each frame's own levels", () => {
