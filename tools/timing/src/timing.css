@@ -182,3 +182,4 @@
 .fe.td-page > .td-center { grid-column: 2; grid-row: 2; }
 .fe.td-page > .fe-side { grid-column: 3; grid-row: 2; }
 .fe.td-page > .fe-status { grid-column: 1 / -1; grid-row: 3; }
+.td-row.is-wave-hidden .td-cells { opacity: .45; }   /* a hidden wave stays editable, dimmed so it is not forgotten (F29) */

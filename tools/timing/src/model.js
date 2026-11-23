@@ -162,10 +162,11 @@ export const WAVE = [
 ];
 Object.assign(LABEL, { h: "H", l: "L", u: "U", d: "D", 3: "3", 4: "4", 5: "5", 6: "6", 7: "7", 8: "8", 9: "9", n: "nclk", P: "clk↑", N: "clk↓", "|": "‖" });
 
-/** Set a signal's period, phase, group or delay (empty or zero removes it). */
+/** Set a signal's period, phase, group or delay (empty or zero removes it), or turn its hidden wave or hidden name on or off. */
 export function setProp(v, si, key, val) {
   const d = clone(v), sig = lanes(d)[si];
-  if (!sig || !["period", "phase", "group", "delay"].includes(key)) return d;
+  if (!sig || !["period", "phase", "group", "delay", "hidden", "hideName"].includes(key)) return d;
+  if (key === "hidden" || key === "hideName") { if (val) sig[key] = true; else delete sig[key]; return d; }   // F29: our own on/off keys
   if (key === "group") { const g = String(val ?? "").trim().slice(0, 40); if (g) sig.group = g; else delete sig.group; return d; }
   delete sig.calculated;
   const x = Math.round((Number(val) || 0) * 100) / 100;
