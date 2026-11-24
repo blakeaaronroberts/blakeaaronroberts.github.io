@@ -1,3 +1,6 @@
-# The figure editor's symbol pack is a byte-exact copy (MANIFEST.json records each file's SHA-256).
-# Keep git from converting its line endings on checkout.
-tools/figure-editor/symbol-pack/** -text
+# Pinned copies are byte-exact (each MANIFEST.json records every file's SHA-256, checked by
+# tools/schematic-editor/test/manifests.test.js). Keep git from converting line endings on checkout.
+tools/schematic-editor/symbol-pack/** -text
+tools/shared/src/sim/** -text
+tools/shared/test/model/** -text
+tools/logic/analyze/model/** -text

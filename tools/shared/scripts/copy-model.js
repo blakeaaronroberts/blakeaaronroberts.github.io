@@ -1,7 +1,7 @@
 // Copy the parts of circuit-model the tools use, pinned by tag (VISION.md section 4: modules connect through formats
 // pinned by release tag; no repository imports another's code directly, so the site keeps its own pinned copy).
 //
-//   quarto run tools/shared/scripts/copy-model.js [--source ../circuit-model] [--ref model-v0.9.0] [--logic-ref model-v0.10.0] [--only logic]
+//   quarto run tools/shared/scripts/copy-model.js [--source ../circuit-model] [--ref <tag>] [--logic-ref <tag>] [--only logic]
 //
 // The only writer of tools/shared/src/sim/ (the simulator, used at run time) and tools/shared/test/model/ (the
 // validator and schemas, used by tests to check what the tools write). Files are read from git (`git show <ref>:<path>`),
@@ -12,7 +12,10 @@ const repoRoot = new URL("../../../", here);
 const arg = (name, fallback) => { const i = Deno.args.indexOf(name); return i >= 0 && i + 1 < Deno.args.length ? Deno.args[i + 1] : fallback; };
 const path = (u) => decodeURIComponent(u.pathname).replace(/^\/([A-Za-z]:)/, "$1");
 const source = path(new URL(arg("--source", "../circuit-model"), repoRoot));
-const ref = arg("--ref", "model-v0.9.0");
+// The tags live in tools/schematic-editor/MODEL_PIN.json and nowhere else (F25.3). --ref and --logic-ref try another tag;
+// the pin file is then updated by hand, and tools/schematic-editor/test/manifests.test.js fails until it agrees.
+const pin = JSON.parse(await Deno.readTextFile(new URL("../../schematic-editor/MODEL_PIN.json", here)));
+const ref = arg("--ref", pin.tag);
 
 async function git(args, binary = false) {
   const r = await new Deno.Command("git", { args: ["-C", source, ...args], stdout: "piped", stderr: "piped" }).output();
@@ -23,7 +26,7 @@ const sha256 = async (bytes) => [...new Uint8Array(await crypto.subtle.digest("S
 
 // The logic tools (L5 and the rest of tools/logic/) pin their own, newer tag, with the folder layout kept (analyze/ imports
 // ../sim and ../logic), so the editors' pin above does not move. Override with --logic-ref.
-const logicRef = arg("--logic-ref", "model-v0.10.0");
+const logicRef = arg("--logic-ref", pin.logic_tag);
 const logicFiles = [
   "sim/simulate.mjs", "sim/logic.mjs",
   ...["circuit", "compare", "expr", "function", "index", "kmap", "qm", "rewrite"].map((n) => `logic/${n}.mjs`),
@@ -40,6 +43,8 @@ const only = arg("--only", null);   // "logic": copy just the logic tools' set
 for (const set of sets) {
   if (only === "logic" && !set.keepPaths) continue;
   const commit = await git(["rev-parse", `${set.ref}^{commit}`]);
+  const pinned = set.ref === pin.tag ? pin.commit : set.ref === pin.logic_tag ? pin.logic_commit : null;
+  if (pinned && commit !== pinned) throw new Error(`${set.ref} is ${commit} in ${source}, but MODEL_PIN.json pins ${pinned}`);
   await Deno.mkdir(set.dir, { recursive: true });
   const manifest = { note: "Written by tools/shared/scripts/copy-model.js. Do not edit this folder by hand.", source: "circuit-model", ref: set.ref, commit, files: [] };
   for (const file of set.files) {

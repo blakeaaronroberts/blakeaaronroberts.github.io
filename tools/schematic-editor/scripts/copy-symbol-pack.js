@@ -1,8 +1,8 @@
 // Copy the symbol pack from a local circuit-model checkout into ../symbol-pack/.
 //
-//   quarto run tools/figure-editor/scripts/copy-symbol-pack.js [--source ../circuit-model] [--ref symbols-v0.1.0]
+//   quarto run tools/schematic-editor/scripts/copy-symbol-pack.js [--source ../circuit-model] [--ref symbols-v0.3.0]
 //
-// The only writer of tools/figure-editor/symbol-pack/. Never edit that folder by hand.
+// The only writer of tools/schematic-editor/symbol-pack/. Never edit that folder by hand.
 // Files are read from git (`git show <ref>:symbols/<file>`), not from the working tree, so the
 // copy is exactly what the ref holds, whatever is checked out. With no --ref it uses the newest
 // `symbols-v*` tag; if there is none, HEAD, recorded as untagged (proposal section 10.2).
@@ -60,7 +60,7 @@ const missing = [index.theme, ...index.elements.flatMap((e) => [e.json, e.svg])]
 if (missing.length) throw new Error(`index.json names missing files: ${missing.join(", ")}`);
 
 const manifest = {
-  note: "Written by tools/figure-editor/scripts/copy-symbol-pack.js. Do not edit this folder by hand.",
+  note: "Written by tools/schematic-editor/scripts/copy-symbol-pack.js. Do not edit this folder by hand.",
   source: "circuit-model",
   path: "symbols/",
   ref,

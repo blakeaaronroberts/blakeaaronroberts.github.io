@@ -1,5 +1,5 @@
 {
-  "note": "Written by tools/figure-editor/scripts/copy-symbol-pack.js. Do not edit this folder by hand.",
+  "note": "Written by tools/schematic-editor/scripts/copy-symbol-pack.js. Do not edit this folder by hand.",
   "source": "circuit-model",
   "path": "symbols/",
   "ref": "symbols-v0.3.0",
