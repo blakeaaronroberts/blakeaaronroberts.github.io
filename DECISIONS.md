@@ -11,6 +11,8 @@ Notable choices for this repository (VISION.md §7): date, decision, reason. New
 - Licences: ISC for YoWASP (Catherine), Yosys (Claire Xenia Wolf) and yosys-slang (Martin Povišer), plus the components listed in `tools/shared/src/sv/third_party/NOTICES.md` (circuit-model's file, shipped beside the files and linked from the Import panel). The resources tar is shipped byte-exact; it holds ten third-party authors' email addresses in file headers (Blake accepted this, 2026-11-25).
 - **Open for the IP Inspector (circuit-model's file, not changed here):** `NOTICES.md` has no sections for `ezsat`, `subcircuit` or WASI libc, which circuit-model's DECISIONS (C11.0 d) names among the YoWASP licences; the Yosys techlib `.v` files in the tar were not read one by one; the IEEE `vpi_user.h` flag.
 
+**Measured on Pages (2026-11-25, first deploy of the files).** Every `.gz` is served as `Content-Type: application/gzip` with no `Content-Encoding`, so the bytes on the wire are the file sizes: `yosys.core.wasm.gz` 17,044,483, `yosys-resources.0.tar.gz` 856,245, the three small `.wasm.gz` 11,419 together, `bundle.js` 56,383 (Pages gzips JavaScript): 17,968,530 bytes (17.97 MB) in all. `Cache-Control: max-age=600`, `Access-Control-Allow-Origin: *`; a ranged request returns the whole file. 0.86 to 1.11 s for the big file here (15 to 20 MB/s; this link only).
+
 **Why.** Behavioural code needs synthesis (engine memo). Pre-gzipped files do not depend on how Pages compresses, and Pages sends a `.gz` untouched (measured for slang, 2026-11-25). Cost: about 18 MB in git history, and again for each Yosys version.
 
 ## 2026-11-24: Pinned copies checked in CI, same-site circuits, WaveDrom skin notice (F25.2 to F25.4)
