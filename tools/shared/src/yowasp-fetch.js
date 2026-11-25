@@ -26,7 +26,7 @@ const fileOf = (url) => {
 
 /**
  * Replace `target.fetch`. Options:
- *   sizes           { "<file>.gz": bytes } so progress knows the whole (the manifest's sizes); without it `totalAll` is 0
+ *   sizes           { "<file>.gz": bytes }, or an async function giving it (called when the engine is first needed), so progress knows the whole; without it `totalAll` is 0
  *   onProgress(e)   { file, done, total, doneAll, totalAll } as compressed bytes arrive
  *   onReady()       once, when the last of the five files has been read
  *   beforeDownload  async (bytes) => boolean, asked once before the first byte is fetched (Data Saver); false cancels with an error
@@ -36,12 +36,18 @@ const fileOf = (url) => {
 export function installYowaspFetch({ onProgress = () => {}, onReady = () => {}, sizes = {}, beforeDownload = null, fetchImpl, target = globalThis } = {}) {
   const real = fetchImpl ?? target.fetch.bind(target);
   const original = target.fetch;
-  const totalAll = ENGINE_FILES.reduce((n, f) => n + (sizes[`${f}.gz`] ?? 0), 0);
+  let known = null, totalAll = 0;
+  const loadSizes = async () => {
+    if (known) return;
+    try { known = (typeof sizes === "function" ? await sizes() : sizes) ?? {}; } catch { known = {}; }   // sizes only make progress whole; the download goes on without them
+    totalAll = ENGINE_FILES.reduce((n, f) => n + (known[`${f}.gz`] ?? 0), 0);
+  };
   const finished = new Set();
   let doneAll = 0, asked = null;
 
   async function engineFetch(url, file) {
     if (typeof DecompressionStream === "undefined") throw new EngineError("This browser cannot unpack the synthesis engine (no DecompressionStream).");
+    await loadSizes();
     asked ??= Promise.resolve(beforeDownload ? beforeDownload(totalAll) : true);
     if (!(await asked)) throw new EngineError("The synthesis engine was not downloaded.");
     let response;
@@ -51,7 +57,7 @@ export function installYowaspFetch({ onProgress = () => {}, onReady = () => {}, 
       throw new EngineError(`The synthesis engine could not be downloaded: ${err.message}`);
     }
     if (!response.ok) throw new EngineError(`The synthesis engine could not be downloaded: the server answered ${response.status}.`);
-    const total = Number(response.headers.get("content-length")) || sizes[`${file}.gz`] || 0;
+    const total = Number(response.headers.get("content-length")) || known[`${file}.gz`] || 0;
     const reader = response.body.getReader();
     let done = 0;
 
