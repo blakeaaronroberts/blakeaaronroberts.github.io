@@ -31,6 +31,8 @@ import { openableUrl } from "../../shared/src/openurl.js";
 import { createSvPanel } from "./svpanel.js";
 import { EMPTY_STATUS, EXAMPLE_STATUS, startAction } from "./start.js";
 import { createStartChooser } from "./startui.js";
+import { DONE_TOAST, SKIP_TOAST, createTour, keyChips, shouldStartTour, tourSteps } from "./tour.js";
+import { createToast, createTourUi, tooltips } from "./tourui.js";
 
 // Browser storage keys, set by mount() from options.storage (the tool's own prefix: "schematic-editor/" on its page,
 // "figure-editor/" in the Figure Editor) and options.timingStorage (the Timing Diagram's, shared with its own page).
@@ -113,8 +115,9 @@ const ICONS = {
 /** A button for a command: an icon (named for assistive tech and in its tooltip) or, with no icon, its text. */
 const btn = (cmd, label, keys = "", extra = "", title = label) => {
   const art = ICONS[cmd] ? `<svg class="fe-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">${ICONS[cmd]}</svg>` : label;
-  const name = ICONS[cmd] ? ` aria-label="${label}"` : "";
-  return `<button type="button" class="${BUTTON}" data-cmd="${cmd}"${name} title="${title}${keys ? ` (${keys})` : ""}"${keys ? ` aria-keyshortcuts="${keys}"` : ""}${extra}>${art}</button>`;
+  // U1.4: the tooltip is drawn by tooltips() from data-tip and aria-keyshortcuts, not by the browser's title attribute
+  const name = ICONS[cmd] ? ` aria-label="${label}"` : /[A-Za-z]/.test(label) ? "" : ` aria-label="${title}"`;
+  return `<button type="button" class="${BUTTON}" data-cmd="${cmd}"${name} data-tip="${title}"${keys ? ` aria-keyshortcuts="${keys}"` : ""}${extra}>${art}</button>`;
 };
 
 /**
@@ -132,7 +135,7 @@ export function toolbarGroups() {
     grid: `<span class="fe-grouplabel label-mono" aria-hidden="true">Grid</span>${btn("gridhalf", "½", "", ' aria-pressed="true"', "Snap parts to half a module")}${btn("gridfull", "1", "", ' aria-pressed="false"', "Snap parts to a whole module")}`,
     file: `${btn("new", "New")}${btn("open", "Open…")}${btn("importsv", "Import SystemVerilog", "", "", "Import SystemVerilog: paste or open a .sv file")}${btn("save", "Save", "Control+S")}${btn("export", "Export", "", "", "Export the active view as SVG or PNG")}`,
     frames: `${btn("frameprev", "◀", "", "", "Previous frame")}<input class="fe-stepinput" type="number" min="0" step="1" aria-label="Go to frame" title="Type a frame number and press Enter"><span class="fe-stepno label-mono"></span>${btn("framenext", "▶", "", "", "Next frame")}${btn("navframes", "Export frames", "", "", "Export each frame in the active workspace as SVG or PNG")}`,
-    help: `${btn("help", "Keys", "?")}`,
+    help: `${btn("tour", "Tour", "", "", "Replay the tour")}${btn("help", "Keys", "?")}`,
     // buttons that act on the Figure Editor's parts (the Timing Diagram, ZIP); a host that lends those parts adds them
     projectzip: `${btn("projectzip", "Project ZIP", "", "", "Download the schematic, timing diagram, and editable project JSON as a ZIP file")}`,
     frametosignal: `${btn("frametosignal", "Send current frame to timing", "", "", "Send the current schematic state to a timing step")}`,
@@ -261,10 +264,10 @@ export async function mount(root, options = {}) {
   const statusHtml = `
     <p class="fe-status" role="status" aria-live="polite"></p>
     <dialog class="fe-help" aria-labelledby="fe-help-title">
-      <h2 id="fe-help-title">Keys</h2>
-      <table><tbody>${KEYS.map(([k, what]) => `<tr><th scope="row">${esc(k)}</th><td>${esc(what)}</td></tr>`).join("")}</tbody></table>
-      <form method="dialog"><button class="${BUTTON}">Close</button></form>
+      <form method="dialog" class="fe-help-head"><h2 id="fe-help-title">Keys</h2><kbd aria-hidden="true">?</kbd><button class="${BUTTON} fe-help-close" aria-label="Close">✕</button></form>
+      <table><tbody>${KEYS.map(([k, what]) => { const chips = keyChips(k); return `<tr><th scope="row">${chips ? chips.map((c) => `<kbd>${esc(c)}</kbd>`).join(" ") : esc(k)}</th><td>${esc(what)}</td></tr>`; }).join("")}</tbody></table>
     </dialog>
+    <div class="fe-toast" role="status" aria-live="polite" hidden></div>
     <dialog class="fe-export-dialog" aria-labelledby="fe-export-title">
       <form method="dialog">
         <h2 id="fe-export-title">Export</h2>
@@ -1232,6 +1235,7 @@ export async function mount(root, options = {}) {
   }
 
   // ---- commands ----------------------------------------------------------------------------
+  let tourUi = null;
   const commands = {
     select: () => { setTool("select"); status("Select: click or drag a box; drag to move."); },
     wire: () => { setTool("wire"); status("Wire: click a pin, junction, wire or empty grid point to start; hold Shift for a straight leg at 45-degree steps, Shift+Alt for any angle."); },
@@ -1445,6 +1449,7 @@ export async function mount(root, options = {}) {
       } catch (e) { status(e.message, true); }
     },
     help() { if (helpEl.open) helpEl.close(); else helpEl.showModal(); },
+    tour() { if (!startUi?.isOpen) tourUi?.start(); },
     theme: () => themeInput.click(),
     themereset() {
       store.remove(THEME);
@@ -2633,6 +2638,17 @@ export async function mount(root, options = {}) {
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushAutosave(); });
 
   let startUi = null;
+  // ---- U1.4: tooltips, toast, tour. The tour's seen flag is the tool's own: figure-editor/tour-seen, schematic-editor/tour-seen.
+  tooltips(root);
+  helpEl.addEventListener("click", (e) => { if (e.target === helpEl) helpEl.close(); });   // a click on the scrim closes the Keys dialog
+  const toast = createToast($(".fe-toast"));
+  const tour = createTour({ steps: tourSteps({ timing: PARTS.timing }), get: (k) => store.get(k), set: (k, v) => store.set(k, v), key: `${prefix}tour-seen` });
+  tourUi = createTourUi({
+    root, tour, run: (cmd) => commands[cmd]?.(),
+    onEnd: (how) => { toast(how === "done" ? DONE_TOAST : SKIP_TOAST); svg.focus(); },   // the keys keep working once the tour is gone
+    onChange: (t) => { const b = $('[data-cmd="tour"]'); if (b) b.hidden = t.active; },
+  });
+  const maybeTour = (choice) => { if (shouldStartTour({ seen: tour.seen, choice, timing: PARTS.timing })) tourUi.start(); };
   // ---- start ----------------------------------------------------------------------------------
   view.setGrid(opt.grid);
   renderPalette();
@@ -2675,8 +2691,8 @@ export async function mount(root, options = {}) {
       onFile: openFile,
       choose: async (id) => {
         if (id === "open") { status("Open: drop a .json or .svg file, or choose one."); return; }
-        if (id === "example" && await loadExample()) { status(EXAMPLE_STATUS); svg.focus(); return; }
-        emptyChosen = true; syncEmptyState(); status(EMPTY_STATUS); svg.focus();
+        if (id === "example" && await loadExample()) { status(EXAMPLE_STATUS); svg.focus(); maybeTour("example"); return; }
+        emptyChosen = true; syncEmptyState(); status(EMPTY_STATUS); svg.focus(); maybeTour("empty");
       },
     });
     startUi.open();

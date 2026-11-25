@@ -52,7 +52,7 @@ const ALL_ELEMENTS = `(async () => {
 
 const ready = "!!window.figureEditor";
 /** A fresh visit with no autosave opens the start chooser (U1.1). Tests that want the example on screen choose it, as a visitor would; with no chooser (an autosave, ?open=) this does nothing. */
-const startExample = async (page) => { if (!(await page.eval(`!!document.querySelector(".fe-start")?.open`))) return; await page.eval(`document.querySelector(".fe-start [data-start=example]").click()`); await page.waitFor(`document.querySelector(".fe-start")?.open === false && window.figureEditor.doc.elements.length > 0`); };
+const startExample = async (page) => { if (!(await page.eval(`!!document.querySelector(".fe-start")?.open`))) return; await page.eval(`document.querySelector(".fe-start [data-start=example]").click()`); await page.waitFor(`document.querySelector(".fe-start")?.open === false && window.figureEditor.doc.elements.length > 0`); await page.eval(`document.querySelector(".fe-tour:not([hidden]) [data-tour=skip]")?.click()`); };
 let nextPort = 9400;
 
 async function measure({ launch, url, out }, scheme) {
@@ -132,6 +132,85 @@ export const scenarios = {
     return res;
   },
 
+  async tour(ctx) {
+    const res = [];
+    const q = (sel, prop = "textContent") => `document.querySelector(${JSON.stringify(sel)})?.${prop} ?? ""`;
+    const live = `!!document.querySelector(".fe-tour:not([hidden])")`;
+    for (const scheme of ["light", "dark"]) {
+      const page = await ctx.launch({ scheme, port: nextPort++ });
+      try {
+        await page.goto(ctx.url);
+        await page.waitFor(`document.querySelector(".fe-start")?.open === true`);
+        await page.key("1", "Digit1", 49);
+        await page.waitFor(live);
+        await page.sleep(500);
+        res.push([await page.eval(`/Step through the frames/.test(${q(".fe-tour-pop")}) && /1 [/] 3/.test(${q(".fe-tour-pop")})`), `${scheme}: the tour starts at step 1 after the example`]);
+        res.push([await page.eval(`document.activeElement?.dataset.tour === "next"`), `${scheme}: focus is on Next`]);
+        res.push([await page.eval(`!/arrow/i.test(${q(".fe-tour-pop")})`), `${scheme}: no arrow-key text`]);
+        await page.shot(`${ctx.out}/tour-step1-${scheme}.png`);
+        await page.key("Enter", "Enter", 13);
+        await page.sleep(500);
+        res.push([await page.eval(`/Timing Diagram/.test(${q(".fe-tour-pop h3")}) && !!document.querySelector('[data-tour="action"]')`), `${scheme}: Enter is Next; step 2 has Open it`]);
+        await page.shot(`${ctx.out}/tour-step2-${scheme}.png`);
+        if (scheme === "light") {
+          await page.eval(`document.querySelector('[data-tour="action"]').click()`);
+          await page.sleep(500);
+          res.push([await page.eval(live), "the tour is still running after Open it"]);
+          await page.eval(`document.querySelector('[data-tour="next"]').click()`);
+          res.push([await page.eval(`/Place elements/.test(${q(".fe-tour-pop h3")}) && /Done/.test(${q('[data-tour="next"]')})`), "step 3 names Done"]);
+          await page.eval(`document.querySelector('[data-tour="next"]').click()`);
+          res.push([await page.eval(`!(${live}) && /You’re set/.test(${q(".fe-toast")}) && localStorage.getItem("figure-editor/tour-seen") === "1"`), "Done sets figure-editor/tour-seen and shows the toast"]);
+        }
+        await page.key("?", "Slash", 191, 8);
+        await page.waitFor(`document.querySelector(".fe-help")?.open === true`);
+        await page.sleep(300);
+        res.push([await page.eval(`document.querySelectorAll(".fe-help kbd").length > 15`), `${scheme}: the Keys dialog shows keycaps`]);
+        await page.shot(`${ctx.out}/keys-${scheme}.png`);
+        res.push([page.errors.length === 0, `${scheme}: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+      } finally { await page.close(); }
+    }
+    const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+    try {
+      await page.goto(ctx.url);
+      await page.waitFor(`document.querySelector(".fe-start")?.open === true`);
+      await page.key("1", "Digit1", 49);
+      await page.waitFor(live);
+      await page.key("ArrowRight", "ArrowRight", 39);
+      res.push([await page.eval(live), "an arrow key does not advance the tour"]);
+      await page.key("Escape", "Escape", 27);
+      res.push([await page.eval(`!(${live}) && /Tour skipped/.test(${q(".fe-toast")}) && localStorage.getItem("figure-editor/tour-seen") === "1"`), "Esc skips: seen flag set, skip toast shown"]);
+      res.push([await page.eval(`!document.querySelector('[data-cmd="tour"]').hidden`), "the Tour button is back"]);
+      await page.eval(`document.querySelector('[data-cmd="tour"]').click()`);
+      res.push([await page.eval(live), "the Tour button replays it"]);
+      await page.key("Escape", "Escape", 27);
+      // a seen tour does not start again
+      await page.sleep(1500);
+      await page.eval(`window.addEventListener("pagehide", (e) => e.stopImmediatePropagation(), true); window.addEventListener("visibilitychange", (e) => e.stopImmediatePropagation(), true); localStorage.removeItem("figure-editor/autosave")`);
+      await page.goto(ctx.url);
+      await page.waitFor(`document.querySelector(".fe-start")?.open === true`);
+      await page.key("1", "Digit1", 49);
+      await page.waitFor(`window.figureEditor.doc.elements.length > 0`);
+      await page.sleep(500);
+      res.push([await page.eval(`!(${live})`), "a seen tour does not start again after a reload"]);
+      // tooltips: label and keys, no native title
+      await page.eval(`document.querySelector('[data-cmd="wire"]').dispatchEvent(new MouseEvent("mouseover", { bubbles: true }))`);
+      res.push([await page.eval(`(() => { const t = document.querySelector(".fe-tip"); return !t.hidden && /Wire/.test(t.textContent) && t.querySelector("kbd")?.textContent === "W" && !document.querySelector('[data-cmd="wire"]').title; })()`), "a toolbar tooltip shows the label and its key"]);
+      res.push([page.errors.length === 0, `no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+    } finally { await page.close(); }
+    // the Schematic Editor page: two steps, its own key
+    const sp = await ctx.launch({ scheme: "light", port: nextPort++ });
+    try {
+      await sp.goto(ctx.url.replace(/figure-editor\/$/, "") + "schematic-editor/");
+      await sp.waitFor(`document.querySelector(".fe-start")?.open === true`);
+      await sp.key("2", "Digit2", 50);
+      await sp.waitFor(live);
+      res.push([await sp.eval(`/Place elements/.test(${q(".fe-tour-pop h3")}) && /1 [/] 2/.test(${q(".fe-tour-pop")})`), "Schematic Editor page: the tour starts with two steps after Empty figure"]);
+      await sp.shot(`${ctx.out}/tour-schematic-page.png`);
+      await sp.eval(`document.querySelector('[data-tour="skip"]').click()`);
+      res.push([await sp.eval(`localStorage.getItem("schematic-editor/tour-seen") === "1" && localStorage.getItem("figure-editor/tour-seen") === null`), "Schematic Editor page: skipping sets schematic-editor/tour-seen only"]);
+    } finally { await sp.close(); }
+    return res;
+  },
   /** The whole editor follows the site's dark setting, with zero black strokes or fills (bodies and legs). */
   async dark(ctx) {
     const res = [];
