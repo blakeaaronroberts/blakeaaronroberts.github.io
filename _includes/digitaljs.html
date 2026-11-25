@@ -1,7 +1,7 @@
 <!-- DigitalJS (bundles its own jQuery as window.$). ~2.4 MB, so include only on pages that need it. -->
 <script defer src="https://unpkg.com/digitaljs@0.14.2/dist/main.js"></script>
 <script>
-  // Usage: <div class="digitaljs-paper" data-circuit="circuit.json"></div>
+  // Usage: <div class="digitaljs-paper" data-circuit="circuit.json"></div>   (a file of this site; see sameSiteUrl below)
 
   // Accessibility (VISION.md §7): DigitalJS shows 1-bit state by colour only, so a status line
   // under each circuit spells out every input and output value ("A = 0 · B = 1 · Y = 0").
@@ -23,10 +23,27 @@
     update();
   }
 
+  // F25.2: data-circuit names a file of this site, and only that. Anything that resolves to another origin, another
+  // scheme (data:, blob:, javascript:, file:) or carries a login is refused, so a page can never make a visitor's
+  // browser fetch from, or send a request to, a third party.
+  // same-site:begin
+  function sameSiteUrl(value) {
+    if (!value) return null;
+    try {
+      const u = new URL(value, location.href);
+      return (u.protocol === "https:" || u.protocol === "http:") && u.origin === location.origin && !u.username && !u.password ? u : null;
+    } catch (e) { return null; }
+  }
+  // same-site:end
+
   document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll(".digitaljs-paper[data-circuit]").forEach(async function (el) {
       try {
-        const json = await (await fetch(el.dataset.circuit)).json();
+        const url = sameSiteUrl(el.dataset.circuit);
+        if (!url) throw new Error("data-circuit must be a file on this site");
+        const res = await fetch(url, { credentials: "omit", redirect: "error" });
+        if (!res.ok) throw new Error(res.status + " " + res.statusText);
+        const json = await res.json();
         const circuit = new digitaljs.Circuit(json);
         circuit.displayOn($(el));
         addStatusLine(circuit, el);

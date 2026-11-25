@@ -1,6 +1,6 @@
 // Write the sample figures as saved files and SVG exports:
 //
-//   quarto run tools/figure-editor/scripts/build-sample.js
+//   quarto run tools/schematic-editor/scripts/build-sample.js
 //
 // examples/full-adder.json and .svg           the full adder from gates (examples/full-adder.js)
 // examples/full-adder-levels.json and .svg    the same with labels and logic levels (examples/full-adder-levels.js)

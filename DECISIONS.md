@@ -2,6 +2,17 @@
 
 Notable choices for this repository (VISION.md §7): date, decision, reason. Newest first.
 
+## 2026-11-24: Pinned copies checked in CI, same-site circuits, WaveDrom skin notice (F25.2 to F25.4)
+
+**Decision.**
+- `data-circuit` on a DigitalJS plate names a file of this site only (`sameSiteUrl` in `_includes/digitaljs.html`): another origin, another scheme, a login in the address or an empty value is refused, and the fetch sends no credentials and refuses redirects.
+- `tools/schematic-editor/MODEL_PIN.json` is the one place the model tags are written (`tag`, `commit`, `logic_tag`, `logic_commit`). `copy-model.js` reads it and refuses a tag whose commit differs from the pin.
+- `tools/schematic-editor/test/manifests.test.js` recomputes every pinned copy against its MANIFEST (symbol pack, the editors' simulator, validator and schemas, the logic tools' copy) and runs in CI with the other tests. `.gitattributes` marks those folders `-text`; the old rule named a folder that had moved, so a Windows checkout rewrote line endings and broke the hashes.
+- `tools/figure-editor-beta/` stays as a redirect page and is kept out of search by `tools/_metadata.yml` (checked by the same test); it is not deleted.
+- `assets/wavedrom/lecture.js` uses STIX Two Text (text) and Fira Mono (a `.mono` class, not yet used by any WaveDrom element), through `--fig-font` and `--fig-font-mono` with the same values as fallbacks, and carries WaveDrom 3.7.0's MIT licence text as a comment.
+
+**Why.** F25 (Security, Engineer and IP Inspector reviews): a stale or edited copy must fail CI, a page cannot point a visitor's browser at a third party, and a restyled copy of an MIT file keeps its notice.
+
 ## 2026-11-20: Third-party licences and delivery safeguards (F25)
 
 **Decision.** Every third-party piece the site ships or loads is listed here with its licence (VISION.md §3). Blake's own

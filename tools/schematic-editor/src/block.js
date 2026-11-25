@@ -52,10 +52,11 @@ export function minSize(pins) {
 export function normalizeBlock(params) {
   const fail = (msg) => { throw new Error(msg); };
   if (!params || typeof params !== "object" || Array.isArray(params)) fail("a block needs params: { shape, w, h }");
-  for (const k of Object.keys(params)) if (!["shape", "w", "h", "label", "pins"].includes(k)) fail(`block params: unknown field "${k}"`);
+  for (const k of Object.keys(params)) if (!["shape", "w", "h", "label", "module", "pins"].includes(k)) fail(`block params: unknown field "${k}"`);
   if (!SHAPES.includes(params.shape)) fail(`block shape must be ${SHAPES.join(", ")} (not ${JSON.stringify(params.shape)})`);
   for (const k of ["w", "h"]) if (!Number.isInteger(params[k]) || params[k] < 1) fail(`block ${k} must be a whole number of modules, 1 or more`);
   if (params.label !== undefined && typeof params.label !== "string") fail("block label must be text");
+  if (params.module !== undefined && !(typeof params.module === "string" && /^[A-Za-z][A-Za-z0-9_]*$/.test(params.module))) fail("block module must be a module name (letters, digits and _, starting with a letter)");
   const raw = params.pins ?? {};
   if (typeof raw !== "object" || Array.isArray(raw)) fail("block pins must be an object with left, right, top and bottom lists");
   const pins = {}, seen = new Set();
@@ -71,7 +72,7 @@ export function normalizeBlock(params) {
     });
   }
   const min = minSize(pins);
-  return { shape: params.shape, w: Math.max(params.w, min.w), h: Math.max(params.h, min.h), label: params.label ?? "", pins };
+  return { shape: params.shape, w: Math.max(params.w, min.w), h: Math.max(params.h, min.h), label: params.label ?? "", ...(params.module !== undefined ? { module: params.module } : {}), pins };
 }
 
 /** Params as saved: canonical key order; empty label and empty sides left out; a pin with no label is just its name. */

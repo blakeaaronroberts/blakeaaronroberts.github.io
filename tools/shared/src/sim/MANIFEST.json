@@ -1,26 +1,32 @@
 {
   "note": "Written by tools/shared/scripts/copy-model.js. Do not edit this folder by hand.",
   "source": "circuit-model",
-  "ref": "model-v0.9.0",
-  "commit": "c57e6900e23bfb424e435a8d9a611900d9d5f137",
+  "ref": "model-v0.12.0",
+  "commit": "1e65a2a4e5318bf0c20a169b33e35cfabcd74733",
   "files": [
     {
       "name": "simulate.mjs",
       "from": "sim/simulate.mjs",
-      "bytes": 15547,
-      "sha256": "c34dc1455be639979a331cde6d25174ee7b82506c0ebdfbe61bcd65053daae40"
+      "bytes": 19352,
+      "sha256": "9acc60974d3efe0bdc44bb89b1169febb4b512bf1cf459a90dd7524afa902500"
     },
     {
       "name": "logic.mjs",
       "from": "sim/logic.mjs",
-      "bytes": 10711,
-      "sha256": "cf85dc8a279293f072738dbc93d1cc23a05d892bf92385127fe81cd2cf592980"
+      "bytes": 10929,
+      "sha256": "606231bf09a4ba53cdd3c63a421ea24d3d83e3b37299c901e6ce097bdaa97729"
+    },
+    {
+      "name": "flatten.mjs",
+      "from": "sim/flatten.mjs",
+      "bytes": 4381,
+      "sha256": "cd89d9426e7165ccd0c3072466ea07f8efe96aec98809a01bd8832354487b91a"
     },
     {
       "name": "README.md",
       "from": "sim/README.md",
-      "bytes": 2950,
-      "sha256": "8cc14c54ef14fc4cee326a39c0cc28690f878d9b8d11ac6f3057e091c1c3754a"
+      "bytes": 4096,
+      "sha256": "82e68e946e3dc572cb06e85341393df290155b985a2093b6f646e4a6ea0a0b8c"
     }
   ]
 }

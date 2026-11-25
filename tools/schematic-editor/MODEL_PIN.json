@@ -1,11 +1,13 @@
 {
-  "note": "The circuit-model release this editor reads and writes (VISION.md: formats are pinned by tag). The simulator, validator and schemas are copied from the same tag by tools/shared/scripts/copy-model.js.",
+  "note": "The one place the circuit-model tags are written (VISION.md: formats are pinned by tag): tag and commit for the editors, logic_tag and logic_commit for the logic tools. tools/shared/scripts/copy-model.js reads them; tools/schematic-editor/test/manifests.test.js checks the copies against them. The simulator, validator and schemas are copied from the same tag by tools/shared/scripts/copy-model.js.",
   "source": "circuit-model",
-  "tag": "model-v0.9.0",
-  "commit": "c57e6900e23bfb424e435a8d9a611900d9d5f137",
-  "schema": "circuit/0.3",
-  "reads": ["circuit/0.2", "circuit/0.3"],
+  "tag": "model-v0.12.0",
+  "commit": "1e65a2a4e5318bf0c20a169b33e35cfabcd74733",
+  "schema": "circuit/0.4",
+  "reads": ["circuit/0.2", "circuit/0.3", "circuit/0.4"],
+  "logic_tag": "model-v0.10.0",
+  "logic_commit": "a4df58d726327bb4a70341fc669e0ef4753345e1",
   "schema_file": "schema/circuit.schema.json",
-  "schema_sha256": "ead1cb7427780efc1e2ccf978ec103b4022ed0799667172d7103e89c7f0cee45",
-  "uses": ["style.levels (C9, F17)", "wire route: straight legs (C13)", "annotations for editor data (C13.5)", "the four-valued simulator sim/simulate.mjs (C13)", "scenario/0.2 initial and force, trace.forced (C14)"]
+  "schema_sha256": "ec734d9c1da2b36c3c43b1c2391192010e9c130f35ce8c71f0c483f7776ab0dc",
+  "uses": ["style.levels (C9, F17)", "wire route: straight legs (C13)", "annotations for editor data (C13.5)", "modules and block params.module (C11.1, circuit/0.4)", "the SystemVerilog importer output opened as JSON", "the four-valued simulator sim/simulate.mjs (C13)", "scenario/0.2 initial and force, trace.forced (C14)"]
 }

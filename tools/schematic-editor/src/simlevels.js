@@ -78,15 +78,30 @@ export function networkOf(doc, pack) {
  * The circuit the simulator runs: one net per key, the simulated elements, and which nets they drive. `stateful` is
  * true when the circuit can store a level (a sequential element, or feedback between elements).
  */
+/**
+ * A module instance (circuit/0.4): a block whose params.module names an entry of doc.modules. Its inputs and outputs are the
+ * module's ports; it is sequential when anything inside it (at any depth) is. The simulator flattens it (F22.1a).
+ */
+function instanceModel(doc, el) {
+  const name = el.type === "block" ? el.params?.module : undefined;
+  const mod = name !== undefined ? doc.modules?.[name] : undefined;
+  if (!mod) return null;
+  const sequential = (m, seen) => (m.elements ?? []).some((e) => MODELS[e.type]?.sequential || MODELS[e.type]?.init
+    || (e.type === "block" && e.params?.module && !seen.has(e.params.module) && doc.modules[e.params.module] && sequential(doc.modules[e.params.module], new Set([...seen, e.params.module]))));
+  const ports = mod.ports ?? [];
+  return { inputs: ports.filter((p) => p.dir === "in").map((p) => p.id), outputs: ports.filter((p) => p.dir === "out").map((p) => p.id), sequential: sequential(mod, new Set([name])), instance: true };
+}
+const modelOf = (doc, el) => MODELS[el.type] ?? instanceModel(doc, el);
+
 export function circuitOf(doc, pack, net = networkOf(doc, pack)) {
   const keys = [...new Set([...net.refsByKey.keys(), ...net.wiresByKey.keys()])];
   const netId = new Map(keys.map((key, i) => [key, `n${i}`]));
   const keyOfNet = new Map(keys.map((key, i) => [`n${i}`, key]));
-  const elements = doc.elements.filter((el) => MODELS[el.type]);
+  const elements = doc.elements.filter((el) => modelOf(doc, el));
   const driven = new Set(), reads = new Map(), drives = new Map();
   for (const el of elements) {
-    const pins = Object.keys(pack.defFor(el)?.pins ?? {});
-    const model = MODELS[el.type];
+    const model = modelOf(doc, el);
+    const pins = model.instance ? [...model.inputs, ...model.outputs] : Object.keys(pack.defFor(el)?.pins ?? {});
     const inputs = typeof model.inputs === "function" ? model.inputs(el) : model.inputs;
     drives.set(el.id, model.outputs.map((pin) => net.keyForRef(`${el.id}.${pin}`)).filter((k) => k !== null));
     reads.set(el.id, inputs.filter((pin) => pins.includes(pin)).map((pin) => net.keyForRef(`${el.id}.${pin}`)).filter((k) => k !== null));
@@ -104,12 +119,14 @@ export function circuitOf(doc, pack, net = networkOf(doc, pack)) {
     state.set(id, 2);
     return false;
   };
-  const stateful = elements.some((el) => MODELS[el.type].sequential || MODELS[el.type].init) || elements.some((el) => cyclic(el.id));
+  const stateful = elements.some((el) => modelOf(doc, el).sequential || modelOf(doc, el).init) || elements.some((el) => cyclic(el.id));
+  const hasInstances = elements.some((el) => modelOf(doc, el).instance);
   const circuit = {
-    schema: "circuit/0.3", id: doc.id ?? "figure",
+    schema: hasInstances ? "circuit/0.4" : "circuit/0.3", id: doc.id ?? "figure",
     ports: [],
     elements: elements.map((el) => ({ id: el.id, type: el.type, ...(el.params ? { params: el.params } : {}) })),
     nets: Object.fromEntries(keys.map((key) => [netId.get(key), [...(net.refsByKey.get(key) ?? [])]])),
+    ...(hasInstances ? { modules: doc.modules } : {}),
   };
   return { circuit, net, netId, keyOfNet, driven, reads, drives, stateful };
 }

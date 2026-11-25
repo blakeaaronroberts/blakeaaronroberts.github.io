@@ -1,7 +1,7 @@
 // Print the TeX strings the sample figures and the block presets need, as a JSON list, for
 // test/fixtures/capture-mathjax.html (it says how to use it):
 //
-//   quarto run tools/figure-editor/scripts/tex-needed.js
+//   quarto run tools/schematic-editor/scripts/tex-needed.js
 //
 // The list is the union of what test/fixtures/mathjax.json already holds and what the figures below need.
 
