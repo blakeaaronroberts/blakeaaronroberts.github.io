@@ -29,6 +29,8 @@ import { convertHandLevels, handLevelsFromFrames, setHandLevel } from "./scenari
 import { migrateR1 } from "./migrate.js";
 import { openableUrl } from "../../shared/src/openurl.js";
 import { createSvPanel } from "./svpanel.js";
+import { EMPTY_STATUS, EXAMPLE_STATUS, startAction } from "./start.js";
+import { createStartChooser } from "./startui.js";
 
 // Browser storage keys, set by mount() from options.storage (the tool's own prefix: "schematic-editor/" on its page,
 // "figure-editor/" in the Figure Editor) and options.timingStorage (the Timing Diagram's, shared with its own page).
@@ -276,6 +278,7 @@ export async function mount(root, options = {}) {
   const sectionHtml = {
     figure: `<div class="fe-stage">
         <svg class="fe-canvas" tabindex="0" role="application" aria-label="Figure canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="fe-empty" hidden><h2>Empty figure</h2><p>${esc(EMPTY_STATUS.split(". Press")[0] + ".")}</p><p class="fe-empty-keys"><kbd>W</kbd> Wire <kbd>P</kbd> Port <kbd>T</kbd> Label <kbd>?</kbd> Keys</p></div>
       </div>`,
     timing: `<div class="fe-timing-body"></div>`,
     slide: `<div class="fe-slidebar" role="toolbar" aria-label="Slide layouts"></div>
@@ -576,6 +579,15 @@ export async function mount(root, options = {}) {
     if (lastDrawing.pending.length) queueTypeset();
     updateUI();
     syncTimingSelection();
+    syncEmptyState();
+  }
+
+  // The "Empty figure" hint shows after that start choice, until the figure has anything in it.
+  let emptyChosen = false;
+  function syncEmptyState() {
+    const el = $(".fe-empty"); if (!el) return;
+    if (emptyChosen && (doc.elements.length || doc.wires.length || doc.ports.length || doc.labels?.length)) emptyChosen = false;
+    el.hidden = !emptyChosen;
   }
 
   function renderPalette() {
@@ -2305,10 +2317,12 @@ export async function mount(root, options = {}) {
     } catch (error) { status(`Could not load backdrop: ${error.message}`, true); }
   });
 
-  fileInput.addEventListener("change", async () => {
+  fileInput.addEventListener("change", () => {
     const f = fileInput.files[0];
     fileInput.value = "";
-    if (!f) return;
+    if (f) { startUi?.close(); openFile(f); }
+  });
+  async function openFile(f) {
     const isSvg = /\.svg$/i.test(f.name) || f.type === "image/svg+xml";
     const limit = isSvg ? MAX_SVG_BYTES * 6 : MAX_SVG_BYTES * 5;
     if (f.size > limit) { status(`Could not open ${f.name}: it is ${(f.size / 1e6).toFixed(1)} MB, over the ${limit / 1e6} MB limit. The figure on the canvas is unchanged.`, true); return; }
@@ -2320,7 +2334,7 @@ export async function mount(root, options = {}) {
         else importBackdrop(text, f.name);
       } else load(text);
     } catch (e) { status(`Could not open ${f.name}: ${e.message}. The figure on the canvas is unchanged.`, true); }
-  });
+  }
   themeInput.addEventListener("change", async () => {
     const f = themeInput.files[0];
     themeInput.value = "";
@@ -2564,7 +2578,7 @@ export async function mount(root, options = {}) {
     e.stopImmediatePropagation();
     if (e.target.closest("input, textarea, select, [contenteditable=true]")) return;
     e.preventDefault();
-    if (!helpEl.open) commands.fit();
+    if (!helpEl.open && !startUi?.isOpen) commands.fit();
   }, true);
   root.addEventListener("keydown", (e) => {
     if (e.target.closest("input, textarea, select")) return;
@@ -2618,6 +2632,7 @@ export async function mount(root, options = {}) {
   window.addEventListener("pagehide", flushAutosave);                                   // an edit made in the last 0.8 s still reaches the autosave
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushAutosave(); });
 
+  let startUi = null;
   // ---- start ----------------------------------------------------------------------------------
   view.setGrid(opt.grid);
   renderPalette();
@@ -2640,7 +2655,8 @@ export async function mount(root, options = {}) {
   if (saved) {
     try { load(saved, false); status("Restored the autosaved figure."); } catch (e) { status(`The autosaved figure could not be read (${e.message}). It is left alone until your next edit replaces it.`, true); }
   }
-  if (!opened && !saved) {
+  // The example: load it, build its truth-table frames and seed the timing source when it is empty. True when it loaded.
+  async function loadExample() {
     try {
       load(await (await fetch(new URL("../examples/full-adder.json", import.meta.url))).text(), false);
       const tt = truthTable(doc, pack, ["A", "B", "Cin"], ["S", "Cout"]);
@@ -2648,10 +2664,26 @@ export async function mount(root, options = {}) {
       if (!store.get(TIMING_SOURCE)) store.set(TIMING_SOURCE, JSON.stringify(tt.timing));
       timingTool?.source !== undefined && (timingTool.source = JSON.stringify(tt.timing));
       render(); renderFrames();
-      status("A full adder to start: step through its eight frames with ◀ ▶, or open Timing Diagram.");
-    } catch { /* the example could not load: start empty */ }
+      return true;
+    } catch { return false; /* the example could not load: start empty */ }
   }
-  if (!opened && !saved) status("Pick an element on the left to place it, or press W to draw a wire. Press ? for the keys. Autosave stays in this browser; use Save to take a figure to another computer.");
+  // U1.1: with no ?open= and no autosave the editor asks how to start; it no longer loads the example unasked.
+  if (startAction({ opened: opened || !!openError, saved }) === "chooser") {
+    startUi = createStartChooser({
+      root, buttonClass: BUTTON, openIcon: ICONS.open, exampleSrc: new URL("../examples/full-adder.svg", import.meta.url).href,
+      pickFile: () => fileInput.click(),
+      onFile: openFile,
+      choose: async (id) => {
+        if (id === "open") { status("Open: drop a .json or .svg file, or choose one."); return; }
+        if (id === "example" && await loadExample()) { status(EXAMPLE_STATUS); svg.focus(); return; }
+        emptyChosen = true; syncEmptyState(); status(EMPTY_STATUS); svg.focus();
+      },
+    });
+    startUi.open();
+  } else if (!opened && !saved) {   // a link that could not be opened: the example, as before, with the reason kept on screen
+    await loadExample();
+    status(EMPTY_STATUS);
+  }
 
   if (openError) status(openError, true);   // the start-up messages above must not hide why the link was not opened
 

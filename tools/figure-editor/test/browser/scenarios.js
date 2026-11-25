@@ -51,6 +51,8 @@ const ALL_ELEMENTS = `(async () => {
 })()`;
 
 const ready = "!!window.figureEditor";
+/** A fresh visit with no autosave opens the start chooser (U1.1). Tests that want the example on screen choose it, as a visitor would; with no chooser (an autosave, ?open=) this does nothing. */
+const startExample = async (page) => { if (!(await page.eval(`!!document.querySelector(".fe-start")?.open`))) return; await page.eval(`document.querySelector(".fe-start [data-start=example]").click()`); await page.waitFor(`document.querySelector(".fe-start")?.open === false && window.figureEditor.doc.elements.length > 0`); };
 let nextPort = 9400;
 
 async function measure({ launch, url, out }, scheme) {
@@ -72,6 +74,64 @@ async function measure({ launch, url, out }, scheme) {
 }
 
 export const scenarios = {
+  /** U1.1: the start chooser. First visit asks; keys 1 2 3 and Esc choose; the example's status line stays; ?open= and an autosave skip it. */
+  async start(ctx) {
+    const res = [];
+    const text = (sel) => `document.querySelector(${JSON.stringify(sel)})?.textContent ?? ""`;
+    const status = (page) => page.eval(text(".fe-status"));
+    for (const scheme of ["light", "dark"]) {
+      const page = await ctx.launch({ scheme, port: nextPort++ });
+      try {
+        await page.goto(ctx.url);
+        await page.waitFor(ready);
+        await page.waitFor(`document.querySelector(".fe-start")?.open === true`);
+        res.push([await page.eval(`document.querySelectorAll(".fe-start-option").length === 3 && document.activeElement?.dataset.start === "example"`), `${scheme}: the chooser opens with three options and focus on the full adder example`]);
+        res.push([await page.eval(`document.querySelector(".fe-start").matches('[role], dialog') && document.querySelector(".fe-start").getAttribute("aria-labelledby") === "fe-start-title"`), `${scheme}: it is a dialog labelled by its heading`]);
+        res.push([await page.eval(`window.figureEditor.doc.elements.length === 0`), `${scheme}: the example is not loaded unasked`]);
+        await page.sleep(400);
+        await page.shot(`${ctx.out}/start-chooser-${scheme}.png`);
+        await page.key("1", "Digit1", 49);
+        await page.waitFor(`document.querySelector(".fe-start")?.open === false && window.figureEditor.doc.elements.length > 0`);
+        await page.sleep(800);
+        const s = await status(page);
+        res.push([/^A full adder to start: step through its eight frames/.test(s), `${scheme}: key 1 loads the example and its status stays ("${s.slice(0, 40)}")`]);
+        res.push([page.errors.length === 0, `${scheme}: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+      } finally { await page.close(); }
+    }
+    const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+    try {
+      await page.goto(ctx.url);
+      await page.waitFor(`document.querySelector(".fe-start")?.open === true`);
+      await page.key("w", "KeyW", 87);   // the editor's own keys stay quiet while the chooser is up
+      res.push([await page.eval(`document.querySelector(".fe-start").open && document.querySelector('.fe-canvas').dataset.tool !== "wire"`), "a stray W does not start the wire tool"]);
+      await page.key("Escape", "Escape", 27);
+      await page.waitFor(`document.querySelector(".fe-start")?.open === false`);
+      const s = await status(page);
+      res.push([/^Pick an element on the left to place it, or press W to draw a wire\. Press \? for the keys\.$/.test(s), "Esc is Empty figure: its status line"]);
+      res.push([await page.eval(`!document.querySelector(".fe-empty").hidden && /Empty figure/.test(document.querySelector(".fe-empty").textContent)`), "the empty-figure hint shows"]);
+      await page.key("w", "KeyW", 87);
+      res.push([await page.eval(`document.querySelector('[data-cmd="wire"]').getAttribute("aria-pressed") === "true"`), "after the chooser closes, W works again"]);
+      await page.goto(ctx.url);
+      await page.waitFor(`document.querySelector(".fe-start")?.open === true`);
+      await page.key("3", "Digit3", 51);
+      res.push([await page.eval(`!document.querySelector(".fe-start-drop").hidden`), "key 3 shows the drop zone"]);
+      res.push([/^Open: drop a \.json or \.svg file, or choose one\.$/.test(await status(page)), "its status line"]);
+      await page.eval(`document.querySelector(".fe-start-back").click()`);
+      res.push([await page.eval(`document.querySelector(".fe-start-drop").hidden && document.querySelector(".fe-start").open`), "Back returns to the chooser"]);
+      // ?open= and an autosave: no chooser.
+      await page.goto(ctx.url + "?open=examples/full-adder.json");
+      await page.waitFor(`!!window.figureEditor && window.figureEditor.doc.elements.length > 0`);
+      res.push([await page.eval(`!document.querySelector(".fe-start")`), "?open= loads the file with no chooser"]);
+      await page.eval(`localStorage.setItem("figure-editor/autosave", window.figureEditor.save())`);
+      await page.goto(ctx.url);
+      await page.waitFor(`!!window.figureEditor && window.figureEditor.doc.elements.length > 0`);
+      await page.sleep(300);
+      res.push([await page.eval(`!document.querySelector(".fe-start")`) && /Restored/.test(await status(page)), "an autosave restores with no chooser"]);
+      res.push([page.errors.length === 0, "no page errors"]);
+    } finally { await page.close(); }
+    return res;
+  },
+
   /** The whole editor follows the site's dark setting, with zero black strokes or fills (bodies and legs). */
   async dark(ctx) {
     const res = [];
@@ -131,6 +191,7 @@ scenarios.colours = async (ctx) => {
   try {
     await page.goto(ctx.url);
     await page.waitFor(ready);
+    await startExample(page);
     const rows = await page.eval(String.raw`(async () => {
       const theme = await (await fetch("../schematic-editor/symbol-pack/theme.json")).json();
       const mount = document.querySelector(".fe-mount"), style = getComputedStyle(mount), cx = document.createElement("canvas").getContext("2d");
@@ -370,6 +431,8 @@ scenarios.blocks = async (ctx) => {
     try {
       await page.goto(ctx.url);
       await page.waitFor(ready);
+      await startExample(page);
+    await startExample(page);
       const n = await page.eval(ALL_PRESETS);
       await page.sleep(3500);   // MathJax loads from the CDN on first use
       await page.shot(`${ctx.out}/beta-blocks-${scheme}.png`);
@@ -400,6 +463,7 @@ scenarios.blocks = async (ctx) => {
   try {
     await page.goto(ctx.url);
     await page.waitFor(ready);
+    await startExample(page);
     await page.sleep(500);
     const px = (gx, gy) => page.eval(`(() => { const s = document.querySelector("svg.fe-canvas"), p = s.createSVGPoint(); p.x = ${gx} / 2; p.y = -${gy} / 2; const q = p.matrixTransform(s.getScreenCTM()); return [q.x, q.y]; })()`);
     const perStep = await page.eval(`document.querySelector("svg.fe-canvas").getScreenCTM().a / 2`);
@@ -457,6 +521,7 @@ scenarios.blocks = async (ctx) => {
     await page.sleep(1200);
     await page.goto(ctx.url);
     await page.waitFor(ready);
+    await startExample(page);
     await page.sleep(800);
     const after = await page.eval(`window.figureEditor.save()`);
     if (after !== saved) { const i = [...saved].findIndex((c, k) => c !== after[k]); console.log("BLOCKS DIFF", JSON.stringify({ saved: saved.slice(i - 80, i + 160), after: after.slice(i - 80, i + 160) })); }
@@ -539,6 +604,7 @@ scenarios.marks = async (ctx) => {
   try {
     await look.goto(ctx.url);
     await look.waitFor(ready);
+    await startExample(look);
     const info = await look.eval(`(async () => {
       window.figureEditor.load(await (await fetch("../schematic-editor/examples/cla-chevron.json")).text());
       const text = await window.figureEditor.exportSvg();   // the file the Export SVG button writes
@@ -638,6 +704,7 @@ scenarios.levels = async (ctx) => {
       await page.sleep(1200);
       await page.goto(ctx.url);
       await page.waitFor(ready);
+      await startExample(page);
       await page.sleep(1200);
       res.push([(await page.eval(`window.figureEditor.save()`)) === saved && /"level": "1"/.test(saved), `${scheme}: the level survives save and reload (autosave)`]);
       res.push([page.errors.length === 0, `${scheme}: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
@@ -653,6 +720,7 @@ scenarios.logic = async (ctx) => {
   try {
     await page.goto(ctx.url);
     await page.waitFor(ready);
+    await startExample(page);
     const figure = {
       schema: "circuit/0.2", id: "logic_gate_test", grid_cm: 0.25,
       elements: [{ id: "and1", type: "and_gate", at: [0, 0] }],
@@ -1253,6 +1321,7 @@ scenarios.solderdots = async (ctx) => {
   try {
     await page.goto(ctx.url);
     await page.waitFor(ready);
+    await startExample(page);
     await page.eval(`window.figureEditor.load(JSON.stringify({
       schema: "circuit/0.2", id: "solder_dot_check", grid_cm: 0.25, elements: [],
       ports: [
@@ -1376,6 +1445,7 @@ scenarios.layoutAndFit = async (ctx) => {
   try {
     await page.goto(`${ctx.url}?view=timing`);
     await page.waitFor(`!!document.querySelector(".td-tabs")`);
+    await startExample(page);
     const widths = await page.eval(`(() => {
       const left = document.querySelector('.fe-resizer[data-resize="left"]');
       left.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
@@ -1437,6 +1507,7 @@ scenarios.logicSync = async (ctx) => {
   try {
     await page.goto(`${ctx.url}?view=figure`);
     await page.waitFor(ready);
+    await startExample(page);
     const figure = {
       schema: "circuit/0.2", id: "logic_sync_test", grid_cm: 0.25,
       elements: [{ id: "and1", type: "and_gate", at: [0, 0] }],
@@ -1546,6 +1617,7 @@ scenarios.logicSync = async (ctx) => {
     await page.eval(`localStorage.removeItem("timing-diagram/send")`);
     await page.goto(`${ctx.url}?view=slide`);
     await page.waitFor(ready);
+    await startExample(page);
     await page.sleep(500);
     const slideTiming = await page.eval(`(() => {
       const groups = [...document.querySelectorAll(".fe-slideview > g:not([data-region])")];
@@ -1651,6 +1723,7 @@ scenarios.truth = async (ctx) => {
   try {
     await page.goto(`${ctx.url}?view=timing`);
     await page.waitFor(ready);
+    await startExample(page);
     await page.waitFor(`!!document.querySelector("[data-truth-table]")`, 10000);
     await page.eval(`(() => {
       const doc = window.figureEditor.doc;
@@ -1710,6 +1783,7 @@ scenarios.truth = async (ctx) => {
     res.push([exportedLatex.name.endsWith("-truth-table.tex") && exportedLatex.text === latex, "Export a copy downloads the generated .tex file"]);
     await page.goto(`${ctx.url}?view=timing`);
     await page.waitFor(ready);
+    await startExample(page);
     await page.waitFor(`!!document.querySelector('[data-view="truth"]')`, 10000);
     await page.eval(`document.querySelector('[data-view="truth"]').click()`);
     const restored = await page.eval(`({
@@ -1730,6 +1804,7 @@ scenarios.frameNavigation = async (ctx) => {
   try {
     await page.goto(`${ctx.url}?view=figure`);
     await page.waitFor(ready);
+    await startExample(page);
     await page.waitFor(`document.querySelector(".fe-stepinput")?.max === "8"`, 10000);
     const initial = await page.eval(`(() => ({
       value: document.querySelector(".fe-stepinput").value,
@@ -1761,6 +1836,7 @@ scenarios.frameNavigationTiming = async (ctx) => {
   try {
     await page.goto(`${ctx.url}?view=timing`);
     await page.waitFor(ready);
+    await startExample(page);
     await page.waitFor(`!!document.querySelector('[data-view="truth"]')`, 10000);
     await page.eval(`document.querySelector('[data-view="truth"]').click()`);
     await page.eval(`document.querySelector('[data-truth-action="generate"]').click()`);
@@ -1788,6 +1864,7 @@ scenarios.sourceAlignment = async (ctx) => {
   try {
     await page.goto(`${ctx.url}?view=timing`);
     await page.waitFor(ready);
+    await startExample(page);
     await page.waitFor(`!!document.querySelector(".td-srctext")`, 10000);
     await page.eval(`document.querySelector('[data-view="source"]').click()`);
     const alignment = await page.eval(`(() => {
@@ -1823,6 +1900,7 @@ scenarios.truthUnknown = async (ctx) => {
   try {
     await page.goto(`${ctx.url}?view=timing`);
     await page.waitFor(ready);
+    await startExample(page);
     await page.waitFor(`!!document.querySelector("[data-truth-table]")`, 10000);
     await page.eval(`window.figureEditor.load(JSON.stringify({
       schema: "circuit/0.3", id: "unresolved_demo", grid_cm: 0.25,
@@ -1855,6 +1933,7 @@ scenarios.logicMode = async (ctx) => {
   try {
     await page.goto(`${ctx.url}?view=figure`);
     await page.waitFor(ready);
+    await startExample(page);
     await page.waitFor(`document.querySelector(".fe-stepinput")?.max === "8"`, 10000);
     const states = await page.eval(`(() => {
       window.figureEditor.load(JSON.stringify({
@@ -1918,6 +1997,7 @@ scenarios.truthGrid = async (ctx) => {
   try {
     await page.goto(`${ctx.url}?view=timing`);
     await page.waitFor(ready);
+    await startExample(page);
     await page.waitFor(`!!document.querySelector("[data-truth-mode]")`, 10000);
     const state = await page.eval(`(() => {
       document.querySelector('[data-view="truth"]').click();
@@ -1948,6 +2028,7 @@ scenarios.initialNodeLevels = async (ctx) => {
   try {
     await page.goto(`${ctx.url}?view=figure`);
     await page.waitFor(ready);
+    await startExample(page);
     await page.eval(`document.querySelector(".fe-node-levels").open = true`);
     await page.waitFor(`!!document.querySelector('[data-node-level="0"]')`, 10000);
     const state = await page.eval(`(() => {
@@ -1974,6 +2055,7 @@ scenarios.sequentialTiming = async (ctx) => {
   try {
     await page.goto(`${ctx.url}?view=figure`);
     await page.waitFor(ready);
+    await startExample(page);
     await page.eval(`window.figureEditor.load(JSON.stringify({
       schema: "circuit/0.2", id: "sequential_test", grid_cm: 0.25,
       elements: [{ id: "ff", type: "d_flipflop", at: [0, 0] }],
@@ -2028,6 +2110,7 @@ scenarios.sequentialTiming = async (ctx) => {
     await page.sleep(1200);
     await page.goto(`${ctx.url}?view=timing`);
     await page.waitFor(ready);
+    await startExample(page);
     await page.waitFor(`!!document.querySelector('[data-do="calculate-timing"]')`, 10000);
     await page.eval(`document.querySelector('[data-do="calculate-timing"]').click()`);
     const restored = await page.eval(`JSON.parse(localStorage.getItem("timing-diagram/source")).signal.find((s) => s.name === "Q")`);
@@ -2225,6 +2308,7 @@ scenarios.interface = async (ctx) => {
     await page.eval(`localStorage.clear(); localStorage.setItem("figure-editor-beta/autosave", JSON.stringify({ schema: "circuit/0.2", id: "from_beta", grid_cm: 0.25, elements: [], nets: {} }))`);
     await page.goto(base + "figure-editor-beta/?x=1");
     await page.waitFor(ready);
+    await startExample(page);
     await page.sleep(1500);
     const r = JSON.parse(await page.eval(String.raw`(async () => {
       const t = window.figureEditorTool, events = [];

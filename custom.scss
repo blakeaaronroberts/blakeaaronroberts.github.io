@@ -18,6 +18,7 @@ $fig-dark-grid: mix($fig-dark-ink, $fig-dark-background, 22%);
   --role-surface: #{$role-surface};
   --role-accent: #{$role-accent};
   --role-accent-hover: #{$role-accent-hover};
+  --role-rule-soft: color-mix(in srgb, var(--role-rule) 50%, var(--role-background));   // inner dividers (U1)
   --fig-background: #{$fig-background};
   // Dark canvas (interim): hues from themes/okabe-ito/figures.scss; background and grid derived below from the site's dark background
   --fig-dark-ink: #{$fig-dark-ink};

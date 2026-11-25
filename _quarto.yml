@@ -22,6 +22,7 @@ project:
     - "tools/logic/*/model/**"
     - "tools/*/symbol-pack/**"   # the figure editor's pinned symbol pack (fetched at run time)
     - "tools/*/examples/*.json"  # sample figures (open with ?open=examples/<file>.json)
+    - "tools/*/examples/*.svg"    # the same samples as drawings (the editor's start chooser shows the full adder)
 
 website:
   title: "Blake Roberts"
