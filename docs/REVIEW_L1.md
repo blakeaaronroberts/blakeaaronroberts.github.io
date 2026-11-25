@@ -73,7 +73,7 @@ drafts on branch `l1`, hidden from search. Nothing is merged. Only you approve t
 
 - **Not yet seen in a live browser:** the new-tab "Send to Figure Editor" (the page cannot be tested from a script). Treat step 3 above as the real test.
 - **"Your turn" limit:** it can only compare your choice with the law the tool uses next. Another law may also be valid on that line, and the tool says so rather than marking it wrong. Checking any valid law needs circuit-model to export how each law is applied.
-- **Input limits:** the truth table, solver and analyser take up to 8 inputs (circuit-model's limit). The K-map takes up to 4. Maps for 5 and 6 inputs are not built: circuit-model has no layout for them.
+- **Input limits:** the truth table, solver and analyser take up to 8 inputs (circuit-model's limit). The K-map takes up to 4. Maps for 5 and 6 inputs are deferred (the course uses at most 4 variables; circuit-model has no layout for them).
 - The solver ignores don't cares: it works the expression as typed. The K-map uses them.
 - The NAND-only and NOR-only workings end with an expression; "Open in Figure Editor" draws it as ordinary gates, not as NAND or NOR gates.
 - The solver's POS, NAND-only and NOR-only workings go through the complement, so they are long (about 15 lines for a POS).
