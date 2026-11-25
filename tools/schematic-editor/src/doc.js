@@ -11,6 +11,7 @@ import { checkedBackdrop } from "./svgimport.js";
 import { annotationsFor, busesOf, editorDataOf } from "./annotations.js";
 
 export const SCHEMA = "circuit/0.3";
+export const SCHEMA_04 = "circuit/0.4";   // F22.1a: adds `modules` (hierarchy) and a block's params.module
 const LEGACY_SCHEMA = "circuit/0.2";
 const ID = /^[A-Za-z][A-Za-z0-9_]*$/;
 const REF = /^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z0-9_+-]+)?$/;
@@ -825,7 +826,7 @@ export function setStyleLevels(doc, levels) {
 // ---- save and load ---------------------------------------------------------------------
 
 const ORDER = {
-  top: ["schema", "id", "title", "grid_cm", "style", "elements", "ports", "nets", "wires", "junctions", "groups", "labels", "annotations"],
+  top: ["schema", "id", "title", "grid_cm", "style", "elements", "ports", "nets", "wires", "junctions", "groups", "labels", "annotations", "modules"],
   element: ["id", "type", "at", "rotation", "mirror", "label", "level", "params"],
   port: ["id", "dir", "at", "label", "side"],
   wire: ["id", "from", "to", "via", "route", "first", "arrow", "bus", "level"],
@@ -871,7 +872,7 @@ export function serialize(doc, pack) {
   const nets = deriveNets(doc, pack);
   const parts = {
     // circuit/0.3 whenever the file needs it: straight wire legs, editor data (annotations) or buses kept apart from it
-    schema: JSON.stringify(doc.wires.some((w) => w.route?.includes("straight")) || (doc.groups && Object.keys(doc.groups).length) || doc.buses ? SCHEMA : doc.schema),
+    schema: JSON.stringify(doc.modules && Object.keys(doc.modules).length ? SCHEMA_04 : doc.wires.some((w) => w.route?.includes("straight")) || (doc.groups && Object.keys(doc.groups).length) || doc.buses ? SCHEMA : doc.schema),
     id: JSON.stringify(doc.id),
     title: doc.title !== undefined ? JSON.stringify(doc.title) : undefined,
     grid_cm: JSON.stringify(doc.grid_cm),
@@ -887,12 +888,14 @@ export function serialize(doc, pack) {
     annotations: doc.groups && Object.keys(doc.groups).length   // the editor's own data, one object per tool (annotations.js)
       ? `{\n${Object.entries(annotationsFor(doc.groups)).map(([tool, data]) => `    ${JSON.stringify(tool)}: {\n${Object.entries(data).map(([k, v]) => `      ${JSON.stringify(k)}: ${inline(v)}`).join(",\n")}\n    }`).join(",\n")}\n  }` : undefined,
     labels: doc.labels.length ? block(doc.labels.map((l) => inline(ordered(l, ORDER.label)))) : undefined,
+    // Hierarchy is carried, not edited (F22.1a): written back exactly as read.
+    modules: doc.modules && Object.keys(doc.modules).length ? JSON.stringify(doc.modules, null, 2).replaceAll("\n", "\n  ") : undefined,
   };
   const body = ORDER.top.filter((k) => parts[k] !== undefined).map((k) => `  ${JSON.stringify(k)}: ${parts[k]}`);
   return `{\n${body.join(",\n")}\n}\n`;
 }
 
-/** Read a circuit/0.2 or circuit/0.3 file. Throws with a readable message if it is not one. Returns {doc, nets}: nets as the file had them. */
+/** Read a circuit/0.2, 0.3 or 0.4 file. Throws with a readable message if it is not one. Returns {doc, nets}: nets as the file had them. */
 export function parse(text) {
   let raw;
   try { raw = JSON.parse(text); } catch (e) { throw new Error(`not JSON: ${e.message}`); }
@@ -903,7 +906,7 @@ export function parse(text) {
   const end = (v, where) => Array.isArray(v) ? point(v, where) : (typeof v === "string" && REF.test(v)) ? v : fail(`${where}: bad end ${JSON.stringify(v)}`);
 
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("not a circuit file: expected one JSON object with a \"schema\" field");
-  if (![LEGACY_SCHEMA, SCHEMA].includes(raw.schema)) fail(`schema is ${JSON.stringify(raw.schema)}; this editor reads "${LEGACY_SCHEMA}" and "${SCHEMA}"`);
+  if (![LEGACY_SCHEMA, SCHEMA, SCHEMA_04].includes(raw.schema)) fail(`schema is ${JSON.stringify(raw.schema)}; this editor reads "${LEGACY_SCHEMA}", "${SCHEMA}" and "${SCHEMA_04}"`);
   if (raw.grid_cm !== 0.25) fail(`grid_cm is ${raw.grid_cm}; expected 0.25`);
   // In memory, editor data is doc.groups and buses are doc.buses; in the file they sit where annotations.js says.
   const buses = busesOf(raw);
@@ -916,6 +919,12 @@ export function parse(text) {
     junctions: raw.junctions ?? [], labels: raw.labels ?? [],
   };
   if (raw.title !== undefined) doc.title = String(raw.title);
+  if (raw.modules !== undefined) {
+    if (raw.schema !== SCHEMA_04) fail("modules need schema circuit/0.4");
+    if (!raw.modules || typeof raw.modules !== "object" || Array.isArray(raw.modules)) fail("modules must be an object");
+    for (const name of Object.keys(raw.modules)) id(name, "modules");
+    doc.modules = structuredClone(raw.modules);
+  }
   if (raw.groups !== undefined) {
     if (!raw.groups || typeof raw.groups !== "object" || Array.isArray(raw.groups)) fail("groups must be an object");
     const taps = raw.groups.port_taps;

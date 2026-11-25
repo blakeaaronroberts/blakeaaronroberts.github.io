@@ -1,0 +1,1162 @@
+{
+  "schema": "circuit/0.4",
+  "id": "demo",
+  "title": "demo (imported from SystemVerilog)",
+  "grid_cm": 0.25,
+  "elements": [
+    {
+      "id": "add",
+      "type": "block",
+      "at": [
+        20,
+        -5
+      ],
+      "label": "$\\texttt{add}$",
+      "params": {
+        "shape": "rect",
+        "w": 4,
+        "h": 5,
+        "label": "$\\texttt{adder}$",
+        "module": "adder",
+        "pins": {
+          "left": [
+            "a1",
+            "a0",
+            "b1",
+            "b0"
+          ],
+          "right": [
+            "sum2",
+            "sum1",
+            "sum0"
+          ]
+        }
+      }
+    },
+    {
+      "id": "r",
+      "type": "block",
+      "at": [
+        40,
+        -6
+      ],
+      "label": "$\\texttt{r}$",
+      "params": {
+        "shape": "rect",
+        "w": 4,
+        "h": 6,
+        "label": "$\\texttt{load\\_register}$",
+        "module": "load_register",
+        "pins": {
+          "left": [
+            "clk",
+            "load",
+            "d2",
+            "d1",
+            "d0"
+          ],
+          "right": [
+            "q2",
+            "q1",
+            "q0"
+          ]
+        }
+      }
+    }
+  ],
+  "ports": [
+    {
+      "id": "clk",
+      "dir": "in",
+      "at": [
+        -10,
+        0
+      ],
+      "side": "left"
+    },
+    {
+      "id": "load",
+      "dir": "in",
+      "at": [
+        -10,
+        -6
+      ],
+      "side": "left"
+    },
+    {
+      "id": "a1",
+      "dir": "in",
+      "at": [
+        -10,
+        -12
+      ],
+      "side": "left"
+    },
+    {
+      "id": "a0",
+      "dir": "in",
+      "at": [
+        -10,
+        -18
+      ],
+      "side": "left"
+    },
+    {
+      "id": "b1",
+      "dir": "in",
+      "at": [
+        -10,
+        -24
+      ],
+      "side": "left"
+    },
+    {
+      "id": "b0",
+      "dir": "in",
+      "at": [
+        -10,
+        -30
+      ],
+      "side": "left"
+    },
+    {
+      "id": "total2",
+      "dir": "out",
+      "at": [
+        60,
+        0
+      ],
+      "side": "right"
+    },
+    {
+      "id": "total1",
+      "dir": "out",
+      "at": [
+        60,
+        -6
+      ],
+      "side": "right"
+    },
+    {
+      "id": "total0",
+      "dir": "out",
+      "at": [
+        60,
+        -12
+      ],
+      "side": "right"
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "from": "clk",
+      "to": "r.clk"
+    },
+    {
+      "id": "w2",
+      "from": "load",
+      "to": "r.load"
+    },
+    {
+      "id": "w3",
+      "from": "a0",
+      "to": "add.a0"
+    },
+    {
+      "id": "w4",
+      "from": "a1",
+      "to": "add.a1"
+    },
+    {
+      "id": "w5",
+      "from": "b0",
+      "to": "add.b0"
+    },
+    {
+      "id": "w6",
+      "from": "b1",
+      "to": "add.b1"
+    },
+    {
+      "id": "w7",
+      "from": "r.q0",
+      "to": "total0"
+    },
+    {
+      "id": "w8",
+      "from": "r.q1",
+      "to": "total1"
+    },
+    {
+      "id": "w9",
+      "from": "r.q2",
+      "to": "total2"
+    },
+    {
+      "id": "w10",
+      "from": "add.sum0",
+      "to": "r.d0"
+    },
+    {
+      "id": "w11",
+      "from": "add.sum1",
+      "to": "r.d1"
+    },
+    {
+      "id": "w12",
+      "from": "add.sum2",
+      "to": "r.d2"
+    }
+  ],
+  "nets": {
+    "clk": [
+      "clk",
+      "r.clk"
+    ],
+    "load": [
+      "load",
+      "r.load"
+    ],
+    "a0": [
+      "a0",
+      "add.a0"
+    ],
+    "a1": [
+      "a1",
+      "add.a1"
+    ],
+    "b0": [
+      "b0",
+      "add.b0"
+    ],
+    "b1": [
+      "b1",
+      "add.b1"
+    ],
+    "total0": [
+      "r.q0",
+      "total0"
+    ],
+    "total1": [
+      "r.q1",
+      "total1"
+    ],
+    "total2": [
+      "r.q2",
+      "total2"
+    ],
+    "sum0": [
+      "add.sum0",
+      "r.d0"
+    ],
+    "sum1": [
+      "add.sum1",
+      "r.d1"
+    ],
+    "sum2": [
+      "add.sum2",
+      "r.d2"
+    ]
+  },
+  "groups": {
+    "a": [
+      "a1",
+      "a0"
+    ],
+    "b": [
+      "b1",
+      "b0"
+    ],
+    "total": [
+      "total2",
+      "total1",
+      "total0"
+    ]
+  },
+  "modules": {
+    "adder": {
+      "title": "module adder #(N=2)",
+      "elements": [
+        {
+          "id": "gnd1",
+          "type": "ground",
+          "at": [
+            0,
+            -2
+          ]
+        },
+        {
+          "id": "bit_0_fa",
+          "type": "block",
+          "at": [
+            40,
+            -4
+          ],
+          "label": "$\\texttt{bit\\_0\\_fa}$",
+          "params": {
+            "shape": "rect",
+            "w": 4,
+            "h": 4,
+            "label": "$\\texttt{full\\_adder}$",
+            "module": "full_adder",
+            "pins": {
+              "left": [
+                "a",
+                "b",
+                "cin"
+              ],
+              "right": [
+                "s",
+                "cout"
+              ]
+            }
+          }
+        },
+        {
+          "id": "bit_1_fa",
+          "type": "block",
+          "at": [
+            60,
+            -4
+          ],
+          "label": "$\\texttt{bit\\_1\\_fa}$",
+          "params": {
+            "shape": "rect",
+            "w": 4,
+            "h": 4,
+            "label": "$\\texttt{full\\_adder}$",
+            "module": "full_adder",
+            "pins": {
+              "left": [
+                "a",
+                "b",
+                "cin"
+              ],
+              "right": [
+                "s",
+                "cout"
+              ]
+            }
+          }
+        }
+      ],
+      "ports": [
+        {
+          "id": "a1",
+          "dir": "in",
+          "at": [
+            -10,
+            0
+          ],
+          "side": "left"
+        },
+        {
+          "id": "a0",
+          "dir": "in",
+          "at": [
+            -10,
+            -6
+          ],
+          "side": "left"
+        },
+        {
+          "id": "b1",
+          "dir": "in",
+          "at": [
+            -10,
+            -12
+          ],
+          "side": "left"
+        },
+        {
+          "id": "b0",
+          "dir": "in",
+          "at": [
+            -10,
+            -18
+          ],
+          "side": "left"
+        },
+        {
+          "id": "sum2",
+          "dir": "out",
+          "at": [
+            80,
+            0
+          ],
+          "side": "right"
+        },
+        {
+          "id": "sum1",
+          "dir": "out",
+          "at": [
+            80,
+            -6
+          ],
+          "side": "right"
+        },
+        {
+          "id": "sum0",
+          "dir": "out",
+          "at": [
+            80,
+            -12
+          ],
+          "side": "right"
+        }
+      ],
+      "wires": [
+        {
+          "id": "w1",
+          "from": "a0",
+          "to": "bit_0_fa.a"
+        },
+        {
+          "id": "w2",
+          "from": "a1",
+          "to": "bit_1_fa.a"
+        },
+        {
+          "id": "w3",
+          "from": "b0",
+          "to": "bit_0_fa.b"
+        },
+        {
+          "id": "w4",
+          "from": "b1",
+          "to": "bit_1_fa.b"
+        },
+        {
+          "id": "w5",
+          "from": "bit_0_fa.s",
+          "to": "sum0"
+        },
+        {
+          "id": "w6",
+          "from": "bit_1_fa.s",
+          "to": "sum1"
+        },
+        {
+          "id": "w7",
+          "from": "bit_1_fa.cout",
+          "to": "sum2"
+        },
+        {
+          "id": "w8",
+          "from": "gnd1.1",
+          "to": "bit_0_fa.cin"
+        },
+        {
+          "id": "w9",
+          "from": "bit_0_fa.cout",
+          "to": "bit_1_fa.cin"
+        }
+      ],
+      "nets": {
+        "a0": [
+          "a0",
+          "bit_0_fa.a"
+        ],
+        "a1": [
+          "a1",
+          "bit_1_fa.a"
+        ],
+        "b0": [
+          "b0",
+          "bit_0_fa.b"
+        ],
+        "b1": [
+          "b1",
+          "bit_1_fa.b"
+        ],
+        "sum0": [
+          "bit_0_fa.s",
+          "sum0"
+        ],
+        "sum1": [
+          "bit_1_fa.s",
+          "sum1"
+        ],
+        "sum2": [
+          "sum2",
+          "bit_1_fa.cout"
+        ],
+        "c0": [
+          "bit_0_fa.cin",
+          "gnd1.1"
+        ],
+        "c1": [
+          "bit_0_fa.cout",
+          "bit_1_fa.cin"
+        ]
+      },
+      "groups": {
+        "a": [
+          "a1",
+          "a0"
+        ],
+        "b": [
+          "b1",
+          "b0"
+        ],
+        "sum": [
+          "sum2",
+          "sum1",
+          "sum0"
+        ]
+      }
+    },
+    "full_adder": {
+      "title": "module full_adder",
+      "elements": [
+        {
+          "id": "h1",
+          "type": "block",
+          "at": [
+            20,
+            -3
+          ],
+          "label": "$\\texttt{h1}$",
+          "params": {
+            "shape": "rect",
+            "w": 4,
+            "h": 3,
+            "label": "$\\texttt{half\\_adder}$",
+            "module": "half_adder",
+            "pins": {
+              "left": [
+                "a",
+                "b"
+              ],
+              "right": [
+                "s",
+                "c"
+              ]
+            }
+          }
+        },
+        {
+          "id": "h2",
+          "type": "block",
+          "at": [
+            40,
+            -3
+          ],
+          "label": "$\\texttt{h2}$",
+          "params": {
+            "shape": "rect",
+            "w": 4,
+            "h": 3,
+            "label": "$\\texttt{half\\_adder}$",
+            "module": "half_adder",
+            "pins": {
+              "left": [
+                "a",
+                "b"
+              ],
+              "right": [
+                "s",
+                "c"
+              ]
+            }
+          }
+        },
+        {
+          "id": "or1",
+          "type": "or_gate",
+          "at": [
+            60,
+            -2
+          ]
+        }
+      ],
+      "ports": [
+        {
+          "id": "a",
+          "dir": "in",
+          "at": [
+            -10,
+            0
+          ],
+          "side": "left"
+        },
+        {
+          "id": "b",
+          "dir": "in",
+          "at": [
+            -10,
+            -6
+          ],
+          "side": "left"
+        },
+        {
+          "id": "cin",
+          "dir": "in",
+          "at": [
+            -10,
+            -12
+          ],
+          "side": "left"
+        },
+        {
+          "id": "s",
+          "dir": "out",
+          "at": [
+            80,
+            0
+          ],
+          "side": "right"
+        },
+        {
+          "id": "cout",
+          "dir": "out",
+          "at": [
+            80,
+            -6
+          ],
+          "side": "right"
+        }
+      ],
+      "wires": [
+        {
+          "id": "w1",
+          "from": "a",
+          "to": "h1.a"
+        },
+        {
+          "id": "w2",
+          "from": "b",
+          "to": "h1.b"
+        },
+        {
+          "id": "w3",
+          "from": "cin",
+          "to": "h2.b"
+        },
+        {
+          "id": "w4",
+          "from": "h2.s",
+          "to": "s"
+        },
+        {
+          "id": "w5",
+          "from": "or1.Y",
+          "to": "cout"
+        },
+        {
+          "id": "w6",
+          "from": "h1.s",
+          "to": "h2.a"
+        },
+        {
+          "id": "w7",
+          "from": "h1.c",
+          "to": "or1.A"
+        },
+        {
+          "id": "w8",
+          "from": "h2.c",
+          "to": "or1.B"
+        }
+      ],
+      "nets": {
+        "a": [
+          "a",
+          "h1.a"
+        ],
+        "b": [
+          "b",
+          "h1.b"
+        ],
+        "cin": [
+          "cin",
+          "h2.b"
+        ],
+        "s": [
+          "h2.s",
+          "s"
+        ],
+        "cout": [
+          "cout",
+          "or1.Y"
+        ],
+        "s1": [
+          "h1.s",
+          "h2.a"
+        ],
+        "c1": [
+          "h1.c",
+          "or1.A"
+        ],
+        "c2": [
+          "h2.c",
+          "or1.B"
+        ]
+      }
+    },
+    "half_adder": {
+      "title": "module half_adder",
+      "elements": [
+        {
+          "id": "g1",
+          "type": "xor_gate",
+          "at": [
+            28,
+            -16
+          ]
+        },
+        {
+          "id": "g2",
+          "type": "and_gate",
+          "at": [
+            28,
+            -23
+          ]
+        }
+      ],
+      "ports": [
+        {
+          "id": "a",
+          "dir": "in",
+          "at": [
+            0,
+            4
+          ],
+          "side": "up"
+        },
+        {
+          "id": "b",
+          "dir": "in",
+          "at": [
+            10,
+            4
+          ],
+          "side": "up"
+        },
+        {
+          "id": "s",
+          "dir": "out",
+          "at": [
+            44,
+            -16
+          ],
+          "side": "right"
+        },
+        {
+          "id": "c",
+          "dir": "out",
+          "at": [
+            44,
+            -23
+          ],
+          "side": "right"
+        }
+      ],
+      "wires": [
+        {
+          "id": "w1",
+          "from": "a",
+          "to": [
+            0,
+            -22
+          ],
+          "route": [
+            "straight"
+          ]
+        },
+        {
+          "id": "w2",
+          "from": "j_a_1",
+          "to": "g1.A",
+          "route": [
+            "straight"
+          ]
+        },
+        {
+          "id": "w3",
+          "from": "j_a_2",
+          "to": "g2.A",
+          "route": [
+            "straight"
+          ]
+        },
+        {
+          "id": "w4",
+          "from": "b",
+          "to": [
+            10,
+            -24
+          ],
+          "route": [
+            "straight"
+          ]
+        },
+        {
+          "id": "w5",
+          "from": "j_b_1",
+          "to": "g1.B",
+          "route": [
+            "straight"
+          ]
+        },
+        {
+          "id": "w6",
+          "from": "j_b_2",
+          "to": "g2.B",
+          "route": [
+            "straight"
+          ]
+        },
+        {
+          "id": "w7",
+          "from": "g1.Y",
+          "to": "s"
+        },
+        {
+          "id": "w8",
+          "from": "g2.Y",
+          "to": "c"
+        }
+      ],
+      "junctions": [
+        {
+          "id": "j_a_1",
+          "on": "w1",
+          "at": [
+            0,
+            -15
+          ]
+        },
+        {
+          "id": "j_a_2",
+          "on": "w1",
+          "at": [
+            0,
+            -22
+          ]
+        },
+        {
+          "id": "j_b_1",
+          "on": "w4",
+          "at": [
+            10,
+            -17
+          ]
+        },
+        {
+          "id": "j_b_2",
+          "on": "w4",
+          "at": [
+            10,
+            -24
+          ]
+        }
+      ],
+      "nets": {
+        "a": [
+          "a",
+          "g1.A",
+          "g2.A"
+        ],
+        "b": [
+          "b",
+          "g1.B",
+          "g2.B"
+        ],
+        "s": [
+          "s",
+          "g1.Y"
+        ],
+        "c": [
+          "c",
+          "g2.Y"
+        ]
+      }
+    },
+    "load_register": {
+      "title": "module load_register #(N=3)",
+      "elements": [
+        {
+          "id": "ff_q0",
+          "type": "d_flipflop",
+          "at": [
+            20,
+            -5
+          ]
+        },
+        {
+          "id": "ff_q1",
+          "type": "d_flipflop",
+          "at": [
+            20,
+            -19
+          ]
+        },
+        {
+          "id": "ff_q2",
+          "type": "d_flipflop",
+          "at": [
+            20,
+            -33
+          ]
+        },
+        {
+          "id": "mux1",
+          "type": "mux2",
+          "at": [
+            40,
+            -5
+          ]
+        },
+        {
+          "id": "mux2",
+          "type": "mux2",
+          "at": [
+            40,
+            -19
+          ]
+        },
+        {
+          "id": "mux3",
+          "type": "mux2",
+          "at": [
+            40,
+            -33
+          ]
+        }
+      ],
+      "ports": [
+        {
+          "id": "clk",
+          "dir": "in",
+          "at": [
+            -10,
+            0
+          ],
+          "side": "left"
+        },
+        {
+          "id": "load",
+          "dir": "in",
+          "at": [
+            -10,
+            -6
+          ],
+          "side": "left"
+        },
+        {
+          "id": "d2",
+          "dir": "in",
+          "at": [
+            -10,
+            -12
+          ],
+          "side": "left"
+        },
+        {
+          "id": "d1",
+          "dir": "in",
+          "at": [
+            -10,
+            -18
+          ],
+          "side": "left"
+        },
+        {
+          "id": "d0",
+          "dir": "in",
+          "at": [
+            -10,
+            -24
+          ],
+          "side": "left"
+        },
+        {
+          "id": "q2",
+          "dir": "out",
+          "at": [
+            60,
+            0
+          ],
+          "side": "right"
+        },
+        {
+          "id": "q1",
+          "dir": "out",
+          "at": [
+            60,
+            -6
+          ],
+          "side": "right"
+        },
+        {
+          "id": "q0",
+          "dir": "out",
+          "at": [
+            60,
+            -12
+          ],
+          "side": "right"
+        }
+      ],
+      "wires": [
+        {
+          "id": "w1",
+          "from": "clk",
+          "to": "ff_q0.CLK"
+        },
+        {
+          "id": "w2",
+          "from": "clk",
+          "to": "ff_q1.CLK"
+        },
+        {
+          "id": "w3",
+          "from": "clk",
+          "to": "ff_q2.CLK"
+        },
+        {
+          "id": "w4",
+          "from": "load",
+          "to": "mux1.S"
+        },
+        {
+          "id": "w5",
+          "from": "load",
+          "to": "mux2.S"
+        },
+        {
+          "id": "w6",
+          "from": "load",
+          "to": "mux3.S"
+        },
+        {
+          "id": "w7",
+          "from": "d0",
+          "to": "mux3.I1"
+        },
+        {
+          "id": "w8",
+          "from": "d1",
+          "to": "mux2.I1"
+        },
+        {
+          "id": "w9",
+          "from": "d2",
+          "to": "mux1.I1"
+        },
+        {
+          "id": "w10",
+          "from": "ff_q0.Q",
+          "to": "q0"
+        },
+        {
+          "id": "w11",
+          "from": "ff_q0.Q",
+          "to": "mux3.I0"
+        },
+        {
+          "id": "w12",
+          "from": "ff_q1.Q",
+          "to": "q1"
+        },
+        {
+          "id": "w13",
+          "from": "ff_q1.Q",
+          "to": "mux2.I0"
+        },
+        {
+          "id": "w14",
+          "from": "ff_q2.Q",
+          "to": "q2"
+        },
+        {
+          "id": "w15",
+          "from": "ff_q2.Q",
+          "to": "mux1.I0"
+        },
+        {
+          "id": "w16",
+          "from": "mux3.Y",
+          "to": "ff_q0.D"
+        },
+        {
+          "id": "w17",
+          "from": "mux2.Y",
+          "to": "ff_q1.D"
+        },
+        {
+          "id": "w18",
+          "from": "mux1.Y",
+          "to": "ff_q2.D"
+        }
+      ],
+      "nets": {
+        "clk": [
+          "clk",
+          "ff_q0.CLK",
+          "ff_q1.CLK",
+          "ff_q2.CLK"
+        ],
+        "load": [
+          "load",
+          "mux1.S",
+          "mux2.S",
+          "mux3.S"
+        ],
+        "d0": [
+          "d0",
+          "mux3.I1"
+        ],
+        "d1": [
+          "d1",
+          "mux2.I1"
+        ],
+        "d2": [
+          "d2",
+          "mux1.I1"
+        ],
+        "q0": [
+          "q0",
+          "mux3.I0",
+          "ff_q0.Q"
+        ],
+        "q1": [
+          "q1",
+          "mux2.I0",
+          "ff_q1.Q"
+        ],
+        "q2": [
+          "q2",
+          "mux1.I0",
+          "ff_q2.Q"
+        ],
+        "n1": [
+          "ff_q0.D",
+          "mux3.Y"
+        ],
+        "n2": [
+          "ff_q1.D",
+          "mux2.Y"
+        ],
+        "n3": [
+          "ff_q2.D",
+          "mux1.Y"
+        ]
+      },
+      "groups": {
+        "d": [
+          "d2",
+          "d1",
+          "d0"
+        ],
+        "q": [
+          "q2",
+          "q1",
+          "q0"
+        ]
+      }
+    }
+  }
+}

@@ -1,14 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "circuit/0.3",
-  "title": "Circuit schema v0.3",
+  "$id": "circuit/0.4",
+  "title": "Circuit schema v0.4",
   "description": "A circuit says what is connected (nets), what is placed where (elements, ports) and how it is drawn (wires, junctions). Coordinates are integer grid steps (1 step = 0.25 cm); x points right and y points UP. Structure only: semantic checks (pins exist, drawing realises the nets, one driver per net) are a separate lint.",
   "type": "object",
   "required": ["schema", "id", "grid_cm", "elements", "nets"],
   "additionalProperties": false,
   "properties": {
     "schema": {
-      "enum": ["circuit/0.2", "circuit/0.3"],
+      "enum": ["circuit/0.2", "circuit/0.3", "circuit/0.4"],
       "description": "Format and version. Readers reject an unknown major version."
     },
     "id": { "$ref": "#/$defs/id", "description": "The concept, e.g. ripple_carry_adder_4." },
@@ -92,9 +92,31 @@
       "propertyNames": { "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" },
       "additionalProperties": { "type": "object" },
       "description": "circuit/0.3 only. Optional editor data that is not circuit structure (frames, net labels, slide, tool settings): one key per tool in lowercase kebab-case, e.g. annotations[\"schematic-editor\"], each an object that tool owns. The simulator and validators check nothing inside it. `groups` stays reserved for buses."
+    },
+    "modules": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/id" },
+      "additionalProperties": { "$ref": "#/$defs/module" },
+      "description": "circuit/0.4 only. Hierarchy: module name to a sub-circuit drawn and connected like the top level. A `block` element with params.module is one instance of it; its pins are the module's port ids. Modules may contain instances of other modules but never, directly or through others, of themselves. The simulator and the analysis flatten instances before they run (an instance's elements and nets become <instance>_<id>). Checked by validate/ (both languages)."
     }
   },
   "$defs": {
+    "module": {
+      "type": "object",
+      "required": ["elements", "nets"],
+      "additionalProperties": false,
+      "description": "A sub-circuit (circuit/0.4): the same fields as the top level, without the figure-level ones.",
+      "properties": {
+        "title": { "type": "string" },
+        "elements": { "$ref": "#/properties/elements" },
+        "ports": { "$ref": "#/properties/ports" },
+        "nets": { "$ref": "#/properties/nets" },
+        "wires": { "$ref": "#/properties/wires" },
+        "junctions": { "$ref": "#/properties/junctions" },
+        "groups": { "$ref": "#/properties/groups" },
+        "labels": { "$ref": "#/properties/labels" }
+      }
+    },
     "id": {
       "type": "string",
       "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
@@ -184,6 +206,7 @@
         "w": { "type": "integer", "minimum": 1, "description": "Width in whole modules." },
         "h": { "type": "integer", "minimum": 1, "description": "Height in whole modules." },
         "label": { "type": "string", "description": "A LaTeX string drawn in the block. May be empty." },
+        "module": { "$ref": "#/$defs/id", "description": "circuit/0.4 only. The block is an instance of this entry in `modules`; its pins must be exactly that module's port ids." },
         "pins": {
           "type": "object",
           "additionalProperties": false,

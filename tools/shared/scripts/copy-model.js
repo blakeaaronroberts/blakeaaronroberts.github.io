@@ -35,8 +35,8 @@ const logicFiles = [
   "examples/full_adder_gates.json", "examples/comparator_2bit.json", "examples/bcd_to_7seg.json", "examples/nand_sr_latch.json", "examples/d_flipflop.json",
 ];
 const sets = [
-  { ref, dir: new URL("../src/sim/", here), files: ["sim/simulate.mjs", "sim/logic.mjs", "sim/README.md"] },
-  { ref, dir: new URL("../test/model/", here), files: ["validate/jsonschema.mjs", "validate/formats.mjs", "schema/circuit.schema.json", "schema/scenario.schema.json", "schema/trace.schema.json", "examples/nand_sr_latch.json"] },
+  { ref, dir: new URL("../src/sim/", here), files: ["sim/simulate.mjs", "sim/logic.mjs", "sim/flatten.mjs", "sim/README.md"] },
+  { ref, dir: new URL("../test/model/", here), files: ["validate/jsonschema.mjs", "validate/formats.mjs", "schema/circuit.schema.json", "schema/scenario.schema.json", "schema/trace.schema.json", "examples/nand_sr_latch.json", "examples/sv_demo.json", "examples/sv/demo.sv", ["examples/scenarios/sv_demo.json", "sv_demo.scenario.json"], ["examples/traces/sv_demo.json", "sv_demo.trace.json"]] },
   { ref: logicRef, keepPaths: true, dir: new URL("../../logic/analyze/model/", here), files: logicFiles },
 ];
 const only = arg("--only", null);   // "logic": copy just the logic tools' set
@@ -47,9 +47,10 @@ for (const set of sets) {
   if (pinned && commit !== pinned) throw new Error(`${set.ref} is ${commit} in ${source}, but MODEL_PIN.json pins ${pinned}`);
   await Deno.mkdir(set.dir, { recursive: true });
   const manifest = { note: "Written by tools/shared/scripts/copy-model.js. Do not edit this folder by hand.", source: "circuit-model", ref: set.ref, commit, files: [] };
-  for (const file of set.files) {
+  for (const entry of set.files) {
+    const file = Array.isArray(entry) ? entry[0] : entry;   // [path, name in the copy] when two files share a name
     const bytes = await git(["show", `${set.ref}:${file}`], true);
-    const name = set.keepPaths ? file : file.split("/").pop();
+    const name = Array.isArray(entry) ? entry[1] : set.keepPaths ? file : file.split("/").pop();
     if (set.keepPaths) await Deno.mkdir(new URL(name.replace(/[^/]*$/, ""), set.dir), { recursive: true });
     await Deno.writeFile(new URL(name, set.dir), bytes);
     manifest.files.push({ name, from: file, bytes: bytes.length, sha256: await sha256(bytes) });

@@ -1,0 +1,113 @@
+{
+  "schema": "scenario/0.1",
+  "id": "sv_demo",
+  "title": "Imported SystemVerilog demo: add a and b, load the sum on a rising clock edge",
+  "circuit": "examples/sv_demo.json",
+  "circuit_id": "demo",
+  "inputs": [
+    "clk",
+    "load",
+    "a1",
+    "a0",
+    "b1",
+    "b0"
+  ],
+  "steps": [
+    {
+      "label": "a = 1, b = 2, load on",
+      "duration": 2,
+      "values": {
+        "clk": "0",
+        "load": "1",
+        "a1": "0",
+        "a0": "1",
+        "b1": "1",
+        "b0": "0"
+      }
+    },
+    {
+      "label": "rising edge: total loads 3",
+      "duration": 2,
+      "values": {
+        "clk": "1",
+        "load": "1",
+        "a1": "0",
+        "a0": "1",
+        "b1": "1",
+        "b0": "0"
+      }
+    },
+    {
+      "label": "a = 3, b = 3",
+      "duration": 2,
+      "values": {
+        "clk": "0",
+        "load": "1",
+        "a1": "1",
+        "a0": "1",
+        "b1": "1",
+        "b0": "1"
+      }
+    },
+    {
+      "label": "rising edge: total loads 6",
+      "duration": 2,
+      "values": {
+        "clk": "1",
+        "load": "1",
+        "a1": "1",
+        "a0": "1",
+        "b1": "1",
+        "b0": "1"
+      }
+    },
+    {
+      "label": "a = 0, b = 1, load off",
+      "duration": 2,
+      "values": {
+        "clk": "0",
+        "load": "0",
+        "a1": "0",
+        "a0": "0",
+        "b1": "0",
+        "b0": "1"
+      }
+    },
+    {
+      "label": "rising edge: total holds 6",
+      "duration": 2,
+      "values": {
+        "clk": "1",
+        "load": "0",
+        "a1": "0",
+        "a0": "0",
+        "b1": "0",
+        "b0": "1"
+      }
+    },
+    {
+      "label": "load on",
+      "duration": 2,
+      "values": {
+        "clk": "0",
+        "load": "1",
+        "a1": "0",
+        "a0": "0",
+        "b1": "0",
+        "b0": "1"
+      }
+    },
+    {
+      "label": "rising edge: total loads 1",
+      "duration": 2,
+      "values": {
+        "clk": "1",
+        "load": "1",
+        "a1": "0",
+        "a0": "0",
+        "b1": "0",
+        "b0": "1"
+      }
+    }
+  ]
+}

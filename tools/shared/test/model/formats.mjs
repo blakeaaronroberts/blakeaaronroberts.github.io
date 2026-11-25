@@ -9,6 +9,8 @@
 // tests/run_fixtures.* runs both over the same fixtures.
 //
 // Every function returns a list of problem strings. An empty list means valid.
+// The strings carry raw input (names and values from the file): escape them
+// before putting them into HTML, or show them with textContent.
 
 import { validate } from "./jsonschema.mjs";
 
@@ -22,25 +24,84 @@ function structural(schema, data) {
   return validate(schema, data).map((e) => `${e.path || "(top level)"} ${e.message}`);
 }
 
+/** The pin names of a block, from every side. */
+const blockPins = (e) => Object.values(e.params?.pins ?? {}).flat().map((p) => (typeof p === "string" ? p : p.name));
+
 /**
- * Check a circuit. Beyond the schema: in circuit/0.3, a wire's `route` has one
- * entry per leg (from the start through every waypoint to the end).
+ * Check a circuit. Beyond the schema: in circuit/0.3 and later, a wire's
+ * `route` has one entry per leg (from the start through every waypoint to the
+ * end). In circuit/0.4, a block with params.module names an entry of `modules`
+ * and has exactly its ports as pins, and no module contains itself; `modules`
+ * and params.module need circuit/0.4.
  */
 export function checkCircuit(circuitSchema, circuit) {
   const problems = structural(circuitSchema, circuit);
   if (problems.length) return problems;
-  (circuit.wires ?? []).forEach((w, i) => {
-    const legs = (w.via ?? []).length + 1;
-    if (w.route !== undefined && w.route.length !== legs) {
-      problems.push(`/wires/${i}/route has ${w.route.length} entries but the wire has ${legs} leg(s)`);
+  const v04 = circuit.schema === "circuit/0.4";
+  const modules = circuit.modules ?? {};
+  if (!v04 && circuit.modules !== undefined) problems.push(`/modules needs circuit/0.4, not ${circuit.schema}`);
+  const bodies = [["", circuit], ...Object.entries(modules).map(([name, m]) => [`/modules/${name}`, m])];
+  const uses = new Map(Object.keys(modules).map((name) => [name, new Set()]));
+  for (const [at, body] of bodies) {
+    (body.wires ?? []).forEach((w, i) => {
+      const legs = (w.via ?? []).length + 1;
+      if (w.route !== undefined && w.route.length !== legs) {
+        problems.push(`${at}/wires/${i}/route has ${w.route.length} entries but the wire has ${legs} leg(s)`);
+      }
+    });
+    (body.elements ?? []).forEach((e, i) => {
+      const name = e.type === "block" ? e.params?.module : undefined;
+      if (name === undefined) return;
+      if (!v04) { problems.push(`${at}/elements/${i}/params/module needs circuit/0.4, not ${circuit.schema}`); return; }
+      const m = modules[name];
+      if (!m) { problems.push(`${at}/elements/${i}/params/module "${name}" is not in modules`); return; }
+      if (at) uses.get(at.slice("/modules/".length)).add(name);
+      const pins = blockPins(e);
+      const ports = (m.ports ?? []).map((p) => p.id);
+      const missing = ports.filter((p) => !pins.includes(p));
+      const extra = pins.filter((p) => !ports.includes(p));
+      if (missing.length) problems.push(`${at}/elements/${i} (${e.id}) has no pin for port ${missing.join(", ")} of module "${name}"`);
+      if (extra.length) problems.push(`${at}/elements/${i} (${e.id}) has pin ${extra.join(", ")}, which module "${name}" does not have`);
+    });
+  }
+  for (const name of uses.keys()) {
+    const seen = new Set();
+    const todo = [...uses.get(name)];
+    while (todo.length) {
+      const n = todo.pop();
+      if (seen.has(n)) continue;
+      seen.add(n);
+      todo.push(...(uses.get(n) ?? []));
     }
-  });
+    if (seen.has(name)) problems.push(`/modules/${name} contains an instance of itself (directly or through other modules)`);
+  }
   return problems;
+}
+
+/** net id -> the group it belongs to: nets joined by closed switches share one, as in the simulator. */
+function switchGroups(circuit) {
+  const parent = new Map(Object.keys(circuit.nets ?? {}).map((n) => [n, n]));
+  const netOfRef = new Map();
+  for (const n of parent.keys()) for (const ref of circuit.nets[n]) netOfRef.set(ref, n);
+  const find = (n) => {
+    let root = n;
+    while (parent.get(root) !== root) root = parent.get(root);
+    while (parent.get(n) !== root) { const next = parent.get(n); parent.set(n, root); n = next; }
+    return root;
+  };
+  for (const e of circuit.elements ?? []) {
+    if (e.type !== "switch" || e.params?.closed !== true) continue;
+    const [a, b] = [netOfRef.get(`${e.id}.1`), netOfRef.get(`${e.id}.2`)];
+    if (a && b) parent.set(find(a), find(b));
+  }
+  return (net) => (parent.has(net) ? find(net) : net);
 }
 
 /**
  * Check a scenario. `circuit` is optional: when given, the scenario is also
- * checked against it (its id, and that the named inputs are its input ports).
+ * checked against it (its id, that the named inputs are its input ports, and
+ * that forces do not overlap on nets joined by a closed switch). Nets joined
+ * only inside an instance (circuit/0.4) are seen when simulate() flattens it.
  */
 export function checkScenario(scenarioSchema, scenario, circuit = null) {
   const problems = structural(scenarioSchema, scenario);
@@ -64,10 +125,11 @@ export function checkScenario(scenarioSchema, scenario, circuit = null) {
     if (f.to !== undefined && f.to < f.from) problems.push(`/force/${i}/to (${f.to}) is before from (${f.from})`);
   });
   const force = scenario.force ?? [];
+  const groupOf = circuit && force.length ? switchGroups(circuit) : (net) => net;
   force.forEach((a, i) => force.slice(i + 1).forEach((b, k) => {
     const [aTo, bTo] = [a.to ?? lastStep, b.to ?? lastStep];
-    if (a.net === b.net && a.from <= bTo && b.from <= aTo) {
-      problems.push(`/force/${i} and /force/${i + k + 1} overlap on net "${a.net}"`);
+    if (groupOf(a.net) === groupOf(b.net) && a.from <= bTo && b.from <= aTo) {
+      problems.push(`/force/${i} and /force/${i + k + 1} overlap on net "${a.net}"${a.net === b.net ? "" : `, which a closed switch joins to "${b.net}"`}`);
     }
   }));
 
@@ -88,7 +150,7 @@ export function checkScenario(scenarioSchema, scenario, circuit = null) {
       else if (!STATEFUL_TYPES.includes(e.type)) problems.push(`/initial "${id}" is a ${e.type}, which has no stored state`);
     }
     (scenario.force ?? []).forEach((f, i) => {
-      if (!(f.net in (circuit.nets ?? {}))) problems.push(`/force/${i}/net "${f.net}" is not a net of the circuit`);
+      if (!Object.hasOwn(circuit.nets ?? {}, f.net)) problems.push(`/force/${i}/net "${f.net}" is not a net of the circuit`);
     });
   }
   return problems;

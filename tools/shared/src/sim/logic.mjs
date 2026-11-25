@@ -109,12 +109,17 @@ const UNKNOWN = { q: "X", Q: "X", Qn: "X" };
  * The clock edge since the last evaluation: "1" for an edge, "0" for none,
  * "X" when the change might be an edge (for rising: 0 to X, or X to 1). A clock
  * that has not changed is never an edge, so re-evaluating at one instant is safe.
+ * The first known level (0 or 1) is the baseline, never an edge, whenever it
+ * arrives (a clock may reach the flip-flop late, through gates with delays).
  */
-function edgeOf(state, clk, falling, start = false) {
+function edgeOf(state, clk, falling) {
   const before = state.clk;
   const now = read(clk);
+  if (before === null) { // no known level yet
+    if (now !== "X") state.clk = now;
+    return "0";
+  }
   state.clk = now;
-  if (start) return "0"; // leaving the all-X start at time 0 is not an edge
   const [from, to] = falling ? ["1", "0"] : ["0", "1"];
   if (before === now) return "0";
   if (before === from && now === to) return "1";
@@ -168,10 +173,11 @@ function flipflop(dataPins, next, controls = LOW_CONTROLS) {
     outputs: ["Q", "Qn"],
     optional: { CE: "1", ...controls.idle },
     sequential: true,
+    edgeTriggered: true, // its CLK reacts to edges, so a late clock can race
     check: (e) => oneOf(e, "edge", ["rising", "falling"]),
-    init: () => ({ q: "X", clk: "X" }),
-    evaluate: (inputs, state, params, ctx = {}) => {
-      const edge = edgeOf(state, inputs.CLK, params.edge === "falling", ctx.start === true);
+    init: () => ({ q: "X", clk: null }),
+    evaluate: (inputs, state, params) => {
+      const edge = edgeOf(state, inputs.CLK, params.edge === "falling");
       const levels = { q: state.q, edge, CE: inputs.CE };
       for (const p of [...dataPins, ...controls.pins]) levels[p] = inputs[p];
       const rule = (b) => controls.apply(b, () => qOut(b.edge === "1" && b.CE === "1" ? next(b) : b.q));

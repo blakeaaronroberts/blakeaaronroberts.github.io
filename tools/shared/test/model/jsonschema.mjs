@@ -3,14 +3,16 @@
 // It implements only the keywords this repository's schemas use. A schema that
 // uses any other keyword makes `validate` throw, so a new keyword can never be
 // silently ignored (add it here, and to validate.py's tests, when needed).
-// Errors are returned as a list of { path, message }, never thrown.
+// Errors are returned as a list of { path, message }, never thrown. Paths and
+// messages carry raw input (names and values from the file), so escape them
+// before putting them into HTML.
 
 // Keywords that only describe the schema and have no effect on validation.
 const ANNOTATIONS = new Set(["$schema", "$id", "$defs", "title", "description"]);
 const KEYWORDS = new Set([
   "$ref", "type", "enum", "const", "required", "properties", "additionalProperties",
-  "propertyNames", "items", "minItems", "maxItems", "uniqueItems", "minimum", "minLength",
-  "pattern", "oneOf", "if", "then",
+  "propertyNames", "minProperties", "items", "minItems", "maxItems", "uniqueItems", "minimum",
+  "exclusiveMinimum", "minLength", "maxLength", "pattern", "oneOf", "if", "then",
 ]);
 
 function typeOf(value) {
@@ -25,10 +27,22 @@ function matchesType(value, type) {
   return t === type || (type === "number" && t === "integer");
 }
 
-// Structural equality for enum, const and uniqueItems (JSON values only).
-function same(a, b) {
-  return JSON.stringify(a) === JSON.stringify(b);
+// A value as text that does not depend on key order (JSON values only).
+function canonical(v) {
+  if (Array.isArray(v)) return `[${v.map(canonical).join()}]`;
+  if (v !== null && typeof v === "object") {
+    return `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canonical(v[k])}`).join()}}`;
+  }
+  return JSON.stringify(v);
 }
+
+// Structural equality for enum and const.
+function same(a, b) {
+  return a === b || canonical(a) === canonical(b);
+}
+
+// Characters (code points), as JSON Schema counts them; not UTF-16 units.
+const lengthOf = (s) => [...s].length;
 
 function resolve(root, ref) {
   if (!ref.startsWith("#/")) throw new Error(`unsupported $ref: ${ref}`);
@@ -65,9 +79,15 @@ function check(root, schema, value, path, errors) {
   if (schema.minimum !== undefined && typeof value === "number" && value < schema.minimum) {
     errors.push({ path, message: `must be at least ${schema.minimum}` });
   }
+  if (schema.exclusiveMinimum !== undefined && typeof value === "number" && value <= schema.exclusiveMinimum) {
+    errors.push({ path, message: `must be more than ${schema.exclusiveMinimum}` });
+  }
   if (typeof value === "string") {
-    if (schema.minLength !== undefined && value.length < schema.minLength) {
+    if (schema.minLength !== undefined && lengthOf(value) < schema.minLength) {
       errors.push({ path, message: `must have at least ${schema.minLength} character(s)` });
+    }
+    if (schema.maxLength !== undefined && lengthOf(value) > schema.maxLength) {
+      errors.push({ path, message: `must have at most ${schema.maxLength} character(s)` });
     }
     if (schema.pattern !== undefined && !new RegExp(schema.pattern).test(value)) {
       errors.push({ path, message: `must match ${schema.pattern}` });
@@ -81,7 +101,7 @@ function check(root, schema, value, path, errors) {
       errors.push({ path, message: `must have at most ${schema.maxItems} item(s)` });
     }
     if (schema.uniqueItems) {
-      const seen = new Set(value.map((v) => JSON.stringify(v)));
+      const seen = new Set(value.map(canonical));
       if (seen.size !== value.length) errors.push({ path, message: "items must be unique" });
     }
     if (schema.items !== undefined) {
@@ -90,6 +110,9 @@ function check(root, schema, value, path, errors) {
   }
   if (typeOf(value) === "object") {
     const props = schema.properties ?? {};
+    if (schema.minProperties !== undefined && Object.keys(value).length < schema.minProperties) {
+      errors.push({ path, message: `must have at least ${schema.minProperties} entry(ies)` });
+    }
     for (const name of schema.required ?? []) {
       if (!(name in value)) errors.push({ path, message: `is missing required "${name}"` });
     }

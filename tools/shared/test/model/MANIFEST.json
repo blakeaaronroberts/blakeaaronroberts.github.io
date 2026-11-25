@@ -1,38 +1,38 @@
 {
   "note": "Written by tools/shared/scripts/copy-model.js. Do not edit this folder by hand.",
   "source": "circuit-model",
-  "ref": "model-v0.9.0",
-  "commit": "c57e6900e23bfb424e435a8d9a611900d9d5f137",
+  "ref": "model-v0.12.0",
+  "commit": "1e65a2a4e5318bf0c20a169b33e35cfabcd74733",
   "files": [
     {
       "name": "jsonschema.mjs",
       "from": "validate/jsonschema.mjs",
-      "bytes": 5487,
-      "sha256": "550740b1ea87d887ece50f33503686c2518bac70cbff1f3544e21d184628cf23"
+      "bytes": 6649,
+      "sha256": "53cd5b1c9833dea1af60da2ff39e7d903b0f2dc48172e90b18f6aa0750291dac"
     },
     {
       "name": "formats.mjs",
       "from": "validate/formats.mjs",
-      "bytes": 9714,
-      "sha256": "f1a128c86e1c3bae88ab9368cdae3dc9b09b38e1a6f32164f74c5c854135884d"
+      "bytes": 13213,
+      "sha256": "81b9dbf9cdf902cd096c910ba5e3e5efee2aa29c98d971178f2d556d3f38389d"
     },
     {
       "name": "circuit.schema.json",
       "from": "schema/circuit.schema.json",
-      "bytes": 12567,
-      "sha256": "ead1cb7427780efc1e2ccf978ec103b4022ed0799667172d7103e89c7f0cee45"
+      "bytes": 14084,
+      "sha256": "ec734d9c1da2b36c3c43b1c2391192010e9c130f35ce8c71f0c483f7776ab0dc"
     },
     {
       "name": "scenario.schema.json",
       "from": "schema/scenario.schema.json",
-      "bytes": 4350,
-      "sha256": "a841ab57a9251dd88fb1d753ce3e34803df98728d1ca02def1960436c451ce71"
+      "bytes": 4512,
+      "sha256": "0bf9ddde8548ae515f1129fc485c99d3e6d41563dc47a95f3646d0e719223fdf"
     },
     {
       "name": "trace.schema.json",
       "from": "schema/trace.schema.json",
-      "bytes": 5629,
-      "sha256": "a71a7bc632b29178b74f5af5005e8718b6c214953dfb67a9fd8868681a4223c2"
+      "bytes": 6124,
+      "sha256": "393d9fd5d01cb1ad4eb89d317842f0220ff2aa0401466a97656758aa207eb48b"
     },
     {
       "name": "nand_sr_latch.json",
@@ -41,10 +41,28 @@
       "sha256": "3dcf565dfcd9f72765b2d4de54993357c3cd609d476fcbb6370bd8d404c0b526"
     },
     {
-      "name": "nand_latch_forced_start.json",
-      "from": "examples/scenarios/nand_latch_forced_start.json",
-      "bytes": 626,
-      "sha256": "1a8c3ef44aaab18ddbc4598e23a952f6a81708d3c673bb08b5185162c97781b4"
+      "name": "sv_demo.json",
+      "from": "examples/sv_demo.json",
+      "bytes": 19692,
+      "sha256": "45e388451d35e8497c930d68f7f3b9fcf5616f7a92edc5f3cfd2638e212ffd44"
+    },
+    {
+      "name": "demo.sv",
+      "from": "examples/sv/demo.sv",
+      "bytes": 1169,
+      "sha256": "38d2d3315b1d7d92c280c88557129b892a875506de55982e4e83ccd47e9358db"
+    },
+    {
+      "name": "sv_demo.scenario.json",
+      "from": "examples/scenarios/sv_demo.json",
+      "bytes": 2028,
+      "sha256": "778fd186a13d986e79aee03f84efd7ad9b8a932d57a9b17a8ef4db908ab1e613"
+    },
+    {
+      "name": "sv_demo.trace.json",
+      "from": "examples/traces/sv_demo.json",
+      "bytes": 12504,
+      "sha256": "737ae02349c7470f6c5364ce19e862e997cda80e781d1ac92567cd4a59e2d12e"
     }
   ]
 }

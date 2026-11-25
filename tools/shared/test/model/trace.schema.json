@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "trace/0.1",
+  "$id": "trace/0.1.1",
   "title": "Trace schema v0.1",
   "description": "The simulator's output: the level of every signal over time. A signal is a net id (\"c1\") or an element output (\"fa0.S\"). Every signal starts at \"X\" before time 0. `changes` lists every change of level with its time, in time order; `steps` gives each scenario step's interval and the level of every signal at the end of it. Levels are the strings \"0\", \"1\", \"X\" and \"Z\". Structure only: that the steps are contiguous and that `changes` replays to the step values is a separate semantic check (see validate/).",
   "type": "object",
@@ -8,11 +8,12 @@
   "additionalProperties": false,
   "properties": {
     "schema": { "const": "trace/0.1", "description": "Format and version. Readers reject an unknown major version." },
-    "circuit": { "type": "string", "minLength": 1, "description": "Path of the circuit file that was simulated, relative to the repository root." },
+    "circuit": { "type": "string", "minLength": 1, "maxLength": 1000, "description": "Path of the circuit file that was simulated, relative to the repository root." },
     "scenario": { "$ref": "#/$defs/id", "description": "Id of the scenario that drove the simulation." },
     "signals": {
       "type": "array",
       "minItems": 1,
+      "maxItems": 100000,
       "uniqueItems": true,
       "items": { "$ref": "#/$defs/signal" },
       "description": "Every net and every element output that was simulated, in display order."
@@ -21,15 +22,18 @@
     "steps": {
       "type": "array",
       "minItems": 1,
+      "maxItems": 10000,
       "items": { "$ref": "#/$defs/step" }
     },
     "changes": {
       "type": "array",
+      "maxItems": 1000000,
       "items": { "$ref": "#/$defs/change" },
       "description": "Every change of level, from the all-X start, sorted by time. With zero delay all of a step's changes happen at its start time."
     },
     "forced": {
       "type": "array",
+      "maxItems": 1000,
       "items": { "$ref": "#/$defs/forced" },
       "description": "Optional. The nets the scenario forced and the steps (inclusive) over which they were held, so renderers can mark forced stretches. The step values and changes already record the forced level."
     },
@@ -39,15 +43,16 @@
       "additionalProperties": false,
       "properties": {
         "fsm": { "$ref": "#/$defs/id", "description": "Id of the fsm the circuit was built from." },
-        "bits": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/signal" }, "description": "The state bit signals, most significant first." },
+        "bits": { "type": "array", "minItems": 1, "maxItems": 256, "items": { "$ref": "#/$defs/signal" }, "description": "The state bit signals, most significant first." },
         "codes": {
           "type": "object",
           "propertyNames": { "$ref": "#/$defs/id" },
-          "additionalProperties": { "type": "string", "pattern": "^[01]+$" },
+          "additionalProperties": { "type": "string", "maxLength": 256, "pattern": "^[01]+$" },
           "description": "State id to code."
         },
         "names": {
           "type": "array",
+          "maxItems": 10000,
           "items": { "oneOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
           "description": "The state at the end of each step: the id whose code the bits hold, or null when they hold no state's code (X, or an unused code)."
         }
@@ -56,14 +61,16 @@
     },
     "warnings": {
       "type": "array",
+      "maxItems": 100000,
       "items": { "$ref": "#/$defs/warning" },
       "description": "Problems met while simulating, such as a combinational loop. A signal in a loop is reported and left at X; the simulator never hangs."
     }
   },
   "$defs": {
-    "id": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" },
+    "id": { "type": "string", "maxLength": 1024, "pattern": "^[A-Za-z][A-Za-z0-9_]*$" },
     "signal": {
       "type": "string",
+      "maxLength": 2048,
       "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_+-]+)?$",
       "description": "A net id, or \"element.pin\" for an element output."
     },
@@ -74,7 +81,7 @@
       "additionalProperties": false,
       "properties": {
         "index": { "type": "integer", "minimum": 0, "description": "Position of the matching step in the scenario." },
-        "label": { "type": "string", "description": "Copied from the scenario step." },
+        "label": { "type": "string", "maxLength": 1000, "description": "Copied from the scenario step." },
         "start": { "type": "integer", "minimum": 0 },
         "end": { "type": "integer", "minimum": 1 },
         "values": {
@@ -110,9 +117,9 @@
       "required": ["kind", "step", "signals"],
       "additionalProperties": false,
       "properties": {
-        "kind": { "enum": ["loop"] },
+        "kind": { "enum": ["loop", "derived_clock"], "description": "loop: feedback that never settled. derived_clock (schema 0.1.1): the clock of a flip-flop comes from another element with zero delay, so it can race with the data." },
         "step": { "type": "integer", "minimum": 0 },
-        "signals": { "type": "array", "items": { "$ref": "#/$defs/signal" }, "minItems": 1 },
+        "signals": { "type": "array", "items": { "$ref": "#/$defs/signal" }, "minItems": 1, "maxItems": 200000 },
         "message": { "type": "string" }
       }
     }

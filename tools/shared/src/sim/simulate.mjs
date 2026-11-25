@@ -1,8 +1,8 @@
 // The four-valued logic simulator: simulate(circuit, scenario, options) -> trace.
 //
 // Plain JavaScript, no dependencies, no file access: runs in the browser, under
-// Node and under Deno. Reads circuit/0.2 or 0.3 and scenario/0.1 or 0.2 objects
-// and returns a trace/0.1 object (see schema/).
+// Node and under Deno. Reads circuit/0.2 to 0.4 (0.4 instances are flattened
+// first, see flatten.mjs) and scenario/0.1 or 0.2, and returns a trace/0.1.
 //
 // How it works, in brief:
 // - Nets come from circuit.nets. A closed switch joins its two nets into one
@@ -19,12 +19,13 @@
 //   `loop` warning: never a hang and never an error. A loop that settles is
 //   not reported; it is ordinary feedback.
 // - scenario/0.2 `initial` sets the stored state of named flip-flops and
-//   latches before step 0; the start of step 0 is never a clock edge (signals
-//   leave the all-X start without an edge). `force` holds a net's group at a
+//   latches before step 0; the first known level of a clock is where it starts,
+//   never an edge. `force` holds a net's group at a
 //   level over a range of steps, beating every driver; the trace lists the
 //   forced stretches in `forced`.
 
 import { MODELS, CONNECTORS } from "./logic.mjs";
+import { flatten } from "./flatten.mjs";
 
 const LEVELS = new Set(["0", "1", "X", "Z"]);
 /** Rounds at one instant before a loop is declared unsettled (scaled by circuit size). */
@@ -32,8 +33,16 @@ const ROUNDS_PER_ELEMENT = 4;
 /** Total output events in one run before a still-running loop is forced to X. */
 const EVENT_BUDGET = 200000;
 
+/** The most steps times nets in one run (a run stores every net's level at every step). */
+export const STEP_NET_BUDGET = 1000000;
+/** The formats' limits (schema/scenario and trace), so a run never returns a trace that is not valid. */
+const MAX_STEPS = 10000;
+const MAX_SIGNALS = 100000;
+const MAX_CHANGES = 1000000;
+
 /** Which elements are simulated, and which are drawn only. */
 export function describe(circuit) {
+  circuit = flatten(circuit);
   const simulated = [];
   const notSimulated = [];
   for (const e of circuit.elements ?? []) {
@@ -55,19 +64,71 @@ function delayFor(element, pin, options) {
 }
 
 /**
+ * Throw if the scenario breaks a rule the run depends on. The validators
+ * (validate/formats.*) check these too, but a caller need not have run them.
+ * Repeated here because this folder imports nothing outside itself.
+ */
+function checkRun(circuit, scenario) {
+  const nets = circuit.nets ?? {};
+  const netCount = Object.keys(nets).length;
+  const stepCount = scenario.steps.length;
+  if (stepCount === 0) throw new Error("scenario has no steps");
+  if (stepCount > MAX_STEPS) throw new Error(`scenario is too large to simulate: ${stepCount} steps is more than ${MAX_STEPS}`);
+  if (stepCount * netCount > STEP_NET_BUDGET) {
+    throw new Error(`scenario is too large to simulate: ${stepCount} steps times ${netCount} nets is more than ${STEP_NET_BUDGET}`);
+  }
+  const ports = new Map((circuit.ports ?? []).map((p) => [p.id, p]));
+  for (const name of scenario.inputs) {
+    if (ports.get(name)?.dir !== "in") throw new Error(`scenario input "${name}" is not an input port of the circuit`);
+  }
+  const inputs = new Set(scenario.inputs);
+  scenario.steps.forEach((step, i) => {
+    if (!Number.isInteger(step.duration) || step.duration < 1) {
+      throw new Error(`scenario step ${i}: duration must be a whole number of at least 1, not ${JSON.stringify(step.duration)}`);
+    }
+    for (const [name, level] of Object.entries(step.values)) {
+      if (!inputs.has(name)) throw new Error(`scenario step ${i} sets "${name}", which is not listed in inputs`);
+      if (!LEVELS.has(level)) throw new Error(`scenario step ${i} sets "${name}" to ${JSON.stringify(level)}`);
+    }
+  });
+  for (const name of inputs) {
+    if (!Object.hasOwn(scenario.steps[0].values, name)) throw new Error(`scenario step 0 must set every input, but "${name}" is missing`);
+  }
+  for (const f of scenario.force ?? []) {
+    if (!Object.hasOwn(nets, f.net)) throw new Error(`scenario force names "${f.net}", which is not a net of the circuit`);
+    if (!LEVELS.has(f.level)) throw new Error(`scenario force on "${f.net}" has level ${JSON.stringify(f.level)}`);
+    for (const key of ["from", "to"]) {
+      const step = f[key];
+      if (key === "to" && step === undefined) continue;
+      if (!Number.isInteger(step) || step < 0 || step >= stepCount) {
+        throw new Error(`scenario force on "${f.net}": ${key} is step ${JSON.stringify(step)}, but the last step is ${stepCount - 1}`);
+      }
+    }
+    if (f.to < f.from) throw new Error(`scenario force on "${f.net}": to (${f.to}) is before from (${f.from})`);
+  }
+}
+
+/**
  * Simulate `circuit` driven by `scenario`.
  * options.delays: false or absent for zero delay; true for one time unit per
  * element output; or { default: n }. An element's own params.delay (a number,
  * or { pin: number }) overrides the default when delays are on.
  */
 export function simulate(circuit, scenario, options = {}) {
+  circuit = flatten(circuit); // circuit/0.4 instances become their modules' elements
+  checkRun(circuit, scenario);
   // ---- nets and groups --------------------------------------------------
   const netIds = Object.keys(circuit.nets ?? {});
   const netOfRef = new Map();
   for (const net of netIds) for (const ref of circuit.nets[net]) netOfRef.set(ref, net);
 
   const parent = new Map(netIds.map((n) => [n, n]));
-  const find = (n) => (parent.get(n) === n ? n : find(parent.get(n)));
+  const find = (n) => { // iterative, with path compression: a chain of switches can be long
+    let root = n;
+    while (parent.get(root) !== root) root = parent.get(root);
+    while (parent.get(n) !== root) { const next = parent.get(n); parent.set(n, root); n = next; }
+    return root;
+  };
   for (const e of circuit.elements ?? []) {
     if (e.type === "switch" && e.params?.closed === true) {
       const a = netOfRef.get(`${e.id}.1`);
@@ -84,10 +145,6 @@ export function simulate(circuit, scenario, options = {}) {
   }
 
   // ---- ports and elements -----------------------------------------------
-  const ports = new Map((circuit.ports ?? []).map((p) => [p.id, p]));
-  for (const name of scenario.inputs) {
-    if (ports.get(name)?.dir !== "in") throw new Error(`scenario input "${name}" is not an input port of the circuit`);
-  }
   const drivers = new Map(); // group -> [driver key]
   const addDriver = (group, key) => {
     if (!drivers.has(group)) drivers.set(group, []);
@@ -137,8 +194,6 @@ export function simulate(circuit, scenario, options = {}) {
   }
   const lastStep = scenario.steps.length - 1;
   const forces = (scenario.force ?? []).map((f) => {
-    if (!netOfRef.has(f.net) && !(f.net in (circuit.nets ?? {}))) throw new Error(`scenario force names "${f.net}", which is not a net of the circuit`);
-    if (!LEVELS.has(f.level)) throw new Error(`scenario force on "${f.net}" has level ${JSON.stringify(f.level)}`);
     return { net: f.net, group: groupOf(f.net), level: f.level, from: f.from, to: f.to ?? lastStep };
   });
   for (let i = 0; i < forces.length; i++) for (let j = i + 1; j < forces.length; j++) {
@@ -152,6 +207,7 @@ export function simulate(circuit, scenario, options = {}) {
   // ---- signals and state ------------------------------------------------
   const outputSignals = elements.flatMap((el) => el.outputs.map((o) => o.key));
   const signals = [...netIds, ...outputSignals];
+  if (signals.length > MAX_SIGNALS) throw new Error(`circuit is too large to simulate: ${signals.length} signals is more than ${MAX_SIGNALS}`);
   const driven = new Map(); // driver key -> level it drives now
   for (const name of scenario.inputs) driven.set(`port:${name}`, "X");
   for (const key of outputSignals) driven.set(key, "X");
@@ -175,6 +231,24 @@ export function simulate(circuit, scenario, options = {}) {
 
   const warnings = [];
 
+  // A flip-flop clocked by a gate or another flip-flop with no delay in between:
+  // at one instant the clock can arrive a round later than a data input that
+  // the same event changes, so the flip-flop may capture the new data.
+  const outputOf = new Map(elements.flatMap((el) => el.outputs.map((o) => [o.key, { el, o }])));
+  const raced = elements.filter((el) => el.model.edgeTriggered && (drivers.get(el.inputGroups.CLK) ?? []).some((key) => {
+    const out = outputOf.get(key);
+    return out && out.el.inputPins.length > 0 && out.o.delay === 0; // vdd and ground never change
+  }));
+  if (raced.length) {
+    const pins = raced.map((el) => `${el.element.id}.CLK`);
+    warnings.push({
+      kind: "derived_clock",
+      step: 0,
+      signals: [...new Set(pins.map((pin) => netOfRef.get(pin)))],
+      message: `${pins.join(", ")}: the clock comes from another element with zero delay, not straight from a port, so it can race with the data`,
+    });
+  }
+
   // ---- event loop -------------------------------------------------------
   const queue = new Map(); // time -> [{ key, value }]
   const schedule = (t, key, value) => {
@@ -184,7 +258,6 @@ export function simulate(circuit, scenario, options = {}) {
   const maxRounds = ROUNDS_PER_ELEMENT * elements.length + 10;
   let events = 0;
   let frozen = new Set();
-  let atStart = false; // the first instant of step 0: clocks leave X without an edge
   const changes = [];
   const lastRecorded = new Map(signals.map((s) => [s, "X"]));
   const steps = [];
@@ -198,7 +271,7 @@ export function simulate(circuit, scenario, options = {}) {
       // An optional control pin left unconnected is inactive, not floating.
       inputs[pin] = g === null && pin in optional ? optional[pin] : levelOfGroup(g);
     }
-    const out = el.model.evaluate(inputs, el.state, el.element.params ?? {}, { start: atStart });
+    const out = el.model.evaluate(inputs, el.state, el.element.params ?? {});
     for (const o of el.outputs) {
       const v = out[o.pin];
       if (!LEVELS.has(v)) throw new Error(`model ${el.element.type} gave ${JSON.stringify(v)} for ${o.pin}`);
@@ -310,6 +383,7 @@ export function simulate(circuit, scenario, options = {}) {
     for (const s of signals) {
       const v = signalLevel(s);
       if (v !== lastRecorded.get(s)) {
+        if (changes.length >= MAX_CHANGES) throw new Error(`more than ${MAX_CHANGES} changes of level by t=${t}; shorten the scenario`);
         changes.push({ t, signal: s, value: v });
         lastRecorded.set(s, v);
       }
@@ -338,9 +412,7 @@ export function simulate(circuit, scenario, options = {}) {
     for (;;) {
       const times = [...queue.keys()].filter((t) => t < end).sort((a, b) => a - b);
       if (times.length === 0) break;
-      atStart = stepIndex === 0 && times[0] === 0;
       instant(times[0], stepIndex, first);
-      atStart = false;
       first = false;
     }
     const values = {};
