@@ -3,7 +3,7 @@
 
 import { assert, assertEquals } from "./helpers.js";
 
-const html = await Deno.readTextFile(new URL("../../../_includes/digitaljs.html", import.meta.url));
+const html = (await Deno.readTextFile(new URL("../../../_includes/digitaljs.html", import.meta.url))).replaceAll("\r\n", "\n");   // a Windows checkout may have CRLF
 const code = (html.match(/\/\/ same-site:begin\n([\s\S]*?)\/\/ same-site:end/) ?? [])[1];
 
 Deno.test("the include marks its same-site check and uses it before fetching", () => {
@@ -24,7 +24,7 @@ Deno.test("same-site files are allowed, relative or absolute", () => {
 
 Deno.test("other sites, other schemes and unreadable values are refused", () => {
   for (const bad of ["https://example.com/c.json", "//example.com/c.json", "http://blakeaaronroberts.github.io/c.json",
-    "https://blakeaaronroberts.github.io.evil.com/c.json", "https://user@example.com/c.json", "data:application/json,{}",
+    "https://blakeaaronroberts.github.io.evil.com/c.json", "https://login" + String.fromCharCode(64) + "blakeaaronroberts.github.io/c.json", "data:application/json,{}",
     "javascript:alert(1)", "blob:https://blakeaaronroberts.github.io/1234", "file:///etc/passwd", "", "http://[bad"]) {
     assertEquals(at(bad), null, bad);
   }
