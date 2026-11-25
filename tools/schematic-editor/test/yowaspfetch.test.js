@@ -1,5 +1,5 @@
 // F22.1c: the fetch wrapper that answers the vendored YoWASP bundle's five fixed file requests from pre-gzipped files
-// (tools/shared/src/yowasp-fetch.js). A fake `fetch` stands in for the host; no engine runs here (see sveengine.test.js).
+// (tools/shared/src/yowasp-fetch.js). A fake `fetch` stands in for the host; no engine runs here (see svengine.test.js).
 
 import { ENGINE_FILES, EngineError, installYowaspFetch } from "../../shared/src/yowasp-fetch.js";
 import { assert, assertEquals } from "./helpers.js";
