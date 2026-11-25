@@ -1,0 +1,27 @@
+/* L1.2 K-map. Roles only: --role-* for the page, --fig-* (the universal figure theme) for the group colours. */
+.km-ctl { display: block; margin: 0.4rem 0; font-size: 0.9rem; }
+.km-ctl select { font: inherit; padding: 0.2rem 0.5rem; color: var(--role-ink); background: var(--role-surface); border: 1px solid var(--role-rule); border-radius: 4px; margin-left: 0.4rem; max-width: 100%; }
+.km-field { font-family: var(--bs-font-monospace); font-size: 0.85rem; padding: 0.2rem 0.5rem; color: var(--role-ink); background: var(--role-background); border: 1px solid var(--role-rule); border-radius: 4px; width: 14rem; max-width: 100%; }
+.km-svg { display: block; max-width: 100%; height: auto; }
+.km-svg text { font-family: var(--bs-font-monospace); fill: var(--role-ink); }
+.km-svg .km-muted { fill: var(--role-muted); }
+.km-svg .km-cell rect { fill: var(--role-surface); stroke: var(--role-rule); stroke-width: 1; }
+.km-svg .km-cell:hover rect, .km-svg .km-cell:focus-visible rect { stroke: var(--role-accent); stroke-width: 2; }
+.km-svg .km-cell { cursor: pointer; outline: none; }
+.km-svg .km-x { font-style: italic; }
+.km-svg .km-line { fill: none; stroke-width: 2.5; stroke-linecap: round; }
+.km-svg .km-badge { font-weight: 700; font-size: 11px; }
+.km-g0 { stroke: var(--fig-high); color: var(--fig-high); fill: var(--fig-high); }
+.km-g1 { stroke: var(--fig-accent); color: var(--fig-accent); fill: var(--fig-accent); }
+.km-g2 { stroke: var(--fig-flow); color: var(--fig-flow); fill: var(--fig-flow); }
+.km-g3 { stroke: var(--fig-unknown); color: var(--fig-unknown); fill: var(--fig-unknown); }
+.km-g4 { stroke: var(--fig-highlight); color: var(--fig-highlight); fill: var(--fig-highlight); }
+.km-svg text.km-g0, .km-svg text.km-g1, .km-svg text.km-g2, .km-svg text.km-g3, .km-svg text.km-g4 { stroke: none; }
+.km-legend { list-style: none; padding: 0; margin: 0.4rem 0; }
+.km-legend li { display: grid; grid-template-columns: 3rem minmax(7rem, 1fr) minmax(0, 2fr); gap: 0.6rem; align-items: baseline; padding: 0.25rem 0; border-bottom: 1px dotted var(--role-rule); }
+.km-legend svg { width: 2.6rem; height: 0.9rem; }
+.km-legend .km-cells { color: var(--role-muted); font-size: 0.85rem; }
+.km-eq { overflow-x: auto; margin: 0.4rem 0; }
+.an-side [hidden], .an-results [hidden] { display: none; }
+.an-link { align-self: center; color: var(--role-accent); font-size: 0.9rem; }
+.km-ctl[hidden] { display: none; }

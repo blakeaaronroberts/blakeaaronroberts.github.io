@@ -3,7 +3,7 @@
 
 import { solve, prove, checkChoice, GOALS, LAWS, outputNameOf } from "./solver.js";
 import { el, button, copyText, download, fileName, plural, typeset } from "../../common/src/ui.js";
-import { expressionOfFunction, circuitFor, sendToFigureEditor } from "../../common/src/handoff.js";
+import { expressionOfFunction, circuitFor, sendToFigureEditor, kmapHref } from "../../common/src/handoff.js";
 import { fromExpression, checkFunction, RULES } from "../../analyze/model/logic/index.mjs";
 
 const SAMPLES = {
@@ -97,6 +97,7 @@ export function mount(root, { schemaUrl = "../analyze/model/schema/function.sche
         try { const f = fn(); if (schema) { const p = checkFunction(schema, f); if (p.length) throw new Error(p[0]); } download(`${fileName(name)}.function.json`, JSON.stringify(f, null, 2) + "\n"); }
         catch (e) { say(`Could not make the function file: ${e.message}`, true); }
       }, "The result as a function/0.1 file, for the truth table generator and the other logic tools"),
+      ...(kmapHref(r.final, { name, kind: r.goal === "pos" ? "pos" : "sop", variables: r.variables }) ? [el("a", { className: "an-link", href: kmapHref(r.final, { name, kind: r.goal === "pos" ? "pos" : "sop", variables: r.variables }), target: "_blank", rel: "noopener", textContent: "Open in K-map tool" })] : []),
       button("Open in Figure Editor", () => {
         const c = circuitFor(r.final, { id: `${name}_solved`, output: name, variables: r.variables, title: `${name} (${GOALS[r.goal] ?? r.goal})` });
         if (c.error) { say(`Could not build the circuit: ${c.error}`, true); return; }

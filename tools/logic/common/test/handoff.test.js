@@ -48,3 +48,10 @@ Deno.test("round trip across the tools: truth table -> function file -> solver r
   const back = fromExpression(r.final, { id: "Y", output: "Y", variables: r.variables });
   assertEquals(back.table, fn.table);
 });
+
+import { kmapHref } from "../src/handoff.js";
+Deno.test("K-map link: carries the named expression and the kind; none for more than 4 inputs", () => {
+  const u = new URL(kmapHref("A'B + C", { name: "Y", kind: "pos", variables: ["A", "B", "C"] }), "https://x.test/tools/logic/solver/");
+  assertEquals([u.pathname, u.searchParams.get("expr"), u.searchParams.get("kind")], ["/tools/logic/kmap/", "Y = A'B + C", "pos"]);
+  assertEquals(kmapHref("A + B + C + D + E", { variables: ["A", "B", "C", "D", "E"] }), null);
+});

@@ -4,7 +4,7 @@
 import { analyseText, CAP } from "./analyze.js";
 import { shownCell, bestText, circuitFile, csv, functionFile, latexEquations, latexTable, markdown, verilogAssign } from "./export.js";
 import { checkAnswer } from "./check.js";
-import { sendToFigureEditor, solverHref, expressionOfFunction } from "../../common/src/handoff.js";
+import { sendToFigureEditor, solverHref, kmapHref, expressionOfFunction } from "../../common/src/handoff.js";
 
 const EXPRESSION_SAMPLES = {
   "Half adder (expressions)": "S = A ^ B\nC = AB\n",
@@ -137,7 +137,7 @@ function exportView(r) {
     button("Copy Verilog assign", (b) => copyText(verilogFor(r), b), "From the minimal form that costs least"),
     button("Download function files", () => r.groups.forEach((g) => g.functions.forEach((fn) => download(`${(fn.output ?? fn.id).replace(/[^A-Za-z0-9_-]/g, "_")}.function.json`, functionFile(fn)))), "One function/0.1 file per output bit, for the other logic tools"),
   );
-  box.append(bar, el("p", { className: "an-hint", textContent: "Each form below can be opened in the Boolean solver or the Figure Editor. The K-map tool is not built yet; it will read the function files." }));
+  box.append(bar, el("p", { className: "an-hint", textContent: "Each form below can be opened in the K-map tool, the Boolean solver or the Figure Editor." }));
   return box;
 }
 
@@ -175,6 +175,7 @@ function formCard(f, fn, r) {
       if (m) alert(m);
     }, "Opens the minimal form's circuit in a new tab. Keep this tab open until it has loaded."),
     el("a", { className: "an-link", href: solverHref((pos ? f.minimal.pos : f.minimal.sop)[0].text, { goal: pos ? "pos" : "sop" }), target: "_blank", rel: "noopener", textContent: "Open in Boolean solver", title: "The minimal form, worked step by step in a new tab" }),
+    ...(kmapHref((pos ? f.minimal.pos : f.minimal.sop)[0].text, { name: f.name, kind: pos ? "pos" : "sop", variables: fn.variables }) ? [el("a", { className: "an-link", href: kmapHref((pos ? f.minimal.pos : f.minimal.sop)[0].text, { name: f.name, kind: pos ? "pos" : "sop", variables: fn.variables }), target: "_blank", rel: "noopener", textContent: "Open in K-map tool" })] : []),
   );
   card.append(bar);
   return card;

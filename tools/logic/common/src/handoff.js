@@ -29,3 +29,7 @@ export function sendToFigureEditor(circuitText, { editor = "../../figure-editor/
   if (!w) { URL.revokeObjectURL(blob); return "The browser blocked the new tab. Allow pop-ups for this site, or download the circuit and use the editor's Open command."; }
   return null;
 }
+
+/** A link to the K-map tool with a named expression filled in, or null when the function has more inputs than a map takes (4). */
+export const kmapHref = (expression, { name = "F", kind = "sop", variables = null, from = "../kmap/" } = {}) =>
+  variables && variables.length > 4 ? null : `${from}?expr=${encodeURIComponent(`${name} = ${expression}`)}&kind=${kind}`;

@@ -4,7 +4,7 @@
 import { CAP, parseVariableList, fromExpressions, blank, nextCell, setCell, setVariables, setOutputNames, addOutput, removeOutput, groupOf, listsOf, toFunctions, fromFunctions, markdownTable, latexTable, csvTable, shownCell } from "./table.js";
 import { functionFile } from "../../analyze/src/export.js";
 import { el, button, fileName, plural, copyText, download } from "../../common/src/ui.js";
-import { circuitFor, sendToFigureEditor, solverHref, expressionOfFunction } from "../../common/src/handoff.js";
+import { circuitFor, sendToFigureEditor, solverHref, kmapHref, expressionOfFunction } from "../../common/src/handoff.js";
 
 const SAMPLES = {
   "Exclusive OR": "F = A ^ B\n",
@@ -124,10 +124,11 @@ export function mount(root, { schemaUrl = "../analyze/model/schema/function.sche
           say(m ?? "Opened the Figure Editor in a new tab. Keep this tab open until the circuit has loaded.", !!m);
         }, "Opens a circuit for this output (its smallest sum of products, or the expression it came from) in a new tab"),
         el("a", { className: "an-link", href: solverHref(text, { goal: "sop", from: "../solver/" }), target: "_blank", rel: "noopener", textContent: "Boolean solver", title: "Opens the expression in the step-by-step solver in a new tab" }),
+        ...(kmapHref(text, { name, variables: fn.variables }) ? [el("a", { className: "an-link", href: kmapHref(text, { name, variables: fn.variables }), target: "_blank", rel: "noopener", textContent: "K-map tool", title: "Opens the function on a K-map in a new tab" })] : []),
       );
       send.append(row);
     }
-    box.append(send, el("p", { className: "an-hint", textContent: "The K-map tool is not built yet; it will read the function files." }));
+    box.append(send, el("p", { className: "an-hint", textContent: "Function files made here open in the K-map tool and the analyser." }));
     return box;
   }
 
