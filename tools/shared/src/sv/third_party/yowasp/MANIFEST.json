@@ -1,0 +1,66 @@
+{
+  "note": "Written by tools/shared/scripts/copy-yowasp.js. Do not edit this folder by hand.",
+  "package": "@yowasp/yosys",
+  "version": "0.71.1284",
+  "integrity": "sha512-sEqbe2F1XgBk/pkykD8YBAF1/3BvyT6DgeJjzZEubo+piXAkFq/ih9WmXuplrpXtTQ6iHkQg6BbBxBgZYFfHWg==",
+  "license": "ISC",
+  "yosys": "Yosys 0.71, git sha1 b4c586fd3",
+  "licenses": "../NOTICES.md",
+  "files": [
+    {
+      "name": "bundle.js",
+      "bytes": 591988,
+      "sha256": "84d3d9df6e90ac58a7a8a2c685d5b399c3be217362347d8d7562784bce2c754a"
+    },
+    {
+      "name": "yosys.core.wasm.gz",
+      "bytes": 17044483,
+      "sha256": "a05c5887091046c26e9be234495e9c23afc2bfbf61aa487beebd1b6f73bba362",
+      "raw": {
+        "name": "yosys.core.wasm",
+        "bytes": 74923157,
+        "sha256": "861c8e43c8732a30a0dcfa356ebdc9a7fff90e82b01fc937995597dd372da95f"
+      }
+    },
+    {
+      "name": "yosys.core2.wasm.gz",
+      "bytes": 10326,
+      "sha256": "fb427fd249c03fb8bc336913744d88e7260ca0151bf15030406b1578a162fbe2",
+      "raw": {
+        "name": "yosys.core2.wasm",
+        "bytes": 30318,
+        "sha256": "bda3e10da5e7597e3375ba9d20cb6a46c2b5b86e88db8ffb14ebe1a0adaef194"
+      }
+    },
+    {
+      "name": "yosys.core3.wasm.gz",
+      "bytes": 681,
+      "sha256": "b1d008fee5774ec099c366b56bda4d0b930d0524d7b2ac778d65fd0776296b69",
+      "raw": {
+        "name": "yosys.core3.wasm",
+        "bytes": 1409,
+        "sha256": "51cca9809794efc1116b347e3f3cbb498f1645c54ec7518d5c7598363c44d2f2"
+      }
+    },
+    {
+      "name": "yosys.core4.wasm.gz",
+      "bytes": 412,
+      "sha256": "4ed749683d7eaf7a8b9ef4d731c08423a83c1c4c341508bc72f0d31678eb1c38",
+      "raw": {
+        "name": "yosys.core4.wasm",
+        "bytes": 999,
+        "sha256": "ae238bafb188cc90e48e0ae289335715301432f344cc6eded5f2496e68a4e99b"
+      }
+    },
+    {
+      "name": "yosys-resources.0.tar.gz",
+      "bytes": 856245,
+      "sha256": "70e5248d9bdf97ef4e58724e8a828d00fa47c1b59f88a4f1098732b59ff4b8b4",
+      "raw": {
+        "name": "yosys-resources.0.tar",
+        "bytes": 10598400,
+        "sha256": "6df9de28d08573b508857f4b93ec12281c0b1b69e3835b0f606a8e6a4d78fc7a"
+      }
+    }
+  ]
+}

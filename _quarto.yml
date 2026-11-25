@@ -49,6 +49,14 @@ website:
             href: tools/schematic-editor/index.qmd
           - text: Timing Diagram
             href: tools/timing-diagram/index.qmd
+          - text: Truth Table (draft)
+            href: tools/logic/truth-table/index.qmd
+          - text: K-map (draft)
+            href: tools/logic/kmap/index.qmd
+          - text: Boolean Solver (draft)
+            href: tools/logic/solver/index.qmd
+          - text: Circuit Analyser (draft)
+            href: tools/logic/analyze/index.qmd
     right:
       - icon: github
         href: https://github.com/blakeaaronroberts

@@ -67,3 +67,26 @@ Deno.test("the old beta URL is kept out of search (tools/_metadata.yml) and its 
   assert(/robots"\s+content="noindex"/.test(await text("_includes/noindex.html")));
   assert(!/include-in-header/.test(await text("tools/figure-editor-beta/index.qmd")), "the beta page overrides include-in-header");
 });
+
+// F22.1c-0: the Yosys engine (@yowasp/yosys, pinned by npm integrity, not by a circuit-model tag) is committed gzipped. The .gz bytes
+// are checked against the MANIFEST, and so is what gunzip gives back (zlib builds can compress to different bytes, never to different content).
+Deno.test("the Yosys engine copy (tools/shared/src/sv/third_party/yowasp/) matches its MANIFEST, raw and gzipped", async () => {
+  const dir = "tools/shared/src/sv/third_party/yowasp/";
+  const manifest = JSON.parse(await text(dir + "MANIFEST.json"));
+  assertEquals([manifest.package, manifest.version, manifest.license], ["@yowasp/yosys", "0.71.1284", "ISC"]);
+  assertEquals(manifest.integrity, "sha512-sEqbe2F1XgBk/pkykD8YBAF1/3BvyT6DgeJjzZEubo+piXAkFq/ih9WmXuplrpXtTQ6iHkQg6BbBxBgZYFfHWg==", "the integrity recorded in circuit-model DECISIONS (C11.0b)");
+  assertEquals(manifest.files.map((f) => f.name).sort(), ["bundle.js", "yosys-resources.0.tar.gz", "yosys.core.wasm.gz", "yosys.core2.wasm.gz", "yosys.core3.wasm.gz", "yosys.core4.wasm.gz"]);
+  assertEquals(await verifyManifest(manifest, (n) => read(dir + n)), []);
+  for (const f of manifest.files) {
+    assert(f.bytes < 50 * 1024 * 1024, `${f.name} is over GitHub's 50 MB warning`);
+    if (!f.raw) { assertEquals(f.name, "bundle.js"); continue; }
+    const unpacked = new Uint8Array(await new Response(new Blob([await read(dir + f.name)]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
+    assertEquals([unpacked.length, await sha(unpacked)], [f.raw.bytes, f.raw.sha256], `${f.name} unpacked`);
+  }
+});
+
+Deno.test("copy-yowasp.js is the only writer, and it names the same pin as the test", async () => {
+  const script = await text("tools/shared/scripts/copy-yowasp.js");
+  const manifest = JSON.parse(await text("tools/shared/src/sv/third_party/yowasp/MANIFEST.json"));
+  assert(script.includes(manifest.integrity) && script.includes(`"${manifest.version}"`), "copy-yowasp.js and the MANIFEST name different pins");
+});

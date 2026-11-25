@@ -1,7 +1,8 @@
 # Pinned copies are byte-exact (each MANIFEST.json records every file's SHA-256, checked by
 # tools/schematic-editor/test/manifests.test.js). Keep git from converting line endings on checkout.
-tools/schematic-editor/symbol-pack/** -text
-tools/shared/src/sim/** -text
-tools/shared/test/model/** -text
-tools/logic/analyze/model/** -text
+tools/schematic-editor/symbol-pack/** text eol=lf
+tools/shared/src/sim/** text eol=lf
+tools/shared/test/model/** text eol=lf
+tools/logic/analyze/model/** text eol=lf
 tools/shared/src/sv/** -text
+# (tools/shared/src/sv/** stays -text: it holds binary .gz files.)

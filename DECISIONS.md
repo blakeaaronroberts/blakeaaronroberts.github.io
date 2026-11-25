@@ -2,6 +2,19 @@
 
 Notable choices for this repository (VISION.md §7): date, decision, reason. Newest first.
 
+## 2026-11-25: Yosys engine for behavioural SystemVerilog import (F22.1c)
+
+**Decision.**
+- `@yowasp/yosys` **0.71.1284** (npm integrity `sha512-sEqbe2F1XgBk/pkykD8YBAF1/3BvyT6DgeJjzZEubo+piXAkFq/ih9WmXuplrpXtTQ6iHkQg6BbBxBgZYFfHWg==`, the pin in circuit-model's DECISIONS C11.0b; Yosys 0.71, git b4c586fd3) is committed as gzipped copies in `tools/shared/src/sv/third_party/yowasp/` (`bundle.js` as published; `yosys.core*.wasm` and `yosys-resources.0.tar` as `.gz`, 18.5 MB in all), with a MANIFEST of the SHA-256 of every file and of the raw file inside each `.gz`. The raw 75 MB binary is not committed.
+- `tools/shared/scripts/copy-yowasp.js` is the only writer: it refuses a tarball whose sha512 is not the pin. `manifests.test.js` checks the committed bytes and that gunzip gives the recorded raw hash.
+- The files are served by this site only and loaded on demand, in the import Worker, through a fetch wrapper (`tools/shared/src/yowasp-fetch.js`) that answers the bundle's five fixed file requests from the `.gz`. The vendored package is not edited.
+- Licences: ISC for YoWASP (Catherine), Yosys (Claire Xenia Wolf) and yosys-slang (Martin Povišer), plus the components listed in `tools/shared/src/sv/third_party/NOTICES.md` (circuit-model's file, shipped beside the files and linked from the Import panel). The resources tar is shipped byte-exact; it holds ten third-party authors' email addresses in file headers (Blake accepted this, 2026-11-25).
+- **Open for the IP Inspector (circuit-model's file, not changed here):** `NOTICES.md` has no sections for `ezsat`, `subcircuit` or WASI libc, which circuit-model's DECISIONS (C11.0 d) names among the YoWASP licences; the Yosys techlib `.v` files in the tar were not read one by one; the IEEE `vpi_user.h` flag.
+
+**Measured on Pages (2026-11-25, first deploy of the files).** Every `.gz` is served as `Content-Type: application/gzip` with no `Content-Encoding`, so the bytes on the wire are the file sizes: `yosys.core.wasm.gz` 17,044,483, `yosys-resources.0.tar.gz` 856,245, the three small `.wasm.gz` 11,419 together, `bundle.js` 56,383 (Pages gzips JavaScript): 17,968,530 bytes (17.97 MB) in all. `Cache-Control: max-age=600`, `Access-Control-Allow-Origin: *`; a ranged request returns the whole file. 0.86 to 1.11 s for the big file here (15 to 20 MB/s; this link only).
+
+**Why.** Behavioural code needs synthesis (engine memo). Pre-gzipped files do not depend on how Pages compresses, and Pages sends a `.gz` untouched (measured for slang, 2026-11-25). Cost: about 18 MB in git history, and again for each Yosys version.
+
 ## 2026-11-24: Pinned copies checked in CI, same-site circuits, WaveDrom skin notice (F25.2 to F25.4)
 
 **Decision.**
@@ -31,6 +44,7 @@ them again.
 | Okabe-Ito palette | n/a | a published colour set, not code | figures | in the repository |
 | Quarto and its bundled OJS runtime, Bootstrap | 1.11.9 | MIT and others, each bundled with its notice | build tool; `site_libs/` | built into the site |
 | circuit-model (simulator, validator, symbol pack) | model-v0.9.0, symbols-v0.3.0 | Blake's own; licence undecided (VISION.md §3) | the editors | copied into `tools/`, pinned by tag and hash |
+| `@yowasp/yosys` (Yosys with yosys-slang, WebAssembly) | 0.71.1284 | ISC, with the components in `third_party/NOTICES.md` | Import SystemVerilog, behavioural code (F22.1c) | this site, on demand, pre-gzipped, pinned by npm integrity and MANIFEST |
 | `assets/wavedrom/lecture.js` | n/a | a restyled copy of WaveDrom's default skin (MIT) | WaveDrom pages | in the repository |
 
 **Delivery safeguards.**
