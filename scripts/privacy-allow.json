@@ -1,5 +1,5 @@
 {
   "_note": "Only Blake edits this file. emails: addresses Blake has put on the site himself. vendored: third-party files whose authors' own contact lines (licence headers, style credits) are not scanned for emails; phone and GPA checks still apply.",
   "emails": [],
-  "vendored": ["_csl/", "_site/site_libs/"]
+  "vendored": ["_csl/", "_site/site_libs/", "tools/shared/src/sv/", "_site/tools/shared/src/sv/"]
 }
