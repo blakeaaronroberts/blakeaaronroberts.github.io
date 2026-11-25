@@ -4,3 +4,4 @@ tools/schematic-editor/symbol-pack/** -text
 tools/shared/src/sim/** -text
 tools/shared/test/model/** -text
 tools/logic/analyze/model/** -text
+tools/shared/src/sv/** -text

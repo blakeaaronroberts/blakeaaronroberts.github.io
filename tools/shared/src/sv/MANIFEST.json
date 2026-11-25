@@ -1,0 +1,122 @@
+{
+  "note": "Written by tools/shared/scripts/copy-model.js. Do not edit this folder by hand.",
+  "source": "circuit-model",
+  "ref": "model-v0.14.0",
+  "commit": "319a6d963743689ba716dcec0fe57a8197c98de2",
+  "files": [
+    {
+      "name": "import/sv/index.mjs",
+      "from": "import/sv/index.mjs",
+      "bytes": 6859,
+      "sha256": "1002a9d42952b35254277e107ba3b611654fa71107a4c9ef8a8d180ee0c8b3f4"
+    },
+    {
+      "name": "import/sv/engines-browser.mjs",
+      "from": "import/sv/engines-browser.mjs",
+      "bytes": 2923,
+      "sha256": "e2be08fa8c57ae1eeb7694586f5ef851ee872d6ceac9928a5a851ff41a702942"
+    },
+    {
+      "name": "import/sv/engine-core.mjs",
+      "from": "import/sv/engine-core.mjs",
+      "bytes": 4569,
+      "sha256": "43a0179fb544dc7c8f12ad82a69746ffced4af27107e84c86f2d94e9e17ddc8e"
+    },
+    {
+      "name": "import/sv/map.mjs",
+      "from": "import/sv/map.mjs",
+      "bytes": 35769,
+      "sha256": "e9ee3edda34d8e847d831840a089723c2f7bca50919afc6c67af12331678cf8b"
+    },
+    {
+      "name": "import/sv/races.mjs",
+      "from": "import/sv/races.mjs",
+      "bytes": 3940,
+      "sha256": "a166ec629b134602529856e5cadc7665e7f9a3bfc72a3164ab763e2fe002159c"
+    },
+    {
+      "name": "import/sv/stimulus.mjs",
+      "from": "import/sv/stimulus.mjs",
+      "bytes": 36310,
+      "sha256": "46c7332e89e72498d00c74c4377de818d352a06ffd7ee0525abd5cc61960008d"
+    },
+    {
+      "name": "import/layout.mjs",
+      "from": "import/layout.mjs",
+      "bytes": 11522,
+      "sha256": "6bbecd009302f863dc062410ee10ff30a099d082d007914da9e396dc1fecb3f6"
+    },
+    {
+      "name": "analyze/combinational.mjs",
+      "from": "analyze/combinational.mjs",
+      "bytes": 15515,
+      "sha256": "87e3a840cb4a7908594bdbb41cfad7bc1cf3b4a4f945b0f8a141ef29632de5fa"
+    },
+    {
+      "name": "logic/expr.mjs",
+      "from": "logic/expr.mjs",
+      "bytes": 8528,
+      "sha256": "aea28468589b19d32187bea100fd00c2b2d15aab9f6dc9fd349ad142704f500b"
+    },
+    {
+      "name": "logic/function.mjs",
+      "from": "logic/function.mjs",
+      "bytes": 7911,
+      "sha256": "88938a0bd8218428fb00ccd45eb5fc631f5ac3976f16e009a78e45d65126a2fa"
+    },
+    {
+      "name": "logic/qm.mjs",
+      "from": "logic/qm.mjs",
+      "bytes": 6179,
+      "sha256": "1350dd3fe1b369544f90a5b9e6a8f1581998ace5bfc52e50bbaf7acb262a6f77"
+    },
+    {
+      "name": "sim/flatten.mjs",
+      "from": "sim/flatten.mjs",
+      "bytes": 4381,
+      "sha256": "cd89d9426e7165ccd0c3072466ea07f8efe96aec98809a01bd8832354487b91a"
+    },
+    {
+      "name": "sim/logic.mjs",
+      "from": "sim/logic.mjs",
+      "bytes": 10929,
+      "sha256": "606231bf09a4ba53cdd3c63a421ea24d3d83e3b37299c901e6ce097bdaa97729"
+    },
+    {
+      "name": "sim/simulate.mjs",
+      "from": "sim/simulate.mjs",
+      "bytes": 19352,
+      "sha256": "9acc60974d3efe0bdc44bb89b1169febb4b512bf1cf459a90dd7524afa902500"
+    },
+    {
+      "name": "validate/jsonschema.mjs",
+      "from": "validate/jsonschema.mjs",
+      "bytes": 6649,
+      "sha256": "53cd5b1c9833dea1af60da2ff39e7d903b0f2dc48172e90b18f6aa0750291dac"
+    },
+    {
+      "name": "third_party/slang/slang.mjs",
+      "from": "third_party/slang/slang.mjs",
+      "bytes": 63472,
+      "sha256": "3c13ff37b667e1ea9bdb791eab716c1a76cd6e7f6a6348d49a31a990c975a43e"
+    },
+    {
+      "name": "third_party/slang/slang.wasm.gz",
+      "from": "third_party/slang/slang.wasm.gz",
+      "bytes": 1492993,
+      "sha256": "4df964a14d8dbbbb6b3514fe14b8da26be2efba87288c48802c6617fbf212b65"
+    },
+    {
+      "name": "third_party/slang/README.md",
+      "from": "third_party/slang/README.md",
+      "bytes": 789,
+      "sha256": "cedf6c82746b3d29536d915fbbe27e12b2c170dd18491d7f9efbdf23b8cc84c7"
+    },
+    {
+      "name": "third_party/NOTICES.md",
+      "from": "third_party/NOTICES.md",
+      "bytes": 45108,
+      "sha256": "e0c2c85b2d9b02878142b54e7620541bdb266b0ce599bff9a65ea69cd6a77a3f"
+    }
+  ]
+}

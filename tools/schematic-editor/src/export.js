@@ -84,19 +84,47 @@ export function drawing(doc, pack, opts = {}) {
   const gap = geometry.label_gap_cm / geometry.module_cm;
   const ref = typeset.get(REFERENCE_TEX);
   const labels = [], problems = [], pending = [];
-  const put = (item, describe, size = em, itemGap = gap) => {
-    if (item.error) { problems.push(`${describe}: ${item.error}`); return; }
+  // Place one label: {ts, placed}, or null (with the reason in problems). `atSvg` and `dirSvg` override the item's own anchor (modules, y down).
+  const resolve = (item, describe, size = em, itemGap = gap, atSvg = null, dirSvg) => {
+    if (item.error) { problems.push(`${describe}: ${item.error}`); return null; }
     const ts = typeset.get(item.tex);
-    if (!ts) { pending.push(item.tex); problems.push(`${describe}: not typeset yet`); return; }
-    if (!ts.ok) { problems.push(`${describe}: ${ts.error}`); return; }
-    const dir = item.dir ? [item.dir[0], -item.dir[1]] : null;
-    const placed = placeLabel(ts, ref, toSvg(item.at), dir, size, itemGap);
-    const colour = item.kind === "tag" && opts.levelTagColour ? pack.levelColour(item.level) ?? ink : ink;
-    labels.push({ key: item.key, kind: item.kind, id: item.id, index: item.index, transform: placed.transform, box: placed.box, nodes: colourNodes(ts.nodes, colour) });
+    if (!ts) { pending.push(item.tex); problems.push(`${describe}: not typeset yet`); return null; }
+    if (!ts.ok) { problems.push(`${describe}: ${ts.error}`); return null; }
+    const dir = dirSvg !== undefined ? dirSvg : item.dir ? [item.dir[0], -item.dir[1]] : null;
+    return { ts, placed: placeLabel(ts, ref, atSvg ?? toSvg(item.at), dir, size, itemGap) };
   };
+  const keep = (item, r, size) => {
+    const colour = item.kind === "tag" && opts.levelTagColour ? pack.levelColour(item.level) ?? ink : ink;
+    labels.push({ key: item.key, kind: item.kind, id: item.id, index: item.index, transform: r.placed.transform, box: r.placed.box, nodes: colourNodes(r.ts.nodes, colour) });
+  };
+  const put = (item, describe, size = em, itemGap = gap) => { const r = resolve(item, describe, size, itemGap); if (r) keep(item, r, size); };
+  const fitting = [];
   for (const item of labelItems(doc, pack, corners)) {
     if (item.kind === "net" && opts.netNames === false) continue;
+    if (item.fit) { fitting.push(item); continue; }   // a block's label: placed after the pin labels, which it must not cover
     put(item, `label ${JSON.stringify(item.text)}`);
+  }
+  // A block's label stays in the middle if it fits inside the outline clear of the pin labels and wires; otherwise it goes under the block.
+  const boxHit = (a, b) => a.min[0] < b.max[0] && b.min[0] < a.max[0] && a.min[1] < b.max[1] && b.min[1] < a.max[1];
+  const onWire = (box) => wires.some((w) => w.points.some((p, i) => {
+    const q = w.points[i + 1];
+    if (!q) return false;
+    const n = Math.max(2, Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / 0.05));
+    for (let k = 0; k <= n; k++) { const x = p[0] + (q[0] - p[0]) * k / n, y = p[1] + (q[1] - p[1]) * k / n; if (x > box.min[0] && x < box.max[0] && y > box.min[1] && y < box.max[1]) return true; }
+    return false;
+  }));
+  for (const item of fitting) {
+    const describe = `label ${JSON.stringify(item.text)}`;
+    const own = elements.find((e) => e.el.id === item.id)?.box;
+    let r = resolve(item, describe);
+    if (r && own) {
+      const b = r.placed.box;
+      const outside = b.min[0] < own.min[0] || b.max[0] > own.max[0] || b.min[1] < own.min[1] || b.max[1] > own.max[1];
+      if (outside || labels.some((l) => (l.kind === "pin" || l.kind === "pinname") && boxHit(b, l.box)) || onWire(b)) {
+        r = resolve(item, describe, em, gap, [(own.min[0] + own.max[0]) / 2, own.max[1]], [0, 1]);   // below the block, attached by its top edge
+      }
+    }
+    if (r) keep(item, r, em);
   }
   if (opts.levelTags) {
     const taggedWires = new Set();
@@ -165,7 +193,7 @@ export const headPath = (h) => `M ${fmt(h.tip[0])} ${fmt(h.tip[1])} L ${fmt(h.a[
 
 /** Label and port boxes in grid steps (y up), for hit-testing and box selection. */
 export function labelBoxes(d) {
-  return d.labels.filter((l) => l.kind !== "tag" && l.kind !== "net").map((l) => {
+  return d.labels.filter((l) => l.kind !== "tag" && l.kind !== "net" && l.kind !== "pinname").map((l) => {
     const a = fromSvg(l.box.min), b = fromSvg(l.box.max);
     return { kind: l.kind, id: l.id, index: l.index, box: boxOf([a, b]) };
   });

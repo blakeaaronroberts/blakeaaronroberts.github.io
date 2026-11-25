@@ -27,6 +27,7 @@ const COPIES = [
   ["the symbol pack", "tools/schematic-editor/symbol-pack/"],
   ["the editors' simulator", "tools/shared/src/sim/"],
   ["the editors' validator and schemas", "tools/shared/test/model/"],
+  ["the SystemVerilog importer (slang only)", "tools/shared/src/sv/"],
   ["the logic tools' model copy", "tools/logic/analyze/model/"],
 ];
 for (const [what, dir] of COPIES) {
@@ -39,7 +40,7 @@ for (const [what, dir] of COPIES) {
 
 Deno.test("MODEL_PIN.json is the one place the model tag is written: the copies and copy-model.js follow it", async () => {
   const pin = JSON.parse(await text("tools/schematic-editor/MODEL_PIN.json"));
-  for (const dir of ["tools/shared/src/sim/", "tools/shared/test/model/"]) {
+  for (const dir of ["tools/shared/src/sim/", "tools/shared/test/model/", "tools/shared/src/sv/"]) {
     const m = JSON.parse(await text(dir + "MANIFEST.json"));
     assertEquals([m.ref, m.commit], [pin.tag, pin.commit], dir);
   }

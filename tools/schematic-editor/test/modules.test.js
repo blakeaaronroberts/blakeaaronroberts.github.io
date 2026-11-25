@@ -70,3 +70,10 @@ Deno.test("timing runs through instances: the register inside loads on the risin
   assertEquals(["r.q2", "r.q1", "r.q0"].map((r) => q(1, r)), ["0", "1", "1"]);
   assertEquals(["r.q2", "r.q1", "r.q0"].map((r) => q(0, r)), ["X", "X", "X"], "before the edge the register has not loaded");
 });
+
+// Found in F22.1b: canonicalParams (used when saving) dropped params.module, so a saved demo lost its instances.
+Deno.test("saving keeps each block's params.module, and the saved file's instances still compute", () => {
+  const saved = JSON.parse(serialize(parse(demoText).doc, pack));
+  assertEquals(saved.elements.map((e) => e.params.module), ["adder", "load_register"]);
+  assertEquals(saved.elements.map((e) => e.params), JSON.parse(demoText).elements.map((e) => e.params));
+});

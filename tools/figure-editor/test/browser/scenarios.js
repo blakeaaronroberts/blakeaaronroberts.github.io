@@ -2273,3 +2273,79 @@ scenarios.interface = async (ctx) => {
   } finally { await page.close(); }
   return res;
 };
+
+/**
+ * F22.1b: SystemVerilog import in the page. The demo's structural half (half_adder, full_adder, adder; top "adder") is opened as
+ * a file and imported through the Worker; the whole demo.sv is refused (its register is behavioural code, release 1 has slang only);
+ * a paste with an error names its line. Replacing the figure needs the confirm, and one Undo brings the old figure back.
+ */
+scenarios.svimport = async (ctx) => {
+  const res = [];
+  const demo = await Deno.readTextFile(new URL("../../../shared/test/model/demo.sv", import.meta.url));
+  const adderOnly = demo.slice(0, demo.indexOf("module load_register")).replaceAll("\r\n", "\n");
+  const file = await Deno.makeTempFile({ suffix: ".sv" });
+  await Deno.writeTextFile(file, adderOnly);
+  const doc = () => `(() => { const d = window.figureEditor.doc; return JSON.stringify({ id: d.id, elements: d.elements.length, modules: Object.keys(d.modules ?? {}) }); })()`;
+  const click = (sel) => `(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return false; e.click(); return true; })()`;
+  const setText = (t) => `(() => { const a = document.querySelector(".fe-sv-text"); a.value = ${JSON.stringify(t)}; a.dispatchEvent(new Event("input", { bubbles: true })); return true; })()`;
+  for (const scheme of ["light", "dark"]) {
+    const page = await ctx.launch({ scheme, port: nextPort++ });
+    try {
+      await page.goto(ctx.url + "?open=examples/full-adder.json");
+      await page.waitFor(ready);
+      await page.sleep(800);
+      const before = JSON.parse(await page.eval(doc()));
+      res.push([await page.eval(click('[data-cmd="importsv"]')), `${scheme}: the toolbar has an Import SystemVerilog button`]);
+      await page.waitFor(`document.querySelector("dialog.fe-sv-dialog")?.open === true`);
+
+      // a paste with an error: its line is named, and nothing is replaced
+      await page.eval(setText("module m(input a, output y);\n  assign y = a &;\nendmodule\n"));
+      await page.eval(click(".fe-sv-run"));
+      await page.waitFor(`document.querySelectorAll(".fe-sv-problems li").length > 0`);
+      const first = await page.eval(`document.querySelector(".fe-sv-problems li").textContent`);
+      res.push([/:2:/.test(first), `${scheme}: an error in a paste names its line (${first.slice(0, 60)})`]);
+      res.push([!(await page.eval(`!!document.querySelector(".fe-sv-replace:not([hidden])")`)), `${scheme}: nothing to replace the figure with after an error`]);
+      res.push([JSON.parse(await page.eval(doc())).id === before.id, `${scheme}: the figure is untouched by a refused import`]);
+
+      // the whole demo is refused: slang only (its register is behavioural code)
+      await page.eval(setText(demo.replaceAll("\r\n", "\n")));
+      await page.eval(click(".fe-sv-run"));
+      await page.waitFor(`document.querySelectorAll(".fe-sv-problems li").length > 0 && !document.querySelector(".fe-sv-run").disabled`);
+      const refused = await page.eval(`document.querySelector(".fe-sv-problems li").textContent`);
+      res.push([/\.sv:\d+/.test(refused) || /demo/.test(refused) || /pasted/.test(refused), `${scheme}: the whole demo is refused with a line (${refused.slice(0, 90)})`]);
+
+      // open the structural half as a file
+      await page.setFile(".fe-sv-file", file);
+      await page.waitFor(`document.querySelector(".fe-sv-text").value.includes("module adder")`);
+      await page.eval(click(".fe-sv-run"));
+      await page.waitFor(`!document.querySelector(".fe-sv-replace")?.hidden || document.querySelectorAll(".fe-sv-problems li").length > 0`, 30000);
+      const tops = await page.eval(`[...document.querySelectorAll(".fe-sv-top option")].map((o) => o.value)`);
+      if (await page.eval(`!!document.querySelector(".fe-sv-replace")?.hidden`)) {
+        // several modules nothing instantiates: the panel lists them to choose from
+        res.push([tops.includes("adder"), `${scheme}: several possible tops are listed: ${tops.join(", ")}`]);
+        await page.eval(`(() => { const s = document.querySelector(".fe-sv-top"); s.value = "adder"; s.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
+        await page.eval(click(".fe-sv-run"));
+        await page.waitFor(`!document.querySelector(".fe-sv-replace")?.hidden`, 30000);
+      }
+      res.push([JSON.parse(await page.eval(doc())).id === before.id, `${scheme}: nothing is replaced before the confirm`]);
+      await page.shot(`${ctx.out}/svimport-${scheme}-panel.png`);
+
+      // confirm: the figure is replaced, one Undo brings it back, a second Undo changes nothing
+      await page.eval(click(".fe-sv-replace"));
+      await page.waitFor(`window.figureEditor.doc.id !== ${JSON.stringify(before.id)}`);
+      const after = JSON.parse(await page.eval(doc()));
+      res.push([after.id === "adder" && after.elements >= 1 && after.modules.includes("full_adder"), `${scheme}: replaced by the imported adder with its modules (${after.id}, ${after.elements} elements, modules ${after.modules.join(", ")})`]);
+      res.push([!(await page.eval(`document.querySelector("dialog.fe-sv-dialog").open`)), `${scheme}: the panel closes after the replace`]);
+      await page.sleep(1500);
+      await page.shot(`${ctx.out}/svimport-${scheme}-figure.png`);
+      await page.eval(`(window.figureEditor.command("undo"), true)`);
+      const undone = JSON.parse(await page.eval(doc()));
+      res.push([undone.id === before.id && undone.elements === before.elements, `${scheme}: one Undo restores the old figure (${undone.id}, ${undone.elements} elements)`]);
+      await page.eval(`(window.figureEditor.command("undo"), true)`);
+      res.push([JSON.parse(await page.eval(doc())).id === before.id, `${scheme}: a second Undo changes nothing more`]);
+      res.push([page.errors.length === 0, `${scheme}: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+    } finally { await page.close(); }
+  }
+  await Deno.remove(file).catch(() => {});
+  return res;
+};

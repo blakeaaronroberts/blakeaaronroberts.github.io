@@ -80,6 +80,7 @@ export function canonicalParams(params) {
   const p = normalizeBlock(params);
   const out = { shape: p.shape, w: p.w, h: p.h };
   if (p.label) out.label = p.label;
+  if (p.module) out.module = p.module;                         // circuit/0.4: the block is an instance of this module
   const pins = {};
   for (const side of BLOCK_SIDES) if (p.pins[side].length) pins[side] = p.pins[side].map((x) => (x.label ? { name: x.name, label: x.label } : x.name));
   if (Object.keys(pins).length) out.pins = pins;

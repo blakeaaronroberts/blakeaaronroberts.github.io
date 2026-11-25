@@ -34,9 +34,19 @@ const logicFiles = [
   "validate/jsonschema.mjs", "schema/function.schema.json", "schema/circuit.schema.json",
   "examples/full_adder_gates.json", "examples/comparator_2bit.json", "examples/bcd_to_7seg.json", "examples/nand_sr_latch.json", "examples/d_flipflop.json",
 ];
+// The SystemVerilog importer for the browser (F22.1b; circuit-model C11.1b): the files import/sv/index.mjs and engines-browser.mjs
+// reach, with the folder layout kept (they import each other by relative path), plus slang's two files, which
+// engines-browser.mjs fetches by default from ../../third_party/slang/. Slang only: Yosys (@yowasp/yosys) is not copied.
+const svFiles = [
+  "import/sv/index.mjs", "import/sv/engines-browser.mjs", "import/sv/engine-core.mjs", "import/sv/map.mjs", "import/sv/races.mjs", "import/sv/stimulus.mjs",
+  "import/layout.mjs", "analyze/combinational.mjs", "logic/expr.mjs", "logic/function.mjs", "logic/qm.mjs",
+  "sim/flatten.mjs", "sim/logic.mjs", "sim/simulate.mjs", "validate/jsonschema.mjs",
+  "third_party/slang/slang.mjs", "third_party/slang/slang.wasm.gz", "third_party/slang/README.md", "third_party/NOTICES.md",
+];
 const sets = [
   { ref, dir: new URL("../src/sim/", here), files: ["sim/simulate.mjs", "sim/logic.mjs", "sim/flatten.mjs", "sim/README.md"] },
   { ref, dir: new URL("../test/model/", here), files: ["validate/jsonschema.mjs", "validate/formats.mjs", "schema/circuit.schema.json", "schema/scenario.schema.json", "schema/trace.schema.json", "examples/nand_sr_latch.json", "examples/sv_demo.json", "examples/sv/demo.sv", ["examples/scenarios/sv_demo.json", "sv_demo.scenario.json"], ["examples/traces/sv_demo.json", "sv_demo.trace.json"]] },
+  { ref, keepPaths: true, dir: new URL("../src/sv/", here), files: svFiles },
   { ref: logicRef, keepPaths: true, dir: new URL("../../logic/analyze/model/", here), files: logicFiles },
 ];
 const only = arg("--only", null);   // "logic": copy just the logic tools' set

@@ -28,6 +28,7 @@ import { calculateSteps, drivenWireIds, logicModeOf, resolveLogic, setLogicMode 
 import { convertHandLevels, handLevelsFromFrames, setHandLevel } from "./scenario.js";
 import { migrateR1 } from "./migrate.js";
 import { openableUrl } from "../../shared/src/openurl.js";
+import { createSvPanel } from "./svpanel.js";
 
 // Browser storage keys, set by mount() from options.storage (the tool's own prefix: "schematic-editor/" on its page,
 // "figure-editor/" in the Figure Editor) and options.timingStorage (the Timing Diagram's, shared with its own page).
@@ -98,6 +99,7 @@ const ICONS = {
   fit: '<path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/>',
   new: '<path d="M4 2h5l3 3v9H4zM9 2v3h3"/>',
   open: '<path d="M2 4h4l1.5 2H14v7H2z"/>',
+  importsv: '<path d="M3 2h7l3 3v9H3z"/><path d="M10 2v3h3M5.5 8.5L4 10l1.5 1.5M10.5 8.5L12 10l-1.5 1.5M8.7 8l-1.4 4"/>',
   save: '<path d="M8 2v8M5 7l3 3 3-3M3 13h10"/>',
   export: '<path d="M3 5v8h10V5M8 11V2M5 5l3-3 3 3"/>',
   projectzip: '<path d="M3 2h7l3 3v9H3z"/><path d="M10 2v3h3M8 6v1m0 1v1m0 1v1m0 1v1"/>',
@@ -126,7 +128,7 @@ export function toolbarGroups() {
     clipboard: `${btn("copy", "Copy", "Control+C")}${btn("paste", "Paste", "Control+V")}`,
     view: `${btn("zoomout", "Zoom out", "-")}${btn("zoomin", "Zoom in", "+")}${btn("fit", "Fit", "F")}`,
     grid: `<span class="fe-grouplabel label-mono" aria-hidden="true">Grid</span>${btn("gridhalf", "½", "", ' aria-pressed="true"', "Snap parts to half a module")}${btn("gridfull", "1", "", ' aria-pressed="false"', "Snap parts to a whole module")}`,
-    file: `${btn("new", "New")}${btn("open", "Open…")}${btn("save", "Save", "Control+S")}${btn("export", "Export", "", "", "Export the active view as SVG or PNG")}`,
+    file: `${btn("new", "New")}${btn("open", "Open…")}${btn("importsv", "Import SystemVerilog", "", "", "Import SystemVerilog: paste or open a .sv file")}${btn("save", "Save", "Control+S")}${btn("export", "Export", "", "", "Export the active view as SVG or PNG")}`,
     frames: `${btn("frameprev", "◀", "", "", "Previous frame")}<input class="fe-stepinput" type="number" min="0" step="1" aria-label="Go to frame" title="Type a frame number and press Enter"><span class="fe-stepno label-mono"></span>${btn("framenext", "▶", "", "", "Next frame")}${btn("navframes", "Export frames", "", "", "Export each frame in the active workspace as SVG or PNG")}`,
     help: `${btn("help", "Keys", "?")}`,
     // buttons that act on the Figure Editor's parts (the Timing Diagram, ZIP); a host that lends those parts adds them
@@ -311,6 +313,7 @@ export async function mount(root, options = {}) {
   // ---- state ---------------------------------------------------------------------------
   let doc = ensureFrameZero(D.newDoc());
   const history = new History();
+  let svPanel = null;
   let selection = none();
   let selectedJunction = null;
   let tool = "select";               // select | wire | port | label | place
@@ -1275,6 +1278,8 @@ export async function mount(root, options = {}) {
       selectedFrame = 0;
       commit(D.newDoc(), "New: the figure and the timing diagram are cleared (Undo brings the figure back)."); selection = none(); loadWarnings = []; view.fit(null); render(); },
     open: () => fileInput.click(),
+    /** F22.1b: paste or open SystemVerilog, import it in a Worker, replace the figure after a confirm (one Undo). */
+    importsv: () => { svPanel ??= createSvPanel({ root, buttonClass: BUTTON, replace: (text) => load(text, true) }); svPanel.open(); },
     save() {
       const text = D.serialize(doc, pack);
       download(text, `${doc.id}.json`, "application/json");

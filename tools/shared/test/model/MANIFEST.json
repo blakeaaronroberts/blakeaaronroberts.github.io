@@ -1,8 +1,8 @@
 {
   "note": "Written by tools/shared/scripts/copy-model.js. Do not edit this folder by hand.",
   "source": "circuit-model",
-  "ref": "model-v0.12.0",
-  "commit": "1e65a2a4e5318bf0c20a169b33e35cfabcd74733",
+  "ref": "model-v0.14.0",
+  "commit": "319a6d963743689ba716dcec0fe57a8197c98de2",
   "files": [
     {
       "name": "jsonschema.mjs",

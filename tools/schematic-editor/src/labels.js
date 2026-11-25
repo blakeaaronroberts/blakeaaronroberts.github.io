@@ -202,9 +202,12 @@ export function labelItems(doc, pack, corners = allCorners(doc, pack)) {
     // A block's own text is drawn upright whatever its rotation: the label in the middle, and each pin's label just inside the outline.
     const g = el.type === BLOCK ? geometryOf(el.params) : null;
     if (g) {
-      if (g.params.label) add({ key: `block:${el.id}`, kind: "block", id: el.id, text: g.params.label, at: place(el, g.centre), dir: null });
+      // fit: the export moves this label under the block when it would sit over a wire or a pin name (F22.1b)
+      if (g.params.label) add({ key: `block:${el.id}`, kind: "block", id: el.id, text: g.params.label, at: place(el, g.centre), dir: null, fit: true });
       for (const [name, q] of Object.entries(g.pins)) {
         if (q.label) add({ key: `pin:${el.id}.${name}`, kind: "pin", id: `${el.id}.${name}`, text: q.label, at: place(el, q.labelAt), dir: turn(q.labelDir) });
+        // A module instance (circuit/0.4) names its pins by the module's port ids: drawn text, not an editable label.
+        else if (g.params.module) add({ key: `pinname:${el.id}.${name}`, kind: "pinname", id: `${el.id}.${name}`, text: name, at: place(el, q.labelAt), dir: turn(q.labelDir) });
       }
     }
   }
