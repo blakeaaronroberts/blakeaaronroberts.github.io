@@ -14,18 +14,18 @@ file.
 
 ## Current state
 
-Sync of 2026-11-24, 13:00 (Pacific). Facts only; work lives in the batches below.
+Sync of 2026-11-25, 11:45 (Pacific). Facts only; work lives in the batches below.
 
-**Changed since the last sync (2026-11-19)**
-- Merged to `main` on 2026-11-23: R1 earlier; F24 and F25 (CI test gate, privacy scan, integrity hashes partly); F28 and F29 (timing diagram bar ends, PowerPoint-safe hatch, right-edge cut, delay and phase fill, hidden signals and names, F29.6 auto-fit to the view window), a timing arrow-label overlap hotfix; L5 circuit analyser as a draft (pinned `model-v0.10.0` logic copy). Blake confirmed F28 and F29 on 2026-11-24.
-- Open in F25: F25.2 (`data-circuit` limited to same-site files), F25.3 (housekeeping; beta editor stays with noindex), F25.4 (WaveDrom skin fonts), F25.5 partly (licence table in; co-author consent and the advisor's OK stay open items).
-- A second site session is running L1 in `tools/logic/` (Blake, 2026-11-24).
-- The editors pin an older model tag; circuit-model has since tagged `model-v0.10.0` and `model-v0.11.0` (`circuit/0.4`, SystemVerilog import).
+**Changed since the last sync (2026-11-24)**
+- Merged to `main`: F22.0 and F22.1a (Blake reviewed the demo; deployed), F22.1b (Import SystemVerilog panel, slang only, Web Worker, pin `model-v0.14.0`; review approved by Blake 2026-11-25; `slang.wasm.gz` is 1.5 MB on first visit), and the L1 tools (truth table, K-map, solver, Send to Figure Editor; drafts, in Blake's review). L5 (circuit analyser) was merged earlier as a draft.
+- Batch U1 (first-run redesign) approved by Blake 2026-11-24 from the design package in `proposals/first-run-redesign/`. U1.0 plan returned and Blake answered it on 2026-11-25 (see U1 below). U1.1 is unblocked by F22.1b's merge. U1.6 stays deferred; the navbar restyle moves to a later batch U2.
+- Found and fixed in F22.1b: saving dropped `params.module` (an F22.1a bug).
+- Unowned: 8 failing browser scenarios in `check.js` (row T-fix), failing the same way on `main`.
+- circuit-model has tagged `model-v0.15.0` (SystemVerilog export, C11.3 and C11.4) and `model-v0.15.1` (clock rule, C18); the editors pin `model-v0.14.0`.
 
 **Waiting**
-- Builder: F22.0 (plan for SystemVerilog in the Figure Editor), then F23 (FSM tool), F27, F20, F26 before launch.
-- Blake: L5 and L1 drafts to review; the PLL co-author's consent and the CSNN advisor's OK; his institution's course-material policy.
-- Several Batches table rows for old batches (F4, F8 to F13, F18 to F21) are stale; step statuses are the truth.
+- Blake: review the L1 and L5 pages (`docs/REVIEW_L1.md`) and the Import panel in daily use; approve or edit the U1 on-screen strings at each review stop; decide which T-fix expectations change; the PLL co-author's consent and the CSNN advisor's OK; his institution's course-material policy.
+- Builder: U1.1, then U1.4 (start chooser, tour); F22.1c (behavioural code through YoWASP) needs a plan first (delivery of a roughly 17 MB engine file); F22.2 to F22.4 (hierarchy, export, testbench; pin `model-v0.15.1`); later F23, F27, F20, F26.
 
 ## How builders use this file
 
@@ -354,8 +354,8 @@ Rules for every step: site repository only; colours and fonts through existing r
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| U1.0 | Read the package and the reference. Reply with a short plan per step (files touched, tests to add), the list of on-screen strings (verbatim, new, placeholder), and any conflict with CLAUDE.md or VISION.md; write nothing to the site | Design handoff, approved by Blake 2026-11-24 | Open | Sonnet 5.5, high. REVIEW STOP |
-| U1.1 | Editor start chooser (Full adder example / Empty figure / Open…, keys 1 2 3, Esc = empty) when there is no `?open=` and no autosave; fix the overwritten status line; autosave and `?open=` unchanged | README "Screen 5" | Open | Smallest step; fixes a real bug. REVIEW STOP (chooser, light and dark) |
+| U1.0 | Read the package and the reference. Reply with a short plan per step (files touched, tests to add), the list of on-screen strings (verbatim, new, placeholder), and any conflict with CLAUDE.md or VISION.md; write nothing to the site | Design handoff, approved by Blake 2026-11-24 | Done | Plan returned; Blake answered 2026-11-25: the placeholder Exploration card and the K-Maps template text are dropped from the home page; the Tools listing shows only approved tools (no Logic tools yet); a two-step tour (Elements, wiring) on the Schematic Editor page with its own `schematic-editor/tour-seen` key; arrow keys unchanged and the words about arrow keys come out of the tour text; the navbar restyle (Screen 3) is out of U1 and becomes batch U2, the loading skeleton stays in U1.5; `--role-rule-soft` is derived with `color-mix` in `custom.scss`. The chooser strings are built as written and marked not approved; Blake approves or edits them at the U1.1 review stop. |
+| U1.1 | Editor start chooser (Full adder example / Empty figure / Open…, keys 1 2 3, Esc = empty) when there is no `?open=` and no autosave; fix the overwritten status line; autosave and `?open=` unchanged | README "Screen 5" | Open | Unblocked: F22.1b merged 2026-11-25. Smallest step; fixes a real bug. REVIEW STOP (chooser, light and dark) |
 | U1.2 | Pre-launch page: more room above the title block, "Site under construction" with its status dot; still no navigation and no internal links | README "Screen 1" | Open | |
 | U1.3 | Release home: bio (verbatim), sticky three-part section bar, three listings with one card style (Projects, Explorations from Quarto listings; Tools from a small YAML file). No copyright footer | README "Screen 2" | Open | Goes live only at launch. REVIEW STOP (light and dark) |
 | U1.4 | Tour (three steps, spotlight), toolbar tooltips with keys, Keys dialog restyled from `KEYS`, toast, Tour button; seen state `figure-editor/tour-seen` | README "Screen 5, 6" | Open | REVIEW STOP (three screenshots) |
