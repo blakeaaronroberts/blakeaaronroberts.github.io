@@ -27,6 +27,7 @@ import { framesFromSignals, levelTagStyleOf, setCalculatedFrames, setLevelTagSty
 import { calculateSteps, drivenWireIds, logicModeOf, resolveLogic, setLogicMode } from "./simlevels.js";
 import { convertHandLevels, handLevelsFromFrames, setHandLevel } from "./scenario.js";
 import { migrateR1 } from "./migrate.js";
+import { openableUrl } from "../../shared/src/openurl.js";
 
 // Browser storage keys, set by mount() from options.storage (the tool's own prefix: "schematic-editor/" on its page,
 // "figure-editor/" in the Figure Editor) and options.timingStorage (the Timing Diagram's, shared with its own page).
@@ -2617,17 +2618,18 @@ export async function mount(root, options = {}) {
   renderPalette();
   render();
   view.fit(null);
-  let opened = false;
+  let opened = false, openError = null;
   if (options.open) {
     try {
-      const url = new URL(options.open, document.baseURI);
-      if (url.origin !== location.origin) throw new Error("only files from this site can be opened by link");
-      const r = await fetch(url);
+      const checked = openableUrl(options.open, document.baseURI, location.origin);
+      if (checked.error) throw new Error(checked.error);
+      const url = checked.url;
+      const r = await fetch(url, { credentials: "omit", redirect: "error" });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       load(await r.text(), false);
       opened = true;
       status(`Opened ${doc.id} from ${url.pathname.split("/").pop()}.`);
-    } catch (e) { status(`Could not open ${options.open}: ${e.message}`); }
+    } catch (e) { openError = `Could not open the link: ${e.message}`; status(openError, true); }
   }
   const saved = !opened && store.get(AUTOSAVE);
   if (saved) {
@@ -2645,6 +2647,8 @@ export async function mount(root, options = {}) {
     } catch { /* the example could not load: start empty */ }
   }
   if (!opened && !saved) status("Pick an element on the left to place it, or press W to draw a wire. Press ? for the keys. Autosave stays in this browser; use Save to take a figure to another computer.");
+
+  if (openError) status(openError, true);   // the start-up messages above must not hide why the link was not opened
 
   setView(new URLSearchParams(location.search).get("view") ?? opt.view ?? "figure");
 
