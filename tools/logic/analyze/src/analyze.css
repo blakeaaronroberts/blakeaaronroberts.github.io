@@ -43,3 +43,4 @@
 .an-diff { font-size: 0.8rem; }
 .an-card .an-bar button, .an-export .an-bar button { font-size: 0.85rem; }
 .an-diff thead th { top: 0 !important; }
+.an-link { align-self: center; color: var(--role-accent); font-size: 0.85rem; }

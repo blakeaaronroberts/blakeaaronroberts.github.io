@@ -2,8 +2,9 @@
 // and the truth table. All text from the person typing goes in with textContent, never as HTML.
 
 import { analyseText, CAP } from "./analyze.js";
-import { bestText, circuitFile, csv, functionFile, latexEquations, latexTable, markdown, verilogAssign } from "./export.js";
+import { shownCell, bestText, circuitFile, csv, functionFile, latexEquations, latexTable, markdown, verilogAssign } from "./export.js";
 import { checkAnswer } from "./check.js";
+import { sendToFigureEditor, solverHref, expressionOfFunction } from "../../common/src/handoff.js";
 
 const EXPRESSION_SAMPLES = {
   "Half adder (expressions)": "S = A ^ B\nC = AB\n",
@@ -74,7 +75,7 @@ function tableView(g) {
   for (const row of g.rows) {
     const tr = el("tr", {}, el("td", { className: "an-row", textContent: String(row.index) }));
     row.inputs.forEach((b) => tr.append(el("td", { textContent: String(b) })));
-    row.outputs.forEach((o) => tr.append(el("td", { className: o === "-" ? "an-out an-dc" : "an-out", textContent: o === "-" ? "–" : o, title: o === "-" ? "X or Z on this row: a don't care" : "" })));
+    row.outputs.forEach((o) => tr.append(el("td", { className: o === "-" ? "an-out an-dc" : "an-out", textContent: shownCell(o), title: o === "-" ? "X or Z on this row: a don't care" : "" })));
     body.append(tr);
   }
   t.append(body);
@@ -90,7 +91,7 @@ function resultView(r) {
   if (r.renames?.length) out.append(el("p", { className: "an-info", textContent: `In expressions and equations the inputs are named ${r.renames.map((c) => `${c.id} (${c.shown})`).join(", ")}.` }));
   for (const g of r.groups) {
     const cells = g.rows.length;
-    const info = `${g.inputs.length} input${g.inputs.length === 1 ? "" : "s"}, ${g.outputs.length} output${g.outputs.length === 1 ? "" : "s"}, ${cells} rows` + (g.dontCares ? `, ${g.dontCares} don't-care cell${g.dontCares === 1 ? "" : "s"} (X or Z in the simulation, shown as –)` : "");
+    const info = `${g.inputs.length} input${g.inputs.length === 1 ? "" : "s"}, ${g.outputs.length} output${g.outputs.length === 1 ? "" : "s"}, ${cells} rows` + (g.dontCares ? `, ${g.dontCares} don't-care cell${g.dontCares === 1 ? "" : "s"} (X or Z in the simulation, shown as X)` : "");
     out.append(el("p", { className: "an-info", textContent: info }), tableView(g));
   }
   if (r.groups.length) {
@@ -136,7 +137,7 @@ function exportView(r) {
     button("Copy Verilog assign", (b) => copyText(verilogFor(r), b), "From the minimal form that costs least"),
     button("Download function files", () => r.groups.forEach((g) => g.functions.forEach((fn) => download(`${(fn.output ?? fn.id).replace(/[^A-Za-z0-9_-]/g, "_")}.function.json`, functionFile(fn)))), "One function/0.1 file per output bit, for the other logic tools"),
   );
-  box.append(bar, el("p", { className: "an-hint", textContent: "The K-map tool and the Boolean solver are not built yet; the function files are what they will read." }));
+  box.append(bar, el("p", { className: "an-hint", textContent: "Each form below can be opened in the Boolean solver or the Figure Editor. The K-map tool is not built yet; it will read the function files." }));
   return box;
 }
 
@@ -167,6 +168,13 @@ function formCard(f, fn, r) {
       const c = circuitFile(fn, (pos ? f.minimal.pos : f.minimal.sop)[0]);
       if (c.text) download(`${(fn.output ?? fn.id).replace(/[^A-Za-z0-9_-]/g, "_")}_minimal.circuit.json`, c.text); else alert(`Could not build the circuit: ${c.error}`);
     }, "A starting layout; open it in the Figure Editor with its Open command"),
+    button("Open in Figure Editor", () => {
+      const c = circuitFile(fn, (pos ? f.minimal.pos : f.minimal.sop)[0]);
+      if (!c.text) { alert(`Could not build the circuit: ${c.error}`); return; }
+      const m = sendToFigureEditor(c.text);
+      if (m) alert(m);
+    }, "Opens the minimal form's circuit in a new tab. Keep this tab open until it has loaded."),
+    el("a", { className: "an-link", href: solverHref((pos ? f.minimal.pos : f.minimal.sop)[0].text, { goal: pos ? "pos" : "sop" }), target: "_blank", rel: "noopener", textContent: "Open in Boolean solver", title: "The minimal form, worked step by step in a new tab" }),
   );
   card.append(bar);
   return card;
@@ -201,8 +209,8 @@ export function mount(root, { examples = "model/examples/" } = {}) {
   editor.setAttribute("autocapitalize", "off");
   const sample = el("select", { ariaLabel: "Sample" }, el("option", { value: "", textContent: "Choose a sample…" }));
   for (const name of [...Object.keys(EXPRESSION_SAMPLES), ...Object.keys(CIRCUIT_SAMPLES)]) sample.append(el("option", { value: name, textContent: name }));
-  const file = el("input", { type: "file", accept: ".json,.txt,application/json,text/plain", hidden: true });
-  const upload = el("button", { type: "button", textContent: "Open file…" });
+  const file = el("input", { type: "file", accept: ".json,.txt,application/json,text/plain", multiple: true, hidden: true });
+  const upload = el("button", { type: "button", textContent: "Open file…", title: "A circuit, expressions as text, or function files" });
   const clear = el("button", { type: "button", textContent: "Clear" });
   const status = el("span", { className: "an-status" });
   const results = el("div", { className: "an-results" });
@@ -215,7 +223,7 @@ export function mount(root, { examples = "model/examples/" } = {}) {
   const expected = el("textarea", { className: "an-editor an-expected", spellcheck: false, rows: 4, ariaLabel: "Expected answer", placeholder: "Y = A'B + C\nor  Y(A,B,C) = 01101001" });
   const checkOut = el("div", { className: "an-check-out" });
   side.append(el("section", { className: "an-check" }, el("h3", { textContent: "Check my answer" }),
-    el("p", { className: "an-hint", textContent: "Type what the circuit should do, as an expression or a compact table (first input is the most significant bit, - is a don't care). The first rows where it differs are listed." }),
+    el("p", { className: "an-hint", textContent: "Type what the circuit should do, as an expression or a compact table (first input is the most significant bit, X is a don't care). The first rows where it differs are listed." }),
     expected, checkOut));
   root.replaceChildren(el("div", { className: "an-layout" }, side, results));
 
@@ -246,7 +254,17 @@ export function mount(root, { examples = "model/examples/" } = {}) {
     run();
   });
   upload.addEventListener("click", () => file.click());
-  file.addEventListener("change", async () => { const f = file.files[0]; if (f) { editor.value = await f.text(); sample.value = ""; run(); } file.value = ""; });
+  file.addEventListener("change", async () => {
+    const files = [...file.files]; file.value = "";
+    if (!files.length) return;
+    const texts = await Promise.all(files.map((f) => f.text()));
+    // L1.4: function/0.1 files (from the truth table generator or the solver) become one `output = expression` line each.
+    const lines = texts.map((t) => { try { const fn = JSON.parse(t); return fn?.schema === "function/0.1" ? `${fn.output ?? fn.id} = ${expressionOfFunction(fn) ?? "0"}` : null; } catch { return null; } });
+    if (lines.every(Boolean)) editor.value = lines.join("\n") + "\n";
+    else if (files.length === 1) editor.value = texts[0];
+    else { status.textContent = "Open one circuit at a time, or several function files together."; return; }
+    sample.value = ""; run();
+  });
   clear.addEventListener("click", () => { editor.value = ""; sample.value = ""; run(); editor.focus(); });
   run();
   const params = new URLSearchParams(location.search);

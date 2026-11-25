@@ -1,5 +1,5 @@
 // L5.6: check my answer. The person types what the circuit should do, as expressions (`Y = A'B + C`) or as a compact
-// table (`Y(A,B,C) = 01101001`, first variable the most significant bit, - for a don't care); the first rows where the
+// table (`Y(A,B,C) = 01101001`, first variable the most significant bit, - or X for a don't care); the first rows where the
 // analysed circuit differs are listed. A circuit is compared with circuit-model's compareCircuit (C17.5); typed
 // expressions with logic/compare.mjs. A don't care on either side matches anything. No DOM.
 
@@ -16,9 +16,9 @@ export function parseExpected(text) {
   const expected = [];
   for (const [i, line] of lines.entries()) {
     const at = `Line ${i + 1}: `;
-    const compact = /^([A-Za-z][A-Za-z0-9]*(?:\[\d+\])?)\s*\(([^)]*)\)\s*=\s*([01\-\s_]+)$/.exec(line);
+    const compact = /^([A-Za-z][A-Za-z0-9]*(?:\[\d+\])?)\s*\(([^)]*)\)\s*=\s*([01Xx\-\s_]+)$/.exec(line);
     if (compact) {
-      const variables = compact[2].split(/[\s,]+/).filter(Boolean), table = compact[3].replace(/[\s_]/g, "");
+      const variables = compact[2].split(/[\s,]+/).filter(Boolean), table = compact[3].replace(/[\s_]/g, "").replace(/[Xx]/g, "-");
       if (!variables.length || !variables.every((v) => NAME.test(v))) return { error: `${at}list the inputs in brackets, for example Y(A,B) = 0110.` };
       if (variables.length > 8) return { error: `${at}at most 8 inputs.` };
       if (table.length !== 1 << variables.length) return { error: `${at}${variables.length} inputs need ${1 << variables.length} table digits; there are ${table.length}.` };

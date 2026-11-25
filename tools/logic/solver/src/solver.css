@@ -1,0 +1,22 @@
+/* L1.3 Boolean solver. Roles only (--role-*); layout classes (an-*) come from ../analyze/src/analyze.css. */
+.sv-goal { display: block; margin: 0.5rem 0; font-size: 0.9rem; }
+.sv-goal select, .sv-goal input[type="checkbox"] { margin-left: 0.4rem; }
+.sv-goal select { font: inherit; padding: 0.2rem 0.5rem; color: var(--role-ink); background: var(--role-surface); border: 1px solid var(--role-rule); border-radius: 4px; }
+.sv-steps { list-style: none; margin: 0.5rem 0; padding: 0; counter-reset: step; }
+.sv-steps li { display: grid; grid-template-columns: 2rem minmax(0, 1.4fr) minmax(0, 1fr); gap: 0.2rem 0.8rem; align-items: baseline; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--role-rule); counter-increment: step; }
+.sv-steps li::before { content: counter(step); color: var(--role-muted); text-align: right; font-family: var(--bs-font-monospace); font-size: 0.8rem; }
+.sv-steps li.sv-final { border-left: 4px solid var(--role-accent); background: var(--role-surface); }
+.sv-math { overflow-x: auto; min-width: 0; }
+.sv-why { font-size: 0.85rem; min-width: 0; }
+.sv-rule { display: inline-block; font-weight: 600; border: 1px solid var(--role-rule); border-radius: 3px; padding: 0 0.4rem; margin-right: 0.4rem; background: var(--role-background); }
+.sv-law { display: block; color: var(--role-muted); font-family: var(--bs-font-monospace); font-size: 0.78rem; margin-top: 0.15rem; }
+.sv-part { display: block; color: var(--role-muted); margin-top: 0.15rem; }
+.sv-part code { color: var(--role-ink); }
+.sv-checked { margin: 0.5rem 0; font-size: 0.85rem; color: var(--role-muted); }
+.sv-checked::before { content: "✓ "; color: var(--role-ink); font-weight: 700; }
+.sv-turn { border: 1px solid var(--role-rule); border-radius: 4px; padding: 0.4rem 0.8rem 0.6rem; margin: 0.6rem 0; background: var(--role-surface); }
+.sv-turn select { font: inherit; padding: 0.2rem 0.5rem; color: var(--role-ink); background: var(--role-background); border: 1px solid var(--role-rule); border-radius: 4px; max-width: 100%; }
+.sv-msg { margin: 0.4rem 0; font-size: 0.9rem; }
+.sv-ce { margin: 0.4rem 0; }
+@media (max-width: 700px) { .sv-steps li { grid-template-columns: 1.6rem 1fr; } .sv-steps li .sv-why { grid-column: 2; } }
+.an-side [hidden], .an-results [hidden] { display: none; }

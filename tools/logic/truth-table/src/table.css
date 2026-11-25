@@ -1,0 +1,13 @@
+/* L1.1 truth table generator. Roles only (--role-*); the layout classes (an-*) come from ../analyze/src/analyze.css. */
+.tt-tabs { display: flex; gap: 0; margin: 0.4rem 0; border-bottom: 1px solid var(--role-rule); }
+.tt-tabs button { font: inherit; padding: 0.3rem 0.9rem; color: var(--role-ink); background: transparent; border: 1px solid transparent; border-bottom: 0; border-radius: 4px 4px 0 0; cursor: pointer; }
+.tt-tabs button[aria-selected="true"] { background: var(--role-surface); border-color: var(--role-rule); font-weight: 600; border-bottom: 2px solid var(--role-accent); }
+.tt-label { display: block; margin: 0.4rem 0; font-size: 0.9rem; }
+.tt-field { font-family: var(--bs-font-monospace); font-size: 0.85rem; padding: 0.2rem 0.5rem; color: var(--role-ink); background: var(--role-background); border: 1px solid var(--role-rule); border-radius: 4px; width: 14rem; max-width: 100%; }
+.tt-field:focus { outline: 2px solid var(--role-accent); outline-offset: 1px; }
+.tt-cell { font: inherit; min-width: 2rem; padding: 0.05rem 0.4rem; color: var(--role-ink); background: var(--role-surface); border: 1px solid var(--role-rule); border-radius: 3px; cursor: pointer; }
+.tt-cell:hover, .tt-cell:focus-visible { border-color: var(--role-accent); outline: 2px solid var(--role-accent); outline-offset: 1px; }
+.tt-lists code { white-space: pre-wrap; }
+.an-side [hidden] { display: none; }
+.an-link { align-self: center; color: var(--role-accent); font-size: 0.9rem; }
+.tt-send .an-bar { align-items: center; margin-bottom: 0.2rem; }

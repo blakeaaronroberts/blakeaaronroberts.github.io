@@ -5,7 +5,9 @@ import { texName } from "./forms.js";
 
 const latexIn = (shown) => texName(shown);   // an input as shown (A[3], Cin) in LaTeX
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
-const cell = (c) => (c === "-" ? "–" : c);
+/** A cell as people see it: a don't care is stored as "-" (function/0.1) and shown as X. */
+export const shownCell = (c) => (c === "-" ? "X" : c);
+const cell = shownCell;
 
 /** Name of an input variable as shown (A3 is shown A[3]). */
 const shownOf = (r, v) => r.names?.[v] ?? v;
@@ -13,7 +15,7 @@ const shownOf = (r, v) => r.names?.[v] ?? v;
 /** The truth table as a LaTeX tabular, one column per input bit and per output bit. */
 export function latexTable(g, r) {
   const head = [...g.inputs.map((c) => `$${latexIn(c.shown)}$`), ...g.outputs.map((c) => `$${texName(c.shown)}$`)].join(" & ");
-  const rows = g.rows.map((row) => [...row.inputs, ...row.outputs.map((o) => (o === "-" ? "$-$" : o))].join(" & ") + " \\\\");
+  const rows = g.rows.map((row) => [...row.inputs, ...row.outputs.map((o) => shownCell(o))].join(" & ") + " \\\\");
   return [`\\begin{tabular}{${"c".repeat(g.inputs.length)}|${"c".repeat(g.outputs.length)}}`, "\\hline", `${head} \\\\`, "\\hline", ...rows, "\\hline", "\\end{tabular}"].join("\n");
 }
 
@@ -42,7 +44,7 @@ export function latexEquations(forms, { all = false } = {}) {
 
 export function csv(g) {
   const q = (s) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
-  return [[...g.inputs.map((c) => c.shown), ...g.outputs.map((c) => c.shown)].map(q).join(","), ...g.rows.map((row) => [...row.inputs, ...row.outputs].join(","))].join("\n") + "\n";
+  return [[...g.inputs.map((c) => c.shown), ...g.outputs.map((c) => c.shown)].map(q).join(","), ...g.rows.map((row) => [...row.inputs, ...row.outputs.map(shownCell)].join(","))].join("\n") + "\n";
 }
 
 const mdEscape = (s) => String(s).replace(/\|/g, "\\|");
@@ -59,7 +61,7 @@ export function markdown(r) {
     out.push(`| ${heads.map(mdEscape).join(" | ")} |`, `|${heads.map(() => ":-:").join("|")}|`);
     for (const row of g.rows) out.push(`| ${[...row.inputs, ...row.outputs.map(cell)].join(" | ")} |`);
     out.push("");
-    if (g.dontCares) out.push(`Cells shown as – are X or Z in the simulation: don't cares.`, "");
+    if (g.dontCares) out.push(`Cells shown as X are X or Z in the simulation: don't cares.`, "");
     for (const f of g.forms) {
       if (f.error) { out.push(`## ${f.name}`, "", f.error, ""); continue; }
       out.push(`## ${f.name}`, "", `- Minterms: ${f.sigma}`, `- Maxterms: ${f.pi}`);
