@@ -63,8 +63,8 @@ Sync of 2026-11-25, 11:45 (Pacific). Facts only; work lives in the batches below
 | F20 | Frames: frame window or playhead, per-frame export | Open | 2026-11-14 |
 | F21 | N-input and N-output variants and a calmer Elements pane | Open | 2026-11-14 |
 | F22 | SystemVerilog in the Figure Editor (blocked on C11; import runs in the browser only if the C11.0 spike passes, otherwise the editor loads the importer's JSON) | Open | 2026-11-14 |
-| L1 | Logic mini-tools: truth table, K-map, SOP and POS, Boolean solver | Open | 2026-11-14 |
-| L5 | Circuit analyser: from a drawn circuit (later also SystemVerilog) say whether it is fully combinational and, if so, show truth table, minterms and maxterms, SOP, POS, minimal forms and LaTeX (Blake's request, 2026-11-23; modelled on his ModelSim `module_generic.do`) | Open | 2026-11-23 |
+| L1 | Logic mini-tools: truth table, K-map, SOP and POS, Boolean solver | Draft, merged for review | 2026-11-14 |
+| L5 | Circuit analyser: from a drawn circuit (later also SystemVerilog) say whether it is fully combinational and, if so, show truth table, minterms and maxterms, SOP, POS, minimal forms and LaTeX (Blake's request, 2026-11-23; modelled on his ModelSim `module_generic.do`) | Draft, merged for review | 2026-11-23 |
 | L2 | Converters from chapters 1 to 5 | Open | 2026-11-14 |
 | L3 | Equation library, core 100 to 300 level | Open | 2026-11-14 |
 | F28 | Timing diagram: bars end in a slanted edge into 0 or 1, and the hatch pastes into PowerPoint as clean vector lines (no SVG pattern) | Done | 2026-11-23 |
