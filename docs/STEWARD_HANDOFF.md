@@ -68,6 +68,7 @@ Sync of 2026-11-24, 13:00 (Pacific). Facts only; work lives in the batches below
 | L2 | Converters from chapters 1 to 5 | Open | 2026-11-14 |
 | L3 | Equation library, core 100 to 300 level | Open | 2026-11-14 |
 | F28 | Timing diagram: bars end in a slanted edge into 0 or 1, and the hatch pastes into PowerPoint as clean vector lines (no SVG pattern) | Done | 2026-11-23 |
+| U1 | First run: a quieter pre-launch page, a release home where Projects, Explorations and Tools sit side by side, and a Figure Editor that asks how to start and shows a short tour | Open | 2026-11-24 |
 | F29 | Timing diagram: signals cut at the right edge, phase and delay fill, hidden signals and names, view auto-fit (Blake confirmed 2026-11-24; phase holds the last value) | Done | 2026-11-23 |
 | F24 | Editor uses scenario `initial` and `force` (circuit-model C14) instead of its own hand-set Frame 0 values | Open | 2026-11-19 |
 | F25 | Hardening and records from the 2026-11-20 reviews: CI gates, privacy scan, integrity hashes, housekeeping, licence table | Open | 2026-11-20 |
@@ -340,6 +341,27 @@ Intent: the finished editor and simulator speak SystemVerilog (VISION section 6,
 | F22.2 | Hierarchy: instantiate modules as blocks, open a block to see its inside | Steward, approved by Blake 2026-11-14 | Open | |
 | F22.3 | Export circuit as .sv module and testbench; download; round trip check on the course examples | Steward, approved by Blake 2026-11-14 | Open | |
 | F22.4 | Testbench or scenario drives the Timing pane through the simulator | Steward, approved by Blake 2026-11-14 | Open | |
+
+---
+
+### U1: first run (design handoff, 2026-11-24)
+
+Intent: a quieter pre-launch page, a release home with Projects, Explorations and Tools as three equal sections, and a Figure Editor that asks how to start (and fixes the first-open hint that is overwritten at once) and shows a short tour. Package: `proposals/first-run-redesign/` (`STEWARD_NOTE.md`, `README.md` the builder's spec, `design/First Run v2.dc.html` the clickable reference; a design reference, not code to copy). Approved by Blake 2026-11-24 as a batch; **no on-screen string is approved yet**, and U1.0 returns the list.
+
+Rules for every step: site repository only; colours and fonts through existing roles (the one new token is `--role-rule-soft`, derived from rule and background); no new dependency; no copyright or licence notice (so **drop the "© 2026" footer** from U1.3); do not write Blake's prose, use his text or a placeholder; the pre-launch page links to nothing; keep every existing command, key and storage key; signal state never by colour alone, visible focus, `prefers-reduced-motion` respected; privacy scan before any push. U1.1 to U1.5 touch `tools/schematic-editor/src/app.js` and `tools/figure-editor/src/index.js`, as F22.1b does: **do not run them at the same time as F22.1b**; take the one that is already merged first. The unzipped package replaces the zip; never commit the zip.
+
+| Step | What | Source | Status | Note |
+|---|---|---|---|---|
+| U1.0 | Read the package and the reference. Reply with a short plan per step (files touched, tests to add), the list of on-screen strings (verbatim, new, placeholder), and any conflict with CLAUDE.md or VISION.md; write nothing to the site | Design handoff, approved by Blake 2026-11-24 | Open | Sonnet 5.5, high. REVIEW STOP |
+| U1.1 | Editor start chooser (Full adder example / Empty figure / Open…, keys 1 2 3, Esc = empty) when there is no `?open=` and no autosave; fix the overwritten status line; autosave and `?open=` unchanged | README "Screen 5" | Open | Smallest step; fixes a real bug. REVIEW STOP (chooser, light and dark) |
+| U1.2 | Pre-launch page: more room above the title block, "Site under construction" with its status dot; still no navigation and no internal links | README "Screen 1" | Open | |
+| U1.3 | Release home: bio (verbatim), sticky three-part section bar, three listings with one card style (Projects, Explorations from Quarto listings; Tools from a small YAML file). No copyright footer | README "Screen 2" | Open | Goes live only at launch. REVIEW STOP (light and dark) |
+| U1.4 | Tour (three steps, spotlight), toolbar tooltips with keys, Keys dialog restyled from `KEYS`, toast, Tour button; seen state `figure-editor/tour-seen` | README "Screen 5, 6" | Open | REVIEW STOP (three screenshots) |
+| U1.5 | Toolbar and status bar: figure name and autosave state, Export as the one filled button, "Frame n/8", grid step, zoom | README "Screen 4" | Open | |
+| U1.6 | Editor layout: settings panes in a right column, Timing Diagram and Slide as tabs under the canvas, Elements search | README "Screen 4, layout" | Deferred (Blake, 2026-11-24: after F22.1b merges) | Overlaps F21.2 (Elements search): decide which batch owns the search field |
+| U1.7 | Deno tests for the chooser and tour state; browser checks (first open, autosave restore, `?open=`, tour skip and replay, light and dark); one screenshot per changed page; privacy scan | CLAUDE.md render cadence | Open | |
+
+Note for the Scribe once built: a "First open" section in the Figure Editor and Schematic Editor READMEs. Note for the IP Inspector: `proposals/first-run-redesign/design/support.js` is the design tool's runtime for the reference file; confirm its provenance, and it never ships on the site.
 
 ---
 
