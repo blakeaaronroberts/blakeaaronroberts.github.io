@@ -33,9 +33,9 @@ export function shell(tg) {
   return `
   <div class="fe">
     <div class="fe-toolbar" role="toolbar" aria-label="Figure Editor">
-      ${group("Tool", tg.tool)}${group("Edit", tg.edit)}${group("History", tg.history)}${group("Clipboard", tg.clipboard)}${group("View", tg.view)}${group("Part grid: snap step for parts", tg.grid)}
+      ${tg.name}${group("Tool", tg.tool)}${group("Edit", tg.edit)}${group("History", tg.history)}${group("Clipboard", tg.clipboard)}${group("View", tg.view)}${group("Part grid: snap step for parts", tg.grid)}
       ${group("File", tg.file + tg.projectzip)}
-      <div class="fe-group fe-group-end" role="navigation" aria-label="Frames"><span class="fe-stepper">${tg.frames.replace(/(<button[^>]*data-cmd="navframes")/, `${tg.frametosignal}$1`)}</span>${tg.help}</div>
+      <div class="fe-group fe-group-end" role="navigation" aria-label="Frames">${tg.frametosignal}${tg.frameexport}${tg.frames}</div>${group("Help", tg.help)}${group("Open, save and export", tg.fileend)}
     </div>
     <div data-slot="left"></div>
     <div data-slot="resizer"></div>

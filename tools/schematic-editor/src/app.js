@@ -84,6 +84,7 @@ export const KEYS = [
 ];
 
 const BUTTON = "btn btn-sm fe-btn";
+const AUTOSAVE_OFF = "Autosave is off: this browser will not store the figure. Use Save to keep it.";
 // Toolbar icons: 16-unit line drawings in currentColor, so the site's roles colour them.
 const ICONS = {
   select: '<path d="M3 2l9 5-4 1.5L6.5 13z"/>',
@@ -132,10 +133,16 @@ export function toolbarGroups() {
     history: `${btn("undo", "Undo", "Control+Z")}${btn("redo", "Redo", "Control+Y")}`,
     clipboard: `${btn("copy", "Copy", "Control+C")}${btn("paste", "Paste", "Control+V")}`,
     view: `${btn("zoomout", "Zoom out", "-")}${btn("zoomin", "Zoom in", "+")}${btn("fit", "Fit", "F")}`,
-    grid: `<span class="fe-grouplabel label-mono" aria-hidden="true">Grid</span>${btn("gridhalf", "½", "", ' aria-pressed="true"', "Snap parts to half a module")}${btn("gridfull", "1", "", ' aria-pressed="false"', "Snap parts to a whole module")}`,
-    file: `${btn("new", "New")}${btn("open", "Open…")}${btn("importsv", "Import SystemVerilog", "", "", "Import SystemVerilog: paste or open a .sv file")}${btn("save", "Save", "Control+S")}${btn("export", "Export", "", "", "Export the active view as SVG or PNG")}`,
-    frames: `${btn("frameprev", "◀", "", "", "Previous frame")}<input class="fe-stepinput" type="number" min="0" step="1" aria-label="Go to frame" title="Type a frame number and press Enter"><span class="fe-stepno label-mono"></span>${btn("framenext", "▶", "", "", "Next frame")}${btn("navframes", "Export frames", "", "", "Export each frame in the active workspace as SVG or PNG")}`,
-    help: `${btn("tour", "Tour", "", "", "Replay the tour")}${btn("help", "Keys", "?")}`,
+    grid: `<span class="fe-grouplabel label-mono" aria-hidden="true">Grid</span><span class="fe-seg">${btn("gridhalf", "½", "", ' aria-pressed="true"', "Snap parts to half a module")}${btn("gridfull", "1", "", ' aria-pressed="false"', "Snap parts to a whole module")}</span>`,
+    file: `${btn("new", "New")}${btn("importsv", "Import SystemVerilog", "", "", "Import SystemVerilog: paste or open a .sv file")}`,
+    // U1.5: Open, Save and Export sit at the right end; Export is the one filled button
+    fileend: `${btn("open", "Open…")}${btn("save", "Save", "Control+S")}<button type="button" class="${BUTTON} fe-export" data-cmd="export" data-tip="Export the active view as SVG or PNG"><svg class="fe-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">${ICONS.export}</svg>Export</button>`,
+    // U1.5: the stepper is one box, "Frame n/8"; the frame number stays an input so a frame can still be typed
+    frames: `<span class="fe-stepper">${btn("frameprev", "◀", "", "", "Previous frame")}<span class="fe-stepword" aria-hidden="true">Frame</span><input class="fe-stepinput" type="number" min="0" step="1" aria-label="Go to frame" title="Type a frame number and press Enter"><span class="fe-stepno label-mono"></span>${btn("framenext", "▶", "", "", "Next frame")}</span>`,
+    frameexport: btn("navframes", "Export frames", "", "", "Export each frame in the active workspace as SVG or PNG"),
+    help: btn("help", "Keys", "?"),
+    // U1.5: the figure's name with its autosave state, over the left column
+    name: `<div class="fe-name"><span class="fe-name-title">Untitled figure</span><span class="fe-save"><i class="fe-dot" data-state="none" aria-hidden="true"></i><span class="fe-save-text">Not saved yet</span></span></div>`,
     // buttons that act on the Figure Editor's parts (the Timing Diagram, ZIP); a host that lends those parts adds them
     projectzip: `${btn("projectzip", "Project ZIP", "", "", "Download the schematic, timing diagram, and editable project JSON as a ZIP file")}`,
     frametosignal: `${btn("frametosignal", "Send current frame to timing", "", "", "Send the current schematic state to a timing step")}`,
@@ -158,7 +165,17 @@ export async function mount(root, options = {}) {
   if (options.migrate) migrateR1((k) => { try { return localStorage.getItem(k); } catch { return null; } }, (k, v) => { try { localStorage.setItem(k, v); } catch { /* storage unavailable */ } });
   const base = new URL(options.pack ?? "./symbol-pack/", document.baseURI);
   const say0 = (html) => { const s = options.host && root.querySelector(`[data-slot="status"]`); if (s) s.innerHTML = html; else root.innerHTML = html; };   // a host's shell is never wiped
-  say0(`<p class="fe-status" role="status">Loading the symbol pack…</p>`);
+  // U1.5: while the pack loads, the page shows a skeleton: a progress line and flat blocks where the toolbar and the left column will be
+  const skeleton = document.createElement("div");
+  skeleton.className = "fe fe-skeleton"; skeleton.setAttribute("aria-busy", "true");
+  skeleton.innerHTML = `
+    <div class="fe-sk-progress" aria-hidden="true"><i></i></div>
+    <div class="fe-toolbar fe-sk-bar" aria-hidden="true"><i class="fe-sk" style="width:12rem;height:1.6rem"></i><i class="fe-sk" style="width:9rem"></i><i class="fe-sk" style="width:5rem"></i><i class="fe-sk" style="width:6rem"></i><i class="fe-sk fe-sk-end" style="width:9rem"></i><i class="fe-sk" style="width:5rem"></i></div>
+    <div class="fe-left fe-sk-left" aria-hidden="true"><i class="fe-sk" style="height:1.6rem"></i><i class="fe-sk" style="height:2rem"></i><i class="fe-sk" style="height:2rem"></i><i class="fe-sk" style="height:2rem"></i><i class="fe-sk" style="height:2rem"></i></div>
+    <div class="fe-sk-centre"><p role="status">Loading the symbol pack…</p></div>
+    <div class="fe-statusbar" aria-hidden="true"><p class="fe-sk-status">Loading the symbol pack…</p></div>`;
+  { const header = document.querySelector("#quarto-header"); root.style.setProperty("--fe-top", `${header ? Math.round(header.getBoundingClientRect().bottom) : 0}px`); }
+  if (options.host) root.append(skeleton); else root.replaceChildren(skeleton);
   let loaded;
   try {
     loaded = await loadPack(async (p) => {
@@ -167,10 +184,12 @@ export async function mount(root, options = {}) {
       return r.text();
     });
   } catch (e) {
+    skeleton.remove();
     say0(`<p class="fe-status" role="alert">Could not load the symbol pack: ${esc(e.message)}</p>`);
     return null;
   }
-  let pack = loaded;                                   // the active pack: the loaded one, or it drawn with a private theme
+  skeleton.remove();
+  let pack = loaded;                                  // the active pack: the loaded one, or it drawn with a private theme
 
   // The editor's parts. On its own page it lays them out itself; embedded (options.host), the host has built the shell
   // (toolbar, section stack) and the editor fills the slots it finds: left, resizer, status (with dialogs), and each section.
@@ -261,8 +280,15 @@ export async function mount(root, options = {}) {
       </details>
     </div>`;
   const resizerHtml = `<div class="fe-resizer" data-resize="left" role="separator" aria-label="Resize controls pane" aria-orientation="vertical" tabindex="0"></div>`;
+  // U1.5: the status bar: the status text at the left; the Tour button, grid step, zoom and frame at the right
   const statusHtml = `
-    <p class="fe-status" role="status" aria-live="polite"></p>
+    <div class="fe-statusbar">
+      <p class="fe-status" role="status" aria-live="polite"></p>
+      <div class="fe-sbar-right">
+        ${btn("tour", "Tour 0/0", "", "", "Replay the tour").replace(BUTTON, "fe-tourbtn")}
+        <span class="fe-sb-grid">Grid ½</span><span class="fe-sb-zoom">100%</span><span class="fe-sb-frame">No frames</span>
+      </div>
+    </div>
     <dialog class="fe-help" aria-labelledby="fe-help-title">
       <form method="dialog" class="fe-help-head"><h2 id="fe-help-title">Keys</h2><kbd aria-hidden="true">?</kbd><button class="${BUTTON} fe-help-close" aria-label="Close">✕</button></form>
       <table><tbody>${KEYS.map(([k, what]) => { const chips = keyChips(k); return `<tr><th scope="row">${chips ? chips.map((c) => `<kbd>${esc(c)}</kbd>`).join(" ") : esc(k)}</th><td>${esc(what)}</td></tr>`; }).join("")}</tbody></table>
@@ -295,8 +321,8 @@ export async function mount(root, options = {}) {
     root.innerHTML = `
   <div class="fe">
     <div class="fe-toolbar" role="toolbar" aria-label="Schematic Editor">
-      ${group("Tool", tg.tool)}${group("Edit", tg.edit)}${group("History", tg.history)}${group("Clipboard", tg.clipboard)}${group("View", tg.view)}${group("Part grid: snap step for parts", tg.grid)}${group("File", tg.file)}
-      <div class="fe-group fe-group-end" role="navigation" aria-label="Frames"><span class="fe-stepper">${tg.frames}</span>${tg.help}</div>
+      ${tg.name}${group("Tool", tg.tool)}${group("Edit", tg.edit)}${group("History", tg.history)}${group("Clipboard", tg.clipboard)}${group("View", tg.view)}${group("Part grid: snap step for parts", tg.grid)}${group("File", tg.file)}
+      <div class="fe-group fe-group-end" role="navigation" aria-label="Frames">${tg.frameexport}${tg.frames}</div>${group("Help", tg.help)}${group("Open, save and export", tg.fileend)}
       ${tg.inputs}
     </div>${leftHtml}
     ${resizerHtml}
@@ -310,7 +336,8 @@ export async function mount(root, options = {}) {
   const svg = $(".fe-canvas"), statusEl = $(".fe-status"), fileInput = $(".fe-file"), themeInput = $(".fe-theme-file");
   const idInput = $('[name="fe-id"]'), titleInput = $('[name="fe-title"]'), logicCalculationInput = $('[name="fe-logic-calculation"]'), propsEl = $(".fe-props"), selectionPane = $(".fe-selection-pane"), helpEl = $(".fe-help"), exportDialog = $(".fe-export-dialog");
   const scaleInput = $('[name="fe-scale"]'), ptInput = $('[name="fe-labelpt"]'), tagPtInput = $('[name="fe-tagpt"]'), tagsInput = $('[name="fe-tags"]'), tagColourInput = $('[name="fe-tagcolour"]'), netNamesInput = $('[name="fe-netnames"]'), draftsInput = { checked: false }, canvasInput = $('[name="fe-canvas"]'), exportDarkInput = $('[name="fe-exportdark"]');
-  const view = createView(svg, loaded);
+  // U1.5: zoom in the status bar; 100% is the opening view, 20 screen pixels to the module
+  const view = createView(svg, loaded, { onCamera: (cam) => { const z = $(".fe-sb-zoom"); if (z) z.textContent = `${Math.round(0.05 / cam.scale * 100)}%`; } });
   // The editor fills the window below the site header; measure the header so the two never overlap.
   const header = document.querySelector("#quarto-header");
   const fit = () => root.style.setProperty("--fe-top", `${header ? Math.round(header.getBoundingClientRect().bottom) : 0}px`);
@@ -476,6 +503,7 @@ export async function mount(root, options = {}) {
     emit("status", { text: msg, error });
     statusRevision++;
     statusEl.textContent = msg;
+    statusEl.title = msg;   // the bar cuts a long line off with an ellipsis; the whole line is in the tooltip
     statusEl.toggleAttribute("data-error", error);
     statusEl.setAttribute("role", error ? "alert" : "status");
   };
@@ -663,6 +691,8 @@ export async function mount(root, options = {}) {
     for (const t of ["select", "wire", "port", "label", "solder"]) root.querySelector(`[data-cmd="${t}"]`)?.setAttribute("aria-pressed", String(tool === t));
     root.querySelector(`[data-cmd="gridhalf"]`)?.setAttribute("aria-pressed", String(opt.grid === 1));
     root.querySelector(`[data-cmd="gridfull"]`)?.setAttribute("aria-pressed", String(opt.grid === 2));
+    { const g = $(".fe-sb-grid"); if (g) g.textContent = `Grid ${opt.grid === 2 ? "1" : "½"}`; }
+    { const n = $(".fe-name-title"); if (n) n.textContent = doc.title?.trim() || "Untitled figure"; }
     svg.dataset.tool = tool;
     if (document.activeElement !== idInput) idInput.value = doc.id;
     if (document.activeElement !== titleInput) titleInput.value = doc.title ?? "";
@@ -914,7 +944,15 @@ export async function mount(root, options = {}) {
     autosavePending = false;
     let ok = false;
     try { ok = store.set(AUTOSAVE, D.serialize(doc, pack)); } catch { ok = false; }
-    if (!ok && !autosaveWarned) { autosaveWarned = true; status("Autosave is off: this browser will not store the figure. Use Save to keep it.", true); }
+    if (!ok && !autosaveWarned) { autosaveWarned = true; status(AUTOSAVE_OFF, true); }
+    showSaveState(ok ? "saved" : "off");
+  }
+  /** The name block's autosave line. The text carries the state; the dot (filled, hollow or faint) only echoes it. */
+  function showSaveState(state) {
+    const dot = $(".fe-dot"), text = $(".fe-save-text"); if (!dot || !text) return;
+    dot.dataset.state = state;
+    text.textContent = state === "saved" ? "Autosaved in this browser" : state === "off" ? AUTOSAVE_OFF : "Not saved yet";
+    text.title = state === "off" ? AUTOSAVE_OFF : "";
   }
   /** The timing pane follows the circuit immediately: its node buttons and frames update after each edit. */
   function internalNodesForWires(wireIds) {
@@ -1568,7 +1606,8 @@ export async function mount(root, options = {}) {
   function renderFrames() {
     const frames = framesOf(doc);
     if (selectedFrame >= frames.length) selectedFrame = frames.length - 1;
-    const stepNo = $(".fe-stepno"); if (stepNo) stepNo.textContent = frames.length ? `/ ${frames.length - 1}` : "no frames";
+    const stepNo = $(".fe-stepno"); if (stepNo) stepNo.textContent = frames.length ? `/${frames.length - 1}` : "no frames";
+    const sbFrame = $(".fe-sb-frame"); if (sbFrame) sbFrame.textContent = frames.length ? `Frame ${Math.max(0, selectedFrame)}/${frames.length - 1}` : "No frames";
     const stepIn = $(".fe-stepinput");
     if (stepIn) { stepIn.min = "0"; stepIn.max = String(Math.max(0, frames.length - 1)); stepIn.disabled = !frames.length;
     if (document.activeElement !== stepIn) stepIn.value = selectedFrame >= 0 ? String(selectedFrame) : ""; }
@@ -2646,8 +2685,15 @@ export async function mount(root, options = {}) {
   tourUi = createTourUi({
     root, tour, run: (cmd) => commands[cmd]?.(),
     onEnd: (how) => { toast(how === "done" ? DONE_TOAST : SKIP_TOAST); svg.focus(); },   // the keys keep working once the tour is gone
-    onChange: (t) => { const b = $('[data-cmd="tour"]'); if (b) b.hidden = t.active; },
+    onChange: (t) => syncTourButton(t),
   });
+  // U1.5: the Tour button lives in the status bar: "Tour 0/n" until the tour is seen, "Tour n/n" after; hidden while it runs
+  function syncTourButton(t = tour) {
+    const b = $('[data-cmd="tour"]'); if (!b) return;
+    b.hidden = t.active;
+    b.textContent = `Tour ${t.seen ? t.total : 0}/${t.total}`;
+  }
+  syncTourButton();
   const maybeTour = (choice) => { if (shouldStartTour({ seen: tour.seen, choice, timing: PARTS.timing })) tourUi.start(); };
   // ---- start ----------------------------------------------------------------------------------
   view.setGrid(opt.grid);
@@ -2669,7 +2715,7 @@ export async function mount(root, options = {}) {
   }
   const saved = !opened && store.get(AUTOSAVE);
   if (saved) {
-    try { load(saved, false); status("Restored the autosaved figure."); } catch (e) { status(`The autosaved figure could not be read (${e.message}). It is left alone until your next edit replaces it.`, true); }
+    try { load(saved, false); showSaveState("saved"); status("Restored the autosaved figure."); } catch (e) { status(`The autosaved figure could not be read (${e.message}). It is left alone until your next edit replaces it.`, true); }
   }
   // The example: load it, build its truth-table frames and seed the timing source when it is empty. True when it loaded.
   async function loadExample() {

@@ -4,7 +4,7 @@
 // New strings below are not approved by Blake until he says so (handoff, U1.4).
 
 export const DONE_TOAST = "You’re set. Press ? any time for the keys.";
-export const SKIP_TOAST = "Tour skipped. Replay it from the toolbar.";
+export const SKIP_TOAST = "Tour skipped. Replay it from the status bar.";   // U1.5, not approved by Blake
 
 const ELEMENTS = { id: "elements", target: ".fe-palette", place: "right", title: "Place elements", body: "Pick an element on the left to place it, or press W to draw a wire. Press ? for the keys." };
 
