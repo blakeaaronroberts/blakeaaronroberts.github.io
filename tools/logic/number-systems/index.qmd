@@ -1,0 +1,19 @@
+---
+title: "Number systems converter (draft)"
+page-layout: full
+css:
+  - ../analyze/src/analyze.css
+  - ../truth-table/src/table.css
+  - src/numbers.css
+---
+
+Convert between binary, decimal and hexadecimal in unsigned, sign-magnitude, ones' complement and two's complement, and see the range for a chosen width. Draft: it changes until Blake approves it.
+
+```{=html}
+<div id="number-systems"></div>
+<noscript><p>The number systems converter needs JavaScript.</p></noscript>
+<script type="module">
+  import { mount } from "./src/app.js";
+  window.numberSystems = mount(document.getElementById("number-systems"));
+</script>
+```

@@ -1,0 +1,18 @@
+/* L2.1 number systems. Roles only (--role-*); layout classes (an-*, tt-*) come from ../../analyze/src/analyze.css and ../../truth-table/src/table.css. */
+.ns-text { width: 14rem; font-size: 1rem; }
+.ns-width { width: 5rem; }
+.ns-result { display: grid; grid-template-columns: max-content 1fr; gap: 0.2rem 1rem; margin: 0.4rem 0 0; }
+.ns-result dt { color: var(--role-muted); font-size: 0.85rem; }
+.ns-result dd { margin: 0; }
+.ns-table, .ns-weights { border-collapse: collapse; font-size: 0.85rem; margin: 0; width: auto; }
+.ns-table th, .ns-table td, .ns-weights th, .ns-weights td { padding: 0.2rem 0.7rem; border: 0; border-bottom: 1px solid var(--role-rule); text-align: left; }
+.ns-weights td { text-align: center; font-family: var(--bs-font-monospace); }
+.ns-weights th { color: var(--role-muted); font-weight: 400; white-space: nowrap; }
+.ns-bit { font-weight: 700; color: var(--role-ink); }
+.ns-table thead th { background: var(--role-surface); color: var(--role-ink); }
+.ns-current { background: var(--role-surface); box-shadow: inset 4px 0 0 var(--role-accent); }
+.ns-steps { margin: 0.3rem 0; padding-left: 1.4rem; }
+.ns-sum { overflow-x: auto; margin: 0.5rem 0; }
+.an-card h4 { font-size: 0.95rem; margin: 0.8rem 0 0.3rem; }
+.tt-label select { font: inherit; padding: 0.2rem 0.5rem; color: var(--role-ink); background: var(--role-surface); border: 1px solid var(--role-rule); border-radius: 4px; }
+.tt-label select:focus { outline: 2px solid var(--role-accent); outline-offset: 1px; }
