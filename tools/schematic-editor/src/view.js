@@ -16,7 +16,7 @@ const NS = "http://www.w3.org/2000/svg";
 export const symbolId = (type) => `fe-sym-${type}`;
 const same = (a, b) => a.toUpperCase() === b.toUpperCase();
 
-export function createView(svg, basePack) {
+export function createView(svg, basePack, { onCamera } = {}) {
   // Palette previews reuse these <symbol>s. Colours baked into the pack's SVGs go through the active pack's mapping,
   // so the palette matches the canvas (as shipped in light; dark roles in dark).
   const recolourAttrs = (n, pack) => ({ ...n, attrs: (n.attrs ?? []).map(([k, v]) => [k, v.replace(/#[0-9A-Fa-f]{6}|rgb\([^)]*\)/g, (c) => pack.recolour(hex(c)))]), children: (n.children ?? []).map((c) => recolourAttrs(c, pack)) });
@@ -52,6 +52,7 @@ export function createView(svg, basePack) {
     for (const r of [paper, grid]) {
       r.setAttribute("x", b.x); r.setAttribute("y", b.y); r.setAttribute("width", b.w); r.setAttribute("height", b.h);
     }
+    onCamera?.(cam);
   }
 
   /** A pointer event's position in grid steps (fractional). */
