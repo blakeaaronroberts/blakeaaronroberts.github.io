@@ -1,7 +1,7 @@
 // Browser checks for the beta editor, in headless Chrome against the rendered _site folder.
 //
 //   quarto render tools/figure-editor/index.qmd
-//   quarto run tools/figure-editor/test/browser/check.js [dark] [wires] [saves] [--out <dir>] [--site <dir>]
+//   quarto run tools/figure-editor/test/browser/check.js [dark] [wires] [saves] [--out <dir>] [--site <dir>] [--port <n>]
 //
 // Exits non-zero if any check fails. Screenshots go to --out (default: the system temp folder).
 
@@ -14,14 +14,14 @@ const site = opt("--site", "_site"), out = opt("--out", Deno.makeTempDirSync({ p
 const names = args.filter((a, i) => !a.startsWith("--") && !args[i - 1]?.startsWith("--"));
 const wanted = names.length ? names : Object.keys(scenarios);
 
-const server = serve(site, 4177);
+const port = Number(opt("--port", 4177)), server = serve(site, port);
 let failed = 0;
 for (const name of wanted) {
   const run = scenarios[name];
   if (!run) { console.log(`unknown scenario ${name}`); failed++; continue; }
   console.log(`== ${name}`);
   try {
-    const results = await run({ launch, url: "http://127.0.0.1:4177/tools/figure-editor/", out });
+    const results = await run({ launch, url: `http://127.0.0.1:${port}/tools/figure-editor/`, out, site });
     for (const [ok, msg] of results) { console.log(`${ok ? "PASS" : "FAIL"}  ${msg}`); if (!ok) failed++; }
   } catch (e) { console.log(`FAIL  ${name} crashed: ${e.stack ?? e.message}`); failed++; }
 }

@@ -53,7 +53,7 @@ const ALL_ELEMENTS = `(async () => {
 const ready = "!!window.figureEditor";
 /** A fresh visit with no autosave opens the start chooser (U1.1). Tests that want the example on screen choose it, as a visitor would; with no chooser (an autosave, ?open=) this does nothing. */
 const startExample = async (page) => { if (!(await page.eval(`!!document.querySelector(".fe-start")?.open`))) return; await page.eval(`document.querySelector(".fe-start [data-start=example]").click()`); await page.waitFor(`document.querySelector(".fe-start")?.open === false && window.figureEditor.doc.elements.length > 0`); await page.eval(`document.querySelector(".fe-tour:not([hidden]) [data-tour=skip]")?.click()`); };
-let nextPort = 9400;
+let nextPort = Number(Deno.env.get("FE_CHROME_PORT") ?? 9400);   // another run on the same machine can set a different base
 
 async function measure({ launch, url, out }, scheme) {
   const page = await launch({ scheme, port: nextPort++ });
@@ -128,6 +128,135 @@ export const scenarios = {
       await page.sleep(300);
       res.push([await page.eval(`!document.querySelector(".fe-start")`) && /Restored/.test(await status(page)), "an autosave restores with no chooser"]);
       res.push([page.errors.length === 0, "no page errors"]);
+    } finally { await page.close(); }
+    return res;
+  },
+
+  /** U1.7: the first-run experience end to end, light and dark: skeleton, first open, tour and toolbar by keyboard, Keys dialog, autosave restore, ?open=, the Schematic Editor page, reduced motion. */
+  async firstrun(ctx) {
+    const res = [];
+    const q = (sel, prop = "textContent") => `(document.querySelector(${JSON.stringify(sel)})?.${prop} ?? "")`;
+    const live = `!!document.querySelector(".fe-tour:not([hidden])")`;
+    for (const scheme of ["light", "dark"]) {
+      // the skeleton shows while the pack's requests are held back, and goes once they are let through
+      {
+        const page = await ctx.launch({ scheme, port: nextPort++ });
+        try {
+          await page.beforeLoad(`const f = window.fetch; window.__held = []; window.fetch = (u, ...a) => /symbol-pack/.test(String(u?.url ?? u)) ? new Promise((r) => { window.__held.push(() => r(f(u, ...a))); }) : f(u, ...a);`);
+          await page.goto(ctx.url);
+          await page.waitFor(`!!document.querySelector(".fe-skeleton")`);
+          res.push([await page.eval(`!!document.querySelector(".fe-sk-progress i") && /Loading the symbol pack/.test(${q(".fe-sk-centre")})`), `${scheme}: the loading skeleton appears`]);
+          await page.shot(`${ctx.out}/skeleton-${scheme}.png`);
+          await page.eval(`window.__release = setInterval(() => { while (window.__held.length) window.__held.shift()(); }, 100)`);
+          await page.waitFor(`!document.querySelector(".fe-skeleton") && document.querySelector(".fe-start")?.open === true`, 30000);
+          res.push([true, `${scheme}: the skeleton goes away once the pack has loaded, and the chooser opens`]);
+        } finally { await page.close(); }
+      }
+      // first open, the tour and the toolbar by keyboard, the Keys dialog, autosave restore on reload
+      const page = await ctx.launch({ scheme, port: nextPort++ });
+      try {
+        await page.goto(ctx.url);
+        await page.waitFor(`document.querySelector(".fe-start")?.open === true`);
+        res.push([await page.eval(`!document.querySelector('.fe-tour:not([hidden])')`), `${scheme}: first open shows the chooser and no tour yet`]);
+        await page.key("1", "Digit1", 49);
+        await page.waitFor(live);
+        res.push([await page.eval(`document.activeElement?.dataset.tour === "next" && getComputedStyle(document.activeElement).outlineStyle !== "none"`), `${scheme}: the tour starts after the example, focus on Next with a visible ring`]);
+        await page.key("Enter", "Enter", 13); await page.sleep(300);
+        res.push([await page.eval(`/2 [/] 3/.test(${q(".fe-tour-pop")})`), `${scheme}: Enter goes to step 2`]);
+        await page.key("Enter", "Enter", 13); await page.sleep(300);
+        await page.key("Enter", "Enter", 13); await page.sleep(300);
+        res.push([await page.eval(`!(${live}) && localStorage.getItem("figure-editor/tour-seen") === "1" && /set/.test(${q(".fe-toast")})`), `${scheme}: Enter on the last step is Done: seen flag set, toast shown`]);
+        // the toolbar by keyboard: Tab moves the focus ring along the buttons, each with its tooltip and key
+        await page.eval(`document.querySelector('[data-cmd="select"]').focus()`);
+        await page.key("Tab", "Tab", 9);
+        res.push([await page.eval(`(() => { const b = document.activeElement, t = document.querySelector(".fe-tip"); return b?.dataset.cmd === "wire" && getComputedStyle(b).outlineStyle !== "none" && !t.hidden && /Wire/.test(t.textContent) && t.querySelector("kbd")?.textContent === "W"; })()`), `${scheme}: Tab to a toolbar button shows its focus ring and its tooltip with the key`]);
+        await page.key("Escape", "Escape", 27);
+        res.push([await page.eval(`document.querySelector(".fe-tip").hidden`), `${scheme}: Esc hides the tooltip`]);
+        // the Keys dialog: the button, the ✕, a click outside, and the ? key
+        const open = `document.querySelector(".fe-help").open`;
+        await page.eval(`document.querySelector('[data-cmd="help"]').click()`);
+        res.push([await page.eval(open), `${scheme}: the Keys button opens the dialog`]);
+        await page.eval(`document.querySelector(".fe-help-close").click()`);
+        res.push([await page.eval(`!(${open})`), `${scheme}: ✕ closes it`]);
+        await page.eval(`document.querySelector('[data-cmd="help"]').click()`);
+        await page.eval(`document.querySelector(".fe-help").dispatchEvent(new MouseEvent("click", { bubbles: true }))`);
+        res.push([await page.eval(`!(${open})`), `${scheme}: a click outside the dialog closes it`]);
+        await page.eval(`document.querySelector(".fe-canvas").focus()`);
+        await page.key("?", "Slash", 191, 8);
+        await page.waitFor(open);
+        await page.key("?", "Slash", 191, 8);
+        await page.sleep(200);
+        res.push([await page.eval(`!(${open})`), `${scheme}: ? opens it and ? closes it`]);
+        // autosave restore on reload
+        await page.sleep(1200);
+        const n = await page.eval(`window.figureEditor.doc.elements.length`);
+        await page.eval(`window.addEventListener("pagehide", (e) => e.stopImmediatePropagation(), true)`);
+        await page.goto(ctx.url);
+        await page.waitFor(`!!window.figureEditor`);
+        await page.sleep(800);
+        res.push([await page.eval(`!document.querySelector(".fe-start")?.open && window.figureEditor.doc.elements.length === ${n} && ${n} > 0 && /Autosaved in this browser/.test(${q(".fe-save-text")}) && !(${live})`), `${scheme}: a reload restores the autosave with no chooser and no tour`]);
+        res.push([page.errors.length === 0, `${scheme}: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+      } finally { await page.close(); }
+      // ?open= loads that figure with no chooser
+      const op = await ctx.launch({ scheme, port: nextPort++ });
+      try {
+        await op.goto(ctx.url + "?open=examples/full-adder-levels.json");
+        await op.waitFor(`!!window.figureEditor && window.figureEditor.doc.elements.length > 0`);
+        res.push([await op.eval(`!document.querySelector(".fe-start")?.open && /^Opened /.test(${q(".fe-status")})`), `${scheme}: ?open= loads that figure with no chooser`]);
+      } finally { await op.close(); }
+      // the Schematic Editor page's tour, skipped and replayed from the status bar
+      const sp = await ctx.launch({ scheme, port: nextPort++ });
+      try {
+        await sp.goto(ctx.url.replace(/figure-editor\/$/, "") + "schematic-editor/");
+        await sp.waitFor(`document.querySelector(".fe-start")?.open === true`);
+        await sp.key("2", "Digit2", 50);
+        await sp.waitFor(live);
+        res.push([await sp.eval(`/1 [/] 2/.test(${q(".fe-tour-pop")})`), `${scheme}: the Schematic Editor page's tour has two steps`]);
+        await sp.key("Escape", "Escape", 27);
+        await sp.sleep(200);
+        await sp.eval(`document.querySelector('[data-cmd="tour"]').click()`);
+        res.push([await sp.eval(live), `${scheme}: it replays from the status-bar button`]);
+      } finally { await sp.close(); }
+    }
+    // reduced motion: the spotlight and popover do not animate (and do when motion is allowed)
+    for (const reduced of [true, false]) {
+      const page = await ctx.launch({ scheme: "light", port: nextPort++, motion: reduced ? "reduce" : "no-preference" });
+      try {
+        await page.goto(ctx.url);
+        await page.waitFor(`document.querySelector(".fe-start")?.open === true`);
+        await page.key("1", "Digit1", 49);
+        await page.waitFor(live);
+        const moving = await page.eval(`["spot", "pop"].some((k) => getComputedStyle(document.querySelector(".fe-tour-" + k)).transitionDuration.split(",").some((d) => parseFloat(d) > 0))`);
+        res.push([moving === !reduced, `prefers-reduced-motion ${reduced ? "reduce: the tour spotlight and popover do not animate" : "no-preference: they animate"}`]);
+      } finally { await page.close(); }
+    }
+    return res;
+  },
+
+  /** U1.7: the pre-launch rules on the rendered site (the _site folder; the landing page also in Chrome). */
+  async prelaunch(ctx) {
+    const res = [];
+    const files = [];
+    const walk = async (dir) => { for await (const e of Deno.readDir(`${ctx.site}/${dir}`)) { const p = dir ? `${dir}/${e.name}` : e.name; if (e.isDirectory) { if (e.name !== "site_libs" && e.name !== "_freeze") await walk(p); } else if (p.endsWith(".html")) files.push(p); } };
+    await walk("");
+    const noindex = /<meta[^>]+name="robots"[^>]+content="noindex"/;
+    const missing = [];
+    for (const f of files) if (f !== "index.html" && !noindex.test(await Deno.readTextFile(`${ctx.site}/${f}`))) missing.push(f);
+    res.push([files.length > 5 && missing.length === 0, `every page except index.html has noindex (${files.length} pages${missing.length ? "; missing: " + missing.join(", ") : ""})`]);
+    res.push([!noindex.test(await Deno.readTextFile(`${ctx.site}/index.html`)), "index.html (the landing page) is the one page without noindex"]);
+    const footers = [];
+    for (const f of files) { const m = (await Deno.readTextFile(`${ctx.site}/${f}`)).match(/<footer[\s\S]*?<\/footer>/i); if (m && /©|&copy;|copyright|licen[sc]e/i.test(m[0])) footers.push(f); }
+    res.push([footers.length === 0, `no copyright or licence footer${footers.length ? ` (found on ${footers.length} pages, e.g. ${footers[0]})` : ""}`]);
+    const home = await Deno.readTextFile(`${ctx.site}/home.html`).catch(() => null), index = await Deno.readTextFile(`${ctx.site}/index.html`);
+    res.push([home === null || (home !== index && noindex.test(home)), "home.qmd is not the deployed home: index.html is the landing page and home.html, if published, is noindex"]);
+    // the landing page in Chrome: no navigation shown, no internal links
+    const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+    try {
+      await page.goto(ctx.url.replace(/tools\/figure-editor\/$/, ""));
+      await page.waitFor(`document.readyState === "complete"`);
+      await page.sleep(500);
+      res.push([await page.eval(`[".navbar-brand", ".navbar-nav", ".navbar-toggler", "#quarto-search"].every((s) => [...document.querySelectorAll(s)].every((e) => getComputedStyle(e).display === "none"))`), "the landing page shows no brand link, nav links, menu button or search"]);
+      res.push([await page.eval(`[...document.querySelectorAll("main a[href], #quarto-content a[href]")].filter((a) => a.offsetParent && new URL(a.href, location.href).origin === location.origin).length === 0`), "the landing page links to nothing on the site"]);
     } finally { await page.close(); }
     return res;
   },

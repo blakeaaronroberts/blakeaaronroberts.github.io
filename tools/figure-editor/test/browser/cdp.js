@@ -22,7 +22,8 @@ export function serve(root, port) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Start Chrome, open one tab, and return a page handle. */
-export async function launch({ port = 9333, width = 1366, height = 768, scheme = "light", profile }) {
+/** `motion` ("reduce" or "no-preference") sets prefers-reduced-motion; left out, the machine's own setting stands (headless Chrome here reports reduce, and other checks rely on it). */
+export async function launch({ port = 9333, width = 1366, height = 768, scheme = "light", profile, motion }) {
   const exe = (await Promise.all(CHROME.map((p) => Deno.stat(p).then(() => p, () => null)))).find(Boolean);
   if (!exe) throw new Error("no Chrome or Edge found");
   const dir = profile ?? await Deno.makeTempDir({ prefix: "fe-chrome-" });
@@ -47,7 +48,7 @@ export async function launch({ port = 9333, width = 1366, height = 768, scheme =
   const send = (method, params = {}) => new Promise((res, rej) => { const n = ++id; pending.set(n, { res, rej, method }); ws.send(JSON.stringify({ id: n, method, params })); });
   await send("Page.enable"); await send("Runtime.enable");
   await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
-  await send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: scheme }] });
+  await send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: scheme }, ...(motion ? [{ name: "prefers-reduced-motion", value: motion }] : [])] });
   const errors = [];
   listeners.push((msg) => {
     if (msg.method === "Page.javascriptDialogOpening") send("Page.handleJavaScriptDialog", { accept: true }).catch(() => {});   // the editor warns before leaving with unsaved work

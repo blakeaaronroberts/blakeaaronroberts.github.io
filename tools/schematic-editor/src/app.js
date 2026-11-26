@@ -31,6 +31,7 @@ import { openableUrl } from "../../shared/src/openurl.js";
 import { createSvPanel } from "./svpanel.js";
 import { EMPTY_STATUS, EXAMPLE_STATUS, startAction } from "./start.js";
 import { createStartChooser } from "./startui.js";
+import { AUTOSAVE_OFF, figureName, frameText, frameTotalText, gridText, saveText, tourText, zoomText } from "./bars.js";
 import { DONE_TOAST, SKIP_TOAST, createTour, keyChips, shouldStartTour, tourSteps } from "./tour.js";
 import { createToast, createTourUi, tooltips } from "./tourui.js";
 
@@ -84,7 +85,6 @@ export const KEYS = [
 ];
 
 const BUTTON = "btn btn-sm fe-btn";
-const AUTOSAVE_OFF = "Autosave is off: this browser will not store the figure. Use Save to keep it.";
 // Toolbar icons: 16-unit line drawings in currentColor, so the site's roles colour them.
 const ICONS = {
   select: '<path d="M3 2l9 5-4 1.5L6.5 13z"/>',
@@ -337,7 +337,7 @@ export async function mount(root, options = {}) {
   const idInput = $('[name="fe-id"]'), titleInput = $('[name="fe-title"]'), logicCalculationInput = $('[name="fe-logic-calculation"]'), propsEl = $(".fe-props"), selectionPane = $(".fe-selection-pane"), helpEl = $(".fe-help"), exportDialog = $(".fe-export-dialog");
   const scaleInput = $('[name="fe-scale"]'), ptInput = $('[name="fe-labelpt"]'), tagPtInput = $('[name="fe-tagpt"]'), tagsInput = $('[name="fe-tags"]'), tagColourInput = $('[name="fe-tagcolour"]'), netNamesInput = $('[name="fe-netnames"]'), draftsInput = { checked: false }, canvasInput = $('[name="fe-canvas"]'), exportDarkInput = $('[name="fe-exportdark"]');
   // U1.5: zoom in the status bar; 100% is the opening view, 20 screen pixels to the module
-  const view = createView(svg, loaded, { onCamera: (cam) => { const z = $(".fe-sb-zoom"); if (z) z.textContent = `${Math.round(0.05 / cam.scale * 100)}%`; } });
+  const view = createView(svg, loaded, { onCamera: (cam) => { const z = $(".fe-sb-zoom"); if (z) z.textContent = zoomText(cam.scale); } });
   // The editor fills the window below the site header; measure the header so the two never overlap.
   const header = document.querySelector("#quarto-header");
   const fit = () => root.style.setProperty("--fe-top", `${header ? Math.round(header.getBoundingClientRect().bottom) : 0}px`);
@@ -691,8 +691,8 @@ export async function mount(root, options = {}) {
     for (const t of ["select", "wire", "port", "label", "solder"]) root.querySelector(`[data-cmd="${t}"]`)?.setAttribute("aria-pressed", String(tool === t));
     root.querySelector(`[data-cmd="gridhalf"]`)?.setAttribute("aria-pressed", String(opt.grid === 1));
     root.querySelector(`[data-cmd="gridfull"]`)?.setAttribute("aria-pressed", String(opt.grid === 2));
-    { const g = $(".fe-sb-grid"); if (g) g.textContent = `Grid ${opt.grid === 2 ? "1" : "½"}`; }
-    { const n = $(".fe-name-title"); if (n) n.textContent = doc.title?.trim() || "Untitled figure"; }
+    { const g = $(".fe-sb-grid"); if (g) g.textContent = gridText(opt.grid); }
+    { const n = $(".fe-name-title"); if (n) n.textContent = figureName(doc.title); }
     svg.dataset.tool = tool;
     if (document.activeElement !== idInput) idInput.value = doc.id;
     if (document.activeElement !== titleInput) titleInput.value = doc.title ?? "";
@@ -951,7 +951,7 @@ export async function mount(root, options = {}) {
   function showSaveState(state) {
     const dot = $(".fe-dot"), text = $(".fe-save-text"); if (!dot || !text) return;
     dot.dataset.state = state;
-    text.textContent = state === "saved" ? "Autosaved in this browser" : state === "off" ? AUTOSAVE_OFF : "Not saved yet";
+    text.textContent = saveText(state);
     text.title = state === "off" ? AUTOSAVE_OFF : "";
   }
   /** The timing pane follows the circuit immediately: its node buttons and frames update after each edit. */
@@ -1606,8 +1606,8 @@ export async function mount(root, options = {}) {
   function renderFrames() {
     const frames = framesOf(doc);
     if (selectedFrame >= frames.length) selectedFrame = frames.length - 1;
-    const stepNo = $(".fe-stepno"); if (stepNo) stepNo.textContent = frames.length ? `/${frames.length - 1}` : "no frames";
-    const sbFrame = $(".fe-sb-frame"); if (sbFrame) sbFrame.textContent = frames.length ? `Frame ${Math.max(0, selectedFrame)}/${frames.length - 1}` : "No frames";
+    const stepNo = $(".fe-stepno"); if (stepNo) stepNo.textContent = frameTotalText(frames.length);
+    const sbFrame = $(".fe-sb-frame"); if (sbFrame) sbFrame.textContent = frameText(selectedFrame, frames.length);
     const stepIn = $(".fe-stepinput");
     if (stepIn) { stepIn.min = "0"; stepIn.max = String(Math.max(0, frames.length - 1)); stepIn.disabled = !frames.length;
     if (document.activeElement !== stepIn) stepIn.value = selectedFrame >= 0 ? String(selectedFrame) : ""; }
@@ -2628,7 +2628,7 @@ export async function mount(root, options = {}) {
     if (e.target.closest("input, textarea, select")) return;
     const ctrl = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
     const run = (name) => { e.preventDefault(); commands[name](); };
-    if (helpEl.open) return;
+    if (helpEl.open) { if (e.key === "?") run("help"); return; }   // the list says ? shows or hides it; every other key waits until it is closed
     if (ctrl && k === "z" && !e.shiftKey) return run("undo");
     if (ctrl && (k === "y" || (k === "z" && e.shiftKey))) return run("redo");
     if (ctrl && k === "c") return run("copy");
@@ -2691,7 +2691,7 @@ export async function mount(root, options = {}) {
   function syncTourButton(t = tour) {
     const b = $('[data-cmd="tour"]'); if (!b) return;
     b.hidden = t.active;
-    b.textContent = `Tour ${t.seen ? t.total : 0}/${t.total}`;
+    b.textContent = tourText(t);
   }
   syncTourButton();
   const maybeTour = (choice) => { if (shouldStartTour({ seen: tour.seen, choice, timing: PARTS.timing })) tourUi.start(); };
