@@ -16,9 +16,11 @@ export function tooltips(root) {
     const { label, keys } = tipText(b.dataset.tip, b.getAttribute("aria-keyshortcuts"));
     tip.innerHTML = `<span>${esc(label)}</span>${keys.map((k) => `<kbd>${esc(k)}</kbd>`).join("")}`;
     tip.hidden = false; on = b;
-    const r = b.getBoundingClientRect(), w = tip.offsetWidth;
+    const r = b.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
     tip.style.left = `${Math.max(4, Math.min(innerWidth - w - 4, r.left + r.width / 2 - w / 2))}px`;
-    tip.style.top = `${r.bottom + 2}px`;
+    // U1.5: a toolbar button's tip hangs from the toolbar's lower edge; a button with no room below it (the status bar's) gets it above
+    const bar = b.closest(".fe-toolbar"), below = bar ? bar.getBoundingClientRect().bottom : r.bottom + 2;
+    tip.style.top = `${below + h > innerHeight ? r.top - h - 4 : below}px`;
   };
   const hide = () => { tip.hidden = true; on = null; };
   const target = (e) => e.target.closest?.("[data-tip]");

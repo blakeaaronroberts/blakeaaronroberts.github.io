@@ -388,3 +388,63 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 .fe-sv-engine[hidden] { display: none; }
 .fe-sv-progress { flex: 1 1 12rem; max-width: 22rem; height: .7rem; accent-color: var(--role-accent); }
 .fe-sv-engine-text { flex: 1 1 14rem; }
+.fe-sv-stored { margin: .2rem 0; font-size: .85rem; color: var(--role-muted); }
+.fe-sv-stored[hidden] { display: none; }
+
+/* ---- toolbar, status bar and loading skeleton (U1.5). Roles only; no colours or fonts of its own. ---- */
+.fe-toolbar { height: 44px; box-sizing: border-box; flex-wrap: nowrap; gap: 0; column-gap: 0; padding: 0 12px 0 0; background: var(--role-background); border-bottom: 1px solid var(--role-rule); }
+.fe-name { flex: none; box-sizing: border-box; width: var(--fe-left-width, 15rem); align-self: stretch; min-width: 0; padding: 0 16px; display: flex; flex-direction: column; justify-content: center; gap: 1px; border-right: 1px solid var(--role-rule); }
+.fe-name-title { font-size: 13.5px; font-weight: 600; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fe-save { display: flex; align-items: center; gap: 5px; min-width: 0; font-family: var(--bs-font-monospace); font-size: 10.5px; line-height: 1.2; color: var(--role-muted); }
+.fe-save-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fe-dot { flex: none; box-sizing: border-box; width: 5px; height: 5px; border-radius: 50%; background: var(--role-rule); }
+.fe-dot[data-state="saved"] { background: var(--role-accent); }
+.fe-dot[data-state="off"] { background: transparent; border: 1px solid var(--role-muted); }
+
+.fe-toolbar .fe-group { position: relative; gap: 2px; padding: 0 6px; border: 0; }
+.fe-toolbar .fe-group:not(:last-of-type)::after { content: ""; position: absolute; right: 0; top: 50%; width: 1px; height: 20px; margin-top: -10px; background: var(--role-rule-soft); }
+.fe-toolbar .fe-group-end { margin-left: auto; }
+.fe .fe-toolbar .fe-btn { --bs-btn-padding-x: 0; --bs-btn-hover-bg: var(--role-surface); --bs-btn-hover-border-color: transparent; min-width: 30px; height: 30px; padding: 0 5px; font-size: 12px; }
+.fe .fe-toolbar .fe-btn .fe-icon { width: 16px; height: 16px; }
+.fe .fe-toolbar .fe-btn:disabled { opacity: .35; }
+.fe .fe-toolbar .fe-btn[aria-pressed="true"], .fe .fe-toolbar .fe-btn[aria-pressed="true"]:hover { color: var(--role-background); }
+
+.fe-toolbar .fe-grouplabel { display: inline; padding: 0 6px 0 0; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--role-muted); }
+.fe-seg { display: inline-flex; border: 1px solid var(--role-rule); }
+.fe .fe-toolbar .fe-seg .fe-btn { min-width: 28px; width: 28px; height: 24px; padding: 0; font-size: 11px; }
+.fe .fe-toolbar .fe-seg .fe-btn[aria-pressed="true"], .fe .fe-toolbar .fe-seg .fe-btn[aria-pressed="true"]:hover { background: var(--role-ink); border-color: var(--role-ink); color: var(--role-background); }
+
+.fe-toolbar .fe-stepper { display: inline-flex; align-items: center; gap: 0; margin: 0; padding: 0; border: 1px solid var(--role-rule); }
+.fe .fe-toolbar .fe-stepper .fe-btn { min-width: 26px; width: 26px; height: 26px; padding: 0; }
+.fe-stepword { padding-left: 4px; font-family: var(--bs-font-monospace); font-size: 11.5px; }
+.fe-toolbar .fe-stepinput { width: 2ch; min-width: 2ch; height: 22px; padding: 0; border: 0; background: transparent; text-align: right; font-size: 11.5px; }
+.fe-toolbar .fe-stepno { min-width: 3ch; padding-right: 4px; text-align: left; font-size: 11.5px; color: var(--role-muted); }
+.fe .fe-toolbar .fe-export { gap: 6px; margin-left: 4px; padding: 0 12px; font-family: inherit; font-size: 13px; font-weight: 600; background: var(--role-accent); border-color: var(--role-accent); color: var(--role-background); }
+.fe .fe-toolbar .fe-export:hover { background: var(--role-accent-hover); border-color: var(--role-accent-hover); color: var(--role-background); }
+.fe .fe-toolbar .fe-export .fe-icon { width: 14px; height: 14px; }
+
+.fe-statusbar { grid-column: 1 / -1; box-sizing: border-box; height: 28px; display: flex; align-items: center; gap: 16px; padding: 0 12px; background: var(--role-surface); border-top: 1px solid var(--role-rule); font-family: var(--bs-font-monospace); font-size: 11.5px; color: var(--role-muted); }
+.fe-statusbar .fe-status { flex: 1 1 auto; min-width: 0; min-height: 0; display: block; padding: 0; background: none; border: 0; font-size: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fe-sbar-right { flex: none; display: flex; align-items: center; gap: 16px; white-space: nowrap; }
+.fe-tourbtn { height: 20px; padding: 0 8px; border: 1px solid var(--role-rule); border-radius: 0; background: transparent; color: var(--role-ink); font: inherit; line-height: 1; cursor: pointer; }
+.fe-tourbtn:hover { background: var(--role-background); border-color: var(--role-accent); }
+.fe-sbar-right .fe-tourbtn[hidden], body:has(.fe-start[open]) .fe-tourbtn { display: none; }
+
+/* loading skeleton: a progress line and flat blocks where the toolbar and the left column will be */
+.fe-skeleton { z-index: 11; }
+.fe-sk-progress { position: absolute; top: 0; left: 0; right: 0; z-index: 1; height: 2px; overflow: hidden; background: var(--role-rule-soft); }
+.fe-sk-progress i { display: block; width: 40%; height: 100%; background: var(--role-accent); }
+.fe-sk-bar { gap: 12px; padding: 0 16px; }
+.fe-sk-bar .fe-sk-end { margin-left: auto; }
+.fe-sk { display: block; flex: none; height: 1.2rem; background: var(--role-surface); }
+.fe-sk-left { display: grid; align-content: start; gap: 8px; padding: 12px; }
+.fe-sk-centre { grid-column: 2 / -1; grid-row: 2; display: grid; place-items: center; }
+.fe-sk-centre p, .fe-sk-status { font-family: var(--bs-font-monospace); font-size: 12px; color: var(--role-muted); }
+.fe-sk-status { font-size: 11.5px; }
+@media (prefers-reduced-motion: no-preference) {
+  .fe-sk-progress i { animation: fe-sk-slide 1s cubic-bezier(.4, 0, .2, 1) infinite; }
+  @keyframes fe-sk-slide { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+}
+/* in a window too narrow for every button the toolbar scrolls, but Open, Save and Export stay in view */
+.fe-toolbar { padding-right: 0; }
+.fe-toolbar .fe-group:last-of-type { position: sticky; right: 0; z-index: 1; padding-right: 12px; background: var(--role-background); }

@@ -126,6 +126,8 @@ export function runImport(files, { top } = {}, {
         enterDownload();
         if (event.doneAll !== lastDone) { lastDone = event.doneAll; armStall(); }
         onProgress?.(event);
+      } else if (event.kind === "cache") {
+        onProgress?.(event);   // shown by the panel; the engine came from this browser, so no download clock
       } else if (event.kind === "ready") {
         stall = stop(stall);
         downloading = false;

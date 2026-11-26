@@ -132,6 +132,62 @@ export const scenarios = {
     return res;
   },
 
+  /** U1.5: toolbar, status bar and the loading skeleton. */
+  async bars(ctx) {
+    const res = [];
+    const q = (sel, prop = "textContent") => `(document.querySelector(${JSON.stringify(sel)})?.${prop} ?? "")`;
+    // the skeleton: hold the symbol pack's requests so the page stays in its loading state
+    {
+      const page = await ctx.launch({ scheme: "light", port: nextPort++ });
+      try {
+        await page.beforeLoad(`const f = window.fetch; window.fetch = (u, ...a) => /symbol-pack/.test(String(u?.url ?? u)) ? new Promise(() => {}) : f(u, ...a);`);
+        await page.goto(ctx.url);
+        await page.waitFor(`!!document.querySelector(".fe-skeleton")`);
+        await page.sleep(500);
+        res.push([await page.eval(`/Loading the symbol pack/.test(${q(".fe-sk-centre")}) && !!document.querySelector(".fe-sk-progress i") && document.querySelectorAll(".fe-sk").length > 4 && !document.querySelector(".fe-skeleton .fe-btn")`), "the skeleton shows the progress line, blocks and the loading text"]);
+        await page.shot(`${ctx.out}/skeleton-light.png`);
+      } finally { await page.close(); }
+    }
+    for (const scheme of ["light", "dark"]) {
+      const page = await ctx.launch({ scheme, port: nextPort++ });
+      try {
+        await page.goto(ctx.url);
+        await page.waitFor(`document.querySelector(".fe-start")?.open === true`);
+        res.push([await page.eval(`!document.querySelector(".fe-skeleton") && getComputedStyle(document.querySelector(".fe-tourbtn")).display === "none"`), `${scheme}: the skeleton is gone and the Tour button waits for the chooser`]);
+        res.push([await page.eval(`/Not saved yet/.test(${q(".fe-save-text")}) && /Untitled figure/.test(${q(".fe-name-title")}) && document.querySelector(".fe-dot").dataset.state === "none"`), `${scheme}: a new figure says "Not saved yet"`]);
+        await startExample(page);
+        await page.sleep(1200);
+        res.push([await page.eval(`/Autosaved in this browser/.test(${q(".fe-save-text")}) && document.querySelector(".fe-dot").dataset.state === "saved"`), `${scheme}: after an edit it says "Autosaved in this browser"`]);
+        res.push([await page.eval(`${q(".fe-name-title")} === "Full adder from gates (sample)"`), `${scheme}: the name block shows the figure's name`]);
+        res.push([await page.eval(`/^Frame \\d+\\/8$/.test(${q(".fe-sb-frame")}) && /Frame/.test(${q(".fe-stepper")}) && ${q(".fe-stepno")} === "/8"`), `${scheme}: Frame n/8 in the toolbar and the status bar`]);
+        res.push([await page.eval(`/^Grid (½|1)$/.test(${q(".fe-sb-grid")}) && /^\\d+%$/.test(${q(".fe-sb-zoom")})`), `${scheme}: the status bar shows the grid step and the zoom`]);
+        res.push([await page.eval(`/^Tour \\d\\/3$/.test(${q(".fe-sbar-right .fe-tourbtn")}) && !!document.querySelector(".fe-statusbar [data-cmd=tour]") && !document.querySelector(".fe-toolbar [data-cmd=tour]")`), `${scheme}: the Tour button is in the status bar, not the toolbar`]);
+        res.push([await page.eval(`(() => { const f = [...document.querySelectorAll(".fe-toolbar .fe-btn")].filter((b) => { const c = getComputedStyle(b).backgroundColor; return c !== "rgba(0, 0, 0, 0)" && b.getAttribute("aria-pressed") !== "true"; }); return f.length === 1 && f[0].dataset.cmd === "export"; })()`), `${scheme}: Export is the one filled button`]);
+        const z0 = await page.eval(q(".fe-sb-zoom"));
+        await page.eval(`document.querySelector('[data-cmd="zoomin"]').click()`);
+        res.push([await page.eval(`${q(".fe-sb-zoom")} !== ${JSON.stringify(z0)}`), `${scheme}: zoom in changes the zoom shown`]);
+        await page.eval(`document.querySelector('[data-cmd="fit"]').click()`);
+        // tooltips still work on a toolbar button and on the moved Tour button
+        await page.eval(`document.querySelector('[data-cmd="export"]').dispatchEvent(new MouseEvent("mouseover", { bubbles: true }))`);
+        res.push([await page.eval(`(() => { const t = document.querySelector(".fe-tip"); return !t.hidden && /Export/.test(t.textContent); })()`), `${scheme}: the Export tooltip shows`]);
+        await page.eval(`document.querySelector('[data-cmd="tour"]').dispatchEvent(new MouseEvent("mouseover", { bubbles: true }))`);
+        res.push([await page.eval(`(() => { const t = document.querySelector(".fe-tip"), r = t.getBoundingClientRect(); return !t.hidden && /Replay the tour/.test(t.textContent) && r.bottom <= innerHeight; })()`), `${scheme}: the Tour button's tooltip shows inside the window`]);
+        await page.eval(`document.querySelector('[data-cmd="tour"]').dispatchEvent(new MouseEvent("mouseout", { bubbles: true }))`);
+        // the tour still points at the stepper; skipping it names the status bar
+        await page.eval(`document.querySelector('[data-cmd="tour"]').click()`);
+        await page.waitFor(`!!document.querySelector(".fe-tour:not([hidden])")`);
+        await page.sleep(500);
+        res.push([await page.eval(`(() => { const s = document.querySelector(".fe-tour-spot").getBoundingClientRect(), t = document.querySelector(".fe-stepper").getBoundingClientRect(); return Math.abs(s.left - t.left) < 6 && Math.abs(s.top - t.top) < 6; })()`), `${scheme}: the tour's first spotlight is on the moved frame stepper`]);
+        await page.key("Escape", "Escape", 27);
+        res.push([await page.eval(`/Replay it from the status bar/.test(${q(".fe-toast")}) && /^Tour 3\\/3$/.test(${q(".fe-tourbtn")})`), `${scheme}: the skip toast names the status bar; the button reads Tour 3/3`]);
+        await page.sleep(300);
+        await page.shot(`${ctx.out}/editor-${scheme}.png`);
+        res.push([page.errors.length === 0, `${scheme}: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+      } finally { await page.close(); }
+    }
+    return res;
+  },
+
   async tour(ctx) {
     const res = [];
     const q = (sel, prop = "textContent") => `document.querySelector(${JSON.stringify(sel)})?.${prop} ?? ""`;
@@ -2526,12 +2582,17 @@ scenarios.svyosys = async (ctx) => {
   const origin = new URL(ctx.url).origin;
   let mode = "slow";   // "slow" | "busy"
   const seen = [];
+  let manifestVersion = null;   // set to make the MANIFEST name another version (F22.1c-3)
   const isEngine = (p) => /\/yowasp\/[^/]+\.gz$/.test(p);
   const proxy = Deno.serve({ port: 4291, hostname: "127.0.0.1", onListen() {} }, async (req) => {
     const u = new URL(req.url);
     seen.push(u.pathname);
     if (isEngine(u.pathname) && mode === "busy") return new Response("busy", { status: 503 });
     const up = await fetch(origin + u.pathname + u.search);
+    if (manifestVersion && /\/yowasp\/MANIFEST\.json$/.test(u.pathname)) {   // a new engine release: the same bytes under another version, so another key
+      const m = await up.json();
+      return new Response(JSON.stringify({ ...m, version: manifestVersion }), { status: 200, headers: { "content-type": "application/json" } });
+    }
     if (!isEngine(u.pathname)) return new Response(up.body, { status: up.status, headers: up.headers });
     const body = new Uint8Array(await up.arrayBuffer());
     const stream = new ReadableStream({
@@ -2582,6 +2643,37 @@ scenarios.svyosys = async (ctx) => {
         await page.waitFor(`window.figureEditor.doc.id !== ${JSON.stringify(before)}`);
         const d = await page.eval(`JSON.stringify({ id: window.figureEditor.doc.id, modules: Object.keys(window.figureEditor.doc.modules ?? {}) })`);
         res.push([/load_register/.test(d), `${scheme}: replaced, with the register module (${d})`]);
+        res.push([await page.eval(`!document.querySelector(".fe-sv-stored").hidden && /^Kept in this browser so it downloads once\\. Clearing site data removes it\\.$/.test(document.querySelector(".fe-sv-stored").textContent)`), `${scheme}: the storage line is shown after the download`]);
+
+        // F22.1c-3, second visit (a reload, new Worker, same browser profile): none of the big files is fetched, only "Preparing"
+        const cached = async () => JSON.parse(await page.eval(`caches.keys().then((k) => JSON.stringify(k.filter((n) => n.startsWith("yowasp-"))))`));
+        const firstKeys = await cached();
+        res.push([firstKeys.length === 1 && /^yowasp-[\d.]+-[0-9a-f]{12}$/.test(firstKeys[0]), `${scheme}: one cache, named by version and hash (${firstKeys})`]);
+        await open(page);
+        await page.eval(`window.__texts = []; new MutationObserver(() => window.__texts.push(document.querySelector(".fe-sv-engine-text")?.textContent ?? "")).observe(document.querySelector(".fe-sv-engine-text"), { childList: true, characterData: true, subtree: true })`);
+        seen.length = 0;
+        await page.eval(setText(demo));
+        await page.eval(click(".fe-sv-run"));
+        await page.waitFor(imported, 60000);
+        const texts = JSON.parse(await page.eval(`JSON.stringify(window.__texts)`));
+        res.push([!seen.some(isEngine), `${scheme}: second visit fetches none of the engine files (${seen.filter(isEngine).length})`]);
+        res.push([seen.some((p) => /\/yowasp\/MANIFEST\.json$/.test(p)), `${scheme}: second visit reads the small MANIFEST for the key`]);
+        res.push([texts.some((t) => t === "Preparing the synthesis engine") && !texts.some((t) => /Downloading/.test(t)), `${scheme}: a cache hit shows "Preparing", never "Downloading" (${[...new Set(texts)].join(" > ")})`]);
+        res.push([await page.eval(`!document.querySelector(".fe-sv-stored").hidden`), `${scheme}: the storage line is shown on a hit`]);
+        res.push([/^Imported demo: /.test(await page.eval(`document.querySelector(".fe-sv-status").textContent`)), `${scheme}: the cached engine imports demo.sv`]);
+        await page.shot(`${ctx.out}/svyosys-${scheme}-cached.png`);
+
+        // a changed MANIFEST key: one fresh download, then the old cache is deleted
+        manifestVersion = "0.0.0-test";
+        await open(page);
+        seen.length = 0;
+        await page.eval(setText(demo));
+        await page.eval(click(".fe-sv-run"));
+        await page.waitFor(imported, 60000);
+        res.push([seen.filter(isEngine).length === 5, `${scheme}: a changed key downloads the five files once (${seen.filter(isEngine).length})`]);
+        const keys = await cached();
+        res.push([keys.length === 1 && /0\.0\.0-test/.test(keys[0]), `${scheme}: the old cache is deleted (${keys})`]);
+        manifestVersion = null;
         res.push([page.errors.length === 0, `${scheme}: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
       } finally { await page.close(); }
 

@@ -30,10 +30,13 @@ const fileOf = (url) => {
  *   onProgress(e)   { file, done, total, doneAll, totalAll } as compressed bytes arrive
  *   onReady()       once, when the last of the five files has been read
  *   beforeDownload  async (bytes) => boolean, asked once before the first byte is fetched (Data Saver); false cancels with an error
+ *   cache           an engine cache (yowasp-cache.js), or an async function giving one or null (F22.1c-3). A file it holds is used with no
+ *                   download, no progress and no Data Saver question; a file downloaded is kept after its SHA-256 matches
+ *   onCache(e)      { state: "hit" } on the first file taken from the cache; { state: "stored" } once all five are kept (some downloaded)
  *   fetchImpl       the real fetch (default: the one being replaced)
  *   target          where to install (default: globalThis)
  */
-export function installYowaspFetch({ onProgress = () => {}, onReady = () => {}, sizes = {}, beforeDownload = null, fetchImpl, target = globalThis } = {}) {
+export function installYowaspFetch({ onProgress = () => {}, onReady = () => {}, sizes = {}, beforeDownload = null, cache = null, onCache = () => {}, fetchImpl, target = globalThis } = {}) {
   const real = fetchImpl ?? target.fetch.bind(target);
   const original = target.fetch;
   let known = null, totalAll = 0;
@@ -43,10 +46,45 @@ export function installYowaspFetch({ onProgress = () => {}, onReady = () => {}, 
     totalAll = ENGINE_FILES.reduce((n, f) => n + (known[`${f}.gz`] ?? 0), 0);
   };
   const finished = new Set();
-  let doneAll = 0, asked = null;
+  let doneAll = 0, asked = null, cacheObj, hits = 0, kept = 0;
+  const getCache = async () => {
+    if (cacheObj === undefined) { try { cacheObj = (typeof cache === "function" ? await cache() : cache) ?? null; } catch { cacheObj = null; } }
+    return cacheObj;
+  };
+  const settle = async (how) => {   // a file is in the cache, from before or just now
+    if (how === "hit") { if (hits++ === 0) onCache({ state: "hit" }); } else kept++;
+    if (hits + kept === ENGINE_FILES.length) {
+      await cacheObj.finish?.();
+      if (kept > 0) onCache({ state: "stored" });
+    }
+  };
+  const answer = (stream, file, collected) => new Response(new ReadableStream({
+    async pull(controller) {
+      let chunk;
+      try { chunk = await stream.read(); } catch (err) {
+        controller.error(err instanceof EngineError ? err : new EngineError(`The synthesis engine file ${file} is incomplete or damaged.`));
+        return;
+      }
+      if (chunk.done) {
+        if (collected && cacheObj && (await cacheObj.put(file, collected()))) await settle("kept");
+        controller.close();
+        finished.add(file);
+        if (finished.size === ENGINE_FILES.length) onReady();
+      } else controller.enqueue(chunk.value);
+    },
+    cancel: () => stream.cancel(),
+  }), { status: 200, headers: { "Content-Type": file.endsWith(".wasm") ? "application/wasm" : "application/octet-stream" } });
 
   async function engineFetch(url, file) {
     if (typeof DecompressionStream === "undefined") throw new EngineError("This browser cannot unpack the synthesis engine (no DecompressionStream).");
+    if (await getCache()) {
+      const bytes = await cacheObj.get(file);
+      if (bytes) {
+        await settle("hit");
+        const packed = new ReadableStream({ start(c) { c.enqueue(bytes); c.close(); } }).pipeThrough(new DecompressionStream("gzip"));
+        return answer(packed.getReader(), file, null);
+      }
+    }
     await loadSizes();
     asked ??= Promise.resolve(beforeDownload ? beforeDownload(totalAll) : true);
     if (!(await asked)) throw new EngineError("The synthesis engine was not downloaded.");
@@ -60,12 +98,14 @@ export function installYowaspFetch({ onProgress = () => {}, onReady = () => {}, 
     const total = Number(response.headers.get("content-length")) || known[`${file}.gz`] || 0;
     const reader = response.body.getReader();
     let done = 0;
+    const chunks = [];   // the compressed bytes, to keep if the cache is there
 
     const read = async () => {
       let chunk;
       try { chunk = await reader.read(); } catch (err) { throw new EngineError(`The synthesis engine could not be downloaded: ${err.message}`); }
       if (!chunk.done) {
         done += chunk.value.length;
+        if (cacheObj) chunks.push(chunk.value);
         doneAll += chunk.value.length;
         onProgress({ file, done, total, doneAll, totalAll });
       }
@@ -89,22 +129,8 @@ export function installYowaspFetch({ onProgress = () => {}, onReady = () => {}, 
       cancel: () => reader.cancel(),
     });
     const unpacked = (packed ? source.pipeThrough(new DecompressionStream("gzip")) : source).getReader();
-    const body = new ReadableStream({
-      async pull(controller) {
-        let chunk;
-        try { chunk = await unpacked.read(); } catch (err) {
-          controller.error(err instanceof EngineError ? err : new EngineError(`The synthesis engine file ${file} is incomplete or damaged.`));
-          return;
-        }
-        if (chunk.done) {
-          controller.close();
-          finished.add(file);
-          if (finished.size === ENGINE_FILES.length) onReady();
-        } else controller.enqueue(chunk.value);
-      },
-      cancel: () => unpacked.cancel(),
-    });
-    return new Response(body, { status: 200, headers: { "Content-Type": file.endsWith(".wasm") ? "application/wasm" : "application/octet-stream" } });
+    const joined = () => { const all = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0)); let at = 0; for (const c of chunks) { all.set(c, at); at += c.length; } return all; };
+    return answer(unpacked, file, packed ? joined : null);   // not kept if the browser had already decoded it: those are not the pinned bytes
   }
 
   target.fetch = (input, init) => {

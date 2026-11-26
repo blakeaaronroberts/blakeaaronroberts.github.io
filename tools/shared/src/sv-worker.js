@@ -7,12 +7,14 @@
 //                   { id, consent: true | false }     the answer to an `ask` event
 // Worker to page:   { id, event: { kind: "ask", bytes } }                          waiting for consent before downloading `bytes`
 //                   { id, event: { kind: "download", file, done, total, doneAll, totalAll } }
+//                   { id, event: { kind: "cache", state: "hit" | "stored" } }     the engine came from, or was kept in, this browser's Cache Storage (F22.1c-3)
 //                   { id, event: { kind: "ready" } }                               the engine's five files are read
 //                   { id, ok: true, result, engine }  or  { id, ok: false, error, engine: loaded, engineProblem: bool }
 
 import { importSystemVerilog } from "./sv/import/sv/index.mjs";
 import { createBrowserEngines } from "./sv/import/sv/engines-browser.mjs";
 import { installYowaspFetch } from "./yowasp-fetch.js";
+import { createEngineCache } from "./yowasp-cache.js";
 
 const ENGINE_DIR = new URL("./sv/third_party/yowasp/", import.meta.url);
 
@@ -22,16 +24,25 @@ let waiting = null;        // resolves the consent question
 
 const post = (message) => self.postMessage(message);
 
-/** { "<file>.gz": bytes } from the MANIFEST (1 KB), so progress knows the whole. Fetched only when the engine is first needed. */
+/** The MANIFEST (1 KB), fetched no-cache and only when the engine is first needed; null if it cannot be had. It gives the cache its key and progress its sizes. */
+let manifestOnce = null;
+const getManifest = () => manifestOnce ??= (async () => {
+  try {
+    const response = await fetch(new URL("MANIFEST.json", ENGINE_DIR), { cache: "no-cache" });
+    return response.ok ? await response.json() : null;
+  } catch { return null; }
+})();
+
+/** { "<file>.gz": bytes } from the MANIFEST, so progress knows the whole. */
 async function engineSizes() {
-  const response = await fetch(new URL("MANIFEST.json", ENGINE_DIR));
-  if (!response.ok) return {};
-  const manifest = await response.json();
-  return Object.fromEntries((manifest.files ?? []).map((f) => [f.name, f.bytes]));
+  const manifest = await getManifest();
+  return Object.fromEntries((manifest?.files ?? []).map((f) => [f.name, f.bytes]));
 }
 
 installYowaspFetch({
   sizes: engineSizes,
+  cache: async () => createEngineCache({ manifest: await getManifest(), base: ENGINE_DIR }),   // null: no Cache Storage, or no MANIFEST: the plain download
+  onCache: (e) => current && post({ id: current.id, event: { kind: "cache", ...e } }),
   onProgress: (e) => current && post({ id: current.id, event: { kind: "download", ...e } }),
   onReady: () => { engineReady = true; if (current) post({ id: current.id, event: { kind: "ready" } }); },
   beforeDownload: (bytes) => {
