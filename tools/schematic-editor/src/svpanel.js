@@ -38,6 +38,7 @@ export function createSvPanel({ root, buttonClass, replace, run = runImport }) {
           <button type="button" class="${buttonClass} fe-sv-ask-no" hidden>Not now</button>
           <button type="button" class="${buttonClass} fe-sv-cancel">Cancel</button>
         </div>
+        <p class="fe-sv-stored" hidden>Kept in this browser so it downloads once. Clearing site data removes it.</p>
         <ol class="fe-sv-problems"></ol>
         <p class="fe-sv-confirm" hidden></p>
         <div class="fe-sv-actions">
@@ -50,7 +51,7 @@ export function createSvPanel({ root, buttonClass, replace, run = runImport }) {
     const q = (s) => dialog.querySelector(s);
     el = { text: q(".fe-sv-text"), status: q(".fe-sv-status"), problems: q(".fe-sv-problems"), top: q(".fe-sv-top"), which: q(".fe-sv-which"),
       whichLabel: q(".fe-sv-which-label"), file: q(".fe-sv-file"), run: q(".fe-sv-run"), replace: q(".fe-sv-replace"), confirm: q(".fe-sv-confirm"),
-      engine: q(".fe-sv-engine"), progress: q(".fe-sv-progress"), engineText: q(".fe-sv-engine-text"), askYes: q(".fe-sv-ask-yes"), askNo: q(".fe-sv-ask-no"), cancel: q(".fe-sv-cancel") };
+      engine: q(".fe-sv-engine"), progress: q(".fe-sv-progress"), engineText: q(".fe-sv-engine-text"), askYes: q(".fe-sv-ask-yes"), askNo: q(".fe-sv-ask-no"), cancel: q(".fe-sv-cancel"), stored: q(".fe-sv-stored") };
 
     el.text.addEventListener("input", () => { state.files[state.current].text = el.text.value; invalidate(); });
     el.top.addEventListener("change", invalidate);
@@ -120,6 +121,9 @@ export function createSvPanel({ root, buttonClass, replace, run = runImport }) {
       const whole = e.totalAll > 0 && e.doneAll >= e.totalAll;
       el.progress.value = e.totalAll ? e.doneAll / e.totalAll : 0;
       el.engineText.textContent = whole ? "Preparing the synthesis engine" : `Downloading the synthesis engine, ${mb(e.doneAll)} of ${e.totalAll ? mb(e.totalAll) : "?"} MB (once)`;
+    } else if (e.kind === "cache") {
+      el.stored.hidden = false;   // the engine is kept in this browser (F22.1c-3)
+      if (e.state === "hit") { el.progress.removeAttribute("value"); el.engineText.textContent = "Preparing the synthesis engine"; }   // from the cache: nothing downloads
     } else if (e.kind === "ready") {
       el.progress.value = 1;
       el.engineText.textContent = "Synthesising";

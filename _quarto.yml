@@ -57,6 +57,8 @@ website:
             href: tools/logic/solver/index.qmd
           - text: Circuit Analyser (draft)
             href: tools/logic/analyze/index.qmd
+          - text: Number Systems (draft)
+            href: tools/logic/number-systems/index.qmd
     right:
       - icon: github
         href: https://github.com/blakeaaronroberts
