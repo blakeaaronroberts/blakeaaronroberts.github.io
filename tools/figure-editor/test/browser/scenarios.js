@@ -2439,7 +2439,7 @@ scenarios.interface = async (ctx) => {
 
 /**
  * F22.1b: SystemVerilog import in the page. The demo's structural half (half_adder, full_adder, adder; top "adder") is opened as
- * a file and imported through the Worker; the whole demo.sv is refused (its register is behavioural code, release 1 has slang only);
+ * a file and imported through the Worker; an asynchronous reset is refused with its line (the whole demo.sv imports: svyosys);
  * a paste with an error names its line. Replacing the figure needs the confirm, and one Undo brings the old figure back.
  */
 scenarios.svimport = async (ctx) => {
@@ -2471,11 +2471,11 @@ scenarios.svimport = async (ctx) => {
       res.push([JSON.parse(await page.eval(doc())).id === before.id, `${scheme}: the figure is untouched by a refused import`]);
 
       // the whole demo is refused: slang only (its register is behavioural code)
-      await page.eval(setText(demo.replaceAll("\r\n", "\n")));
+      await page.eval(setText("module r(input logic clk, rst, d, output logic q);\n  always_ff @(posedge clk or posedge rst) if (rst) q <= 1'b0; else q <= d;\nendmodule\n"));
       await page.eval(click(".fe-sv-run"));
       await page.waitFor(`document.querySelectorAll(".fe-sv-problems li").length > 0 && !document.querySelector(".fe-sv-run").disabled`);
       const refused = await page.eval(`document.querySelector(".fe-sv-problems li").textContent`);
-      res.push([/\.sv:\d+/.test(refused) || /demo/.test(refused) || /pasted/.test(refused), `${scheme}: the whole demo is refused with a line (${refused.slice(0, 90)})`]);
+      res.push([/\.sv:\d+/.test(refused) || /demo/.test(refused) || /pasted/.test(refused), `${scheme}: an asynchronous reset is refused with a line (${refused.slice(0, 90)})`]);
 
       // open the structural half as a file
       await page.setFile(".fe-sv-file", file);
@@ -2510,5 +2510,137 @@ scenarios.svimport = async (ctx) => {
     } finally { await page.close(); }
   }
   await Deno.remove(file).catch(() => {});
+  return res;
+};
+
+/**
+ * F22.1c-2: behavioural code in the Import panel, through the synthesis engine. A proxy in front of the test server slows the engine's
+ * .gz files (about 4 MB/s) so the progress bar can be seen, and can answer them 503. Success (the whole demo.sv, with progress and the
+ * result), failure (a readable message, and structural code still imports), Cancel (stops the download, the panel works again), Data
+ * Saver (asks first). Screenshots: progress, failure, success.
+ */
+scenarios.svyosys = async (ctx) => {
+  const res = [];
+  const demo = (await Deno.readTextFile(new URL("../../../shared/test/model/demo.sv", import.meta.url))).replaceAll("\r\n", "\n");
+  const half = "module half(input logic a, b, output logic s, c);\n  xor g1(s, a, b);\n  and g2(c, a, b);\nendmodule\n";
+  const origin = new URL(ctx.url).origin;
+  let mode = "slow";   // "slow" | "busy"
+  const seen = [];
+  const isEngine = (p) => /\/yowasp\/[^/]+\.gz$/.test(p);
+  const proxy = Deno.serve({ port: 4291, hostname: "127.0.0.1", onListen() {} }, async (req) => {
+    const u = new URL(req.url);
+    seen.push(u.pathname);
+    if (isEngine(u.pathname) && mode === "busy") return new Response("busy", { status: 503 });
+    const up = await fetch(origin + u.pathname + u.search);
+    if (!isEngine(u.pathname)) return new Response(up.body, { status: up.status, headers: up.headers });
+    const body = new Uint8Array(await up.arrayBuffer());
+    const stream = new ReadableStream({
+      async start(c) { for (let i = 0; i < body.length; i += 262144) { c.enqueue(body.subarray(i, i + 262144)); await new Promise((r) => setTimeout(r, 60)); } c.close(); },
+    });
+    return new Response(stream, { status: 200, headers: { "content-type": "application/gzip", "content-length": String(body.length) } });
+  });
+  const url = "http://127.0.0.1:4291/tools/figure-editor/";
+  const setText = (t) => `(() => { const a = document.querySelector(".fe-sv-text"); a.value = ${JSON.stringify(t)}; a.dispatchEvent(new Event("input", { bubbles: true })); return true; })()`;
+  const click = (sel) => `(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return false; e.click(); return true; })()`;
+  const engineRow = `(() => { const r = document.querySelector(".fe-sv-engine"); return r && !r.hidden ? r.querySelector(".fe-sv-engine-text").textContent + "|" + r.querySelector("progress").value : null; })()`;
+  const open = async (page, opts = {}) => {
+    mode = opts.mode ?? "slow";
+    await page.goto(url + "?open=examples/full-adder.json");
+    await page.waitFor(ready);
+    await page.sleep(600);
+    await page.eval(click('[data-cmd="importsv"]'));
+    await page.waitFor(`document.querySelector("dialog.fe-sv-dialog")?.open === true`);
+  };
+  const imported = `!document.querySelector(".fe-sv-replace")?.hidden`;
+  try {
+    for (const scheme of ["light", "dark"]) {
+      // success: progress is seen while the engine downloads, then the demo imports with its register
+      let page = await ctx.launch({ scheme, port: nextPort++ });
+      try {
+        await open(page);
+        const before = await page.eval(`window.figureEditor.doc.id`);
+        seen.length = 0;
+        await page.eval(setText(half));
+        await page.eval(click(".fe-sv-run"));
+        await page.waitFor(imported, 30000);
+        res.push([!seen.some((p) => /\/yowasp\//.test(p)), `${scheme}: structural code fetches nothing of the engine`]);
+        await page.eval(setText(demo));
+        await page.eval(click(".fe-sv-run"));
+        await page.waitFor(`/Downloading the synthesis engine/.test(document.querySelector(".fe-sv-engine-text")?.textContent ?? "")`, 15000);
+        await page.sleep(1200);
+        const mid = await page.eval(engineRow);
+        const frac = Number(mid?.split("|")[1]);
+        res.push([/^Downloading the synthesis engine, [\d.]+ of 17\.\d MB \(once\)\|/.test(mid ?? "") && frac > 0 && frac < 1, `${scheme}: progress while downloading (${mid})`]);
+        res.push([await page.eval(`!!document.querySelector(".fe-sv-cancel") && !document.querySelector(".fe-sv-cancel").hidden`), `${scheme}: Cancel is there during the download`]);
+        await page.shot(`${ctx.out}/svyosys-${scheme}-progress.png`);
+        await page.waitFor(imported, 60000);
+        res.push([await page.eval(`document.querySelector(".fe-sv-engine").hidden === true`), `${scheme}: the progress row is gone when the import ends`]);
+        const status = await page.eval(`document.querySelector(".fe-sv-status").textContent`);
+        res.push([/^Imported demo: /.test(status), `${scheme}: the whole demo.sv (always_ff) imports (${status})`]);
+        await page.shot(`${ctx.out}/svyosys-${scheme}-success.png`);
+        await page.eval(click(".fe-sv-replace"));
+        await page.waitFor(`window.figureEditor.doc.id !== ${JSON.stringify(before)}`);
+        const d = await page.eval(`JSON.stringify({ id: window.figureEditor.doc.id, modules: Object.keys(window.figureEditor.doc.modules ?? {}) })`);
+        res.push([/load_register/.test(d), `${scheme}: replaced, with the register module (${d})`]);
+        res.push([page.errors.length === 0, `${scheme}: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
+      } finally { await page.close(); }
+
+      // failure: the host answers 503; a readable message; structural code still imports; the next try works
+      page = await ctx.launch({ scheme, port: nextPort++ });
+      try {
+        await open(page, { mode: "busy" });
+        await page.eval(setText(demo));
+        await page.eval(click(".fe-sv-run"));
+        await page.waitFor(`!document.querySelector(".fe-sv-run").disabled && /could not be loaded/.test(document.querySelector(".fe-sv-status").textContent)`, 30000);
+        const msg = await page.eval(`document.querySelector(".fe-sv-status").textContent`);
+        res.push([/^The synthesis engine could not be loaded \(.*503\)\. Structural code still imports; code with always_comb or always_ff needs it\. Try again\.$/.test(msg), `${scheme}: failure message (${msg})`]);
+        res.push([await page.eval(`document.querySelector(".fe-sv-engine").hidden === true && document.querySelector(".fe-sv-replace").hidden === true`), `${scheme}: nothing to replace, progress row hidden`]);
+        await page.shot(`${ctx.out}/svyosys-${scheme}-failure.png`);
+        await page.eval(setText(half));
+        await page.eval(click(".fe-sv-run"));
+        await page.waitFor(imported, 30000);
+        res.push([true, `${scheme}: structural code still imports after the failure`]);
+        mode = "slow";
+        await page.eval(setText(demo));
+        await page.eval(click(".fe-sv-run"));
+        await page.waitFor(imported, 60000);
+        res.push([true, `${scheme}: the next try works`]);
+      } finally { await page.close(); }
+
+      // cancel: stops the download; the panel works again
+      page = await ctx.launch({ scheme, port: nextPort++ });
+      try {
+        await open(page);
+        await page.eval(setText(demo));
+        await page.eval(click(".fe-sv-run"));
+        await page.waitFor(`/Downloading the synthesis engine/.test(document.querySelector(".fe-sv-engine-text")?.textContent ?? "")`, 15000);
+        await page.eval(click(".fe-sv-cancel"));
+        await page.waitFor(`!document.querySelector(".fe-sv-run").disabled`, 5000);
+        const said = await page.eval(`document.querySelector(".fe-sv-status").textContent`);
+        res.push([said === "The import was cancelled." && (await page.eval(`document.querySelector(".fe-sv-engine").hidden`)), `${scheme}: Cancel stops the download and says so (${said})`]);
+        await page.eval(setText(half));
+        await page.eval(click(".fe-sv-run"));
+        await page.waitFor(imported, 30000);
+        res.push([true, `${scheme}: the panel imports again after Cancel`]);
+      } finally { await page.close(); }
+
+      // Data Saver: asks first; a no downloads nothing
+      page = await ctx.launch({ scheme, port: nextPort++ });
+      try {
+        await page.beforeLoad(`Object.defineProperty(navigator, "connection", { value: { saveData: true }, configurable: true });`);
+        await open(page);
+        seen.length = 0;
+        await page.eval(setText(demo));
+        await page.eval(click(".fe-sv-run"));
+        await page.waitFor(`/Download it now/.test(document.querySelector(".fe-sv-engine-text")?.textContent ?? "")`, 15000);
+        const ask = await page.eval(`document.querySelector(".fe-sv-engine-text").textContent`);
+        res.push([/^The synthesis engine is 18 MB\. Download it now\?$/.test(ask), `${scheme}: Data Saver asks first (${ask})`]);
+        await page.eval(click(".fe-sv-ask-no"));
+        await page.waitFor(`!document.querySelector(".fe-sv-run").disabled`, 10000);
+        res.push([!seen.some((p) => isEngine(p)), `${scheme}: a no downloads nothing`]);
+        res.push([/could not be loaded/.test(await page.eval(`document.querySelector(".fe-sv-status").textContent`)), `${scheme}: and says the engine was not loaded`]);
+      } finally { await page.close(); }
+    }
+  } finally { await proxy.shutdown(); }
   return res;
 };
