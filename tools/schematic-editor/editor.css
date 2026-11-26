@@ -388,6 +388,8 @@ body:has(.fe) :is(#title-block-header, .quarto-title-block, #quarto-margin-sideb
 .fe-sv-engine[hidden] { display: none; }
 .fe-sv-progress { flex: 1 1 12rem; max-width: 22rem; height: .7rem; accent-color: var(--role-accent); }
 .fe-sv-engine-text { flex: 1 1 14rem; }
+.fe-sv-stored { margin: .2rem 0; font-size: .85rem; color: var(--role-muted); }
+.fe-sv-stored[hidden] { display: none; }
 
 /* ---- toolbar, status bar and loading skeleton (U1.5). Roles only; no colours or fonts of its own. ---- */
 .fe-toolbar { height: 44px; box-sizing: border-box; flex-wrap: nowrap; gap: 0; column-gap: 0; padding: 0 12px 0 0; background: var(--role-background); border-bottom: 1px solid var(--role-rule); }

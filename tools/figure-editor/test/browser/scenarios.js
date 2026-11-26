@@ -2582,12 +2582,17 @@ scenarios.svyosys = async (ctx) => {
   const origin = new URL(ctx.url).origin;
   let mode = "slow";   // "slow" | "busy"
   const seen = [];
+  let manifestVersion = null;   // set to make the MANIFEST name another version (F22.1c-3)
   const isEngine = (p) => /\/yowasp\/[^/]+\.gz$/.test(p);
   const proxy = Deno.serve({ port: 4291, hostname: "127.0.0.1", onListen() {} }, async (req) => {
     const u = new URL(req.url);
     seen.push(u.pathname);
     if (isEngine(u.pathname) && mode === "busy") return new Response("busy", { status: 503 });
     const up = await fetch(origin + u.pathname + u.search);
+    if (manifestVersion && /\/yowasp\/MANIFEST\.json$/.test(u.pathname)) {   // a new engine release: the same bytes under another version, so another key
+      const m = await up.json();
+      return new Response(JSON.stringify({ ...m, version: manifestVersion }), { status: 200, headers: { "content-type": "application/json" } });
+    }
     if (!isEngine(u.pathname)) return new Response(up.body, { status: up.status, headers: up.headers });
     const body = new Uint8Array(await up.arrayBuffer());
     const stream = new ReadableStream({
@@ -2638,6 +2643,37 @@ scenarios.svyosys = async (ctx) => {
         await page.waitFor(`window.figureEditor.doc.id !== ${JSON.stringify(before)}`);
         const d = await page.eval(`JSON.stringify({ id: window.figureEditor.doc.id, modules: Object.keys(window.figureEditor.doc.modules ?? {}) })`);
         res.push([/load_register/.test(d), `${scheme}: replaced, with the register module (${d})`]);
+        res.push([await page.eval(`!document.querySelector(".fe-sv-stored").hidden && /^Kept in this browser so it downloads once\\. Clearing site data removes it\\.$/.test(document.querySelector(".fe-sv-stored").textContent)`), `${scheme}: the storage line is shown after the download`]);
+
+        // F22.1c-3, second visit (a reload, new Worker, same browser profile): none of the big files is fetched, only "Preparing"
+        const cached = async () => JSON.parse(await page.eval(`caches.keys().then((k) => JSON.stringify(k.filter((n) => n.startsWith("yowasp-"))))`));
+        const firstKeys = await cached();
+        res.push([firstKeys.length === 1 && /^yowasp-[\d.]+-[0-9a-f]{12}$/.test(firstKeys[0]), `${scheme}: one cache, named by version and hash (${firstKeys})`]);
+        await open(page);
+        await page.eval(`window.__texts = []; new MutationObserver(() => window.__texts.push(document.querySelector(".fe-sv-engine-text")?.textContent ?? "")).observe(document.querySelector(".fe-sv-engine-text"), { childList: true, characterData: true, subtree: true })`);
+        seen.length = 0;
+        await page.eval(setText(demo));
+        await page.eval(click(".fe-sv-run"));
+        await page.waitFor(imported, 60000);
+        const texts = JSON.parse(await page.eval(`JSON.stringify(window.__texts)`));
+        res.push([!seen.some(isEngine), `${scheme}: second visit fetches none of the engine files (${seen.filter(isEngine).length})`]);
+        res.push([seen.some((p) => /\/yowasp\/MANIFEST\.json$/.test(p)), `${scheme}: second visit reads the small MANIFEST for the key`]);
+        res.push([texts.some((t) => t === "Preparing the synthesis engine") && !texts.some((t) => /Downloading/.test(t)), `${scheme}: a cache hit shows "Preparing", never "Downloading" (${[...new Set(texts)].join(" > ")})`]);
+        res.push([await page.eval(`!document.querySelector(".fe-sv-stored").hidden`), `${scheme}: the storage line is shown on a hit`]);
+        res.push([/^Imported demo: /.test(await page.eval(`document.querySelector(".fe-sv-status").textContent`)), `${scheme}: the cached engine imports demo.sv`]);
+        await page.shot(`${ctx.out}/svyosys-${scheme}-cached.png`);
+
+        // a changed MANIFEST key: one fresh download, then the old cache is deleted
+        manifestVersion = "0.0.0-test";
+        await open(page);
+        seen.length = 0;
+        await page.eval(setText(demo));
+        await page.eval(click(".fe-sv-run"));
+        await page.waitFor(imported, 60000);
+        res.push([seen.filter(isEngine).length === 5, `${scheme}: a changed key downloads the five files once (${seen.filter(isEngine).length})`]);
+        const keys = await cached();
+        res.push([keys.length === 1 && /0\.0\.0-test/.test(keys[0]), `${scheme}: the old cache is deleted (${keys})`]);
+        manifestVersion = null;
         res.push([page.errors.length === 0, `${scheme}: no page errors${page.errors.length ? ": " + page.errors[0] : ""}`]);
       } finally { await page.close(); }
 
