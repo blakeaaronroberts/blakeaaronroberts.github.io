@@ -14,18 +14,19 @@ file.
 
 ## Current state
 
-Sync of 2026-11-25, 11:45 (Pacific). Facts only; work lives in the batches below.
+Sync of 2026-11-25, 23:35 (Pacific). Facts only; work lives in the batches below.
 
-**Changed since the last sync (2026-11-24)**
-- Merged to `main`: F22.0 and F22.1a (Blake reviewed the demo; deployed), F22.1b (Import SystemVerilog panel, slang only, Web Worker, pin `model-v0.14.0`; review approved by Blake 2026-11-25; `slang.wasm.gz` is 1.5 MB on first visit), and the L1 tools (truth table, K-map, solver, Send to Figure Editor; drafts, in Blake's review). L5 (circuit analyser) was merged earlier as a draft.
-- Batch U1 (first-run redesign) approved by Blake 2026-11-24 from the design package in `proposals/first-run-redesign/`. U1.0 plan returned and Blake answered it on 2026-11-25 (see U1 below). U1.1 is unblocked by F22.1b's merge. U1.6 stays deferred; the navbar restyle moves to a later batch U2.
-- Found and fixed in F22.1b: saving dropped `params.module` (an F22.1a bug).
-- Unowned: 8 failing browser scenarios in `check.js` (row T-fix), failing the same way on `main`.
-- circuit-model has tagged `model-v0.15.0` (SystemVerilog export, C11.3 and C11.4) and `model-v0.15.1` (clock rule, C18); the editors pin `model-v0.14.0`.
+**Changed since the last sync (2026-11-25, 11:45)**
+- Merged to `main` and deployed, each approved by Blake 2026-11-25: F22.1c-0 to F22.1c-3 (behavioural SystemVerilog through YoWASP Yosys: pre-gzipped engine, Worker with fetch wrapper, panel with progress and Cancel, Cache Storage; `demo.sv` imports whole), U1.1, U1.4, U1.5, U1.7 (strings as built), L1 (truth table, K-map, solver, Send to Figure Editor) and L5 as drafts, and L2.1 (number systems; a noindex draft for review). Pages measurements: the engine is 17.97 MB on the wire, and every file's ETag changes on each deploy, which is why F22.1c-3 exists.
+- U1.3 and U1.2: Blake reports U1.3 built and approved, but no `u12` or `u13` branch exists on the remote; uncommitted edits to `custom.scss` and `index.qmd` sit in Blake's working tree. Both rows still read Open until they are committed on a branch.
+- Blake's decisions: the 8 failing `check.js` scenarios (T-fix) go to a site session now that U1.1 and U1.5 are merged (plus one flaky "Export a copy downloads the generated .tex file" check); employer links stay as bio and project text; reviews are paused until SystemVerilog and the new UX are live; the circuit-model lane stays idle (no flagship) until then.
+- `docs/STEWARD_HANDOFF.md` line 1 held stray text since an old builder commit; repaired (`bd30580`).
+- Scribe sessions for architecture documentation and a refresh of all docs, plus the all-docs viewer, are about to run in each repo.
 
 **Waiting**
-- Blake: review the L1 and L5 pages (`docs/REVIEW_L1.md`) and the Import panel in daily use; approve or edit the U1 on-screen strings at each review stop; decide which T-fix expectations change; the PLL co-author's consent and the CSNN advisor's OK; his institution's course-material policy.
-- Builder: U1.1, then U1.4 (start chooser, tour); F22.1c (behavioural code through YoWASP) needs a plan first (delivery of a roughly 17 MB engine file); F22.2 to F22.4 (hierarchy, export, testbench; pin `model-v0.15.1`); later F23, F27, F20, F26.
+- Blake: review the logic pages on the deployed site (`/tools/logic/truth-table/`, `kmap/`, `solver/`, `analyze/`, `number-systems/`; checklist in `docs/REVIEW_L1.md`); try the Import panel with `demo.sv`; commit or hand over the U1.2 and U1.3 work; delete `First-run experience redesign.zip` from the site folder (never commit it); the PLL co-author's consent and the CSNN advisor's OK; his institution's course-material policy.
+- Builder: T-fix; U1.2 and U1.3 once on a branch; F22.2 to F22.4 (hierarchy, export, testbench; pin `model-v0.15.1`; F22.4 needs the simulator's scenario and trace); F22.1b follow-ups; later F23, F27, F20, F26. U1.6 stays deferred and the navbar restyle is batch U2.
+- Scribe: ARCHITECTURE.md, SUITE_ARCHITECTURE.md and the docs refresh.
 
 ## How builders use this file
 
