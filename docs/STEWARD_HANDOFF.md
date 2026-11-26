@@ -483,7 +483,7 @@ Intent: quick wins for lectures. Folder `tools/logic/`. Each tool is one page wi
 
 | Step | What | Source | Status | Note |
 |---|---|---|---|---|
-| L2.1 | Number systems converter (binary, hex, two's complement, signed range) | Steward, approved by Blake 2026-11-14 | Draft, built for review | Branch l2-1, not merged. tools/logic/number-systems/: binary, decimal and hex in unsigned, sign-magnitude, ones' and two's complement, width 1 to 32, range for the width, overflow flagged, invalid digits rejected, working shown (bit weights and sum, invert and add one), MathJax for the maths. 15 tests. Every on-screen string is not approved (listed in docs/REVIEW_L2.md, with the review steps). |
+| L2.1 | Number systems converter (binary, hex, two's complement, signed range) | Steward, approved by Blake 2026-11-14 | Merged 2026-11-25, approved by Blake 2026-11-25 (strings as built); the page is a noindex draft for review | Branch l2-1. tools/logic/number-systems/: binary, decimal and hex in unsigned, sign-magnitude, ones' and two's complement, width 1 to 32, range for the width, overflow flagged, invalid digits rejected, working shown (bit weights and sum, invert and add one), MathJax for the maths. 15 tests. Strings approved as built (docs/REVIEW_L2.md). |
 | L2.2 | IEEE 754 and fixed-point converter showing the bit fields | Steward, approved by Blake 2026-11-14 | Open | |
 | L2.3 | Adder delay comparison (ripple versus lookahead) and a critical-path calculator | Steward, approved by Blake 2026-11-14 | Open | |
 | L2.4 | Setup and hold timing calculator with a small timing figure | Steward, approved by Blake 2026-11-14 | Open | |
